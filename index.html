@@ -150,23 +150,40 @@ tailwind.config = {
     <div id="userMenuName" class="font-semibold text-sm"></div>
     <div id="userMenuEmail" class="text-xs text-slate-500"></div>
   </div>
-  <button onclick="doLogout()" class="w-full text-left p-3 text-sm hover:bg-slate-100 dark:hover:bg-ink-700 text-red-600">Sair</button>
+  <button onclick="openArchived()" class="w-full text-left p-3 text-sm hover:bg-slate-100 dark:hover:bg-ink-700 flex items-center gap-2">
+    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="5" rx="2"/><path d="M4 9v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/></svg>
+    Cards arquivados
+  </button>
+  <button onclick="doLogout()" class="w-full text-left p-3 text-sm hover:bg-slate-100 dark:hover:bg-ink-700 text-red-600 border-t border-slate-200 dark:border-ink-700">Sair</button>
+</div>
+
+<!-- MODAL ARQUIVADOS -->
+<div id="archivedModal" class="hidden fixed inset-0 z-40 modal-bg items-center justify-center p-4">
+  <div class="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+    <div class="p-5 border-b border-slate-200 dark:border-ink-700 flex items-center">
+      <h2 class="text-lg font-semibold flex-1">Cards arquivados</h2>
+      <button onclick="closeArchived()" class="text-slate-400 hover:text-slate-700">✕</button>
+    </div>
+    <div id="archivedList" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
+  </div>
 </div>
 
 <div id="cardModal" class="hidden fixed inset-0 z-40 modal-bg items-center justify-center p-4">
-  <div class="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-hidden flex flex-col">
+  <div class="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[92vh] overflow-hidden flex flex-col">
     <div class="p-5 border-b border-slate-200 dark:border-ink-700 flex items-start gap-3">
       <input id="cardTitle" class="flex-1 text-lg font-semibold bg-transparent outline-none border-b border-transparent focus:border-pink-500"/>
       <button onclick="closeCard()" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-100">X</button>
     </div>
     <div class="flex border-b border-slate-200 dark:border-ink-700 px-5">
       <button data-tab="details" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-pink-500">Detalhes</button>
-      <button data-tab="activity" class="tab-btn px-4 py-2 text-sm text-slate-500 border-b-2 border-transparent">Atividade</button>
+      <button data-tab="activity" class="tab-btn px-4 py-2 text-sm text-slate-500 border-b-2 border-transparent">Log / Atividade</button>
+      <div class="flex-1"></div>
+      <div id="autosaveStatus" class="text-xs text-slate-400 self-center">salvo</div>
       <span id="commentCount" class="hidden"></span>
     </div>
     <div class="flex-1 overflow-y-auto">
-      <div id="tab-details" class="tab-content p-5 grid grid-cols-3 gap-5">
-        <div class="col-span-2 space-y-4">
+      <div id="tab-details" class="tab-content p-5 grid gap-5" style="grid-template-columns:1fr 320px 340px">
+        <div class="space-y-4 min-w-0">
           <div>
             <label class="text-xs font-medium uppercase text-slate-500">Foto do produto</label>
             <div id="cardCoverBox" class="mt-1 relative">
@@ -263,21 +280,8 @@ tailwind.config = {
             <div id="cardMembers" class="flex flex-wrap gap-1 mt-2"></div>
             <button onclick="openMemberPicker()" class="mt-2 text-xs text-pink-600 hover:underline">+ atribuir alguém</button>
           </div>
-          <!-- COMENTÁRIOS INLINE -->
-          <div class="pt-3 border-t border-slate-200 dark:border-ink-700">
-            <label class="text-xs font-medium uppercase text-slate-500 flex items-center gap-2">
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-              Comentários (<span id="commentCountInline">0</span>)
-            </label>
-            <div class="relative mt-2">
-              <textarea id="commentInput" rows="2" placeholder="Escreva um comentário... use @ pra mencionar alguém" class="w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 outline-none focus:border-pink-500 text-sm resize-y"></textarea>
-              <div id="mentionMenu" class="mention-menu hidden"></div>
-              <button onclick="postComment()" class="mt-1 px-3 py-1.5 rounded-lg bg-pink-500 text-white text-xs font-medium hover:bg-pink-600">Comentar</button>
-            </div>
-            <div id="commentsList" class="space-y-2 mt-3"></div>
-          </div>
         </div>
-        <div class="space-y-3">
+        <div class="space-y-3 min-w-0">
           <div>
             <label class="text-xs font-medium uppercase text-slate-500">Lista</label>
             <select id="cardList" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"></select>
@@ -298,17 +302,26 @@ tailwind.config = {
             <label class="text-xs font-medium uppercase text-slate-500">Data prevista</label>
             <input id="cardDue" type="date" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"/>
           </div>
-          <div class="pt-3 border-t border-slate-200 dark:border-ink-700 flex gap-2">
-            <button onclick="deleteCard()" class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-medium">
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
-              Excluir
+          <div class="pt-3 border-t border-slate-200 dark:border-ink-700">
+            <button onclick="archiveCard()" class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-200 dark:bg-ink-700 hover:bg-slate-300 dark:hover:bg-ink-600 text-slate-700 dark:text-slate-200 text-sm font-medium w-full justify-center">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="5" rx="2"/><path d="M4 9v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9M10 14h4"/></svg>
+              Arquivar card
             </button>
-            <div class="flex-1"></div>
-            <button onclick="saveCard()" class="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-pink-500 hover:bg-pink-600 text-white text-sm font-medium">
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
-              Salvar
-            </button>
+            <div class="text-[10px] text-slate-400 mt-1 text-center">Pra excluir definitivamente vá em Configurações → Arquivados</div>
           </div>
+        </div>
+        <!-- COLUNA COMENTÁRIOS -->
+        <div class="min-w-0 flex flex-col border-l border-slate-200 dark:border-ink-700 pl-5 -ml-2">
+          <label class="text-xs font-medium uppercase text-slate-500 flex items-center gap-2 mb-2">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Comentários (<span id="commentCountInline">0</span>)
+          </label>
+          <div class="relative">
+            <textarea id="commentInput" rows="3" placeholder="Escreva um comentário... use @ pra mencionar" class="w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 outline-none focus:border-pink-500 text-sm resize-y"></textarea>
+            <div id="mentionMenu" class="mention-menu hidden"></div>
+            <button onclick="postComment()" class="mt-1 px-3 py-1.5 rounded-lg bg-pink-500 text-white text-xs font-medium hover:bg-pink-600">Comentar</button>
+          </div>
+          <div id="commentsList" class="space-y-2 mt-3 flex-1 overflow-y-auto pr-1" style="max-height:60vh"></div>
         </div>
       </div>
       <div id="tab-activity" class="tab-content hidden p-5">
@@ -811,7 +824,36 @@ window.addChecklistItem = async () => {
   renderChecklist();
 };
 
-window.saveCard = async () => {
+let autosaveTimer = null;
+function autosave(){
+  clearTimeout(autosaveTimer);
+  document.getElementById('autosaveStatus').textContent = 'salvando...';
+  autosaveTimer = setTimeout(() => saveCard(true), 600);
+}
+document.addEventListener('input', e => {
+  if (!activeCardId) return;
+  const t = e.target;
+  if (t.closest('#tab-details') && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT') && t.id !== 'commentInput') {
+    autosave();
+  }
+});
+document.addEventListener('change', e => {
+  if (!activeCardId) return;
+  const t = e.target;
+  if (t.closest('#tab-details') && (t.tagName === 'SELECT' || t.type === 'checkbox' || t.type === 'date')) {
+    autosave();
+  }
+});
+
+window.archiveCard = async () => {
+  if (!confirm('Arquivar este card? Ele some da tela mas fica salvo. Pra excluir de vez vá em Configurações → Arquivados.')) return;
+  await sb.from('cards').update({archived: true}).eq('id', activeCardId);
+  cards = cards.filter(c=>c.id!==activeCardId);
+  renderBoard(); closeCard();
+  toast('Card arquivado');
+};
+
+window.saveCard = async (silent = false) => {
   const newLabelId = document.getElementById('cardFaccao').value || null;
   const gi = k => parseInt(document.getElementById(k).value) || null;
   const updates = {
@@ -847,8 +889,13 @@ window.saveCard = async () => {
     cardLabels[activeCardId] = [labels.find(l=>l.id===newLabelId)];
   } else cardLabels[activeCardId] = [];
   const c = cards.find(x=>x.id===activeCardId);
-  Object.assign(c, updates);
-  renderBoard(); closeCard(); toast('Salvo!');
+  if (c) Object.assign(c, updates);
+  renderBoard();
+  if (silent){
+    document.getElementById('autosaveStatus').textContent = 'salvo';
+  } else {
+    closeCard(); toast('Salvo!');
+  }
 };
 
 window.closeCard = () => {
@@ -953,12 +1000,28 @@ async function loadActivity(cardId){
   const { data } = await sb.from('activity_log').select('*').eq('card_id', cardId).order('created_at', {ascending: false}).limit(30);
   activity = data || [];
   const box = document.getElementById('activityList');
+  const fieldLabels = { list_id:'Lista', title:'Título', description:'Descrição', archived:'Arquivado', situacao:'Situação', qtd_oficina:'QTD Oficina', qtd_pcs_boas:'Boas', qtd_pcs_falhas:'Falhas', pago_costura:'Pago costura', cover_url:'Foto', tam_pp:'PP',tam_p:'P',tam_m:'M',tam_g:'G',tam_gg:'GG',tam_xg:'XG',tam_pp_of:'PP oficina',tam_p_of:'P oficina',tam_m_of:'M oficina',tam_g_of:'G oficina',tam_gg_of:'GG oficina',tam_xg_of:'XG oficina',data_coleta_oficina:'Data coleta' };
+  const listName = id => lists.find(l=>l.id===id)?.name || '?';
   box.innerHTML = activity.map(a => {
     const actor = profiles.find(p=>p.id===a.actor_id);
-    const actorName = actor?.full_name || 'Alguém';
-    let msg = a.action;
-    if (a.action === 'moved') msg = `moveu de ${lists.find(l=>l.id===a.meta.from_list)?.name || '?'} para ${lists.find(l=>l.id===a.meta.to_list)?.name || '?'}`;
-    return `<div class="text-slate-600 dark:text-slate-300"><span class="font-medium">${escapeHtml(actorName)}</span> ${escapeHtml(msg)} <span class="text-xs text-slate-400">· ${timeAgo(a.created_at)}</span></div>`;
+    const actorName = actor?.full_name || 'Sistema';
+    let msg = a.action, detail = '';
+    if (a.action === 'created') msg = 'criou o card';
+    else if (a.action === 'deleted') msg = 'excluiu o card';
+    else if (a.action === 'moved') { msg = 'moveu'; detail = ` de <b>${escapeHtml(listName(a.meta?.from_list))}</b> pra <b>${escapeHtml(listName(a.meta?.to_list))}</b>`; }
+    else if (a.action === 'edited' && a.meta){
+      const changes = Object.entries(a.meta).map(([k,v])=>{
+        const lbl = fieldLabels[k] || k;
+        let from = v?.from, to = v?.to;
+        if (k === 'list_id'){ from = listName(from); to = listName(to); }
+        if (from === null || from === '') from = '—';
+        if (to === null || to === '') to = '—';
+        return `${lbl}: <span class="text-red-500 line-through">${escapeHtml(String(from).slice(0,30))}</span> → <span class="text-emerald-600">${escapeHtml(String(to).slice(0,30))}</span>`;
+      }).join(' · ');
+      msg = 'editou';
+      detail = ' — ' + changes;
+    }
+    return `<div class="text-slate-600 dark:text-slate-300 text-xs p-2 rounded bg-slate-50 dark:bg-ink-700"><span class="font-medium">${escapeHtml(actorName)}</span> ${msg}${detail} <span class="text-slate-400">· ${timeAgo(a.created_at)}</span></div>`;
   }).join('') || '<div class="text-slate-400 text-xs">Sem atividade ainda</div>';
 }
 
@@ -1001,6 +1064,50 @@ function renderNotifications(){
     };
   });
 }
+
+window.openArchived = async () => {
+  document.getElementById('userMenu').classList.add('hidden');
+  const box = document.getElementById('archivedList');
+  box.innerHTML = '<div class="text-center text-slate-400 p-4">Carregando...</div>';
+  document.getElementById('archivedModal').classList.remove('hidden');
+  document.getElementById('archivedModal').classList.add('flex');
+  const { data: archs } = await sb.from('cards').select('id, title, updated_at, list_id, lists(name, board_id, boards(name))').eq('archived', true).order('updated_at', {ascending: false});
+  if (!archs || archs.length === 0){
+    box.innerHTML = '<div class="text-center text-slate-500 p-8 text-sm">Nenhum card arquivado.</div>';
+    return;
+  }
+  box.innerHTML = '';
+  archs.forEach(a => {
+    const row = document.createElement('div');
+    row.className = 'flex items-center gap-2 p-3 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600';
+    row.innerHTML = `
+      <div class="flex-1 min-w-0">
+        <div class="font-medium text-sm truncate">${escapeHtml(a.title)}</div>
+        <div class="text-xs text-slate-500">${escapeHtml(a.lists?.boards?.name||'')} · ${escapeHtml(a.lists?.name||'')}</div>
+      </div>
+      <button class="restore text-xs px-3 py-1.5 rounded bg-emerald-500 hover:bg-emerald-600 text-white">Restaurar</button>
+      <button class="delete text-xs px-3 py-1.5 rounded bg-red-500 hover:bg-red-600 text-white">Excluir</button>
+    `;
+    row.querySelector('.restore').onclick = async () => {
+      await sb.from('cards').update({archived: false}).eq('id', a.id);
+      row.remove();
+      toast('Restaurado');
+      if (currentBoardId) switchBoard(currentBoardId);
+    };
+    row.querySelector('.delete').onclick = async () => {
+      if (!confirm(`Excluir DEFINITIVAMENTE "${a.title}"? Esta ação não pode ser desfeita.`)) return;
+      if (!prompt('Digite EXCLUIR pra confirmar').match(/^EXCLUIR$/i)) { toast('Cancelado'); return; }
+      await sb.from('cards').delete().eq('id', a.id);
+      row.remove();
+      toast('Excluído definitivamente');
+    };
+    box.appendChild(row);
+  });
+};
+window.closeArchived = () => {
+  document.getElementById('archivedModal').classList.add('hidden');
+  document.getElementById('archivedModal').classList.remove('flex');
+};
 
 window.markAllRead = async () => {
   await sb.from('notifications').update({read: true}).eq('user_id', user.id).eq('read', false);
