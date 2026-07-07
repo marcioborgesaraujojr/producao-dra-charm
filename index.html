@@ -1129,6 +1129,42 @@ function renderNotifications(){
   });
 }
 
+window.openLogoUpload = () => {
+  document.getElementById('userMenu').classList.add('hidden');
+  document.getElementById('logoInput').click();
+};
+document.addEventListener('change', async e => {
+  if (e.target.id === 'logoInput' && e.target.files[0]){
+    const file = e.target.files[0];
+    if (file.size > 2*1024*1024){ toast('Logo muito grande — max 2MB'); return; }
+    toast('Enviando logo...');
+    const ext = file.name.split('.').pop().toLowerCase();
+    const path = 'system/logo-' + Date.now() + '.' + ext;
+    const { error: upErr } = await sb.storage.from('attachments').upload(path, file, {upsert: true});
+    if (upErr){ toast('Erro: '+upErr.message); return; }
+    const { data:{ publicUrl } } = sb.storage.from('attachments').getPublicUrl(path);
+    const { error: updErr } = await sb.from('app_settings').update({ logo_url: publicUrl, updated_at: new Date().toISOString() }).eq('id', 1);
+    if (updErr){ toast('Erro salvar config: '+updErr.message); return; }
+    applyLogo(publicUrl);
+    toast('Logo atualizado!');
+  }
+});
+
+function applyLogo(url){
+  if (!url) return;
+  document.querySelectorAll('.system-logo').forEach(el => {
+    el.innerHTML = '<img src="'+url+'" class="w-full h-full object-cover">';
+    el.classList.remove('bg-pink-500');
+  });
+  const fav = document.getElementById('faviconLink');
+  if (fav) fav.href = url;
+}
+
+async function loadAppSettings(){
+  const { data } = await sb.from('app_settings').select('logo_url').eq('id', 1).maybeSingle();
+  if (data && data.logo_url) applyLogo(data.logo_url);
+}
+
 window.openArchived = async () => {
   document.getElementById('userMenu').classList.add('hidden');
   const box = document.getElementById('archivedList');
