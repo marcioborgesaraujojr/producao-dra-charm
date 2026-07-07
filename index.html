@@ -170,20 +170,37 @@ tailwind.config = {
 <!-- MODAL LOG GERAL -->
 <div id="logGeralModal" class="hidden fixed inset-0 z-40 modal-bg items-center justify-center p-4">
   <div class="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[86vh] flex flex-col">
-    <div class="p-4 border-b border-slate-200 dark:border-ink-700 flex items-center gap-3">
-      <svg class="w-5 h-5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0"/></svg>
-      <h2 class="text-lg font-semibold flex-1">Log geral</h2>
-      <select id="logGeralPessoa" class="p-1.5 rounded-lg bg-slate-100 dark:bg-ink-700 text-sm outline-none">
-        <option value="">Todas as pessoas</option>
-      </select>
-      <select id="logGeralPeriodo" class="p-1.5 rounded-lg bg-slate-100 dark:bg-ink-700 text-sm outline-none">
-        <option value="1">Últimas 24h</option>
-        <option value="7" selected>Últimos 7 dias</option>
-        <option value="30">Últimos 30 dias</option>
-        <option value="90">Últimos 90 dias</option>
-        <option value="9999">Tudo</option>
-      </select>
-      <button onclick="closeLogGeral()" class="text-slate-400 hover:text-slate-700">✕</button>
+    <div class="p-4 border-b border-slate-200 dark:border-ink-700">
+      <div class="flex items-center gap-3 mb-3">
+        <svg class="w-5 h-5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0"/></svg>
+        <h2 class="text-lg font-semibold flex-1">Log geral</h2>
+        <input id="logGeralSearch" type="search" placeholder="Buscar texto…" class="p-1.5 rounded-lg bg-slate-100 dark:bg-ink-700 text-sm outline-none w-48"/>
+        <button onclick="closeLogGeral()" class="text-slate-400 hover:text-slate-700">✕</button>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <select id="logGeralPessoa" class="p-1.5 rounded-lg bg-slate-100 dark:bg-ink-700 text-sm outline-none">
+          <option value="">Todas as pessoas</option>
+        </select>
+        <select id="logGeralAcao" class="p-1.5 rounded-lg bg-slate-100 dark:bg-ink-700 text-sm outline-none">
+          <option value="">Todas as ações</option>
+          <option value="created">Criou</option>
+          <option value="edited">Editou</option>
+          <option value="moved">Moveu</option>
+          <option value="archived">Arquivou</option>
+          <option value="deleted">Excluiu</option>
+        </select>
+        <select id="logGeralBoard" class="p-1.5 rounded-lg bg-slate-100 dark:bg-ink-700 text-sm outline-none">
+          <option value="">Todos os quadros</option>
+        </select>
+        <select id="logGeralPeriodo" class="p-1.5 rounded-lg bg-slate-100 dark:bg-ink-700 text-sm outline-none">
+          <option value="1">Últimas 24h</option>
+          <option value="7" selected>Últimos 7 dias</option>
+          <option value="30">Últimos 30 dias</option>
+          <option value="90">Últimos 90 dias</option>
+          <option value="9999">Tudo</option>
+        </select>
+        <button onclick="clearLogFilters()" class="text-xs text-slate-500 hover:underline ml-auto">Limpar filtros</button>
+      </div>
     </div>
     <div id="logGeralList" class="flex-1 overflow-y-auto p-3 space-y-1"></div>
     <div class="p-3 border-t border-slate-200 dark:border-ink-700 text-xs text-slate-500 text-center" id="logGeralCount"></div>
@@ -1268,6 +1285,22 @@ window.openLogGeral = async () => {
       sel.appendChild(o);
     });
   }
+  const bSel = document.getElementById('logGeralBoard');
+  if (bSel.options.length <= 1){
+    boards.forEach(b => {
+      const o = document.createElement('option');
+      o.value = b.id; o.textContent = b.name;
+      bSel.appendChild(o);
+    });
+  }
+  renderLogGeral();
+};
+window.clearLogFilters = () => {
+  document.getElementById('logGeralPessoa').value = '';
+  document.getElementById('logGeralAcao').value = '';
+  document.getElementById('logGeralBoard').value = '';
+  document.getElementById('logGeralPeriodo').value = '7';
+  document.getElementById('logGeralSearch').value = '';
   renderLogGeral();
 };
 window.closeLogGeral = () => {
@@ -1278,14 +1311,31 @@ async function renderLogGeral(){
   const box = document.getElementById('logGeralList');
   box.innerHTML = '<div class="text-center text-slate-400 p-8">Carregando...</div>';
   const pessoa = document.getElementById('logGeralPessoa').value;
+  const acao = document.getElementById('logGeralAcao').value;
+  const boardId = document.getElementById('logGeralBoard').value;
+  const busca = (document.getElementById('logGeralSearch').value||'').toLowerCase().trim();
   const dias = parseInt(document.getElementById('logGeralPeriodo').value) || 9999;
   const since = new Date(Date.now() - dias*24*60*60*1000).toISOString();
-  let q = sb.from('activity_log').select('*, cards(title, list_id, lists(name, board_id, boards(name)))').gte('created_at', since).order('created_at', {ascending: false}).limit(300);
+  let q = sb.from('activity_log').select('*, cards(title, list_id, lists(name, board_id, boards(name)))').gte('created_at', since).order('created_at', {ascending: false}).limit(500);
   if (pessoa) q = q.eq('actor_id', pessoa);
-  const { data, error } = await q;
+  if (acao === 'archived'){
+    // arquivar é um edit no campo archived
+    q = q.eq('action', 'edited');
+  } else if (acao) q = q.eq('action', acao);
+  const { data: raw, error } = await q;
   if (error){ box.innerHTML = '<div class="text-red-500 p-4">Erro: '+error.message+'</div>'; return; }
-  document.getElementById('logGeralCount').textContent = (data?.length || 0) + ' eventos';
-  if (!data || data.length === 0){ box.innerHTML = '<div class="text-center text-slate-500 p-8">Sem atividade no período.</div>'; return; }
+  // filtros client-side
+  let data = raw || [];
+  if (boardId) data = data.filter(a => a.cards?.lists?.board_id === boardId);
+  if (acao === 'archived') data = data.filter(a => a.meta && 'archived' in a.meta);
+  if (acao === 'edited') data = data.filter(a => !(a.meta && Object.keys(a.meta).length === 1 && 'archived' in a.meta));
+  if (busca) data = data.filter(a => {
+    const t = (a.cards?.title||'').toLowerCase();
+    const m = JSON.stringify(a.meta||{}).toLowerCase();
+    return t.includes(busca) || m.includes(busca);
+  });
+  document.getElementById('logGeralCount').textContent = data.length + ' eventos';
+  if (data.length === 0){ box.innerHTML = '<div class="text-center text-slate-500 p-8">Sem eventos com esses filtros.</div>'; return; }
   const fieldLabels = { list_id:'Lista', title:'Título', description:'Descrição', archived:'Arquivado', situacao:'Situação', qtd_oficina:'QTD Oficina', qtd_pcs_boas:'Boas', qtd_pcs_falhas:'Falhas', pago_costura:'Pago costura', cover_url:'Foto', tam_pp:'PP',tam_p:'P',tam_m:'M',tam_g:'G',tam_gg:'GG',tam_xg:'XG',tam_pp_of:'PP of',tam_p_of:'P of',tam_m_of:'M of',tam_g_of:'G of',tam_gg_of:'GG of',tam_xg_of:'XG of',data_coleta_oficina:'Data coleta' };
   box.innerHTML = data.map(a => {
     const actor = profiles.find(p=>p.id===a.actor_id);
@@ -1329,7 +1379,13 @@ async function renderLogGeral(){
   });
 }
 document.addEventListener('change', e => {
-  if (['logGeralPessoa','logGeralPeriodo'].includes(e.target.id)) renderLogGeral();
+  if (['logGeralPessoa','logGeralPeriodo','logGeralAcao','logGeralBoard'].includes(e.target.id)) renderLogGeral();
+});
+document.addEventListener('input', e => {
+  if (e.target.id === 'logGeralSearch'){
+    clearTimeout(window.__logSearchT);
+    window.__logSearchT = setTimeout(renderLogGeral, 300);
+  }
 });
 
 window.openLogoUpload = () => {
