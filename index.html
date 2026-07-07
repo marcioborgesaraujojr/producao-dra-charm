@@ -27,126 +27,186 @@ tailwind.config = {
   .card-drag:active{cursor:grabbing}
   .drop-hint{outline:2px dashed #ec4899;outline-offset:-4px;background:rgba(236,72,153,.06)}
   .modal-bg{background:rgba(0,0,0,.5);backdrop-filter:blur(2px)}
-  .facção-chip{transition:transform .1s}
-  .facção-chip:hover{transform:translateY(-1px)}
   kbd{background:#eef2ff;border:1px solid #c7d2fe;padding:0 6px;border-radius:4px;font-size:11px;font-family:ui-monospace,monospace}
   .dark kbd{background:#312e81;border-color:#4338ca;color:#e0e7ff}
   @keyframes slideIn{from{transform:translateY(6px);opacity:0}to{transform:translateY(0);opacity:1}}
   .card{animation:slideIn .12s ease-out}
+  .mention-tag{background:#fce7f3;color:#be185d;padding:0 4px;border-radius:4px;font-weight:600}
+  .dark .mention-tag{background:#831843;color:#f9a8d4}
+  .mention-menu{position:absolute;background:white;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);z-index:60;max-height:200px;overflow-y:auto;min-width:200px}
+  .dark .mention-menu{background:#1f2937;border-color:#374151}
 </style>
 </head>
 <body class="bg-slate-100 dark:bg-ink-900 text-slate-900 dark:text-slate-100 transition-colors">
 
-<!-- HEADER -->
-<header class="sticky top-0 z-30 bg-white/90 dark:bg-ink-800/90 backdrop-blur border-b border-slate-200 dark:border-ink-700">
-  <div class="px-4 py-2 flex items-center gap-3">
-    <div class="flex items-center gap-2">
-      <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-pink-500 to-fuchsia-600 flex items-center justify-center text-white font-bold">C</div>
-      <div class="leading-tight">
-        <div class="text-sm font-semibold">Produção · Dra. Charm</div>
-        <div class="text-[11px] text-slate-500 dark:text-slate-400" id="statsLine">— cards</div>
+<div id="loginScreen" class="hidden min-h-screen flex items-center justify-center p-4">
+  <div class="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-md p-8">
+    <div class="flex items-center gap-3 mb-6">
+      <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-500 to-fuchsia-600 flex items-center justify-center text-white font-bold text-xl">C</div>
+      <div>
+        <div class="text-lg font-bold">Produção Dra. Charm</div>
+        <div class="text-xs text-slate-500">Substituto do Trello</div>
       </div>
     </div>
-
-    <div class="flex-1 flex items-center gap-2">
-      <div class="relative flex-1 max-w-lg">
-        <input id="search" type="search" placeholder="Buscar card, referência, cor…  ( / )"
-               class="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-100 dark:bg-ink-700 border border-transparent focus:border-pink-500 focus:bg-white dark:focus:bg-ink-900 outline-none text-sm"/>
-        <svg class="absolute left-2.5 top-2.5 w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg>
+    <div id="authError" class="hidden mb-4 text-sm text-red-600 bg-red-50 dark:bg-red-900/30 p-2 rounded"></div>
+    <div class="space-y-3">
+      <div>
+        <label class="text-xs font-medium uppercase text-slate-500">Email</label>
+        <input id="authEmail" type="email" placeholder="voce@drapharm.com.br" class="mt-1 w-full p-3 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 outline-none focus:border-pink-500">
       </div>
-
-      <button id="filterFaccaoBtn" class="px-3 py-2 rounded-lg bg-slate-100 dark:bg-ink-700 hover:bg-slate-200 text-sm flex items-center gap-1">
-        Facção <span id="filterFaccaoCount" class="text-xs bg-pink-500 text-white rounded-full px-1.5 hidden">0</span>
-      </button>
-
-      <label class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 dark:bg-ink-700 text-sm cursor-pointer select-none">
-        <input id="hideFinalizado" type="checkbox" checked class="accent-pink-500">
-        Ocultar finalizados
-      </label>
-
-      <select id="density" class="px-2 py-2 rounded-lg bg-slate-100 dark:bg-ink-700 text-sm">
-        <option value="cozy">Confortável</option>
-        <option value="compact">Compacto</option>
-      </select>
+      <div>
+        <label class="text-xs font-medium uppercase text-slate-500">Senha</label>
+        <input id="authPassword" type="password" placeholder="********" class="mt-1 w-full p-3 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 outline-none focus:border-pink-500">
+      </div>
+      <button onclick="doLogin()" class="w-full p-3 rounded-lg bg-pink-500 text-white font-semibold hover:bg-pink-600">Entrar</button>
+      <button onclick="doMagicLink()" class="w-full p-3 rounded-lg bg-slate-100 dark:bg-ink-700 text-sm hover:bg-slate-200">Ou receba um link por email</button>
     </div>
-
-    <div class="flex items-center gap-2">
-      <button id="estoqueBtn" title="Estoque de tecidos" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700">
-        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
-      </button>
-      <button id="importBtn" title="Importar do Trello" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700">
-        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
-      </button>
-      <button id="themeBtn" title="Alternar tema" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700">
-        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-      </button>
-    </div>
+    <div class="text-xs text-slate-500 mt-4 text-center">Primeira vez? Peça pro Marcio te enviar um convite.</div>
   </div>
+</div>
 
-  <div id="faccaoFilterBar" class="hidden px-4 pb-3 flex flex-wrap gap-1.5"></div>
-</header>
+<div id="app" class="hidden">
+  <header class="sticky top-0 z-30 bg-white/90 dark:bg-ink-800/90 backdrop-blur border-b border-slate-200 dark:border-ink-700">
+    <div class="px-4 py-2 flex items-center gap-3">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-pink-500 to-fuchsia-600 flex items-center justify-center text-white font-bold">C</div>
+        <div class="leading-tight">
+          <select id="boardSelect" class="text-sm font-semibold bg-transparent outline-none cursor-pointer"></select>
+          <div class="text-[11px] text-slate-500 dark:text-slate-400" id="statsLine">cards</div>
+        </div>
+      </div>
 
-<!-- BOARD -->
-<main id="board" class="board-scroll flex gap-3 overflow-x-auto items-start p-4" style="min-height:calc(100vh - 60px)"></main>
+      <div class="flex-1 flex items-center gap-2">
+        <div class="relative flex-1 max-w-lg">
+          <input id="search" type="search" placeholder="Buscar card...  ( / )" class="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-100 dark:bg-ink-700 border border-transparent focus:border-pink-500 focus:bg-white dark:focus:bg-ink-900 outline-none text-sm"/>
+          <svg class="absolute left-2.5 top-2.5 w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg>
+        </div>
+        <button id="filterFaccaoBtn" class="px-3 py-2 rounded-lg bg-slate-100 dark:bg-ink-700 hover:bg-slate-200 text-sm flex items-center gap-1">
+          Facção <span id="filterFaccaoCount" class="text-xs bg-pink-500 text-white rounded-full px-1.5 hidden">0</span>
+        </button>
+        <label class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 dark:bg-ink-700 text-sm cursor-pointer select-none">
+          <input id="hideFinalizado" type="checkbox" checked class="accent-pink-500">Ocultar finalizados
+        </label>
+        <select id="density" class="px-2 py-2 rounded-lg bg-slate-100 dark:bg-ink-700 text-sm">
+          <option value="cozy">Confortável</option>
+          <option value="compact">Compacto</option>
+        </select>
+      </div>
 
-<!-- MODAL: card details -->
+      <div class="flex items-center gap-2">
+        <button id="bellBtn" class="relative p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span id="bellBadge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">0</span>
+        </button>
+        <button id="estoqueBtn" title="Estoque" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <button id="themeBtn" title="Tema" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <button id="userMenuBtn" class="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-ink-700">
+          <div id="userAvatar" class="w-8 h-8 rounded-full bg-pink-500 text-white flex items-center justify-center font-bold text-sm">?</div>
+        </button>
+      </div>
+    </div>
+    <div id="faccaoFilterBar" class="hidden px-4 pb-3 flex flex-wrap gap-1.5"></div>
+  </header>
+
+  <main id="board" class="board-scroll flex gap-3 overflow-x-auto items-start p-4" style="min-height:calc(100vh - 60px)"></main>
+</div>
+
+<div id="bellDropdown" class="hidden fixed right-4 top-14 z-40 bg-white dark:bg-ink-800 rounded-xl shadow-2xl border border-slate-200 dark:border-ink-700 w-80 max-h-96 overflow-y-auto">
+  <div class="p-3 border-b border-slate-200 dark:border-ink-700 flex items-center">
+    <div class="font-semibold flex-1">Notificações</div>
+    <button onclick="markAllRead()" class="text-xs text-pink-600 hover:underline">Marcar tudo como lido</button>
+  </div>
+  <div id="notifList" class="divide-y divide-slate-200 dark:divide-ink-700"><div class="p-4 text-sm text-slate-500 text-center">Sem notificações</div></div>
+</div>
+
+<div id="userMenu" class="hidden fixed right-4 top-14 z-40 bg-white dark:bg-ink-800 rounded-xl shadow-2xl border border-slate-200 dark:border-ink-700 w-56">
+  <div class="p-3 border-b border-slate-200 dark:border-ink-700">
+    <div id="userMenuName" class="font-semibold text-sm"></div>
+    <div id="userMenuEmail" class="text-xs text-slate-500"></div>
+  </div>
+  <button onclick="doLogout()" class="w-full text-left p-3 text-sm hover:bg-slate-100 dark:hover:bg-ink-700 text-red-600">Sair</button>
+</div>
+
 <div id="cardModal" class="hidden fixed inset-0 z-40 modal-bg items-center justify-center p-4">
-  <div class="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+  <div class="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-hidden flex flex-col">
     <div class="p-5 border-b border-slate-200 dark:border-ink-700 flex items-start gap-3">
       <input id="cardTitle" class="flex-1 text-lg font-semibold bg-transparent outline-none border-b border-transparent focus:border-pink-500"/>
-      <button onclick="closeCard()" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-100">✕</button>
+      <button onclick="closeCard()" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-100">X</button>
     </div>
-    <div class="p-5 grid grid-cols-3 gap-5">
-      <div class="col-span-2 space-y-4">
-        <div>
-          <label class="text-xs font-medium uppercase text-slate-500">Descrição</label>
-          <textarea id="cardDesc" rows="4" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 outline-none focus:border-pink-500"></textarea>
+    <div class="flex border-b border-slate-200 dark:border-ink-700 px-5">
+      <button data-tab="details" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-pink-500">Detalhes</button>
+      <button data-tab="comments" class="tab-btn px-4 py-2 text-sm text-slate-500 border-b-2 border-transparent">Comentários <span id="commentCount" class="text-xs bg-slate-200 dark:bg-ink-700 px-1.5 rounded-full ml-1">0</span></button>
+      <button data-tab="activity" class="tab-btn px-4 py-2 text-sm text-slate-500 border-b-2 border-transparent">Atividade</button>
+    </div>
+    <div class="flex-1 overflow-y-auto">
+      <div id="tab-details" class="tab-content p-5 grid grid-cols-3 gap-5">
+        <div class="col-span-2 space-y-4">
+          <div>
+            <label class="text-xs font-medium uppercase text-slate-500">Descrição</label>
+            <textarea id="cardDesc" rows="4" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 outline-none focus:border-pink-500"></textarea>
+          </div>
+          <div>
+            <label class="text-xs font-medium uppercase text-slate-500">Checklist</label>
+            <div id="cardChecklist" class="mt-2 space-y-1"></div>
+            <button onclick="addChecklistItem()" class="mt-2 text-xs text-pink-600 hover:underline">+ item</button>
+          </div>
+          <div>
+            <label class="text-xs font-medium uppercase text-slate-500">Membros do card</label>
+            <div id="cardMembers" class="flex flex-wrap gap-1 mt-2"></div>
+            <button onclick="openMemberPicker()" class="mt-2 text-xs text-pink-600 hover:underline">+ atribuir alguém</button>
+          </div>
         </div>
-        <div>
-          <label class="text-xs font-medium uppercase text-slate-500">Checklist</label>
-          <div id="cardChecklist" class="mt-2 space-y-1"></div>
-          <button onclick="addChecklistItem()" class="mt-2 text-xs text-pink-600 hover:underline">+ item</button>
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs font-medium uppercase text-slate-500">Lista</label>
+            <select id="cardList" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"></select>
+          </div>
+          <div>
+            <label class="text-xs font-medium uppercase text-slate-500">Facção</label>
+            <select id="cardFaccao" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"></select>
+          </div>
+          <div>
+            <label class="text-xs font-medium uppercase text-slate-500">Tecido consumido</label>
+            <div class="flex gap-1 mt-1">
+              <select id="cardTecido" class="flex-1 p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"><option value="">—</option></select>
+              <input id="cardTecidoQtd" type="number" step="0.1" placeholder="m" class="w-20 p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"/>
+            </div>
+          </div>
+          <div>
+            <label class="text-xs font-medium uppercase text-slate-500">Data prevista</label>
+            <input id="cardDue" type="date" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"/>
+          </div>
+          <div class="pt-3 border-t border-slate-200 dark:border-ink-700 flex gap-2">
+            <button onclick="deleteCard()" class="text-xs text-red-600 hover:underline">Excluir</button>
+            <div class="flex-1"></div>
+            <button onclick="saveCard()" class="px-3 py-1.5 rounded-lg bg-pink-500 text-white text-sm hover:bg-pink-600">Salvar</button>
+          </div>
         </div>
       </div>
-      <div class="space-y-3">
-        <div>
-          <label class="text-xs font-medium uppercase text-slate-500">Lista</label>
-          <select id="cardList" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"></select>
+      <div id="tab-comments" class="tab-content hidden p-5">
+        <div class="relative mb-4">
+          <textarea id="commentInput" rows="3" placeholder="Escreva um comentário... use @ pra mencionar alguém" class="w-full p-3 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 outline-none focus:border-pink-500 text-sm resize-y"></textarea>
+          <div id="mentionMenu" class="mention-menu hidden"></div>
+          <button onclick="postComment()" class="mt-2 px-4 py-2 rounded-lg bg-pink-500 text-white text-sm hover:bg-pink-600">Comentar</button>
         </div>
-        <div>
-          <label class="text-xs font-medium uppercase text-slate-500">Facção</label>
-          <select id="cardFaccao" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"></select>
-        </div>
-        <div>
-          <label class="text-xs font-medium uppercase text-slate-500">Tecido consumido</label>
-          <div class="flex gap-1 mt-1">
-            <select id="cardTecido" class="flex-1 p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm">
-              <option value="">—</option>
-            </select>
-            <input id="cardTecidoQtd" type="number" step="0.1" placeholder="m" class="w-20 p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"/>
-          </div>
-          <div id="tecidoInfo" class="text-[11px] text-slate-500 mt-1"></div>
-        </div>
-        <div>
-          <label class="text-xs font-medium uppercase text-slate-500">Data prevista</label>
-          <input id="cardDue" type="date" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"/>
-        </div>
-        <div class="pt-3 border-t border-slate-200 dark:border-ink-700 flex gap-2">
-          <button onclick="deleteCard()" class="text-xs text-red-600 hover:underline">Excluir</button>
-          <div class="flex-1"></div>
-          <button onclick="closeCard()" class="px-3 py-1.5 rounded-lg bg-pink-500 text-white text-sm hover:bg-pink-600">Salvar</button>
-        </div>
+        <div id="commentsList" class="space-y-3"></div>
+      </div>
+      <div id="tab-activity" class="tab-content hidden p-5">
+        <div id="activityList" class="space-y-2 text-sm"></div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- MODAL: estoque -->
 <div id="estoqueModal" class="hidden fixed inset-0 z-40 modal-bg items-center justify-center p-4">
   <div class="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-lg">
     <div class="p-5 border-b border-slate-200 dark:border-ink-700 flex items-center">
       <h2 class="text-lg font-semibold flex-1">Estoque de tecidos</h2>
-      <button onclick="closeEstoque()" class="text-slate-400 hover:text-slate-700">✕</button>
+      <button onclick="closeEstoque()" class="text-slate-400 hover:text-slate-700">X</button>
     </div>
     <div class="p-5">
       <div id="estoqueList" class="space-y-2"></div>
@@ -159,31 +219,8 @@ tailwind.config = {
   </div>
 </div>
 
-<!-- MODAL: importar -->
-<div id="importModal" class="hidden fixed inset-0 z-40 modal-bg items-center justify-center p-4">
-  <div class="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-lg">
-    <div class="p-5 border-b border-slate-200 dark:border-ink-700 flex items-center">
-      <h2 class="text-lg font-semibold flex-1">Importar do Trello</h2>
-      <button onclick="closeImport()" class="text-slate-400 hover:text-slate-700">✕</button>
-    </div>
-    <div class="p-5 space-y-3">
-      <p class="text-sm text-slate-600 dark:text-slate-400">
-        Cole o JSON que a gente extraiu do Trello, ou cole a URL do quadro (você precisa estar logado no Trello no mesmo navegador).
-      </p>
-      <textarea id="importText" rows="8" placeholder='Cole o JSON aqui ou a URL do quadro Trello'
-                class="w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-xs font-mono outline-none focus:border-pink-500 border border-slate-200 dark:border-ink-600"></textarea>
-      <div class="flex justify-end gap-2">
-        <button onclick="closeImport()" class="px-3 py-2 rounded-lg bg-slate-200 dark:bg-ink-700 text-sm">Cancelar</button>
-        <button onclick="doImport()" class="px-3 py-2 rounded-lg bg-pink-500 text-white text-sm">Importar</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- TOAST -->
 <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm shadow-lg opacity-0 pointer-events-none transition-opacity"></div>
 
-<!-- HELP -->
 <div class="fixed bottom-4 right-4 z-30">
   <details class="bg-white dark:bg-ink-800 shadow-lg rounded-xl border border-slate-200 dark:border-ink-700">
     <summary class="px-3 py-2 text-xs cursor-pointer select-none">Atalhos</summary>
@@ -191,433 +228,688 @@ tailwind.config = {
       <div><kbd>/</kbd> buscar</div>
       <div><kbd>N</kbd> novo card</div>
       <div><kbd>Esc</kbd> fechar</div>
-      <div><kbd>1-9</kbd> mover card selecionado</div>
+      <div><kbd>@</kbd> mencionar</div>
     </div>
   </details>
 </div>
 
-<script>
-// ============== DADOS INICIAIS (do Trello real) ==============
-const SEED = {
-  lists: [
-    { id:'l1', name:'Cortadas' },
-    { id:'l2', name:'Costurando' },
-    { id:'l3', name:'Caseado/Botão' },
-    { id:'l4', name:'Lavanderia' },
-    { id:'l5', name:'Entrada do Acabamento (aguardando)' },
-    { id:'l6', name:'Em Acabamento' },
-    { id:'l7', name:'Faltando Finalizar Acabamento (consertos)' },
-    { id:'l8', name:'Fechada/Estoque' },
-    { id:'l9', name:'FINALIZADO/DADO ENTRADA NO SISTEMA' },
-  ],
-  facções: [
-    { name:'DAYANE', color:'#fca5a5' },
-    { name:'ECILIA', color:'#7dd3fc' },
-    { name:'MARY', color:'#d8b4fe' },
-    { name:'ESTEICY', color:'#6b7280' },
-    { name:'RAQUEL', color:'#86efac' },
-    { name:'ANGELA', color:'#a855f7' },
-    { name:'ELIETE', color:'#eab308' },
-    { name:'ANA ARACOIABA', color:'#fb923c' },
-    { name:'MAIARA', color:'#ef4444' },
-    { name:'ERINEUDA', color:'#ec4899' },
-    { name:'SOCORRO', color:'#a3e635' },
-    { name:'LENILCE', color:'#4ade80' },
-    { name:'ELANE', color:'#f472b6' },
-    { name:'VASTE', color:'#7c3aed' },
-    { name:'DANNY', color:'#fde047' },
-    { name:'RAQUEL COSTA', color:'#93c5fd' },
-    { name:'ANA CLEA', color:'#3b82f6' },
-    { name:'NEILIANE', color:'#0284c7' },
-    { name:'FRANCISCO', color:'#facc15' },
-    { name:'REJANE', color:'#f9a8d4' },
-    { name:'ANDERSON', color:'#c2410c' },
-    { name:'ISA', color:'#166534' },
-    { name:'LEIDIANE', color:'#111827' },
-    { name:'SEM FACÇÃO', color:'#991b1b' },
-  ],
-  tecidos: [
-    { name:'Alfaiataria', qtd:100 },
-    { name:'Malha Tecnológica', qtd:80 },
-    { name:'Two Way', qtd:40 },
-    { name:'Scuba', qtd:60 },
-  ],
-  cards: [
-    { id:'c1', title:'REF 1502 Preto - 20 peças', listId:'l2', faccao:'DAYANE', tecido:'Alfaiataria', tecidoQtd:12, desc:'Blazer feminino tam P ao GG' },
-    { id:'c2', title:'REF 2201 Nude - 15 peças', listId:'l2', faccao:'MARY', tecido:'Malha Tecnológica', tecidoQtd:8, desc:'Vestido midi' },
-    { id:'c3', title:'REF 0089 Verde Militar - 10 peças', listId:'l6', faccao:'RAQUEL', tecido:'Alfaiataria', tecidoQtd:6 },
-    { id:'c4', title:'REF 1177 Marsala - 25 peças', listId:'l5', faccao:'ECILIA', tecido:'Scuba', tecidoQtd:10 },
-    { id:'c5', title:'REF 3055 Off-white - 8 peças', listId:'l7', faccao:'ELIETE', tecido:'Alfaiataria', tecidoQtd:5, desc:'Consertos: barra e botão' },
-    { id:'c6', title:'REF 4109 Rosa - 30 peças', listId:'l1', faccao:'ANGELA', tecido:'Malha Tecnológica', tecidoQtd:14 },
-    { id:'c7', title:'REF 2278 Azul Marinho - 12 peças', listId:'l3', faccao:'ANA CLEA', tecido:'Alfaiataria', tecidoQtd:7 },
-    { id:'c8', title:'REF 5501 Preto - 40 peças', listId:'l9', faccao:'DAYANE', tecido:'Alfaiataria', tecidoQtd:20 },
-    { id:'c9', title:'REF 6602 Vinho - 18 peças', listId:'l4', faccao:'MARY', tecido:'Two Way', tecidoQtd:9 },
-    { id:'c10', title:'REF 7013 Bege - 22 peças', listId:'l8', faccao:'REJANE', tecido:'Alfaiataria', tecidoQtd:11 },
-  ],
-};
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// ============== ESTADO ==============
-const LS_KEY = 'dra_charm_producao_v1';
-let state = load() || SEED;
-let selectedCardId = null;
-let activeCardId = null;
-let draggingCardId = null;
+const SUPABASE_URL = 'https://wwytzoyeibekhstinott.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_uMoCEK4Ed_u8ZIfjVZ7Jrg_tdR4b9bO';
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true },
+  realtime: { params: { eventsPerSecond: 10 } }
+});
+window.sb = sb;
+
+let user = null, profile = null, profiles = [];
+let boards = [], currentBoardId = null;
+let lists = [], labels = [], tecidos = [], cards = [];
+let cardLabels = {}, cardMembers = {}, checklistsByCard = {};
+let comments = [], activity = [], notifications = [];
+let activeCardId = null, draggingCardId = null;
 let filters = { faccao: new Set(), search: '', hideFinalizado: true, density:'cozy' };
 
-function load(){ try { return JSON.parse(localStorage.getItem(LS_KEY)); } catch(e){ return null; } }
-function save(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+async function initAuth(){
+  const { data: { session } } = await sb.auth.getSession();
+  if (session){ user = session.user; await afterLogin(); }
+  else showLogin();
+  sb.auth.onAuthStateChange((_e, s) => {
+    if (s && !user){ user = s.user; afterLogin(); }
+    if (!s && user){ user = null; showLogin(); }
+  });
+}
 
-// ============== RENDER ==============
-function render(){
+function showLogin(){ document.getElementById('loginScreen').classList.remove('hidden'); document.getElementById('app').classList.add('hidden'); }
+function showApp(){ document.getElementById('loginScreen').classList.add('hidden'); document.getElementById('app').classList.remove('hidden'); }
+
+window.doLogin = async () => {
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const err = document.getElementById('authError');
+  err.classList.add('hidden');
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error){ err.textContent = error.message; err.classList.remove('hidden'); }
+};
+window.doMagicLink = async () => {
+  const email = document.getElementById('authEmail').value.trim();
+  if (!email){ toast('Digite seu email'); return; }
+  const { error } = await sb.auth.signInWithOtp({ email, options:{ emailRedirectTo: window.location.origin }});
+  if (error) toast('Erro: '+error.message);
+  else toast('Link enviado! Confere seu email.');
+};
+window.doLogout = async () => { await sb.auth.signOut(); location.reload(); };
+
+async function afterLogin(){
+  const { data: p } = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle();
+  profile = p;
+  if (!profile){
+    const { data: np } = await sb.from('profiles').insert({ id: user.id, email: user.email, full_name: user.email.split('@')[0] }).select().single();
+    profile = np;
+  }
+  const { data: allP } = await sb.from('profiles').select('*');
+  profiles = allP || [];
+  showApp();
+  updateUserAvatar();
+  const { data: bs } = await sb.from('boards').select('*, board_members!inner(*)').eq('board_members.user_id', user.id).order('created_at');
+  boards = bs || [];
+  if (boards.length === 0){
+    if (profile.role === 'admin' || confirm('Você não tem quadros. Criar os quadros iniciais?')){
+      await bootstrapBoards();
+    } else {
+      document.getElementById('board').innerHTML = '<div class="text-center p-8 text-slate-500">Você ainda não foi adicionado a nenhum quadro.</div>';
+      return;
+    }
+  }
+  renderBoardSelect();
+  await switchBoard(boards[0].id);
+  await loadNotifications();
+  subscribeRealtime();
+}
+
+async function bootstrapBoards(){
+  const boardsData = [
+    {name: 'Produção', color:'#e91e63', lists:['Cortadas','Costurando','Caseado/Botão','Lavanderia','Entrada do Acabamento','Em Acabamento','Faltando Finalizar (consertos)','Fechada/Estoque','FINALIZADO'], labels:[
+      {name:'DAYANE',color:'#fca5a5'},{name:'ECILIA',color:'#7dd3fc'},{name:'MARY',color:'#d8b4fe'},{name:'ESTEICY',color:'#6b7280'},{name:'RAQUEL',color:'#86efac'},{name:'ANGELA',color:'#a855f7'},{name:'ELIETE',color:'#eab308'},{name:'ANA ARACOIABA',color:'#fb923c'},{name:'MAIARA',color:'#ef4444'},{name:'ERINEUDA',color:'#ec4899'},{name:'SOCORRO',color:'#a3e635'},{name:'LENILCE',color:'#4ade80'},{name:'ELANE',color:'#f472b6'},{name:'VASTE',color:'#7c3aed'},{name:'DANNY',color:'#fde047'},{name:'RAQUEL COSTA',color:'#93c5fd'},{name:'ANA CLEA',color:'#3b82f6'},{name:'NEILIANE',color:'#0284c7'},{name:'FRANCISCO',color:'#facc15'},{name:'REJANE',color:'#f9a8d4'},{name:'ANDERSON',color:'#c2410c'},{name:'ISA',color:'#166534'},{name:'LEIDIANE',color:'#111827'},{name:'SEM FACÇÃO',color:'#991b1b'}
+    ], tecidos:[{name:'Alfaiataria',qtd:100},{name:'Malha Tecnológica',qtd:80},{name:'Two Way',qtd:40},{name:'Scuba',qtd:60}]},
+    {name: 'Corte e Tecidos', color:'#3b82f6', lists:['ESTOQUE ALFAIATARIA','ESTOQUE MALHA TECNOLOGICA','TWO WAY','ESTOQUE SCUBA','PARA CORTAR','CORTADA/CONCLUIDO'], labels:[], tecidos:[]},
+    {name: 'Marketing', color:'#a855f7', lists:['Ideias','Escrevendo','Editando','Agendado','Publicado'], labels:[{name:'COMERCIAL',color:'#a855f7'},{name:'ENDOMKT',color:'#ec4899'}], tecidos:[]},
+    {name: 'Atendimento', color:'#eab308', lists:['CORREIOS','J & T','TOTAL EXPRESS','EXTRAVIO','CHARGEBACK','DEVOLUÇÃO','PENDENCIAS FINALIZADAS'], labels:[{name:'TALITA',color:'#ef4444'},{name:'TAYANA',color:'#86efac'},{name:'ALÊ',color:'#eab308'},{name:'CAMILA',color:'#d8b4fe'},{name:'ELAINE',color:'#0284c7'}], tecidos:[]},
+  ];
+  for (const b of boardsData){
+    const { data: newBoard } = await sb.from('boards').insert({name: b.name, color: b.color, created_by: user.id}).select().single();
+    await sb.from('board_members').insert({board_id: newBoard.id, user_id: user.id, can_edit: true});
+    let pos = 16384;
+    for (const lname of b.lists){
+      await sb.from('lists').insert({board_id: newBoard.id, name: lname, position: pos});
+      pos += 16384;
+    }
+    if (b.labels.length) await sb.from('labels').insert(b.labels.map(l=>({board_id: newBoard.id, name: l.name, color: l.color})));
+    if (b.tecidos.length) await sb.from('tecidos').insert(b.tecidos.map(t=>({board_id: newBoard.id, name: t.name, quantidade: t.qtd})));
+  }
+  const { data: bs } = await sb.from('boards').select('*, board_members!inner(*)').eq('board_members.user_id', user.id).order('created_at');
+  boards = bs || [];
+}
+
+function updateUserAvatar(){
+  const initial = (profile.full_name || profile.email || '?').charAt(0).toUpperCase();
+  document.getElementById('userAvatar').textContent = initial;
+  document.getElementById('userMenuName').textContent = profile.full_name;
+  document.getElementById('userMenuEmail').textContent = profile.email;
+}
+
+function renderBoardSelect(){
+  const sel = document.getElementById('boardSelect');
+  sel.innerHTML = boards.map(b => `<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('');
+  sel.value = currentBoardId || boards[0]?.id;
+}
+
+async function switchBoard(boardId){
+  currentBoardId = boardId;
+  document.getElementById('board').innerHTML = '<div class="text-center p-8 text-slate-500">Carregando...</div>';
+  const [lR, laR, tR, cR] = await Promise.all([
+    sb.from('lists').select('*').eq('board_id', boardId).eq('archived', false).order('position'),
+    sb.from('labels').select('*').eq('board_id', boardId).order('name'),
+    sb.from('tecidos').select('*').eq('board_id', boardId).order('name'),
+    sb.from('cards').select('*, card_labels(label_id), card_members(user_id)').eq('archived', false),
+  ]);
+  lists = lR.data || []; labels = laR.data || []; tecidos = tR.data || [];
+  const listIds = new Set(lists.map(l=>l.id));
+  cards = (cR.data || []).filter(c => listIds.has(c.list_id));
+  cardLabels = {}; cardMembers = {};
+  cards.forEach(c => {
+    cardLabels[c.id] = (c.card_labels||[]).map(cl => labels.find(l=>l.id===cl.label_id)).filter(Boolean);
+    cardMembers[c.id] = (c.card_members||[]).map(cm => profiles.find(p=>p.id===cm.user_id)).filter(Boolean);
+  });
+  renderBoard();
+}
+
+function renderBoard(){
   const board = document.getElementById('board');
   board.innerHTML = '';
   const q = filters.search.trim().toLowerCase();
-  const facSel = filters.faccao;
-  const finalizadoId = state.lists.find(l=>l.name.startsWith('FINALIZADO'))?.id;
-
+  const finalizadoId = lists.find(l => /finalizado|conclu/i.test(l.name))?.id;
   const compact = filters.density === 'compact';
-
-  state.lists.forEach(list => {
+  lists.forEach(list => {
     if (filters.hideFinalizado && list.id === finalizadoId) return;
-    const cards = state.cards.filter(c => c.listId === list.id)
-      .filter(c => !q || (c.title||'').toLowerCase().includes(q) || (c.desc||'').toLowerCase().includes(q))
-      .filter(c => facSel.size===0 || facSel.has(c.faccao));
-
+    const listCards = cards.filter(c => c.list_id === list.id)
+      .filter(c => !q || (c.title||'').toLowerCase().includes(q) || (c.description||'').toLowerCase().includes(q))
+      .filter(c => filters.faccao.size===0 || cardLabels[c.id].some(l => filters.faccao.has(l.name)))
+      .sort((a,b) => (a.position||0) - (b.position||0));
     const col = document.createElement('div');
     col.className = 'shrink-0 w-72 bg-slate-200/70 dark:bg-ink-800 rounded-xl p-2 flex flex-col max-h-full';
-    col.dataset.listId = list.id;
     col.innerHTML = `
       <div class="flex items-center gap-2 px-2 py-1">
         <div class="font-semibold text-sm flex-1 truncate">${escapeHtml(list.name)}</div>
-        <span class="text-xs px-1.5 rounded-full bg-white dark:bg-ink-700 text-slate-500">${cards.length}</span>
+        <span class="text-xs px-1.5 rounded-full bg-white dark:bg-ink-700 text-slate-500">${listCards.length}</span>
       </div>
       <div class="cards mt-1 flex-1 overflow-y-auto space-y-1.5 min-h-8 p-1"></div>
-      <button class="mt-1 text-left px-2 py-1.5 text-xs text-slate-500 hover:bg-slate-300/50 dark:hover:bg-ink-700 rounded-lg add-card">+ Novo card</button>
-    `;
-    const cardsWrap = col.querySelector('.cards');
-    cards.forEach(c => cardsWrap.appendChild(renderCard(c, compact)));
-
-    // drag & drop targets
+      <button class="mt-1 text-left px-2 py-1.5 text-xs text-slate-500 hover:bg-slate-300/50 dark:hover:bg-ink-700 rounded-lg add-card">+ Novo card</button>`;
+    const cw = col.querySelector('.cards');
+    listCards.forEach(c => cw.appendChild(renderCard(c, compact)));
     col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('drop-hint'); });
     col.addEventListener('dragleave', () => col.classList.remove('drop-hint'));
-    col.addEventListener('drop', e => {
-      e.preventDefault();
-      col.classList.remove('drop-hint');
+    col.addEventListener('drop', async e => {
+      e.preventDefault(); col.classList.remove('drop-hint');
       if (draggingCardId){
-        const card = state.cards.find(c=>c.id===draggingCardId);
-        if (card) { card.listId = list.id; save(); render(); toast(`Movido para "${list.name}"`); }
+        const card = cards.find(c=>c.id===draggingCardId);
+        if (card && card.list_id !== list.id){
+          await sb.from('cards').update({list_id: list.id}).eq('id', card.id);
+          card.list_id = list.id; renderBoard();
+          toast(`Movido para "${list.name}"`);
+        }
       }
     });
-
-    col.querySelector('.add-card').onclick = () => {
-      const t = prompt('Nome do card (ex: REF 1234 Preto - 15 peças)');
-      if (t){ state.cards.push({id:'c'+Date.now(), title:t, listId:list.id, faccao:'SEM FACÇÃO', desc:''}); save(); render(); }
+    col.querySelector('.add-card').onclick = async () => {
+      const t = prompt('Nome do card');
+      if (t){
+        const maxPos = Math.max(0, ...listCards.map(c=>c.position||0));
+        const { data: nc } = await sb.from('cards').insert({list_id: list.id, title: t, position: maxPos+16384, created_by: user.id}).select().single();
+        if (nc){ cards.push(nc); cardLabels[nc.id]=[]; cardMembers[nc.id]=[]; renderBoard(); }
+      }
     };
     board.appendChild(col);
   });
-
-  updateStats();
-  renderFilterBar();
+  updateStats(); renderFilterBar();
 }
 
 function renderCard(c, compact){
   const el = document.createElement('div');
-  const fac = state.facções.find(f=>f.name===c.faccao);
+  const clbls = cardLabels[c.id] || [];
+  const cmembs = cardMembers[c.id] || [];
   el.className = `card card-drag bg-white dark:bg-ink-700 rounded-lg shadow-sm border border-transparent hover:border-pink-500 p-2 ${compact?'text-xs':'text-sm'}`;
   el.draggable = true;
-  el.dataset.cardId = c.id;
+  const labelChips = clbls.slice(0,3).map(l=>`<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style="background:${l.color}22;color:${l.color}"><span class="w-1.5 h-1.5 rounded-full" style="background:${l.color}"></span>${escapeHtml(l.name)}</span>`).join('');
+  const memAvatars = cmembs.slice(0,3).map(m=>`<div class="w-5 h-5 rounded-full bg-pink-500 text-white text-[10px] font-bold flex items-center justify-center" title="${escapeHtml(m.full_name)}">${(m.full_name||'?').charAt(0).toUpperCase()}</div>`).join('');
   el.innerHTML = `
-    ${fac ? `<div class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full mb-1" style="background:${fac.color}22;color:${fac.color}"><span class="w-1.5 h-1.5 rounded-full" style="background:${fac.color}"></span>${escapeHtml(c.faccao)}</div>`:''}
+    ${labelChips ? `<div class="flex flex-wrap gap-1 mb-1">${labelChips}</div>` : ''}
     <div class="font-medium leading-tight">${escapeHtml(c.title)}</div>
-    ${!compact && c.tecido ? `<div class="text-[11px] text-slate-500 mt-1">${escapeHtml(c.tecido)} · ${c.tecidoQtd||0}m</div>`:''}
-    ${!compact && c.due ? `<div class="text-[11px] text-slate-500">📅 ${c.due}</div>`:''}
-  `;
-  el.addEventListener('dragstart', e => { draggingCardId = c.id; el.classList.add('opacity-50'); });
-  el.addEventListener('dragend',   () => { draggingCardId = null; el.classList.remove('opacity-50'); });
+    ${!compact && c.due_date ? `<div class="text-[11px] text-slate-500 mt-1">📅 ${c.due_date}</div>`:''}
+    ${cmembs.length ? `<div class="flex -space-x-1 mt-1">${memAvatars}${cmembs.length>3?`<div class="w-5 h-5 rounded-full bg-slate-400 text-white text-[9px] flex items-center justify-center">+${cmembs.length-3}</div>`:''}</div>`:''}`;
+  el.addEventListener('dragstart', () => { draggingCardId = c.id; el.classList.add('opacity-50'); });
+  el.addEventListener('dragend', () => { draggingCardId = null; el.classList.remove('opacity-50'); });
   el.addEventListener('click', () => openCard(c.id));
   return el;
 }
 
+function updateStats(){
+  const finalizadoId = lists.find(l => /finalizado|conclu/i.test(l.name))?.id;
+  const ativos = cards.filter(c=>c.list_id!==finalizadoId).length;
+  const finalizados = cards.length - ativos;
+  document.getElementById('statsLine').textContent = `${ativos} em produção · ${finalizados} finalizados · ${labels.length} facções`;
+}
+
 function renderFilterBar(){
   const bar = document.getElementById('faccaoFilterBar');
-  if (filters.faccao.size===0){ bar.classList.add('hidden'); return; }
+  if (filters.faccao.size===0){ bar.classList.add('hidden'); document.getElementById('filterFaccaoCount').classList.add('hidden'); return; }
   bar.classList.remove('hidden');
   bar.innerHTML = '';
   filters.faccao.forEach(name => {
-    const fac = state.facções.find(f=>f.name===name);
-    if (!fac) return;
+    const l = labels.find(x=>x.name===name);
+    if (!l) return;
     const chip = document.createElement('button');
-    chip.className = 'text-[11px] px-2 py-0.5 rounded-full facção-chip';
-    chip.style.background = fac.color+'22'; chip.style.color = fac.color;
-    chip.innerHTML = `${escapeHtml(name)} <span class="ml-1 opacity-60">✕</span>`;
-    chip.onclick = () => { filters.faccao.delete(name); render(); };
+    chip.className = 'text-[11px] px-2 py-0.5 rounded-full';
+    chip.style.background = l.color+'22'; chip.style.color = l.color;
+    chip.innerHTML = `${escapeHtml(name)} <span class="ml-1 opacity-60">X</span>`;
+    chip.onclick = () => { filters.faccao.delete(name); renderBoard(); };
     bar.appendChild(chip);
   });
-  const clear = document.createElement('button');
-  clear.className = 'text-[11px] text-slate-500 hover:underline ml-2';
-  clear.textContent = 'Limpar';
-  clear.onclick = () => { filters.faccao.clear(); render(); };
-  bar.appendChild(clear);
   document.getElementById('filterFaccaoCount').textContent = filters.faccao.size;
   document.getElementById('filterFaccaoCount').classList.remove('hidden');
 }
 
-function updateStats(){
-  const finalizadoId = state.lists.find(l=>l.name.startsWith('FINALIZADO'))?.id;
-  const total = state.cards.length;
-  const ativos = state.cards.filter(c=>c.listId!==finalizadoId).length;
-  const finalizados = total - ativos;
-  document.getElementById('statsLine').textContent =
-    `${ativos} em produção · ${finalizados} finalizados · ${state.facções.length} facções`;
-}
-
-// ============== CARD MODAL ==============
-function openCard(id){
+async function openCard(id){
   activeCardId = id;
-  const c = state.cards.find(x=>x.id===id);
+  const c = cards.find(x=>x.id===id);
   if (!c) return;
-
-  const listSel = document.getElementById('cardList');
-  listSel.innerHTML = state.lists.map(l=>`<option value="${l.id}">${escapeHtml(l.name)}</option>`).join('');
-  listSel.value = c.listId;
-
-  const facSel = document.getElementById('cardFaccao');
-  facSel.innerHTML = state.facções.map(f=>`<option value="${f.name}">${escapeHtml(f.name)}</option>`).join('');
-  facSel.value = c.faccao || 'SEM FACÇÃO';
-
-  const tecSel = document.getElementById('cardTecido');
-  tecSel.innerHTML = '<option value="">—</option>' + state.tecidos.map(t=>`<option value="${t.name}">${escapeHtml(t.name)} (${t.qtd}m disp.)</option>`).join('');
-  tecSel.value = c.tecido || '';
-
   document.getElementById('cardTitle').value = c.title || '';
-  document.getElementById('cardDesc').value = c.desc || '';
-  document.getElementById('cardTecidoQtd').value = c.tecidoQtd || '';
-  document.getElementById('cardDue').value = c.due || '';
-
-  renderChecklist(c);
-  updateTecidoInfo();
-
+  document.getElementById('cardDesc').value = c.description || '';
+  document.getElementById('cardDue').value = c.due_date || '';
+  document.getElementById('cardTecidoQtd').value = c.tecido_qtd || '';
+  const listSel = document.getElementById('cardList');
+  listSel.innerHTML = lists.map(l => `<option value="${l.id}">${escapeHtml(l.name)}</option>`).join('');
+  listSel.value = c.list_id;
+  const facSel = document.getElementById('cardFaccao');
+  facSel.innerHTML = '<option value="">— nenhuma —</option>' + labels.map(l => `<option value="${l.id}">${escapeHtml(l.name)}</option>`).join('');
+  facSel.value = (cardLabels[id][0]||{}).id || '';
+  const tecSel = document.getElementById('cardTecido');
+  tecSel.innerHTML = '<option value="">—</option>' + tecidos.map(t => `<option value="${t.id}">${escapeHtml(t.name)} (${t.quantidade}m)</option>`).join('');
+  tecSel.value = c.tecido_id || '';
+  renderCardMembers();
+  await loadChecklists(id);
+  await loadComments(id);
+  await loadActivity(id);
+  switchTab('details');
   document.getElementById('cardModal').classList.remove('hidden');
   document.getElementById('cardModal').classList.add('flex');
 }
 
-function renderChecklist(c){
-  const box = document.getElementById('cardChecklist');
-  box.innerHTML = '';
-  (c.checklist || []).forEach((item, i) => {
-    const row = document.createElement('div');
-    row.className = 'flex items-center gap-2 text-sm';
-    row.innerHTML = `
-      <input type="checkbox" ${item.done?'checked':''} class="accent-pink-500">
-      <input type="text" value="${escapeHtml(item.text)}" class="flex-1 bg-transparent outline-none">
-      <button class="text-slate-400 hover:text-red-500 text-xs">✕</button>
-    `;
-    row.querySelector('input[type=checkbox]').onchange = e => { item.done = e.target.checked; };
-    row.querySelector('input[type=text]').oninput = e => { item.text = e.target.value; };
-    row.querySelector('button').onclick = () => { c.checklist.splice(i,1); renderChecklist(c); };
-    box.appendChild(row);
+function renderCardMembers(){
+  const box = document.getElementById('cardMembers');
+  const cms = cardMembers[activeCardId] || [];
+  box.innerHTML = cms.map(m => `<div class="flex items-center gap-1 bg-slate-100 dark:bg-ink-700 px-2 py-1 rounded-full text-xs">
+    <div class="w-5 h-5 rounded-full bg-pink-500 text-white text-[10px] flex items-center justify-center">${(m.full_name||'?').charAt(0).toUpperCase()}</div>
+    ${escapeHtml(m.full_name)}
+    <button data-uid="${m.id}" class="text-slate-400 hover:text-red-500 remove-mem">X</button>
+  </div>`).join('');
+  box.querySelectorAll('.remove-mem').forEach(btn => {
+    btn.onclick = async () => {
+      const uid = btn.dataset.uid;
+      await sb.from('card_members').delete().eq('card_id', activeCardId).eq('user_id', uid);
+      cardMembers[activeCardId] = cardMembers[activeCardId].filter(m => m.id !== uid);
+      renderCardMembers(); renderBoard();
+    };
   });
 }
 
-function addChecklistItem(){
-  const c = state.cards.find(x=>x.id===activeCardId);
-  if (!c) return;
-  c.checklist = c.checklist || [];
-  c.checklist.push({text:'', done:false});
-  renderChecklist(c);
+window.openMemberPicker = () => {
+  const already = new Set((cardMembers[activeCardId]||[]).map(m=>m.id));
+  const menu = document.createElement('div');
+  menu.className = 'fixed inset-0 z-50 modal-bg flex items-center justify-center p-4';
+  menu.innerHTML = `<div class="bg-white dark:bg-ink-800 rounded-xl p-4 w-full max-w-sm shadow-2xl">
+    <div class="font-semibold mb-3">Atribuir a...</div>
+    <div class="space-y-1 max-h-72 overflow-y-auto"></div></div>`;
+  const list = menu.querySelector('.space-y-1');
+  profiles.filter(p=>!already.has(p.id)).forEach(p => {
+    const b = document.createElement('button');
+    b.className='w-full text-left flex items-center gap-2 p-2 hover:bg-slate-100 dark:hover:bg-ink-700 rounded-lg';
+    b.innerHTML=`<div class="w-7 h-7 rounded-full bg-pink-500 text-white text-xs flex items-center justify-center">${(p.full_name||'?').charAt(0).toUpperCase()}</div><div class="text-sm">${escapeHtml(p.full_name)}</div>`;
+    b.onclick=async ()=>{
+      await sb.from('card_members').insert({card_id: activeCardId, user_id: p.id});
+      cardMembers[activeCardId] = [...(cardMembers[activeCardId]||[]), p];
+      renderCardMembers(); renderBoard(); menu.remove();
+    };
+    list.appendChild(b);
+  });
+  menu.onclick = e => { if(e.target===menu) menu.remove(); };
+  document.body.appendChild(menu);
+};
+
+function switchTab(name){
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    const active = b.dataset.tab === name;
+    b.classList.toggle('border-pink-500', active);
+    b.classList.toggle('text-pink-500', active);
+    b.classList.toggle('border-transparent', !active);
+    b.classList.toggle('text-slate-500', !active);
+  });
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+  document.getElementById('tab-'+name).classList.remove('hidden');
+}
+document.querySelectorAll('.tab-btn').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
+
+async function loadChecklists(cardId){
+  const { data: cls } = await sb.from('checklists').select('*, checklist_items(*)').eq('card_id', cardId).order('position');
+  checklistsByCard[cardId] = cls || [];
+  renderChecklist();
 }
 
-function updateTecidoInfo(){
-  const c = state.cards.find(x=>x.id===activeCardId);
-  if (!c) return;
-  const tec = state.tecidos.find(t=>t.name===document.getElementById('cardTecido').value);
-  const qtdInput = parseFloat(document.getElementById('cardTecidoQtd').value)||0;
-  const oldQtd = c.tecidoQtd || 0;
-  const info = document.getElementById('tecidoInfo');
-  if (!tec){ info.textContent=''; return; }
-  const delta = qtdInput - oldQtd;
-  const after = tec.qtd - delta;
-  info.innerHTML = `Após salvar: <b class="${after<10?'text-red-500':''}">${after.toFixed(1)}m</b> em estoque`;
+function renderChecklist(){
+  const box = document.getElementById('cardChecklist');
+  const cls = checklistsByCard[activeCardId] || [];
+  box.innerHTML = '';
+  cls.forEach(cl => {
+    (cl.checklist_items||[]).sort((a,b)=>a.position-b.position).forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'flex items-center gap-2 text-sm';
+      row.innerHTML = `
+        <input type="checkbox" ${item.done?'checked':''} class="accent-pink-500">
+        <input type="text" value="${escapeHtml(item.text)}" class="flex-1 bg-transparent outline-none ${item.done?'line-through text-slate-400':''}">
+        <button class="text-slate-400 hover:text-red-500 text-xs">X</button>`;
+      row.querySelector('input[type=checkbox]').onchange = async e => {
+        await sb.from('checklist_items').update({done: e.target.checked}).eq('id', item.id);
+        item.done = e.target.checked; renderChecklist();
+      };
+      row.querySelector('input[type=text]').onblur = async e => {
+        await sb.from('checklist_items').update({text: e.target.value}).eq('id', item.id);
+      };
+      row.querySelector('button').onclick = async () => {
+        await sb.from('checklist_items').delete().eq('id', item.id);
+        cl.checklist_items = cl.checklist_items.filter(i => i.id !== item.id);
+        renderChecklist();
+      };
+      box.appendChild(row);
+    });
+  });
 }
 
-function closeCard(){
-  const c = state.cards.find(x=>x.id===activeCardId);
-  if (c){
-    const newTecido = document.getElementById('cardTecido').value;
-    const newQtd = parseFloat(document.getElementById('cardTecidoQtd').value) || 0;
-    const oldTecido = c.tecido;
-    const oldQtd = c.tecidoQtd || 0;
-    // ajusta estoque
-    if (oldTecido){
-      const old = state.tecidos.find(t=>t.name===oldTecido);
-      if (old) old.qtd += oldQtd;
-    }
-    if (newTecido){
-      const nt = state.tecidos.find(t=>t.name===newTecido);
-      if (nt) nt.qtd -= newQtd;
-    }
-    c.title = document.getElementById('cardTitle').value;
-    c.desc = document.getElementById('cardDesc').value;
-    c.listId = document.getElementById('cardList').value;
-    c.faccao = document.getElementById('cardFaccao').value;
-    c.tecido = newTecido;
-    c.tecidoQtd = newQtd;
-    c.due = document.getElementById('cardDue').value;
-    save();
-    render();
+window.addChecklistItem = async () => {
+  const text = prompt('Item da checklist');
+  if (!text) return;
+  let cls = checklistsByCard[activeCardId] || [];
+  let cl = cls[0];
+  if (!cl){
+    const { data: newCl } = await sb.from('checklists').insert({card_id: activeCardId, name: 'Checklist'}).select().single();
+    cl = {...newCl, checklist_items: []};
+    checklistsByCard[activeCardId] = [cl];
   }
+  const maxPos = Math.max(0, ...(cl.checklist_items||[]).map(i=>i.position||0));
+  const { data: newItem } = await sb.from('checklist_items').insert({checklist_id: cl.id, text, position: maxPos+1}).select().single();
+  cl.checklist_items = [...(cl.checklist_items||[]), newItem];
+  renderChecklist();
+};
+
+window.saveCard = async () => {
+  const newLabelId = document.getElementById('cardFaccao').value || null;
+  const updates = {
+    title: document.getElementById('cardTitle').value,
+    description: document.getElementById('cardDesc').value,
+    list_id: document.getElementById('cardList').value,
+    tecido_id: document.getElementById('cardTecido').value || null,
+    tecido_qtd: parseFloat(document.getElementById('cardTecidoQtd').value) || null,
+    due_date: document.getElementById('cardDue').value || null,
+  };
+  await sb.from('cards').update(updates).eq('id', activeCardId);
+  await sb.from('card_labels').delete().eq('card_id', activeCardId);
+  if (newLabelId){
+    await sb.from('card_labels').insert({card_id: activeCardId, label_id: newLabelId});
+    cardLabels[activeCardId] = [labels.find(l=>l.id===newLabelId)];
+  } else cardLabels[activeCardId] = [];
+  const c = cards.find(x=>x.id===activeCardId);
+  Object.assign(c, updates);
+  renderBoard(); closeCard(); toast('Salvo!');
+};
+
+window.closeCard = () => {
   document.getElementById('cardModal').classList.add('hidden');
   document.getElementById('cardModal').classList.remove('flex');
   activeCardId = null;
-}
+};
 
-function deleteCard(){
+window.deleteCard = async () => {
   if (!confirm('Excluir este card?')) return;
-  state.cards = state.cards.filter(c=>c.id!==activeCardId);
-  save(); render();
-  document.getElementById('cardModal').classList.add('hidden');
-  document.getElementById('cardModal').classList.remove('flex');
+  await sb.from('cards').update({archived: true}).eq('id', activeCardId);
+  cards = cards.filter(c=>c.id!==activeCardId);
+  renderBoard(); closeCard();
+};
+
+async function loadComments(cardId){
+  const { data } = await sb.from('comments').select('*, mentions(mentioned_user_id)').eq('card_id', cardId).order('created_at');
+  comments = data || [];
+  document.getElementById('commentCount').textContent = comments.length;
+  renderComments();
 }
 
-// ============== ESTOQUE ==============
-function openEstoque(){
-  const box = document.getElementById('estoqueList');
+function renderComments(){
+  const box = document.getElementById('commentsList');
   box.innerHTML = '';
-  state.tecidos.forEach((t,i)=>{
+  comments.forEach(c => {
+    const author = profiles.find(p=>p.id===c.author_id) || {full_name:'?'};
     const row = document.createElement('div');
-    const low = t.qtd < 15;
-    row.className = 'flex items-center gap-2 p-2 rounded-lg '+(low?'bg-red-50 dark:bg-red-900/30':'bg-slate-50 dark:bg-ink-700');
+    row.className = 'flex gap-3';
     row.innerHTML = `
-      <input value="${escapeHtml(t.name)}" class="flex-1 bg-transparent outline-none text-sm">
-      <input type="number" value="${t.qtd}" class="w-20 text-right bg-transparent outline-none text-sm">
-      <span class="text-xs text-slate-500">m</span>
-      <button class="text-slate-400 hover:text-red-500 text-sm">✕</button>
-    `;
-    row.querySelectorAll('input')[0].oninput = e => { t.name = e.target.value; };
-    row.querySelectorAll('input')[1].oninput = e => { t.qtd = parseFloat(e.target.value)||0; };
-    row.querySelector('button').onclick = () => { state.tecidos.splice(i,1); save(); openEstoque(); };
+      <div class="w-8 h-8 rounded-full bg-pink-500 text-white text-sm flex items-center justify-center flex-shrink-0">${(author.full_name||'?').charAt(0).toUpperCase()}</div>
+      <div class="flex-1 bg-slate-50 dark:bg-ink-700 rounded-lg p-3">
+        <div class="flex items-center gap-2 text-xs text-slate-500 mb-1">
+          <span class="font-semibold text-slate-700 dark:text-slate-200">${escapeHtml(author.full_name)}</span>
+          <span>${timeAgo(c.created_at)}</span>
+        </div>
+        <div class="text-sm whitespace-pre-wrap">${renderMentions(c.body)}</div>
+      </div>`;
     box.appendChild(row);
   });
-  save();
+}
+
+function renderMentions(text){
+  return escapeHtml(text).replace(/@([\w.]+)/g, (match, name) => {
+    const p = profiles.find(x => (x.full_name||'').toLowerCase().replace(/\s+/g,'.') === name.toLowerCase() || (x.email||'').split('@')[0] === name);
+    return p ? `<span class="mention-tag">@${escapeHtml(p.full_name)}</span>` : match;
+  });
+}
+
+window.postComment = async () => {
+  const ta = document.getElementById('commentInput');
+  const body = ta.value.trim();
+  if (!body) return;
+  const mentionMatches = body.match(/@[\w.]+/g) || [];
+  const mentionedIds = [];
+  mentionMatches.forEach(m => {
+    const name = m.slice(1);
+    const p = profiles.find(x => (x.full_name||'').toLowerCase().replace(/\s+/g,'.') === name.toLowerCase() || (x.email||'').split('@')[0] === name);
+    if (p) mentionedIds.push(p.id);
+  });
+  const { data: comment } = await sb.from('comments').insert({card_id: activeCardId, author_id: user.id, body}).select().single();
+  if (comment && mentionedIds.length){
+    await sb.from('mentions').insert(mentionedIds.map(uid => ({comment_id: comment.id, mentioned_user_id: uid})));
+  }
+  ta.value = '';
+  await loadComments(activeCardId);
+};
+
+document.getElementById('commentInput').addEventListener('input', e => {
+  const ta = e.target;
+  const val = ta.value;
+  const pos = ta.selectionStart;
+  const before = val.slice(0, pos);
+  const match = before.match(/@([\w.]*)$/);
+  const menu = document.getElementById('mentionMenu');
+  if (match){
+    const query = match[1].toLowerCase();
+    const matches = profiles.filter(p => (p.full_name||'').toLowerCase().includes(query)).slice(0,6);
+    if (matches.length){
+      menu.innerHTML = matches.map(p => `<button class="w-full text-left flex items-center gap-2 p-2 hover:bg-slate-100 dark:hover:bg-ink-700 text-sm" data-slug="${(p.full_name||'').toLowerCase().replace(/\s+/g,'.')}">
+        <div class="w-6 h-6 rounded-full bg-pink-500 text-white text-xs flex items-center justify-center">${(p.full_name||'?').charAt(0).toUpperCase()}</div>
+        ${escapeHtml(p.full_name)}</button>`).join('');
+      const rect = ta.getBoundingClientRect();
+      menu.style.top = (rect.bottom + 4) + 'px';
+      menu.style.left = rect.left + 'px';
+      menu.classList.remove('hidden');
+      menu.querySelectorAll('button').forEach(b => {
+        b.onclick = () => {
+          const slug = b.dataset.slug;
+          const newVal = val.slice(0, match.index) + '@' + slug + ' ' + val.slice(pos);
+          ta.value = newVal;
+          ta.focus();
+          menu.classList.add('hidden');
+        };
+      });
+    } else menu.classList.add('hidden');
+  } else menu.classList.add('hidden');
+});
+
+async function loadActivity(cardId){
+  const { data } = await sb.from('activity_log').select('*').eq('card_id', cardId).order('created_at', {ascending: false}).limit(30);
+  activity = data || [];
+  const box = document.getElementById('activityList');
+  box.innerHTML = activity.map(a => {
+    const actor = profiles.find(p=>p.id===a.actor_id);
+    const actorName = actor?.full_name || 'Alguém';
+    let msg = a.action;
+    if (a.action === 'moved') msg = `moveu de ${lists.find(l=>l.id===a.meta.from_list)?.name || '?'} para ${lists.find(l=>l.id===a.meta.to_list)?.name || '?'}`;
+    return `<div class="text-slate-600 dark:text-slate-300"><span class="font-medium">${escapeHtml(actorName)}</span> ${escapeHtml(msg)} <span class="text-xs text-slate-400">· ${timeAgo(a.created_at)}</span></div>`;
+  }).join('') || '<div class="text-slate-400 text-xs">Sem atividade ainda</div>';
+}
+
+async function loadNotifications(){
+  const { data } = await sb.from('notifications').select('*, cards(title)').eq('user_id', user.id).order('created_at', {ascending: false}).limit(20);
+  notifications = data || [];
+  renderNotifications();
+}
+
+function renderNotifications(){
+  const unread = notifications.filter(n => !n.read).length;
+  const badge = document.getElementById('bellBadge');
+  if (unread > 0){ badge.textContent = unread; badge.classList.remove('hidden'); }
+  else badge.classList.add('hidden');
+  const list = document.getElementById('notifList');
+  if (notifications.length === 0){ list.innerHTML = '<div class="p-4 text-sm text-slate-500 text-center">Sem notificações</div>'; return; }
+  list.innerHTML = notifications.map(n => {
+    const actor = profiles.find(p=>p.id===n.actor_id);
+    const actorName = actor?.full_name || 'Alguém';
+    const cardTitle = n.cards?.title || 'um card';
+    let msg = '';
+    if (n.type==='mention') msg = `${actorName} te mencionou em "${cardTitle}"`;
+    else if (n.type==='card_assigned') msg = `${actorName} te atribuiu a "${cardTitle}"`;
+    else if (n.type==='card_moved') msg = `${actorName} moveu "${cardTitle}"`;
+    else msg = `Novo evento em "${cardTitle}"`;
+    return `<button data-id="${n.id}" data-card="${n.card_id||''}" class="notif-item w-full text-left p-3 hover:bg-slate-50 dark:hover:bg-ink-700 flex gap-2 ${n.read?'':'bg-pink-50 dark:bg-pink-900/20'}">
+      <div class="w-2 h-2 rounded-full mt-2 ${n.read?'bg-transparent':'bg-pink-500'}"></div>
+      <div class="flex-1"><div class="text-sm">${escapeHtml(msg)}</div><div class="text-xs text-slate-400">${timeAgo(n.created_at)}</div></div>
+    </button>`;
+  }).join('');
+  list.querySelectorAll('.notif-item').forEach(b => {
+    b.onclick = async () => {
+      const id = b.dataset.id;
+      const cardId = b.dataset.card;
+      await sb.from('notifications').update({read: true}).eq('id', id);
+      const n = notifications.find(x=>x.id===id); if (n) n.read = true;
+      renderNotifications();
+      document.getElementById('bellDropdown').classList.add('hidden');
+      if (cardId) openCard(cardId);
+    };
+  });
+}
+
+window.markAllRead = async () => {
+  await sb.from('notifications').update({read: true}).eq('user_id', user.id).eq('read', false);
+  notifications.forEach(n => n.read = true);
+  renderNotifications();
+};
+
+function subscribeRealtime(){
+  sb.channel('notifs')
+    .on('postgres_changes', {event:'INSERT', schema:'public', table:'notifications', filter:`user_id=eq.${user.id}`}, payload => {
+      notifications.unshift({...payload.new, cards: null});
+      loadNotifications();
+      toast('🔔 Nova notificação');
+    }).subscribe();
+  sb.channel('board-changes')
+    .on('postgres_changes', {event:'*', schema:'public', table:'cards'}, async () => {
+      if (currentBoardId) await switchBoard(currentBoardId);
+    })
+    .on('postgres_changes', {event:'*', schema:'public', table:'comments'}, () => {
+      if (activeCardId) loadComments(activeCardId);
+    })
+    .subscribe();
+}
+
+window.openEstoque = async () => {
+  const box = document.getElementById('estoqueList');
+  const { data } = await sb.from('tecidos').select('*').eq('board_id', currentBoardId).order('name');
+  tecidos = data || [];
+  box.innerHTML = tecidos.map(t => {
+    const low = t.quantidade < t.low_threshold;
+    return `<div class="flex items-center gap-2 p-2 rounded-lg ${low?'bg-red-50 dark:bg-red-900/30':'bg-slate-50 dark:bg-ink-700'}">
+      <input value="${escapeHtml(t.name)}" data-id="${t.id}" data-field="name" class="flex-1 bg-transparent outline-none text-sm">
+      <input type="number" value="${t.quantidade}" data-id="${t.id}" data-field="quantidade" class="w-20 text-right bg-transparent outline-none text-sm">
+      <span class="text-xs text-slate-500">m</span>
+      <button data-del="${t.id}" class="text-slate-400 hover:text-red-500 text-sm">X</button>
+    </div>`;
+  }).join('');
+  box.querySelectorAll('input').forEach(inp => {
+    inp.onblur = async () => {
+      const val = inp.dataset.field==='quantidade' ? parseFloat(inp.value)||0 : inp.value;
+      await sb.from('tecidos').update({[inp.dataset.field]: val}).eq('id', inp.dataset.id);
+    };
+  });
+  box.querySelectorAll('[data-del]').forEach(b => {
+    b.onclick = async () => { await sb.from('tecidos').delete().eq('id', b.dataset.del); openEstoque(); };
+  });
   document.getElementById('estoqueModal').classList.remove('hidden');
   document.getElementById('estoqueModal').classList.add('flex');
-}
-function closeEstoque(){
-  save();
+};
+window.closeEstoque = () => {
   document.getElementById('estoqueModal').classList.add('hidden');
   document.getElementById('estoqueModal').classList.remove('flex');
-}
-function addTecido(){
+};
+window.addTecido = async () => {
   const n = document.getElementById('newTecidoName').value.trim();
-  const q = parseFloat(document.getElementById('newTecidoQtd').value)||0;
+  const q = parseFloat(document.getElementById('newTecidoQtd').value) || 0;
   if (!n) return;
-  state.tecidos.push({name:n, qtd:q});
+  await sb.from('tecidos').insert({board_id: currentBoardId, name: n, quantidade: q});
   document.getElementById('newTecidoName').value='';
   document.getElementById('newTecidoQtd').value='';
-  save(); openEstoque();
-}
+  openEstoque();
+};
 
-// ============== IMPORT ==============
-function openImport(){ document.getElementById('importModal').classList.remove('hidden'); document.getElementById('importModal').classList.add('flex'); }
-function closeImport(){ document.getElementById('importModal').classList.add('hidden'); document.getElementById('importModal').classList.remove('flex'); }
-async function doImport(){
-  const text = document.getElementById('importText').value.trim();
-  if (!text) return;
-  let data;
-  try {
-    if (text.startsWith('{')) data = JSON.parse(text);
-    else {
-      const short = (text.match(/\/b\/([^\/]+)/) || [])[1];
-      if (!short) return toast('URL inválida');
-      const r = await fetch(`https://trello.com/b/${short}.json`, {credentials:'include'});
-      data = await r.json();
-    }
-  } catch(e){ return toast('Erro: '+e.message); }
-
-  // converte formato Trello
-  const listMap = {};
-  state.lists = (data.lists||[]).filter(l=>!l.closed).map(l=>{ const id='l'+Math.random().toString(36).slice(2,6); listMap[l.id]=id; return {id, name:l.name}; });
-  const labelMap = {};
-  const factionColors = ['#fca5a5','#7dd3fc','#d8b4fe','#86efac','#a855f7','#eab308','#fb923c','#ef4444','#ec4899','#a3e635','#4ade80','#f472b6','#7c3aed','#fde047','#93c5fd','#3b82f6','#0284c7','#facc15','#f9a8d4','#c2410c','#166534','#111827','#991b1b'];
-  state.facções = (data.labels||[]).map((l,i)=>{ labelMap[l.id]=l.name; return {name:l.name||'Etiqueta '+i, color:factionColors[i%factionColors.length]}; });
-  state.cards = (data.cards||[]).filter(c=>!c.closed).map(c=>({
-    id: 'c'+c.id,
-    title: c.name,
-    desc: c.desc,
-    listId: listMap[c.idList],
-    faccao: (c.idLabels||[]).map(id=>labelMap[id]).find(Boolean) || 'SEM FACÇÃO',
-    due: c.due ? c.due.slice(0,10) : '',
-  }));
-  save(); render();
-  closeImport();
-  toast(`Importados ${state.cards.length} cards do Trello!`);
-}
-
-// ============== FILTRO FACÇÃO ==============
 document.getElementById('filterFaccaoBtn').onclick = () => {
   const menu = document.createElement('div');
   menu.className='fixed inset-0 z-40 modal-bg flex items-center justify-center p-4';
   menu.innerHTML = `<div class="bg-white dark:bg-ink-800 rounded-2xl p-4 w-full max-w-md shadow-2xl">
-    <div class="flex items-center mb-3"><h3 class="font-semibold flex-1">Filtrar por facção</h3><button class="text-slate-400 close">✕</button></div>
+    <div class="flex items-center mb-3"><h3 class="font-semibold flex-1">Filtrar por facção</h3><button class="text-slate-400 close">X</button></div>
     <div class="grid grid-cols-2 gap-1 max-h-96 overflow-y-auto"></div>
-    <div class="flex gap-2 mt-3"><button class="clear text-xs text-slate-500 flex-1 text-left">Limpar tudo</button><button class="ok bg-pink-500 text-white text-sm px-3 py-1.5 rounded-lg">OK</button></div>
-  </div>`;
+    <div class="flex gap-2 mt-3"><button class="clear text-xs text-slate-500 flex-1 text-left">Limpar tudo</button><button class="ok bg-pink-500 text-white text-sm px-3 py-1.5 rounded-lg">OK</button></div></div>`;
   const grid = menu.querySelector('.grid');
-  state.facções.forEach(f => {
-    const active = filters.faccao.has(f.name);
+  labels.forEach(l => {
+    const active = filters.faccao.has(l.name);
     const b = document.createElement('button');
     b.className = `text-xs text-left px-2 py-1.5 rounded-lg flex items-center gap-2 ${active?'bg-pink-100 dark:bg-pink-900/40':'hover:bg-slate-100 dark:hover:bg-ink-700'}`;
-    b.innerHTML = `<span class="w-2.5 h-2.5 rounded-full" style="background:${f.color}"></span>${escapeHtml(f.name)}`;
-    b.onclick = () => { if(filters.faccao.has(f.name)) filters.faccao.delete(f.name); else filters.faccao.add(f.name); b.classList.toggle('bg-pink-100'); b.classList.toggle('dark:bg-pink-900/40'); };
+    b.innerHTML = `<span class="w-2.5 h-2.5 rounded-full" style="background:${l.color}"></span>${escapeHtml(l.name)}`;
+    b.onclick = () => { if(filters.faccao.has(l.name)) filters.faccao.delete(l.name); else filters.faccao.add(l.name); b.classList.toggle('bg-pink-100'); };
     grid.appendChild(b);
   });
-  const close = () => { render(); menu.remove(); };
+  const close = () => { renderBoard(); menu.remove(); };
   menu.querySelector('.close').onclick = close;
   menu.querySelector('.ok').onclick = close;
-  menu.querySelector('.clear').onclick = () => { filters.faccao.clear(); state.facções.forEach(f=>{}); menu.querySelectorAll('.grid button').forEach(b=>b.classList.remove('bg-pink-100','dark:bg-pink-900/40')); };
+  menu.querySelector('.clear').onclick = () => { filters.faccao.clear(); menu.querySelectorAll('.grid button').forEach(b=>b.classList.remove('bg-pink-100')); };
   document.body.appendChild(menu);
 };
 
-// ============== EVENTOS GLOBAIS ==============
-document.getElementById('search').oninput = e => { filters.search = e.target.value; render(); };
-document.getElementById('hideFinalizado').onchange = e => { filters.hideFinalizado = e.target.checked; render(); };
-document.getElementById('density').onchange = e => { filters.density = e.target.value; render(); };
+document.getElementById('search').oninput = e => { filters.search = e.target.value; renderBoard(); };
+document.getElementById('hideFinalizado').onchange = e => { filters.hideFinalizado = e.target.checked; renderBoard(); };
+document.getElementById('density').onchange = e => { filters.density = e.target.value; renderBoard(); };
 document.getElementById('estoqueBtn').onclick = openEstoque;
-document.getElementById('importBtn').onclick = openImport;
 document.getElementById('themeBtn').onclick = () => {
   document.documentElement.classList.toggle('dark');
   localStorage.setItem('dc_dark', document.documentElement.classList.contains('dark')?'1':'0');
 };
-document.getElementById('cardTecido').onchange = updateTecidoInfo;
-document.getElementById('cardTecidoQtd').oninput = updateTecidoInfo;
+document.getElementById('boardSelect').onchange = e => switchBoard(e.target.value);
+document.getElementById('bellBtn').onclick = () => {
+  document.getElementById('bellDropdown').classList.toggle('hidden');
+  document.getElementById('userMenu').classList.add('hidden');
+};
+document.getElementById('userMenuBtn').onclick = () => {
+  document.getElementById('userMenu').classList.toggle('hidden');
+  document.getElementById('bellDropdown').classList.add('hidden');
+};
+
+document.addEventListener('click', e => {
+  const bell = document.getElementById('bellBtn');
+  const dropdown = document.getElementById('bellDropdown');
+  const umenu = document.getElementById('userMenu');
+  const umbtn = document.getElementById('userMenuBtn');
+  if (!bell.contains(e.target) && !dropdown.contains(e.target)) dropdown.classList.add('hidden');
+  if (!umbtn.contains(e.target) && !umenu.contains(e.target)) umenu.classList.add('hidden');
+});
 
 document.addEventListener('keydown', e => {
-  const inModal = document.querySelector('#cardModal:not(.hidden), #estoqueModal:not(.hidden), #importModal:not(.hidden)');
-  if (e.key === 'Escape'){
-    if (inModal){ closeCard(); closeEstoque(); closeImport(); }
-    return;
-  }
+  const inModal = !document.getElementById('cardModal').classList.contains('hidden')
+                || !document.getElementById('estoqueModal').classList.contains('hidden');
+  if (e.key === 'Escape' && inModal){ closeCard(); closeEstoque(); return; }
   if (document.activeElement && ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
   if (e.key === '/'){ e.preventDefault(); document.getElementById('search').focus(); }
-  if (e.key.toLowerCase() === 'n'){ e.preventDefault();
-    const firstList = state.lists[0];
+  if (e.key.toLowerCase() === 'n' && lists[0]){
+    e.preventDefault();
     const t = prompt('Nome do card');
-    if (t){ state.cards.push({id:'c'+Date.now(), title:t, listId:firstList.id, faccao:'SEM FACÇÃO'}); save(); render(); }
+    if (t){
+      sb.from('cards').insert({list_id: lists[0].id, title: t, position: 0, created_by: user.id}).select().single().then(({data}) => {
+        if (data) { cards.push(data); cardLabels[data.id]=[]; cardMembers[data.id]=[]; renderBoard(); }
+      });
+    }
   }
 });
 
-function toast(msg){
+window.toast = function(msg){
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.style.opacity = '1';
-  setTimeout(()=>{ t.style.opacity='0'; }, 2000);
-}
+  setTimeout(()=>{ t.style.opacity='0'; }, 2500);
+};
 
 function escapeHtml(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]); }
+function timeAgo(t){
+  const d = new Date(t); const s = (Date.now()-d.getTime())/1000;
+  if (s<60) return 'agora'; if (s<3600) return Math.floor(s/60)+'m atrás';
+  if (s<86400) return Math.floor(s/3600)+'h atrás';
+  if (s<604800) return Math.floor(s/86400)+'d atrás';
+  return d.toLocaleDateString('pt-BR');
+}
 
 if (localStorage.getItem('dc_dark')==='1') document.documentElement.classList.add('dark');
 
-render();
+initAuth();
 </script>
 </body>
 </html>
