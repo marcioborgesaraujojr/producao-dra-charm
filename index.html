@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Produção Dra. Charm</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: { extend: {
+    colors: {
+      ink: { 900:'#0b1220', 800:'#111827', 700:'#1f2937', 600:'#374151' },
+      accent: { DEFAULT:'#e91e63', 600:'#db2777' },
+    }
+  }}
+};
+</script>
+<style>
+  html,body{height:100%}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .board-scroll{scrollbar-width:thin}
+  .board-scroll::-webkit-scrollbar{height:10px;width:10px}
+  .board-scroll::-webkit-scrollbar-thumb{background:#94a3b8;border-radius:8px}
+  .dark .board-scroll::-webkit-scrollbar-thumb{background:#475569}
+  .card-drag{cursor:grab}
+  .card-drag:active{cursor:grabbing}
+  .drop-hint{outline:2px dashed #ec4899;outline-offset:-4px;background:rgba(236,72,153,.06)}
+  .modal-bg{background:rgba(0,0,0,.5);backdrop-filter:blur(2px)}
+  .facção-chip{transition:transform .1s}
+  .facção-chip:hover{transform:translateY(-1px)}
+  kbd{background:#eef2ff;border:1px solid #c7d2fe;padding:0 6px;border-radius:4px;font-size:11px;font-family:ui-monospace,monospace}
+  .dark kbd{background:#312e81;border-color:#4338ca;color:#e0e7ff}
+  @keyframes slideIn{from{transform:translateY(6px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .card{animation:slideIn .12s ease-out}
+</style>
+</head>
+<body class="bg-slate-100 dark:bg-ink-900 text-slate-900 dark:text-slate-100 transition-colors">
+
+<!-- HEADER -->
+<header class="sticky top-0 z-30 bg-white/90 dark:bg-ink-800/90 backdrop-blur border-b border-slate-200 dark:border-ink-700">
+  <div class="px-4 py-2 flex items-center gap-3">
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-pink-500 to-fuchsia-600 flex items-center justify-center text-white font-bold">C</div>
+      <div class="leading-tight">
+        <div class="text-sm font-semibold">Produção · Dra. Charm</div>
+        <div class="text-[11px] text-slate-500 dark:text-slate-400" id="statsLine">— cards</div>
+      </div>
+    </div>
+
+    <div class="flex-1 flex items-center gap-2">
+      <div class="relative flex-1 max-w-lg">
+        <input id="search" type="search" placeholder="Buscar card, referência, cor…  ( / )"
+               class="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-100 dark:bg-ink-700 border border-transparent focus:border-pink-500 focus:bg-white dark:focus:bg-ink-900 outline-none text-sm"/>
+        <svg class="absolute left-2.5 top-2.5 w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg>
+      </div>
+
+      <button id="filterFaccaoBtn" class="px-3 py-2 rounded-lg bg-slate-100 dark:bg-ink-700 hover:bg-slate-200 text-sm flex items-center gap-1">
+        Facção <span id="filterFaccaoCount" class="text-xs bg-pink-500 text-white rounded-full px-1.5 hidden">0</span>
+      </button>
+
+      <label class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 dark:bg-ink-700 text-sm cursor-pointer select-none">
+        <input id="hideFinalizado" type="checkbox" checked class="accent-pink-500">
+        Ocultar finalizados
+      </label>
+
+      <select id="density" class="px-2 py-2 rounded-lg bg-slate-100 dark:bg-ink-700 text-sm">
+        <option value="cozy">Confortável</option>
+        <option value="compact">Compacto</option>
+      </select>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <button id="estoqueBtn" title="Estoque de tecidos" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <button id="importBtn" title="Importar do Trello" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
+      </button>
+      <button id="themeBtn" title="Alternar tema" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="faccaoFilterBar" class="hidden px-4 pb-3 flex flex-wrap gap-1.5"></div>
+</header>
+
+<!-- BOARD -->
+<main id="board" class="board-scroll flex gap-3 overflow-x-auto items-start p-4" style="min-height:calc(100vh - 60px)"></main>
+
+<!-- MODAL: card details -->
+<div id="cardModal" class="hidden fixed inset-0 z-40 modal-bg items-center justify-center p-4">
+  <div class="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div class="p-5 border-b border-slate-200 dark:border-ink-700 flex items-start gap-3">
+      <input id="cardTitle" class="flex-1 text-lg font-semibold bg-transparent outline-none border-b border-transparent focus:border-pink-500"/>
+      <button onclick="closeCard()" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-100">✕</button>
+    </div>
+    <div class="p-5 grid grid-cols-3 gap-5">
+      <div class="col-span-2 space-y-4">
+        <div>
+          <label class="text-xs font-medium uppercase text-slate-500">Descrição</label>
+          <textarea id="cardDesc" rows="4" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 outline-none focus:border-pink-500"></textarea>
+        </div>
+        <div>
+          <label class="text-xs font-medium uppercase text-slate-500">Checklist</label>
+          <div id="cardChecklist" class="mt-2 space-y-1"></div>
+          <button onclick="addChecklistItem()" class="mt-2 text-xs text-pink-600 hover:underline">+ item</button>
+        </div>
+      </div>
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs font-medium uppercase text-slate-500">Lista</label>
+          <select id="cardList" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"></select>
+        </div>
+        <div>
+          <label class="text-xs font-medium uppercase text-slate-500">Facção</label>
+          <select id="cardFaccao" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"></select>
+        </div>
+        <div>
+          <label class="text-xs font-medium uppercase text-slate-500">Tecido consumido</label>
+          <div class="flex gap-1 mt-1">
+            <select id="cardTecido" class="flex-1 p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm">
+              <option value="">—</option>
+            </select>
+            <input id="cardTecidoQtd" type="number" step="0.1" placeholder="m" class="w-20 p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"/>
+          </div>
+          <div id="tecidoInfo" class="text-[11px] text-slate-500 mt-1"></div>
+        </div>
+        <div>
+          <label class="text-xs font-medium uppercase text-slate-500">Data prevista</label>
+          <input id="cardDue" type="date" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"/>
+        </div>
+        <div class="pt-3 border-t border-slate-200 dark:border-ink-700 flex gap-2">
+          <button onclick="deleteCard()" class="text-xs text-red-600 hover:underline">Excluir</button>
+          <div class="flex-1"></div>
+          <button onclick="closeCard()" class="px-3 py-1.5 rounded-lg bg-pink-500 text-white text-sm hover:bg-pink-600">Salvar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: estoque -->
+<div id="estoqueModal" class="hidden fixed inset-0 z-40 modal-bg items-center justify-center p-4">
+  <div class="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-lg">
+    <div class="p-5 border-b border-slate-200 dark:border-ink-700 flex items-center">
+      <h2 class="text-lg font-semibold flex-1">Estoque de tecidos</h2>
+      <button onclick="closeEstoque()" class="text-slate-400 hover:text-slate-700">✕</button>
+    </div>
+    <div class="p-5">
+      <div id="estoqueList" class="space-y-2"></div>
+      <div class="mt-4 pt-4 border-t border-slate-200 dark:border-ink-700 flex gap-2">
+        <input id="newTecidoName" placeholder="Novo tecido" class="flex-1 p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"/>
+        <input id="newTecidoQtd" type="number" placeholder="m" class="w-24 p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"/>
+        <button onclick="addTecido()" class="px-3 py-2 rounded-lg bg-pink-500 text-white text-sm">+</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: importar -->
+<div id="importModal" class="hidden fixed inset-0 z-40 modal-bg items-center justify-center p-4">
+  <div class="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-lg">
+    <div class="p-5 border-b border-slate-200 dark:border-ink-700 flex items-center">
+      <h2 class="text-lg font-semibold flex-1">Importar do Trello</h2>
+      <button onclick="closeImport()" class="text-slate-400 hover:text-slate-700">✕</button>
+    </div>
+    <div class="p-5 space-y-3">
+      <p class="text-sm text-slate-600 dark:text-slate-400">
+        Cole o JSON que a gente extraiu do Trello, ou cole a URL do quadro (você precisa estar logado no Trello no mesmo navegador).
+      </p>
+      <textarea id="importText" rows="8" placeholder='Cole o JSON aqui ou a URL do quadro Trello'
+                class="w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-xs font-mono outline-none focus:border-pink-500 border border-slate-200 dark:border-ink-600"></textarea>
+      <div class="flex justify-end gap-2">
+        <button onclick="closeImport()" class="px-3 py-2 rounded-lg bg-slate-200 dark:bg-ink-700 text-sm">Cancelar</button>
+        <button onclick="doImport()" class="px-3 py-2 rounded-lg bg-pink-500 text-white text-sm">Importar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm shadow-lg opacity-0 pointer-events-none transition-opacity"></div>
+
+<!-- HELP -->
+<div class="fixed bottom-4 right-4 z-30">
+  <details class="bg-white dark:bg-ink-800 shadow-lg rounded-xl border border-slate-200 dark:border-ink-700">
+    <summary class="px-3 py-2 text-xs cursor-pointer select-none">Atalhos</summary>
+    <div class="px-3 pb-3 text-xs space-y-1 text-slate-600 dark:text-slate-300">
+      <div><kbd>/</kbd> buscar</div>
+      <div><kbd>N</kbd> novo card</div>
+      <div><kbd>Esc</kbd> fechar</div>
+      <div><kbd>1-9</kbd> mover card selecionado</div>
+    </div>
+  </details>
+</div>
+
+<script>
+// ============== DADOS INICIAIS (do Trello real) ==============
+const SEED = {
+  lists: [
+    { id:'l1', name:'Cortadas' },
+    { id:'l2', name:'Costurando' },
+    { id:'l3', name:'Caseado/Botão' },
+    { id:'l4', name:'Lavanderia' },
+    { id:'l5', name:'Entrada do Acabamento (aguardando)' },
+    { id:'l6', name:'Em Acabamento' },
+    { id:'l7', name:'Faltando Finalizar Acabamento (consertos)' },
+    { id:'l8', name:'Fechada/Estoque' },
+    { id:'l9', name:'FINALIZADO/DADO ENTRADA NO SISTEMA' },
+  ],
+  facções: [
+    { name:'DAYANE', color:'#fca5a5' },
+    { name:'ECILIA', color:'#7dd3fc' },
+    { name:'MARY', color:'#d8b4fe' },
+    { name:'ESTEICY', color:'#6b7280' },
+    { name:'RAQUEL', color:'#86efac' },
+    { name:'ANGELA', color:'#a855f7' },
+    { name:'ELIETE', color:'#eab308' },
+    { name:'ANA ARACOIABA', color:'#fb923c' },
+    { name:'MAIARA', color:'#ef4444' },
+    { name:'ERINEUDA', color:'#ec4899' },
+    { name:'SOCORRO', color:'#a3e635' },
+    { name:'LENILCE', color:'#4ade80' },
+    { name:'ELANE', color:'#f472b6' },
+    { name:'VASTE', color:'#7c3aed' },
+    { name:'DANNY', color:'#fde047' },
+    { name:'RAQUEL COSTA', color:'#93c5fd' },
+    { name:'ANA CLEA', color:'#3b82f6' },
+    { name:'NEILIANE', color:'#0284c7' },
+    { name:'FRANCISCO', color:'#facc15' },
+    { name:'REJANE', color:'#f9a8d4' },
+    { name:'ANDERSON', color:'#c2410c' },
+    { name:'ISA', color:'#166534' },
+    { name:'LEIDIANE', color:'#111827' },
+    { name:'SEM FACÇÃO', color:'#991b1b' },
+  ],
+  tecidos: [
+    { name:'Alfaiataria', qtd:100 },
+    { name:'Malha Tecnológica', qtd:80 },
+    { name:'Two Way', qtd:40 },
+    { name:'Scuba', qtd:60 },
+  ],
+  cards: [
+    { id:'c1', title:'REF 1502 Preto - 20 peças', listId:'l2', faccao:'DAYANE', tecido:'Alfaiataria', tecidoQtd:12, desc:'Blazer feminino tam P ao GG' },
+    { id:'c2', title:'REF 2201 Nude - 15 peças', listId:'l2', faccao:'MARY', tecido:'Malha Tecnológica', tecidoQtd:8, desc:'Vestido midi' },
+    { id:'c3', title:'REF 0089 Verde Militar - 10 peças', listId:'l6', faccao:'RAQUEL', tecido:'Alfaiataria', tecidoQtd:6 },
+    { id:'c4', title:'REF 1177 Marsala - 25 peças', listId:'l5', faccao:'ECILIA', tecido:'Scuba', tecidoQtd:10 },
+    { id:'c5', title:'REF 3055 Off-white - 8 peças', listId:'l7', faccao:'ELIETE', tecido:'Alfaiataria', tecidoQtd:5, desc:'Consertos: barra e botão' },
+    { id:'c6', title:'REF 4109 Rosa - 30 peças', listId:'l1', faccao:'ANGELA', tecido:'Malha Tecnológica', tecidoQtd:14 },
+    { id:'c7', title:'REF 2278 Azul Marinho - 12 peças', listId:'l3', faccao:'ANA CLEA', tecido:'Alfaiataria', tecidoQtd:7 },
+    { id:'c8', title:'REF 5501 Preto - 40 peças', listId:'l9', faccao:'DAYANE', tecido:'Alfaiataria', tecidoQtd:20 },
+    { id:'c9', title:'REF 6602 Vinho - 18 peças', listId:'l4', faccao:'MARY', tecido:'Two Way', tecidoQtd:9 },
+    { id:'c10', title:'REF 7013 Bege - 22 peças', listId:'l8', faccao:'REJANE', tecido:'Alfaiataria', tecidoQtd:11 },
+  ],
+};
+
+// ============== ESTADO ==============
+const LS_KEY = 'dra_charm_producao_v1';
+let state = load() || SEED;
+let selectedCardId = null;
+let activeCardId = null;
+let draggingCardId = null;
+let filters = { faccao: new Set(), search: '', hideFinalizado: true, density:'cozy' };
+
+function load(){ try { return JSON.parse(localStorage.getItem(LS_KEY)); } catch(e){ return null; } }
+function save(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+
+// ============== RENDER ==============
+function render(){
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  const q = filters.search.trim().toLowerCase();
+  const facSel = filters.faccao;
+  const finalizadoId = state.lists.find(l=>l.name.startsWith('FINALIZADO'))?.id;
+
+  const compact = filters.density === 'compact';
+
+  state.lists.forEach(list => {
+    if (filters.hideFinalizado && list.id === finalizadoId) return;
+    const cards = state.cards.filter(c => c.listId === list.id)
+      .filter(c => !q || (c.title||'').toLowerCase().includes(q) || (c.desc||'').toLowerCase().includes(q))
+      .filter(c => facSel.size===0 || facSel.has(c.faccao));
+
+    const col = document.createElement('div');
+    col.className = 'shrink-0 w-72 bg-slate-200/70 dark:bg-ink-800 rounded-xl p-2 flex flex-col max-h-full';
+    col.dataset.listId = list.id;
+    col.innerHTML = `
+      <div class="flex items-center gap-2 px-2 py-1">
+        <div class="font-semibold text-sm flex-1 truncate">${escapeHtml(list.name)}</div>
+        <span class="text-xs px-1.5 rounded-full bg-white dark:bg-ink-700 text-slate-500">${cards.length}</span>
+      </div>
+      <div class="cards mt-1 flex-1 overflow-y-auto space-y-1.5 min-h-8 p-1"></div>
+      <button class="mt-1 text-left px-2 py-1.5 text-xs text-slate-500 hover:bg-slate-300/50 dark:hover:bg-ink-700 rounded-lg add-card">+ Novo card</button>
+    `;
+    const cardsWrap = col.querySelector('.cards');
+    cards.forEach(c => cardsWrap.appendChild(renderCard(c, compact)));
+
+    // drag & drop targets
+    col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('drop-hint'); });
+    col.addEventListener('dragleave', () => col.classList.remove('drop-hint'));
+    col.addEventListener('drop', e => {
+      e.preventDefault();
+      col.classList.remove('drop-hint');
+      if (draggingCardId){
+        const card = state.cards.find(c=>c.id===draggingCardId);
+        if (card) { card.listId = list.id; save(); render(); toast(`Movido para "${list.name}"`); }
+      }
+    });
+
+    col.querySelector('.add-card').onclick = () => {
+      const t = prompt('Nome do card (ex: REF 1234 Preto - 15 peças)');
+      if (t){ state.cards.push({id:'c'+Date.now(), title:t, listId:list.id, faccao:'SEM FACÇÃO', desc:''}); save(); render(); }
+    };
+    board.appendChild(col);
+  });
+
+  updateStats();
+  renderFilterBar();
+}
+
+function renderCard(c, compact){
+  const el = document.createElement('div');
+  const fac = state.facções.find(f=>f.name===c.faccao);
+  el.className = `card card-drag bg-white dark:bg-ink-700 rounded-lg shadow-sm border border-transparent hover:border-pink-500 p-2 ${compact?'text-xs':'text-sm'}`;
+  el.draggable = true;
+  el.dataset.cardId = c.id;
+  el.innerHTML = `
+    ${fac ? `<div class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full mb-1" style="background:${fac.color}22;color:${fac.color}"><span class="w-1.5 h-1.5 rounded-full" style="background:${fac.color}"></span>${escapeHtml(c.faccao)}</div>`:''}
+    <div class="font-medium leading-tight">${escapeHtml(c.title)}</div>
+    ${!compact && c.tecido ? `<div class="text-[11px] text-slate-500 mt-1">${escapeHtml(c.tecido)} · ${c.tecidoQtd||0}m</div>`:''}
+    ${!compact && c.due ? `<div class="text-[11px] text-slate-500">📅 ${c.due}</div>`:''}
+  `;
+  el.addEventListener('dragstart', e => { draggingCardId = c.id; el.classList.add('opacity-50'); });
+  el.addEventListener('dragend',   () => { draggingCardId = null; el.classList.remove('opacity-50'); });
+  el.addEventListener('click', () => openCard(c.id));
+  return el;
+}
+
+function renderFilterBar(){
+  const bar = document.getElementById('faccaoFilterBar');
+  if (filters.faccao.size===0){ bar.classList.add('hidden'); return; }
+  bar.classList.remove('hidden');
+  bar.innerHTML = '';
+  filters.faccao.forEach(name => {
+    const fac = state.facções.find(f=>f.name===name);
+    if (!fac) return;
+    const chip = document.createElement('button');
+    chip.className = 'text-[11px] px-2 py-0.5 rounded-full facção-chip';
+    chip.style.background = fac.color+'22'; chip.style.color = fac.color;
+    chip.innerHTML = `${escapeHtml(name)} <span class="ml-1 opacity-60">✕</span>`;
+    chip.onclick = () => { filters.faccao.delete(name); render(); };
+    bar.appendChild(chip);
+  });
+  const clear = document.createElement('button');
+  clear.className = 'text-[11px] text-slate-500 hover:underline ml-2';
+  clear.textContent = 'Limpar';
+  clear.onclick = () => { filters.faccao.clear(); render(); };
+  bar.appendChild(clear);
+  document.getElementById('filterFaccaoCount').textContent = filters.faccao.size;
+  document.getElementById('filterFaccaoCount').classList.remove('hidden');
+}
+
+function updateStats(){
+  const finalizadoId = state.lists.find(l=>l.name.startsWith('FINALIZADO'))?.id;
+  const total = state.cards.length;
+  const ativos = state.cards.filter(c=>c.listId!==finalizadoId).length;
+  const finalizados = total - ativos;
+  document.getElementById('statsLine').textContent =
+    `${ativos} em produção · ${finalizados} finalizados · ${state.facções.length} facções`;
+}
+
+// ============== CARD MODAL ==============
+function openCard(id){
+  activeCardId = id;
+  const c = state.cards.find(x=>x.id===id);
+  if (!c) return;
+
+  const listSel = document.getElementById('cardList');
+  listSel.innerHTML = state.lists.map(l=>`<option value="${l.id}">${escapeHtml(l.name)}</option>`).join('');
+  listSel.value = c.listId;
+
+  const facSel = document.getElementById('cardFaccao');
+  facSel.innerHTML = state.facções.map(f=>`<option value="${f.name}">${escapeHtml(f.name)}</option>`).join('');
+  facSel.value = c.faccao || 'SEM FACÇÃO';
+
+  const tecSel = document.getElementById('cardTecido');
+  tecSel.innerHTML = '<option value="">—</option>' + state.tecidos.map(t=>`<option value="${t.name}">${escapeHtml(t.name)} (${t.qtd}m disp.)</option>`).join('');
+  tecSel.value = c.tecido || '';
+
+  document.getElementById('cardTitle').value = c.title || '';
+  document.getElementById('cardDesc').value = c.desc || '';
+  document.getElementById('cardTecidoQtd').value = c.tecidoQtd || '';
+  document.getElementById('cardDue').value = c.due || '';
+
+  renderChecklist(c);
+  updateTecidoInfo();
+
+  document.getElementById('cardModal').classList.remove('hidden');
+  document.getElementById('cardModal').classList.add('flex');
+}
+
+function renderChecklist(c){
+  const box = document.getElementById('cardChecklist');
+  box.innerHTML = '';
+  (c.checklist || []).forEach((item, i) => {
+    const row = document.createElement('div');
+    row.className = 'flex items-center gap-2 text-sm';
+    row.innerHTML = `
+      <input type="checkbox" ${item.done?'checked':''} class="accent-pink-500">
+      <input type="text" value="${escapeHtml(item.text)}" class="flex-1 bg-transparent outline-none">
+      <button class="text-slate-400 hover:text-red-500 text-xs">✕</button>
+    `;
+    row.querySelector('input[type=checkbox]').onchange = e => { item.done = e.target.checked; };
+    row.querySelector('input[type=text]').oninput = e => { item.text = e.target.value; };
+    row.querySelector('button').onclick = () => { c.checklist.splice(i,1); renderChecklist(c); };
+    box.appendChild(row);
+  });
+}
+
+function addChecklistItem(){
+  const c = state.cards.find(x=>x.id===activeCardId);
+  if (!c) return;
+  c.checklist = c.checklist || [];
+  c.checklist.push({text:'', done:false});
+  renderChecklist(c);
+}
+
+function updateTecidoInfo(){
+  const c = state.cards.find(x=>x.id===activeCardId);
+  if (!c) return;
+  const tec = state.tecidos.find(t=>t.name===document.getElementById('cardTecido').value);
+  const qtdInput = parseFloat(document.getElementById('cardTecidoQtd').value)||0;
+  const oldQtd = c.tecidoQtd || 0;
+  const info = document.getElementById('tecidoInfo');
+  if (!tec){ info.textContent=''; return; }
+  const delta = qtdInput - oldQtd;
+  const after = tec.qtd - delta;
+  info.innerHTML = `Após salvar: <b class="${after<10?'text-red-500':''}">${after.toFixed(1)}m</b> em estoque`;
+}
+
+function closeCard(){
+  const c = state.cards.find(x=>x.id===activeCardId);
+  if (c){
+    const newTecido = document.getElementById('cardTecido').value;
+    const newQtd = parseFloat(document.getElementById('cardTecidoQtd').value) || 0;
+    const oldTecido = c.tecido;
+    const oldQtd = c.tecidoQtd || 0;
+    // ajusta estoque
+    if (oldTecido){
+      const old = state.tecidos.find(t=>t.name===oldTecido);
+      if (old) old.qtd += oldQtd;
+    }
+    if (newTecido){
+      const nt = state.tecidos.find(t=>t.name===newTecido);
+      if (nt) nt.qtd -= newQtd;
+    }
+    c.title = document.getElementById('cardTitle').value;
+    c.desc = document.getElementById('cardDesc').value;
+    c.listId = document.getElementById('cardList').value;
+    c.faccao = document.getElementById('cardFaccao').value;
+    c.tecido = newTecido;
+    c.tecidoQtd = newQtd;
+    c.due = document.getElementById('cardDue').value;
+    save();
+    render();
+  }
+  document.getElementById('cardModal').classList.add('hidden');
+  document.getElementById('cardModal').classList.remove('flex');
+  activeCardId = null;
+}
+
+function deleteCard(){
+  if (!confirm('Excluir este card?')) return;
+  state.cards = state.cards.filter(c=>c.id!==activeCardId);
+  save(); render();
+  document.getElementById('cardModal').classList.add('hidden');
+  document.getElementById('cardModal').classList.remove('flex');
+}
+
+// ============== ESTOQUE ==============
+function openEstoque(){
+  const box = document.getElementById('estoqueList');
+  box.innerHTML = '';
+  state.tecidos.forEach((t,i)=>{
+    const row = document.createElement('div');
+    const low = t.qtd < 15;
+    row.className = 'flex items-center gap-2 p-2 rounded-lg '+(low?'bg-red-50 dark:bg-red-900/30':'bg-slate-50 dark:bg-ink-700');
+    row.innerHTML = `
+      <input value="${escapeHtml(t.name)}" class="flex-1 bg-transparent outline-none text-sm">
+      <input type="number" value="${t.qtd}" class="w-20 text-right bg-transparent outline-none text-sm">
+      <span class="text-xs text-slate-500">m</span>
+      <button class="text-slate-400 hover:text-red-500 text-sm">✕</button>
+    `;
+    row.querySelectorAll('input')[0].oninput = e => { t.name = e.target.value; };
+    row.querySelectorAll('input')[1].oninput = e => { t.qtd = parseFloat(e.target.value)||0; };
+    row.querySelector('button').onclick = () => { state.tecidos.splice(i,1); save(); openEstoque(); };
+    box.appendChild(row);
+  });
+  save();
+  document.getElementById('estoqueModal').classList.remove('hidden');
+  document.getElementById('estoqueModal').classList.add('flex');
+}
+function closeEstoque(){
+  save();
+  document.getElementById('estoqueModal').classList.add('hidden');
+  document.getElementById('estoqueModal').classList.remove('flex');
+}
+function addTecido(){
+  const n = document.getElementById('newTecidoName').value.trim();
+  const q = parseFloat(document.getElementById('newTecidoQtd').value)||0;
+  if (!n) return;
+  state.tecidos.push({name:n, qtd:q});
+  document.getElementById('newTecidoName').value='';
+  document.getElementById('newTecidoQtd').value='';
+  save(); openEstoque();
+}
+
+// ============== IMPORT ==============
+function openImport(){ document.getElementById('importModal').classList.remove('hidden'); document.getElementById('importModal').classList.add('flex'); }
+function closeImport(){ document.getElementById('importModal').classList.add('hidden'); document.getElementById('importModal').classList.remove('flex'); }
+async function doImport(){
+  const text = document.getElementById('importText').value.trim();
+  if (!text) return;
+  let data;
+  try {
+    if (text.startsWith('{')) data = JSON.parse(text);
+    else {
+      const short = (text.match(/\/b\/([^\/]+)/) || [])[1];
+      if (!short) return toast('URL inválida');
+      const r = await fetch(`https://trello.com/b/${short}.json`, {credentials:'include'});
+      data = await r.json();
+    }
+  } catch(e){ return toast('Erro: '+e.message); }
+
+  // converte formato Trello
+  const listMap = {};
+  state.lists = (data.lists||[]).filter(l=>!l.closed).map(l=>{ const id='l'+Math.random().toString(36).slice(2,6); listMap[l.id]=id; return {id, name:l.name}; });
+  const labelMap = {};
+  const factionColors = ['#fca5a5','#7dd3fc','#d8b4fe','#86efac','#a855f7','#eab308','#fb923c','#ef4444','#ec4899','#a3e635','#4ade80','#f472b6','#7c3aed','#fde047','#93c5fd','#3b82f6','#0284c7','#facc15','#f9a8d4','#c2410c','#166534','#111827','#991b1b'];
+  state.facções = (data.labels||[]).map((l,i)=>{ labelMap[l.id]=l.name; return {name:l.name||'Etiqueta '+i, color:factionColors[i%factionColors.length]}; });
+  state.cards = (data.cards||[]).filter(c=>!c.closed).map(c=>({
+    id: 'c'+c.id,
+    title: c.name,
+    desc: c.desc,
+    listId: listMap[c.idList],
+    faccao: (c.idLabels||[]).map(id=>labelMap[id]).find(Boolean) || 'SEM FACÇÃO',
+    due: c.due ? c.due.slice(0,10) : '',
+  }));
+  save(); render();
+  closeImport();
+  toast(`Importados ${state.cards.length} cards do Trello!`);
+}
+
+// ============== FILTRO FACÇÃO ==============
+document.getElementById('filterFaccaoBtn').onclick = () => {
+  const menu = document.createElement('div');
+  menu.className='fixed inset-0 z-40 modal-bg flex items-center justify-center p-4';
+  menu.innerHTML = `<div class="bg-white dark:bg-ink-800 rounded-2xl p-4 w-full max-w-md shadow-2xl">
+    <div class="flex items-center mb-3"><h3 class="font-semibold flex-1">Filtrar por facção</h3><button class="text-slate-400 close">✕</button></div>
+    <div class="grid grid-cols-2 gap-1 max-h-96 overflow-y-auto"></div>
+    <div class="flex gap-2 mt-3"><button class="clear text-xs text-slate-500 flex-1 text-left">Limpar tudo</button><button class="ok bg-pink-500 text-white text-sm px-3 py-1.5 rounded-lg">OK</button></div>
+  </div>`;
+  const grid = menu.querySelector('.grid');
+  state.facções.forEach(f => {
+    const active = filters.faccao.has(f.name);
+    const b = document.createElement('button');
+    b.className = `text-xs text-left px-2 py-1.5 rounded-lg flex items-center gap-2 ${active?'bg-pink-100 dark:bg-pink-900/40':'hover:bg-slate-100 dark:hover:bg-ink-700'}`;
+    b.innerHTML = `<span class="w-2.5 h-2.5 rounded-full" style="background:${f.color}"></span>${escapeHtml(f.name)}`;
+    b.onclick = () => { if(filters.faccao.has(f.name)) filters.faccao.delete(f.name); else filters.faccao.add(f.name); b.classList.toggle('bg-pink-100'); b.classList.toggle('dark:bg-pink-900/40'); };
+    grid.appendChild(b);
+  });
+  const close = () => { render(); menu.remove(); };
+  menu.querySelector('.close').onclick = close;
+  menu.querySelector('.ok').onclick = close;
+  menu.querySelector('.clear').onclick = () => { filters.faccao.clear(); state.facções.forEach(f=>{}); menu.querySelectorAll('.grid button').forEach(b=>b.classList.remove('bg-pink-100','dark:bg-pink-900/40')); };
+  document.body.appendChild(menu);
+};
+
+// ============== EVENTOS GLOBAIS ==============
+document.getElementById('search').oninput = e => { filters.search = e.target.value; render(); };
+document.getElementById('hideFinalizado').onchange = e => { filters.hideFinalizado = e.target.checked; render(); };
+document.getElementById('density').onchange = e => { filters.density = e.target.value; render(); };
+document.getElementById('estoqueBtn').onclick = openEstoque;
+document.getElementById('importBtn').onclick = openImport;
+document.getElementById('themeBtn').onclick = () => {
+  document.documentElement.classList.toggle('dark');
+  localStorage.setItem('dc_dark', document.documentElement.classList.contains('dark')?'1':'0');
+};
+document.getElementById('cardTecido').onchange = updateTecidoInfo;
+document.getElementById('cardTecidoQtd').oninput = updateTecidoInfo;
+
+document.addEventListener('keydown', e => {
+  const inModal = document.querySelector('#cardModal:not(.hidden), #estoqueModal:not(.hidden), #importModal:not(.hidden)');
+  if (e.key === 'Escape'){
+    if (inModal){ closeCard(); closeEstoque(); closeImport(); }
+    return;
+  }
+  if (document.activeElement && ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
+  if (e.key === '/'){ e.preventDefault(); document.getElementById('search').focus(); }
+  if (e.key.toLowerCase() === 'n'){ e.preventDefault();
+    const firstList = state.lists[0];
+    const t = prompt('Nome do card');
+    if (t){ state.cards.push({id:'c'+Date.now(), title:t, listId:firstList.id, faccao:'SEM FACÇÃO'}); save(); render(); }
+  }
+});
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.opacity = '1';
+  setTimeout(()=>{ t.style.opacity='0'; }, 2000);
+}
+
+function escapeHtml(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]); }
+
+if (localStorage.getItem('dc_dark')==='1') document.documentElement.classList.add('dark');
+
+render();
+</script>
+</body>
+</html>
