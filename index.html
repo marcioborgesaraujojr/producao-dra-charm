@@ -151,7 +151,11 @@ tailwind.config = {
     <div id="userMenuName" class="font-semibold text-sm"></div>
     <div id="userMenuEmail" class="text-xs text-slate-500"></div>
   </div>
-  <button onclick="openLogoUpload()" class="w-full text-left p-3 text-sm hover:bg-slate-100 dark:hover:bg-ink-700 flex items-center gap-2 border-t border-slate-200 dark:border-ink-700">
+  <button onclick="openLogGeral()" class="w-full text-left p-3 text-sm hover:bg-slate-100 dark:hover:bg-ink-700 flex items-center gap-2 border-t border-slate-200 dark:border-ink-700">
+    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0"/></svg>
+    Log geral (histórico)
+  </button>
+  <button onclick="openLogoUpload()" class="w-full text-left p-3 text-sm hover:bg-slate-100 dark:hover:bg-ink-700 flex items-center gap-2">
     <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>
     Trocar logo do sistema
   </button>
@@ -161,6 +165,29 @@ tailwind.config = {
   </button>
   <input type="file" id="logoInput" accept="image/*" class="hidden">
   <button onclick="doLogout()" class="w-full text-left p-3 text-sm hover:bg-slate-100 dark:hover:bg-ink-700 text-red-600 border-t border-slate-200 dark:border-ink-700">Sair</button>
+</div>
+
+<!-- MODAL LOG GERAL -->
+<div id="logGeralModal" class="hidden fixed inset-0 z-40 modal-bg items-center justify-center p-4">
+  <div class="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[86vh] flex flex-col">
+    <div class="p-4 border-b border-slate-200 dark:border-ink-700 flex items-center gap-3">
+      <svg class="w-5 h-5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0"/></svg>
+      <h2 class="text-lg font-semibold flex-1">Log geral</h2>
+      <select id="logGeralPessoa" class="p-1.5 rounded-lg bg-slate-100 dark:bg-ink-700 text-sm outline-none">
+        <option value="">Todas as pessoas</option>
+      </select>
+      <select id="logGeralPeriodo" class="p-1.5 rounded-lg bg-slate-100 dark:bg-ink-700 text-sm outline-none">
+        <option value="1">Últimas 24h</option>
+        <option value="7" selected>Últimos 7 dias</option>
+        <option value="30">Últimos 30 dias</option>
+        <option value="90">Últimos 90 dias</option>
+        <option value="9999">Tudo</option>
+      </select>
+      <button onclick="closeLogGeral()" class="text-slate-400 hover:text-slate-700">✕</button>
+    </div>
+    <div id="logGeralList" class="flex-1 overflow-y-auto p-3 space-y-1"></div>
+    <div class="p-3 border-t border-slate-200 dark:border-ink-700 text-xs text-slate-500 text-center" id="logGeralCount"></div>
+  </div>
 </div>
 
 <!-- MODAL ARQUIVADOS -->
@@ -1228,6 +1255,82 @@ function renderNotifications(){
     };
   });
 }
+
+window.openLogGeral = async () => {
+  document.getElementById('userMenu').classList.add('hidden');
+  document.getElementById('logGeralModal').classList.remove('hidden');
+  document.getElementById('logGeralModal').classList.add('flex');
+  const sel = document.getElementById('logGeralPessoa');
+  if (sel.options.length <= 1){
+    profiles.forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.id; o.textContent = p.full_name;
+      sel.appendChild(o);
+    });
+  }
+  renderLogGeral();
+};
+window.closeLogGeral = () => {
+  document.getElementById('logGeralModal').classList.add('hidden');
+  document.getElementById('logGeralModal').classList.remove('flex');
+};
+async function renderLogGeral(){
+  const box = document.getElementById('logGeralList');
+  box.innerHTML = '<div class="text-center text-slate-400 p-8">Carregando...</div>';
+  const pessoa = document.getElementById('logGeralPessoa').value;
+  const dias = parseInt(document.getElementById('logGeralPeriodo').value) || 9999;
+  const since = new Date(Date.now() - dias*24*60*60*1000).toISOString();
+  let q = sb.from('activity_log').select('*, cards(title, list_id, lists(name, board_id, boards(name)))').gte('created_at', since).order('created_at', {ascending: false}).limit(300);
+  if (pessoa) q = q.eq('actor_id', pessoa);
+  const { data, error } = await q;
+  if (error){ box.innerHTML = '<div class="text-red-500 p-4">Erro: '+error.message+'</div>'; return; }
+  document.getElementById('logGeralCount').textContent = (data?.length || 0) + ' eventos';
+  if (!data || data.length === 0){ box.innerHTML = '<div class="text-center text-slate-500 p-8">Sem atividade no período.</div>'; return; }
+  const fieldLabels = { list_id:'Lista', title:'Título', description:'Descrição', archived:'Arquivado', situacao:'Situação', qtd_oficina:'QTD Oficina', qtd_pcs_boas:'Boas', qtd_pcs_falhas:'Falhas', pago_costura:'Pago costura', cover_url:'Foto', tam_pp:'PP',tam_p:'P',tam_m:'M',tam_g:'G',tam_gg:'GG',tam_xg:'XG',tam_pp_of:'PP of',tam_p_of:'P of',tam_m_of:'M of',tam_g_of:'G of',tam_gg_of:'GG of',tam_xg_of:'XG of',data_coleta_oficina:'Data coleta' };
+  box.innerHTML = data.map(a => {
+    const actor = profiles.find(p=>p.id===a.actor_id);
+    const actorName = actor?.full_name || 'Sistema';
+    const cardTitle = a.cards?.title || '(card excluído)';
+    const listName = a.cards?.lists?.name || '';
+    const boardName = a.cards?.lists?.boards?.name || '';
+    let msg = a.action, detail = '';
+    if (a.action === 'created') msg = 'criou';
+    else if (a.action === 'deleted') msg = 'excluiu';
+    else if (a.action === 'moved') {
+      const from = lists.find(l=>l.id===a.meta?.from_list)?.name || '?';
+      const to = lists.find(l=>l.id===a.meta?.to_list)?.name || '?';
+      msg = 'moveu'; detail = ` de <b>${escapeHtml(from)}</b> pra <b>${escapeHtml(to)}</b>`;
+    } else if (a.action === 'edited' && a.meta){
+      const changes = Object.entries(a.meta).map(([k,v])=>{
+        const lbl = fieldLabels[k] || k;
+        let from = v?.from, to = v?.to;
+        if (from === null || from === '') from = '—';
+        if (to === null || to === '') to = '—';
+        return `${lbl}: <span class="text-slate-400 line-through">${escapeHtml(String(from).slice(0,20))}</span> → <span class="text-emerald-600 font-medium">${escapeHtml(String(to).slice(0,20))}</span>`;
+      }).join(' · ');
+      msg = 'editou'; detail = ' — ' + changes;
+    }
+    const cardId = a.card_id;
+    return `<div class="p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-xs flex gap-2 items-start hover:bg-slate-100 dark:hover:bg-ink-600 cursor-pointer" data-card="${cardId||''}">
+      <div class="w-7 h-7 rounded-full bg-pink-500 text-white text-xs flex items-center justify-center flex-shrink-0">${(actorName||'?').charAt(0).toUpperCase()}</div>
+      <div class="flex-1 min-w-0">
+        <div><b>${escapeHtml(actorName)}</b> ${msg}${detail} em <b class="text-pink-600">${escapeHtml(cardTitle)}</b></div>
+        <div class="text-[10px] text-slate-400 mt-0.5">${escapeHtml(boardName)}${listName?' · '+escapeHtml(listName):''} · ${timeAgo(a.created_at)}</div>
+      </div>
+    </div>`;
+  }).join('');
+  box.querySelectorAll('[data-card]').forEach(el => {
+    el.onclick = () => {
+      const cid = el.dataset.card;
+      if (!cid) return;
+      closeLogGeral();
+      openCard(cid);
+    };
+  });
+}
+document.addEventListener('change', e => {
+  if (['logGeralPessoa','logGeralPeriodo'].includes(e.target.id)) renderLogGeral();
+});
 
 window.openLogoUpload = () => {
   document.getElementById('userMenu').classList.add('hidden');
