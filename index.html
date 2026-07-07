@@ -182,7 +182,7 @@ tailwind.config = {
       <span id="commentCount" class="hidden"></span>
     </div>
     <div class="flex-1 overflow-y-auto">
-      <div id="tab-details" class="tab-content p-5 grid gap-5" style="grid-template-columns:1fr 320px 340px">
+      <div id="tab-details" class="tab-content p-5 grid gap-5" style="grid-template-columns:1fr 360px">
         <div class="space-y-4 min-w-0">
           <div>
             <label class="text-xs font-medium uppercase text-slate-500">Foto do produto</label>
@@ -302,26 +302,26 @@ tailwind.config = {
             <label class="text-xs font-medium uppercase text-slate-500">Data prevista</label>
             <input id="cardDue" type="date" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"/>
           </div>
+          <!-- COMENTÁRIOS acima do arquivar -->
+          <div class="pt-3 border-t border-slate-200 dark:border-ink-700">
+            <label class="text-xs font-medium uppercase text-slate-500 flex items-center gap-2 mb-2">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              Comentários (<span id="commentCountInline">0</span>)
+            </label>
+            <div class="relative">
+              <textarea id="commentInput" rows="2" placeholder="Escreva um comentário... use @ pra mencionar" class="w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 outline-none focus:border-pink-500 text-sm resize-y"></textarea>
+              <div id="mentionMenu" class="mention-menu hidden"></div>
+              <button onclick="postComment()" class="mt-1 px-3 py-1.5 rounded-lg bg-pink-500 text-white text-xs font-medium hover:bg-pink-600">Comentar</button>
+            </div>
+            <div id="commentsList" class="space-y-2 mt-3 overflow-y-auto pr-1" style="max-height:280px"></div>
+          </div>
           <div class="pt-3 border-t border-slate-200 dark:border-ink-700">
             <button onclick="archiveCard()" class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-200 dark:bg-ink-700 hover:bg-slate-300 dark:hover:bg-ink-600 text-slate-700 dark:text-slate-200 text-sm font-medium w-full justify-center">
               <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="5" rx="2"/><path d="M4 9v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9M10 14h4"/></svg>
               Arquivar card
             </button>
-            <div class="text-[10px] text-slate-400 mt-1 text-center">Pra excluir definitivamente vá em Configurações → Arquivados</div>
+            <div class="text-[10px] text-slate-400 mt-1 text-center">Pra excluir definitivamente vá em Perfil → Cards arquivados</div>
           </div>
-        </div>
-        <!-- COLUNA COMENTÁRIOS -->
-        <div class="min-w-0 flex flex-col border-l border-slate-200 dark:border-ink-700 pl-5 -ml-2">
-          <label class="text-xs font-medium uppercase text-slate-500 flex items-center gap-2 mb-2">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            Comentários (<span id="commentCountInline">0</span>)
-          </label>
-          <div class="relative">
-            <textarea id="commentInput" rows="3" placeholder="Escreva um comentário... use @ pra mencionar" class="w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 outline-none focus:border-pink-500 text-sm resize-y"></textarea>
-            <div id="mentionMenu" class="mention-menu hidden"></div>
-            <button onclick="postComment()" class="mt-1 px-3 py-1.5 rounded-lg bg-pink-500 text-white text-xs font-medium hover:bg-pink-600">Comentar</button>
-          </div>
-          <div id="commentsList" class="space-y-2 mt-3 flex-1 overflow-y-auto pr-1" style="max-height:60vh"></div>
         </div>
       </div>
       <div id="tab-activity" class="tab-content hidden p-5">
