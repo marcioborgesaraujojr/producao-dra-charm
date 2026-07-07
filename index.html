@@ -532,10 +532,6 @@ async function switchBoard(boardId){
     (cmR.data||[]).forEach(r => commentCounts[r.card_id] = (commentCounts[r.card_id]||0) + 1);
     (atR.data||[]).forEach(r => attachmentCounts[r.card_id] = (attachmentCounts[r.card_id]||0) + 1);
   }
-  // Mostra/esconde botão de facção conforme board
-  const isProducao = /produção|producao/i.test(boards.find(b=>b.id===boardId)?.name || '');
-  document.getElementById('filterFaccaoBtn').style.display = isProducao ? '' : 'none';
-  if (!isProducao) filters.faccao.clear();
   renderBoard();
 }
 
