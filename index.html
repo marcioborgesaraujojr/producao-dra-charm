@@ -171,8 +171,60 @@ tailwind.config = {
             </div>
           </div>
           <div>
+            <label class="text-xs font-medium uppercase text-slate-500">Grade cortada (soma automática)</label>
+            <div class="mt-1 grid grid-cols-6 gap-1">
+              <div><div class="text-[10px] text-center text-slate-500 mb-0.5">PP</div><input id="cardTamPP" type="number" min="0" class="w-full p-1.5 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm text-center grade-input"/></div>
+              <div><div class="text-[10px] text-center text-slate-500 mb-0.5">P</div><input id="cardTamP" type="number" min="0" class="w-full p-1.5 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm text-center grade-input"/></div>
+              <div><div class="text-[10px] text-center text-slate-500 mb-0.5">M</div><input id="cardTamM" type="number" min="0" class="w-full p-1.5 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm text-center grade-input"/></div>
+              <div><div class="text-[10px] text-center text-slate-500 mb-0.5">G</div><input id="cardTamG" type="number" min="0" class="w-full p-1.5 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm text-center grade-input"/></div>
+              <div><div class="text-[10px] text-center text-slate-500 mb-0.5">GG</div><input id="cardTamGG" type="number" min="0" class="w-full p-1.5 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm text-center grade-input"/></div>
+              <div><div class="text-[10px] text-center text-slate-500 mb-0.5">XG</div><input id="cardTamXG" type="number" min="0" class="w-full p-1.5 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm text-center grade-input"/></div>
+            </div>
+            <div class="mt-2 flex items-center gap-2 text-sm">
+              <div class="flex-1 p-2 rounded-lg bg-pink-50 dark:bg-pink-900/20 border border-pink-200 dark:border-pink-800"><span class="text-xs text-slate-500">Total cortada:</span> <span id="cardTotalCortada" class="font-bold text-pink-600">0</span> peças</div>
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <label class="text-xs font-medium uppercase text-slate-500">QTD oficina</label>
+              <input id="cardQtdOficina" type="number" min="0" placeholder="—" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"/>
+            </div>
+            <div>
+              <label class="text-xs font-medium uppercase text-slate-500">Boas</label>
+              <input id="cardPcsBoas" type="number" min="0" placeholder="—" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"/>
+            </div>
+            <div>
+              <label class="text-xs font-medium uppercase text-slate-500">Falhas</label>
+              <input id="cardPcsFalhas" type="number" min="0" placeholder="—" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"/>
+            </div>
+          </div>
+          <div id="cardOficinaAlerta" class="hidden text-xs p-2 rounded bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200"></div>
+          <div class="grid grid-cols-3 gap-2 items-end">
+            <div>
+              <label class="text-xs font-medium uppercase text-slate-500">Situação</label>
+              <select id="cardSituacao" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm">
+                <option value="">—</option>
+                <option>Aguardando corte</option>
+                <option>Cortada</option>
+                <option>Em costura</option>
+                <option>Costurada</option>
+                <option>Em acabamento</option>
+                <option>Finalizada</option>
+                <option>Refazer</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs font-medium uppercase text-slate-500">Data coleta oficina</label>
+              <input id="cardDataColeta" type="date" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"/>
+            </div>
+            <label class="flex items-center gap-2 p-2 rounded-lg bg-slate-50 dark:bg-ink-700 cursor-pointer text-sm select-none">
+              <input id="cardPagoCostura" type="checkbox" class="accent-pink-500">
+              Pago costura
+            </label>
+          </div>
+          <div>
             <label class="text-xs font-medium uppercase text-slate-500">Descrição</label>
-            <textarea id="cardDesc" rows="4" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 outline-none focus:border-pink-500"></textarea>
+            <textarea id="cardDesc" rows="3" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 outline-none focus:border-pink-500"></textarea>
           </div>
           <div>
             <label class="text-xs font-medium uppercase text-slate-500">Checklist</label>
@@ -499,6 +551,20 @@ async function openCard(id){
   document.getElementById('cardDesc').value = c.description || '';
   document.getElementById('cardDue').value = c.due_date || '';
   document.getElementById('cardTecidoQtd').value = c.tecido_qtd || '';
+  document.getElementById('cardTamPP').value = c.tam_pp || '';
+  document.getElementById('cardTamP').value = c.tam_p || '';
+  document.getElementById('cardTamM').value = c.tam_m || '';
+  document.getElementById('cardTamG').value = c.tam_g || '';
+  document.getElementById('cardTamGG').value = c.tam_gg || '';
+  document.getElementById('cardTamXG').value = c.tam_xg || '';
+  document.getElementById('cardQtdOficina').value = c.qtd_oficina ?? '';
+  document.getElementById('cardPcsBoas').value = c.qtd_pcs_boas ?? '';
+  document.getElementById('cardPcsFalhas').value = c.qtd_pcs_falhas ?? '';
+  document.getElementById('cardSituacao').value = c.situacao || '';
+  document.getElementById('cardDataColeta').value = c.data_coleta_oficina || '';
+  document.getElementById('cardPagoCostura').checked = !!c.pago_costura;
+  updateCortadaTotal();
+  updateOficinaAlerta();
   const listSel = document.getElementById('cardList');
   listSel.innerHTML = lists.map(l => `<option value="${l.id}">${escapeHtml(l.name)}</option>`).join('');
   listSel.value = c.list_id;
@@ -517,6 +583,29 @@ async function openCard(id){
   document.getElementById('cardModal').classList.remove('hidden');
   document.getElementById('cardModal').classList.add('flex');
 }
+
+function updateCortadaTotal(){
+  const t = ['PP','P','M','G','GG','XG'].reduce((s,k)=> s + (parseInt(document.getElementById('cardTam'+k).value)||0), 0);
+  document.getElementById('cardTotalCortada').textContent = t;
+  return t;
+}
+function updateOficinaAlerta(){
+  const cortada = updateCortadaTotal();
+  const of = parseInt(document.getElementById('cardQtdOficina').value)||0;
+  const boas = parseInt(document.getElementById('cardPcsBoas').value)||0;
+  const falhas = parseInt(document.getElementById('cardPcsFalhas').value)||0;
+  const alerta = document.getElementById('cardOficinaAlerta');
+  const msgs = [];
+  if (of && cortada && of !== cortada) msgs.push(`⚠️ Oficina entregou ${of} de ${cortada} cortadas (diff: ${of-cortada})`);
+  if ((boas+falhas) && (boas+falhas) !== of && of) msgs.push(`⚠️ Boas+Falhas (${boas+falhas}) ≠ QTD Oficina (${of})`);
+  if (msgs.length){ alerta.innerHTML = msgs.join('<br>'); alerta.classList.remove('hidden'); }
+  else alerta.classList.add('hidden');
+}
+document.addEventListener('input', e => {
+  if (e.target.classList.contains('grade-input') || ['cardQtdOficina','cardPcsBoas','cardPcsFalhas'].includes(e.target.id)) {
+    updateOficinaAlerta();
+  }
+});
 
 function renderCardCover(c){
   const img = document.getElementById('cardCoverImg');
@@ -666,6 +755,7 @@ window.addChecklistItem = async () => {
 
 window.saveCard = async () => {
   const newLabelId = document.getElementById('cardFaccao').value || null;
+  const gi = k => parseInt(document.getElementById(k).value) || null;
   const updates = {
     title: document.getElementById('cardTitle').value,
     description: document.getElementById('cardDesc').value,
@@ -673,6 +763,18 @@ window.saveCard = async () => {
     tecido_id: document.getElementById('cardTecido').value || null,
     tecido_qtd: parseFloat(document.getElementById('cardTecidoQtd').value) || null,
     due_date: document.getElementById('cardDue').value || null,
+    tam_pp: parseInt(document.getElementById('cardTamPP').value) || 0,
+    tam_p: parseInt(document.getElementById('cardTamP').value) || 0,
+    tam_m: parseInt(document.getElementById('cardTamM').value) || 0,
+    tam_g: parseInt(document.getElementById('cardTamG').value) || 0,
+    tam_gg: parseInt(document.getElementById('cardTamGG').value) || 0,
+    tam_xg: parseInt(document.getElementById('cardTamXG').value) || 0,
+    qtd_oficina: gi('cardQtdOficina'),
+    qtd_pcs_boas: gi('cardPcsBoas'),
+    qtd_pcs_falhas: gi('cardPcsFalhas'),
+    situacao: document.getElementById('cardSituacao').value || null,
+    data_coleta_oficina: document.getElementById('cardDataColeta').value || null,
+    pago_costura: document.getElementById('cardPagoCostura').checked,
   };
   await sb.from('cards').update(updates).eq('id', activeCardId);
   await sb.from('card_labels').delete().eq('card_id', activeCardId);
