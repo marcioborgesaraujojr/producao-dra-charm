@@ -582,16 +582,18 @@ tailwind.config = {
       <button onclick="closeSyncBordado()" class="text-slate-400 hover:text-slate-700">✕</button>
     </div>
     <div class="p-5 overflow-y-auto space-y-5">
-      <!-- SETUP INICIAL: BOOKMARKLET -->
-      <details class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3" id="syncSetupBox">
-        <summary class="text-sm font-semibold text-amber-800 dark:text-amber-300 cursor-pointer">📌 Setup inicial (fazer 1 vez só)</summary>
-        <div class="mt-3 text-xs text-slate-700 dark:text-slate-300 space-y-2">
-          <div><b>1.</b> Mostra a barra de favoritos do Chrome: <kbd>⌘ Shift B</kbd> (Mac) ou <kbd>Ctrl Shift B</kbd> (Windows)</div>
-          <div><b>2.</b> Arrasta o link laranja abaixo até a barra de favoritos:</div>
-          <div class="text-center py-2"><a id="bookmarkletLink" href="#" onclick="alert('Não clica aqui — ARRASTA pros favoritos!'); return false;" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 text-white font-bold text-sm shadow-md hover:bg-amber-600">🧵 Sincronizar Bordados Dra Charm</a></div>
-          <div><b>3.</b> Pronto! Da próxima vez que quiser sincronizar, use o botão abaixo.</div>
+      <!-- STATUS DA EXTENSÃO -->
+      <div id="extStatusBox" class="border rounded-lg p-3 text-xs">
+        <div id="extStatusLine" class="font-semibold flex items-center gap-2"><span id="extStatusIcon">🔍</span> <span id="extStatusText">Verificando extensão...</span></div>
+        <div id="extInstallInstructions" class="hidden mt-3 space-y-2 text-slate-700 dark:text-slate-300">
+          <div><b>1.</b> Baixa a extensão: <a href="https://github.com/marcioborgesaraujojr/producao-dra-charm/raw/main/dra-charm-sync-extension.zip" class="text-blue-600 underline font-semibold" target="_blank">📥 dra-charm-sync-extension.zip</a></div>
+          <div><b>2.</b> Descompacta o zip numa pasta qualquer (Downloads mesmo tá bom)</div>
+          <div><b>3.</b> Abre no Chrome: <b>chrome://extensions</b> (cola na barra de endereço)</div>
+          <div><b>4.</b> Liga o toggle "Modo do desenvolvedor" no canto superior direito</div>
+          <div><b>5.</b> Clica "Carregar sem compactação" → seleciona a pasta descompactada</div>
+          <div><b>6.</b> Pronto! Volta aqui e clica em Sincronizar de novo.</div>
         </div>
-      </details>
+      </div>
 
       <!-- SYNC -->
       <div class="space-y-3">
@@ -1961,18 +1963,35 @@ function timeAgo(t){
 if (localStorage.getItem('dc_dark')==='1') document.documentElement.classList.add('dark');
 
 // ==================== SYNC BORDADOS DA LOJA INTEGRADA ====================
+let extensionInstalled = false;
+let extProbeWindow = null;
 window.openSyncBordado = () => {
   // Data padrão = ontem
   const y = new Date(Date.now() - 24*60*60*1000);
   const yyyy = y.getFullYear(), mm = String(y.getMonth()+1).padStart(2,'0'), dd = String(y.getDate()).padStart(2,'0');
   document.getElementById('syncDateInput').value = `${yyyy}-${mm}-${dd}`;
-  // Gera bookmarklet — carrega script remoto (assim conseguimos atualizar sem reinstalar)
-  const bookmarkletCode = `javascript:(function(){var s=document.createElement('script');s.src='${window.location.origin}/sync-li.js?t='+Date.now();s.setAttribute('data-app-origin','${window.location.origin}');document.body.appendChild(s);})();`;
-  document.getElementById('bookmarkletLink').href = bookmarkletCode;
   document.getElementById('syncStatus').textContent = '';
   document.getElementById('syncBordadoModal').classList.remove('hidden');
   document.getElementById('syncBordadoModal').classList.add('flex');
+  updateExtStatus();
 };
+function updateExtStatus(){
+  const icon = document.getElementById('extStatusIcon');
+  const text = document.getElementById('extStatusText');
+  const box = document.getElementById('extStatusBox');
+  const inst = document.getElementById('extInstallInstructions');
+  if (extensionInstalled){
+    icon.textContent = '✅';
+    text.textContent = 'Extensão instalada — sync automático 1-clique';
+    box.className = 'border-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-3 text-xs border';
+    inst.classList.add('hidden');
+  } else {
+    icon.textContent = '⚠️';
+    text.textContent = 'Extensão não instalada — instala 1 vez pra ficar 1-clique';
+    box.className = 'border-amber-300 bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3 text-xs border';
+    inst.classList.remove('hidden');
+  }
+}
 window.closeSyncBordado = () => {
   document.getElementById('syncBordadoModal').classList.add('hidden');
   document.getElementById('syncBordadoModal').classList.remove('flex');
@@ -1982,13 +2001,24 @@ window.startSyncBordado = () => {
   if (!dateVal){ toast('Escolha uma data'); return; }
   const [yyyy, mm, dd] = dateVal.split('-');
   const brDate = encodeURIComponent(`${dd}/${mm}/${yyyy}`);
-  const liUrl = `https://app.lojaintegrada.com.br/painel/pedido/listar?data_inicio=${brDate}&data_fim=${brDate}`;
+  // Se extensão instalada: adiciona hash pra ela auto-rodar. Se não: só abre a página.
+  const hash = extensionInstalled ? '#drachrm-autosync=1' : '';
+  const liUrl = `https://app.lojaintegrada.com.br/painel/pedido/listar?data_inicio=${brDate}&data_fim=${brDate}${hash}`;
   const win = window.open(liUrl, 'liSyncWindow');
   if (!win){ toast('Popup bloqueado. Libera pop-ups pra este site.'); return; }
-  document.getElementById('syncStatus').innerHTML = `<span class="text-amber-600">Aguardando você clicar no favorito "🧵 Sincronizar Bordados Dra Charm" na aba do LI...</span>`;
+  if (extensionInstalled){
+    document.getElementById('syncStatus').innerHTML = `<span class="text-amber-600">🧵 Extensão rodando na aba do LI... acompanhe o painel laranja lá.</span>`;
+  } else {
+    document.getElementById('syncStatus').innerHTML = `<span class="text-amber-600">Instale a extensão pra sync automático (veja acima), ou fecha a aba do LI que abriu.</span>`;
+  }
 };
-// Listener global de mensagens vindas do bookmarklet
+// Listener global de mensagens (extensão OR bookmarklet)
 window.addEventListener('message', async (e) => {
+  if (e.data?.type === 'draCharmSyncExtensionReady'){
+    extensionInstalled = true;
+    updateExtStatus();
+    return;
+  }
   if (e.data?.type !== 'draCharmBordados') return;
   const orders = e.data.orders || [];
   document.getElementById('syncStatus').innerHTML = `<span class="text-amber-600">Recebi ${orders.length} pedidos. Salvando...</span>`;
