@@ -19,7 +19,11 @@ tailwind.config = {
 </script>
 <style>
   html,body{height:100%}
-  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background-size:cover;background-position:center;background-attachment:fixed;background-repeat:no-repeat}
+  body.has-bg::before{content:'';position:fixed;inset:0;background:rgba(15,23,42,.35);pointer-events:none;z-index:0}
+  body.has-bg #app,body.has-bg #loginScreen{position:relative;z-index:1}
+  body.has-bg header{background:rgba(255,255,255,.85)!important;backdrop-filter:blur(12px)}
+  body.has-bg.dark header{background:rgba(17,24,39,.85)!important}
   .board-scroll{scrollbar-width:thin}
   .board-scroll::-webkit-scrollbar{height:10px;width:10px}
   .board-scroll::-webkit-scrollbar-thumb{background:#94a3b8;border-radius:8px}
@@ -81,7 +85,13 @@ tailwind.config = {
         <img src="https://cdn.awsli.com.br/1930/1930166/arquivos/logo.png" class="w-full h-full object-contain">
       </div>
         <div class="leading-tight">
-          <select id="boardSelect" class="text-sm font-semibold bg-slate-100 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 rounded-lg px-2 py-1 outline-none cursor-pointer hover:bg-slate-200 dark:hover:bg-ink-600"></select>
+          <div class="flex items-center gap-1">
+            <select id="boardSelect" class="text-sm font-semibold bg-slate-100 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 rounded-lg px-2 py-1 outline-none cursor-pointer hover:bg-slate-200 dark:hover:bg-ink-600"></select>
+            <button id="boardBgBtn" title="Trocar fundo do quadro" class="p-1 rounded hover:bg-slate-200 dark:hover:bg-ink-600 text-slate-500 hover:text-pink-500">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>
+            </button>
+            <input id="boardBgInput" type="file" accept="image/*" class="hidden">
+          </div>
           <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5" id="statsLine">cards</div>
         </div>
       </div>
@@ -546,6 +556,7 @@ async function switchBoard(boardId){
   filters.faccao.clear();
   document.getElementById('board').innerHTML = '<div class="text-center p-8 text-slate-500">Carregando...</div>';
   const b = boards.find(x => x.id === boardId);
+  applyBoardBackground(b?.background_url);
   const isProducao = b && /produ[cç][aã]o/i.test(b.name);
   const facBtn = document.getElementById('filterFaccaoBtn');
   const facBar = document.getElementById('faccaoFilterBar');
@@ -1418,6 +1429,38 @@ function applyLogo(url){
   const fav = document.getElementById('faviconLink');
   if (fav) fav.href = url;
 }
+
+function applyBoardBackground(url){
+  if (url){
+    document.body.style.backgroundImage = `url('${url}')`;
+    document.body.classList.add('has-bg');
+  } else {
+    document.body.style.backgroundImage = '';
+    document.body.classList.remove('has-bg');
+  }
+}
+document.addEventListener('click', e => {
+  if (e.target.closest('#boardBgBtn')){
+    document.getElementById('boardBgInput').click();
+  }
+});
+document.addEventListener('change', async e => {
+  if (e.target.id === 'boardBgInput' && e.target.files[0]){
+    const file = e.target.files[0];
+    if (file.size > 5*1024*1024){ toast('Imagem muito grande — máx 5MB'); return; }
+    toast('Enviando fundo...');
+    const ext = file.name.split('.').pop().toLowerCase();
+    const path = `backgrounds/${currentBoardId}-${Date.now()}.${ext}`;
+    const { error: upErr } = await sb.storage.from('attachments').upload(path, file);
+    if (upErr){ toast('Erro: '+upErr.message); return; }
+    const { data:{ publicUrl } } = sb.storage.from('attachments').getPublicUrl(path);
+    await sb.from('boards').update({ background_url: publicUrl }).eq('id', currentBoardId);
+    const b = boards.find(x=>x.id===currentBoardId);
+    if (b) b.background_url = publicUrl;
+    applyBoardBackground(publicUrl);
+    toast('Fundo aplicado! Todos da equipe vão ver.');
+  }
+});
 
 async function loadAppSettings(){
   const { data } = await sb.from('app_settings').select('logo_url').eq('id', 1).maybeSingle();
