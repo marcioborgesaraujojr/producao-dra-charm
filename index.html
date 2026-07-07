@@ -294,7 +294,15 @@ tailwind.config = {
           </div>
           <div>
             <label class="text-xs font-medium uppercase text-slate-500">Facção</label>
-            <select id="cardFaccao" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"></select>
+            <div class="relative mt-1">
+              <button id="cardFaccaoBtn" type="button" class="w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm text-left flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-ink-600">
+                <span id="cardFaccaoDot" class="w-3 h-3 rounded-full flex-shrink-0" style="background:#94a3b8"></span>
+                <span id="cardFaccaoLabel" class="flex-1 truncate">— nenhuma —</span>
+                <svg class="w-3 h-3 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+              </button>
+              <div id="cardFaccaoMenu" class="hidden absolute right-0 left-0 mt-1 max-h-64 overflow-y-auto bg-white dark:bg-ink-800 rounded-lg shadow-2xl border border-slate-200 dark:border-ink-700 z-50"></div>
+            </div>
+            <input type="hidden" id="cardFaccao">
           </div>
           <div>
             <label class="text-xs font-medium uppercase text-slate-500">Tecido consumido</label>
@@ -642,9 +650,9 @@ async function openCard(id){
   const listSel = document.getElementById('cardList');
   listSel.innerHTML = lists.map(l => `<option value="${l.id}">${escapeHtml(l.name)}</option>`).join('');
   listSel.value = c.list_id;
-  const facSel = document.getElementById('cardFaccao');
-  facSel.innerHTML = '<option value="">— nenhuma —</option>' + labels.map(l => `<option value="${l.id}">${escapeHtml(l.name)}</option>`).join('');
-  facSel.value = (cardLabels[id][0]||{}).id || '';
+  const currentLabel = cardLabels[id][0] || null;
+  document.getElementById('cardFaccao').value = currentLabel?.id || '';
+  renderFaccaoDropdownButton(currentLabel);
   const tecSel = document.getElementById('cardTecido');
   tecSel.innerHTML = '<option value="">—</option>' + tecidos.map(t => `<option value="${t.id}">${escapeHtml(t.name)} (${t.quantidade}m)</option>`).join('');
   tecSel.value = c.tecido_id || '';
@@ -657,6 +665,57 @@ async function openCard(id){
   document.getElementById('cardModal').classList.remove('hidden');
   document.getElementById('cardModal').classList.add('flex');
 }
+
+function renderFaccaoDropdownButton(label){
+  const dot = document.getElementById('cardFaccaoDot');
+  const lbl = document.getElementById('cardFaccaoLabel');
+  if (label){
+    dot.style.background = label.color;
+    lbl.textContent = label.name;
+    lbl.style.color = label.color;
+    lbl.style.fontWeight = '600';
+  } else {
+    dot.style.background = '#94a3b8';
+    lbl.textContent = '— nenhuma —';
+    lbl.style.color = '';
+    lbl.style.fontWeight = '';
+  }
+}
+function renderFaccaoDropdownMenu(){
+  const menu = document.getElementById('cardFaccaoMenu');
+  menu.innerHTML = '';
+  const none = document.createElement('button');
+  none.type = 'button';
+  none.className = 'w-full text-left flex items-center gap-2 p-2 hover:bg-slate-100 dark:hover:bg-ink-700 text-sm';
+  none.innerHTML = '<span class="w-3 h-3 rounded-full flex-shrink-0" style="background:#94a3b8"></span><span class="text-slate-500">— nenhuma —</span>';
+  none.onclick = () => selectFaccao(null);
+  menu.appendChild(none);
+  labels.slice().sort((a,b) => a.name.localeCompare(b.name)).forEach(l => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'w-full text-left flex items-center gap-2 p-2 hover:bg-slate-100 dark:hover:bg-ink-700 text-sm';
+    b.innerHTML = `<span class="w-3 h-3 rounded-full flex-shrink-0" style="background:${l.color}"></span><span style="color:${l.color};font-weight:600">${escapeHtml(l.name)}</span>`;
+    b.onclick = () => selectFaccao(l);
+    menu.appendChild(b);
+  });
+}
+function selectFaccao(label){
+  document.getElementById('cardFaccao').value = label ? label.id : '';
+  renderFaccaoDropdownButton(label);
+  document.getElementById('cardFaccaoMenu').classList.add('hidden');
+  autosave();
+}
+document.addEventListener('click', e => {
+  const btn = document.getElementById('cardFaccaoBtn');
+  const menu = document.getElementById('cardFaccaoMenu');
+  if (btn && btn.contains(e.target)){
+    e.stopPropagation();
+    if (menu.classList.contains('hidden')) renderFaccaoDropdownMenu();
+    menu.classList.toggle('hidden');
+  } else if (menu && !menu.contains(e.target)){
+    menu.classList.add('hidden');
+  }
+});
 
 function updateCortadaTotal(){
   const t = ['PP','P','M','G','GG','XG'].reduce((s,k)=> s + (parseInt(document.getElementById('cardTam'+k).value)||0), 0);
