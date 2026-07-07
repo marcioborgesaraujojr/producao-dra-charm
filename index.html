@@ -1023,6 +1023,7 @@ window.archiveCard = async () => {
 };
 
 window.saveCard = async (silent = false) => {
+  const c0 = cards.find(x => x.id === activeCardId) || {};
   const newLabelId = document.getElementById('cardFaccao').value || null;
   const gi = k => parseInt(document.getElementById(k).value) || null;
   const updates = {
@@ -1051,14 +1052,26 @@ window.saveCard = async (silent = false) => {
     data_coleta_oficina: document.getElementById('cardDataColeta').value || null,
     pago_costura: document.getElementById('cardPagoCostura').checked,
   };
-  await sb.from('cards').update(updates).eq('id', activeCardId);
+  // Só envia campos que realmente mudaram vs snapshot do card atual
+  const diff = {};
+  for (const k in updates){
+    const oldVal = c0[k];
+    const newVal = updates[k];
+    if (JSON.stringify(oldVal ?? null) !== JSON.stringify(newVal ?? null)) diff[k] = newVal;
+  }
+  if (Object.keys(diff).length === 0){
+    if (silent) document.getElementById('autosaveStatus').textContent = 'salvo';
+    else { closeCard(); }
+    return;
+  }
+  await sb.from('cards').update(diff).eq('id', activeCardId);
   await sb.from('card_labels').delete().eq('card_id', activeCardId);
   if (newLabelId){
     await sb.from('card_labels').insert({card_id: activeCardId, label_id: newLabelId});
     cardLabels[activeCardId] = [labels.find(l=>l.id===newLabelId)];
   } else cardLabels[activeCardId] = [];
   const c = cards.find(x=>x.id===activeCardId);
-  if (c) Object.assign(c, updates);
+  if (c) Object.assign(c, diff);
   renderBoard();
   if (silent){
     document.getElementById('autosaveStatus').textContent = 'salvo';
