@@ -399,6 +399,8 @@ let cardLabels = {}, cardMembers = {}, checklistsByCard = {};
 let comments = [], activity = [], notifications = [];
 let activeCardId = null, draggingCardId = null;
 let filters = { faccao: new Set(), search: '', hideFinalizado: true, density:'cozy' };
+let commentCounts = {};
+let attachmentCounts = {};
 
 async function initAuth(){
   const { data: { session } } = await sb.auth.getSession();
@@ -497,7 +499,14 @@ function renderBoardSelect(){
 
 async function switchBoard(boardId){
   currentBoardId = boardId;
+  filters.faccao.clear();
   document.getElementById('board').innerHTML = '<div class="text-center p-8 text-slate-500">Carregando...</div>';
+  const b = boards.find(x => x.id === boardId);
+  const isProducao = b && /produ[cç][aã]o/i.test(b.name);
+  const facBtn = document.getElementById('filterFaccaoBtn');
+  const facBar = document.getElementById('faccaoFilterBar');
+  if (facBtn) facBtn.parentElement.style.display = isProducao ? '' : 'none';
+  if (facBar) facBar.classList.add('hidden');
   const [lR, laR, tR, cR] = await Promise.all([
     sb.from('lists').select('*').eq('board_id', boardId).eq('archived', false).order('position'),
     sb.from('labels').select('*').eq('board_id', boardId).order('name'),
@@ -512,6 +521,21 @@ async function switchBoard(boardId){
     cardLabels[c.id] = (c.card_labels||[]).map(cl => labels.find(l=>l.id===cl.label_id)).filter(Boolean);
     cardMembers[c.id] = (c.card_members||[]).map(cm => profiles.find(p=>p.id===cm.user_id)).filter(Boolean);
   });
+  // Puxa contagens de comentários e anexos por card
+  const cardIds = cards.map(c=>c.id);
+  commentCounts = {}; attachmentCounts = {};
+  if (cardIds.length){
+    const [cmR, atR] = await Promise.all([
+      sb.from('comments').select('card_id').in('card_id', cardIds),
+      sb.from('attachments').select('card_id').in('card_id', cardIds),
+    ]);
+    (cmR.data||[]).forEach(r => commentCounts[r.card_id] = (commentCounts[r.card_id]||0) + 1);
+    (atR.data||[]).forEach(r => attachmentCounts[r.card_id] = (attachmentCounts[r.card_id]||0) + 1);
+  }
+  // Mostra/esconde botão de facção conforme board
+  const isProducao = /produção|producao/i.test(boards.find(b=>b.id===boardId)?.name || '');
+  document.getElementById('filterFaccaoBtn').style.display = isProducao ? '' : 'none';
+  if (!isProducao) filters.faccao.clear();
   renderBoard();
 }
 
@@ -575,13 +599,25 @@ function renderCard(c, compact){
   const thumbW = compact ? 70 : 104;
   const thumbH = compact ? 88 : 132;
   const cover = c.cover_url ? `<div class="product-thumb" style="width:${thumbW}px;height:${thumbH}px"><img src="${escapeHtml(c.cover_url)}" loading="lazy" onerror="this.parentElement.style.display='none'"/></div>` : '';
+  const totalGrade = (c.tam_pp||0)+(c.tam_p||0)+(c.tam_m||0)+(c.tam_g||0)+(c.tam_gg||0)+(c.tam_xg||0);
+  const gradeItems = [
+    ['PP', c.tam_pp], ['P', c.tam_p], ['M', c.tam_m],
+    ['G', c.tam_g], ['GG', c.tam_gg], ['XG', c.tam_xg]
+  ].filter(([,v]) => v && v > 0).map(([k,v]) => `<span class="inline-flex items-center gap-0.5 text-[10px] text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-ink-600 px-1.5 py-0.5 rounded"><b>${k}:</b> ${v}</span>`).join('');
+  const cCount = commentCounts[c.id] || 0;
+  const aCount = attachmentCounts[c.id] || 0;
+  const icons = [];
+  if (cCount) icons.push(`<span class="inline-flex items-center gap-0.5 text-[11px] text-slate-500" title="Comentários"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>${cCount}</span>`);
+  if (aCount) icons.push(`<span class="inline-flex items-center gap-0.5 text-[11px] text-slate-500" title="Anexos"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>${aCount}</span>`);
+  if (c.due_date) icons.push(`<span class="inline-flex items-center gap-0.5 text-[11px] text-slate-500" title="Data prevista"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>${escapeHtml(c.due_date.slice(5))}</span>`);
   el.innerHTML = `
     <div class="flex gap-2">
       ${cover}
       <div class="flex-1 min-w-0">
         ${labelChips ? `<div class="flex flex-wrap gap-1 mb-1">${labelChips}</div>` : ''}
         <div class="font-medium leading-tight">${escapeHtml(c.title)}</div>
-        ${!compact && c.due_date ? `<div class="text-[11px] text-slate-500 mt-1">📅 ${c.due_date}</div>`:''}
+        ${!compact && gradeItems ? `<div class="flex flex-wrap gap-1 mt-1.5">${gradeItems}</div>`:''}
+        ${!compact && icons.length ? `<div class="flex flex-wrap gap-2 mt-1.5">${icons.join('')}</div>`:''}
         ${cmembs.length ? `<div class="flex -space-x-1 mt-1">${memAvatars}${cmembs.length>3?`<div class="w-5 h-5 rounded-full bg-slate-400 text-white text-[9px] flex items-center justify-center">+${cmembs.length-3}</div>`:''}</div>`:''}
       </div>
     </div>`;
