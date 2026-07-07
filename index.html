@@ -2001,9 +2001,9 @@ window.startSyncBordado = () => {
   if (!dateVal){ toast('Escolha uma data'); return; }
   const [yyyy, mm, dd] = dateVal.split('-');
   const brDate = encodeURIComponent(`${dd}/${mm}/${yyyy}`);
-  // Se extensão instalada: adiciona hash pra ela auto-rodar. Se não: só abre a página.
-  const hash = extensionInstalled ? '#drachrm-autosync=1' : '';
-  const liUrl = `https://app.lojaintegrada.com.br/painel/pedido/listar?data_inicio=${brDate}&data_fim=${brDate}${hash}`;
+  // Se extensão instalada: query param dc_sync=1 dispara auto-run. Se não: só abre a página.
+  const syncFlag = extensionInstalled ? '&dc_sync=1' : '';
+  const liUrl = `https://app.lojaintegrada.com.br/painel/pedido/listar?data_inicio=${brDate}&data_fim=${brDate}${syncFlag}`;
   const win = window.open(liUrl, 'liSyncWindow');
   if (!win){ toast('Popup bloqueado. Libera pop-ups pra este site.'); return; }
   if (extensionInstalled){
