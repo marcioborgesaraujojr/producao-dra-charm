@@ -71,8 +71,11 @@ tailwind.config = {
       <div class="flex items-center gap-2">
         <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-pink-500 to-fuchsia-600 flex items-center justify-center text-white font-bold">C</div>
         <div class="leading-tight">
-          <select id="boardSelect" class="text-sm font-semibold bg-transparent outline-none cursor-pointer"></select>
-          <div class="text-[11px] text-slate-500 dark:text-slate-400" id="statsLine">cards</div>
+          <div class="relative">
+            <select id="boardSelect" class="text-sm font-semibold bg-slate-100 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 rounded-lg px-2 pr-7 py-1 outline-none cursor-pointer hover:bg-slate-200 dark:hover:bg-ink-600 appearance-none"></select>
+            <svg class="w-3 h-3 absolute right-2 top-2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+          <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5" id="statsLine">cards</div>
         </div>
       </div>
 
@@ -448,7 +451,7 @@ function renderCard(c, compact){
   el.draggable = true;
   const labelChips = clbls.slice(0,3).map(l=>`<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style="background:${l.color}22;color:${l.color}"><span class="w-1.5 h-1.5 rounded-full" style="background:${l.color}"></span>${escapeHtml(l.name)}</span>`).join('');
   const memAvatars = cmembs.slice(0,3).map(m=>`<div class="w-5 h-5 rounded-full bg-pink-500 text-white text-[10px] font-bold flex items-center justify-center" title="${escapeHtml(m.full_name)}">${(m.full_name||'?').charAt(0).toUpperCase()}</div>`).join('');
-  const cover = c.cover_url ? `<div class="w-full bg-slate-100 dark:bg-ink-900 flex items-center justify-center" style="aspect-ratio:1"><img src="${escapeHtml(c.cover_url)}" class="max-w-full max-h-full object-contain" loading="lazy" onerror="this.parentElement.style.display='none'"/></div>` : '';
+  const cover = c.cover_url ? `<img src="${escapeHtml(c.cover_url)}" class="w-full h-auto block" loading="lazy" onerror="this.style.display='none'"/>` : '';
   el.innerHTML = `
     ${cover}
     <div class="p-2">
