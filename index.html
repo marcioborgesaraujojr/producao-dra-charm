@@ -302,18 +302,23 @@ tailwind.config = {
             <label class="text-xs font-medium uppercase text-slate-500">Data prevista</label>
             <input id="cardDue" type="date" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"/>
           </div>
-          <!-- COMENTÁRIOS acima do arquivar -->
+          <!-- FEED: COMENTÁRIOS + ATIVIDADES -->
           <div class="pt-3 border-t border-slate-200 dark:border-ink-700">
-            <label class="text-xs font-medium uppercase text-slate-500 flex items-center gap-2 mb-2">
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-              Comentários (<span id="commentCountInline">0</span>)
-            </label>
+            <div class="flex items-center justify-between mb-2">
+              <label class="text-xs font-medium uppercase text-slate-500 flex items-center gap-2">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                Comentários e atividade
+              </label>
+              <button id="toggleDetalhes" class="text-[11px] px-2 py-1 rounded border border-amber-400 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20">Mostrar detalhes</button>
+            </div>
             <div class="relative">
               <textarea id="commentInput" rows="2" placeholder="Escreva um comentário... use @ pra mencionar" class="w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 outline-none focus:border-pink-500 text-sm resize-y"></textarea>
               <div id="mentionMenu" class="mention-menu hidden"></div>
               <button onclick="postComment()" class="mt-1 px-3 py-1.5 rounded-lg bg-pink-500 text-white text-xs font-medium hover:bg-pink-600">Comentar</button>
             </div>
-            <div id="commentsList" class="space-y-2 mt-3 overflow-y-auto pr-1" style="max-height:280px"></div>
+            <div id="feedList" class="space-y-2 mt-3 overflow-y-auto pr-1" style="max-height:320px"></div>
+            <div id="commentsList" class="hidden"></div>
+            <span id="commentCountInline" class="hidden">0</span>
           </div>
           <div class="pt-3 border-t border-slate-200 dark:border-ink-700">
             <button onclick="archiveCard()" class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-200 dark:bg-ink-700 hover:bg-slate-300 dark:hover:bg-ink-600 text-slate-700 dark:text-slate-200 text-sm font-medium w-full justify-center">
@@ -919,25 +924,74 @@ async function loadComments(cardId){
   renderComments();
 }
 
-function renderComments(){
-  const box = document.getElementById('commentsList');
-  box.innerHTML = '';
-  comments.forEach(c => {
-    const author = profiles.find(p=>p.id===c.author_id) || {full_name:'?'};
-    const row = document.createElement('div');
-    row.className = 'flex gap-3';
-    row.innerHTML = `
-      <div class="w-8 h-8 rounded-full bg-pink-500 text-white text-sm flex items-center justify-center flex-shrink-0">${(author.full_name||'?').charAt(0).toUpperCase()}</div>
-      <div class="flex-1 bg-slate-50 dark:bg-ink-700 rounded-lg p-3">
-        <div class="flex items-center gap-2 text-xs text-slate-500 mb-1">
-          <span class="font-semibold text-slate-700 dark:text-slate-200">${escapeHtml(author.full_name)}</span>
-          <span>${timeAgo(c.created_at)}</span>
+let showDetalhes = false;
+function renderComments(){ renderFeed(); }
+function renderFeed(){
+  const box = document.getElementById('feedList');
+  if (!box) return;
+  const fieldLabels = { list_id:'Lista', title:'Título', description:'Descrição', archived:'Arquivado', situacao:'Situação', qtd_oficina:'QTD Oficina', qtd_pcs_boas:'Boas', qtd_pcs_falhas:'Falhas', pago_costura:'Pago costura', cover_url:'Foto', tam_pp:'PP',tam_p:'P',tam_m:'M',tam_g:'G',tam_gg:'GG',tam_xg:'XG',tam_pp_of:'PP of',tam_p_of:'P of',tam_m_of:'M of',tam_g_of:'G of',tam_gg_of:'GG of',tam_xg_of:'XG of',data_coleta_oficina:'Data coleta' };
+  const listName = id => lists.find(l=>l.id===id)?.name || '?';
+  const items = [];
+  comments.forEach(c => items.push({kind:'comment', at:c.created_at, data:c}));
+  activity.forEach(a => items.push({kind:'activity', at:a.created_at, data:a}));
+  items.sort((a,b) => new Date(b.at) - new Date(a.at));
+  const visible = showDetalhes ? items : (() => {
+    const cs = items.filter(i=>i.kind==='comment');
+    const lastAct = items.find(i=>i.kind==='activity');
+    return [...cs, ...(lastAct ? [lastAct] : [])].sort((a,b) => new Date(b.at) - new Date(a.at));
+  })();
+  if (!visible.length){ box.innerHTML = '<div class="text-xs text-slate-400 text-center p-3">Sem atividade ainda</div>'; return; }
+  box.innerHTML = visible.map(item => {
+    if (item.kind === 'comment'){
+      const c = item.data;
+      const author = profiles.find(p=>p.id===c.author_id) || {full_name:'?'};
+      return `<div class="flex gap-2">
+        <div class="w-7 h-7 rounded-full bg-pink-500 text-white text-xs flex items-center justify-center flex-shrink-0">${(author.full_name||'?').charAt(0).toUpperCase()}</div>
+        <div class="flex-1 bg-slate-50 dark:bg-ink-700 rounded-lg p-2">
+          <div class="flex items-center gap-2 text-[11px] text-slate-500 mb-1">
+            <span class="font-semibold text-slate-700 dark:text-slate-200">${escapeHtml(author.full_name)}</span>
+            <span>${timeAgo(c.created_at)}</span>
+          </div>
+          <div class="text-xs whitespace-pre-wrap">${renderMentions(c.body)}</div>
         </div>
-        <div class="text-sm whitespace-pre-wrap">${renderMentions(c.body)}</div>
       </div>`;
-    box.appendChild(row);
-  });
+    } else {
+      const a = item.data;
+      const actor = profiles.find(p=>p.id===a.actor_id);
+      const actorName = actor?.full_name || 'Sistema';
+      let msg = a.action, detail = '';
+      if (a.action === 'created') msg = 'criou o card';
+      else if (a.action === 'deleted') msg = 'excluiu o card';
+      else if (a.action === 'moved') { msg = 'moveu'; detail = ` de <b>${escapeHtml(listName(a.meta?.from_list))}</b> pra <b>${escapeHtml(listName(a.meta?.to_list))}</b>`; }
+      else if (a.action === 'edited' && a.meta){
+        const changes = Object.entries(a.meta).map(([k,v])=>{
+          const lbl = fieldLabels[k] || k;
+          let from = v?.from, to = v?.to;
+          if (k === 'list_id'){ from = listName(from); to = listName(to); }
+          if (from === null || from === '') from = '—';
+          if (to === null || to === '') to = '—';
+          return `${lbl}: <span class="text-slate-400 line-through">${escapeHtml(String(from).slice(0,20))}</span> → <span class="text-emerald-600 font-medium">${escapeHtml(String(to).slice(0,20))}</span>`;
+        }).join(' · ');
+        msg = 'editou';
+        detail = ' — ' + changes;
+      }
+      return `<div class="flex gap-2 text-[11px]">
+        <div class="w-7 h-7 rounded-full bg-slate-300 dark:bg-ink-600 text-slate-700 dark:text-slate-200 text-xs flex items-center justify-center flex-shrink-0">${(actorName||'?').charAt(0).toUpperCase()}</div>
+        <div class="flex-1 text-slate-600 dark:text-slate-300 pt-1">
+          <span class="font-medium">${escapeHtml(actorName)}</span> ${msg}${detail}
+          <div class="text-[10px] text-slate-400">${timeAgo(a.created_at)}</div>
+        </div>
+      </div>`;
+    }
+  }).join('');
 }
+document.addEventListener('click', e => {
+  if (e.target.id === 'toggleDetalhes'){
+    showDetalhes = !showDetalhes;
+    e.target.textContent = showDetalhes ? 'Ocultar detalhes' : 'Mostrar detalhes';
+    renderFeed();
+  }
+});
 
 function renderMentions(text){
   return escapeHtml(text).replace(/@([\w.]+)/g, (match, name) => {
@@ -997,8 +1051,9 @@ document.getElementById('commentInput').addEventListener('input', e => {
 });
 
 async function loadActivity(cardId){
-  const { data } = await sb.from('activity_log').select('*').eq('card_id', cardId).order('created_at', {ascending: false}).limit(30);
+  const { data } = await sb.from('activity_log').select('*').eq('card_id', cardId).order('created_at', {ascending: false}).limit(100);
   activity = data || [];
+  renderFeed();
   const box = document.getElementById('activityList');
   const fieldLabels = { list_id:'Lista', title:'Título', description:'Descrição', archived:'Arquivado', situacao:'Situação', qtd_oficina:'QTD Oficina', qtd_pcs_boas:'Boas', qtd_pcs_falhas:'Falhas', pago_costura:'Pago costura', cover_url:'Foto', tam_pp:'PP',tam_p:'P',tam_m:'M',tam_g:'G',tam_gg:'GG',tam_xg:'XG',tam_pp_of:'PP oficina',tam_p_of:'P oficina',tam_m_of:'M oficina',tam_g_of:'G oficina',tam_gg_of:'GG oficina',tam_xg_of:'XG oficina',data_coleta_oficina:'Data coleta' };
   const listName = id => lists.find(l=>l.id===id)?.name || '?';
