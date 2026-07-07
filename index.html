@@ -142,6 +142,10 @@ tailwind.config = {
             <button id="boardBgBtn" title="Trocar fundo do quadro" class="p-1 rounded hover:bg-slate-200 dark:hover:bg-ink-600 text-slate-500 hover:text-pink-500">
               <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>
             </button>
+            <button id="syncBordadoBtn" title="Sincronizar pedidos com bordado da Loja Integrada" class="hidden px-2 py-1 rounded bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+              Sincronizar bordados
+            </button>
             <input id="boardBgInput" type="file" accept="image/*" class="hidden">
           </div>
           <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5" id="statsLine">cards</div>
@@ -416,6 +420,64 @@ tailwind.config = {
               </div>
             </div>
           </div>
+          <div id="bordadoFields" class="hidden space-y-4">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs font-medium uppercase text-amber-600">🧾 Nº do pedido</label>
+                <div class="flex gap-1 mt-1 items-center">
+                  <input id="cardPedidoNumero" type="text" placeholder="236708" class="flex-1 p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-amber-500 text-sm"/>
+                  <a id="cardPedidoLink" href="#" target="_blank" class="hidden p-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs" title="Abrir na Loja Integrada">🔗</a>
+                </div>
+              </div>
+              <div>
+                <label class="text-xs font-medium uppercase text-amber-600">👤 Cliente</label>
+                <input id="cardPedidoCliente" type="text" placeholder="Nome do cliente" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-amber-500 text-sm"/>
+              </div>
+            </div>
+            <div>
+              <label class="text-xs font-medium uppercase text-amber-600">🎯 Tipo do bordado</label>
+              <select id="cardBordadoTipo" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm">
+                <option value="">—</option>
+                <option value="logomarca">Logomarca (externo)</option>
+                <option value="nome_profissao">Nome/Profissão (interno)</option>
+                <option value="ambos">Ambos</option>
+              </select>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs font-medium uppercase text-slate-500">Linha 1</label>
+                <input id="cardBordadoLinha1" type="text" placeholder="Nome" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"/>
+              </div>
+              <div>
+                <label class="text-xs font-medium uppercase text-slate-500">Linha 2</label>
+                <input id="cardBordadoLinha2" type="text" placeholder="Profissão" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"/>
+              </div>
+            </div>
+            <div class="grid grid-cols-3 gap-3">
+              <div>
+                <label class="text-xs font-medium uppercase text-slate-500">Cor</label>
+                <div class="flex gap-1 mt-1 items-center">
+                  <input id="cardBordadoCorHex" type="color" class="w-10 h-9 rounded border border-slate-200"/>
+                  <input id="cardBordadoCorNome" type="text" placeholder="Dourado" class="flex-1 min-w-0 p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"/>
+                </div>
+              </div>
+              <div>
+                <label class="text-xs font-medium uppercase text-slate-500">Fonte</label>
+                <input id="cardBordadoFonte" type="text" placeholder="Monotype Corsiva" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"/>
+              </div>
+              <div>
+                <label class="text-xs font-medium uppercase text-slate-500">Lado</label>
+                <input id="cardBordadoLado" type="text" placeholder="Peito Esquerdo" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"/>
+              </div>
+            </div>
+            <div>
+              <label class="text-xs font-medium uppercase text-slate-500">🖼️ URL da imagem (logomarca)</label>
+              <div class="flex gap-1 mt-1 items-center">
+                <input id="cardBordadoImagemUrl" type="url" placeholder="https://..." class="flex-1 p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"/>
+                <a id="cardBordadoImagemLink" href="#" target="_blank" class="hidden p-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-xs" title="Baixar imagem">⬇️</a>
+              </div>
+            </div>
+          </div>
           <div>
             <label class="text-xs font-medium uppercase text-slate-500">Descrição</label>
             <textarea id="cardDesc" rows="3" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 outline-none focus:border-pink-500"></textarea>
@@ -511,6 +573,52 @@ tailwind.config = {
   </div>
 </div>
 
+<!-- MODAL SINCRONIZAR BORDADOS DA LOJA INTEGRADA -->
+<div id="syncBordadoModal" class="hidden fixed inset-0 z-40 modal-bg items-center justify-center p-4">
+  <div class="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-xl max-h-[92vh] flex flex-col overflow-hidden">
+    <div class="p-5 border-b border-slate-200 dark:border-ink-700 flex items-center gap-3">
+      <svg class="w-6 h-6 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+      <h2 class="text-lg font-semibold flex-1">Sincronizar bordados da Loja Integrada</h2>
+      <button onclick="closeSyncBordado()" class="text-slate-400 hover:text-slate-700">✕</button>
+    </div>
+    <div class="p-5 overflow-y-auto space-y-5">
+      <!-- SETUP INICIAL: BOOKMARKLET -->
+      <details class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3" id="syncSetupBox">
+        <summary class="text-sm font-semibold text-amber-800 dark:text-amber-300 cursor-pointer">📌 Setup inicial (fazer 1 vez só)</summary>
+        <div class="mt-3 text-xs text-slate-700 dark:text-slate-300 space-y-2">
+          <div><b>1.</b> Mostra a barra de favoritos do Chrome: <kbd>⌘ Shift B</kbd> (Mac) ou <kbd>Ctrl Shift B</kbd> (Windows)</div>
+          <div><b>2.</b> Arrasta o link laranja abaixo até a barra de favoritos:</div>
+          <div class="text-center py-2"><a id="bookmarkletLink" href="#" onclick="alert('Não clica aqui — ARRASTA pros favoritos!'); return false;" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 text-white font-bold text-sm shadow-md hover:bg-amber-600">🧵 Sincronizar Bordados Dra Charm</a></div>
+          <div><b>3.</b> Pronto! Da próxima vez que quiser sincronizar, use o botão abaixo.</div>
+        </div>
+      </details>
+
+      <!-- SYNC -->
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs font-medium uppercase text-slate-500">Data dos pedidos</label>
+          <input id="syncDateInput" type="date" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"/>
+          <div class="text-[10px] text-slate-400 mt-0.5">Padrão: ontem. Você pode escolher qualquer data.</div>
+        </div>
+        <button onclick="startSyncBordado()" class="w-full p-3 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold flex items-center justify-center gap-2">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+          Abrir Loja Integrada e sincronizar
+        </button>
+        <div id="syncStatus" class="text-xs text-slate-500 text-center min-h-[16px]"></div>
+      </div>
+
+      <!-- INSTRUÇÕES -->
+      <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-xs text-slate-700 dark:text-slate-300 space-y-1">
+        <div class="font-semibold text-blue-800 dark:text-blue-300">Como funciona:</div>
+        <div>1. Clica em "Abrir Loja Integrada" — abre a lista dos pedidos daquela data</div>
+        <div>2. Na aba aberta, clica no favorito <b>"🧵 Sincronizar Bordados Dra Charm"</b></div>
+        <div>3. O script varre os pedidos, filtra os que têm SKU de bordado e cria os cards</div>
+        <div>4. Volta aqui: os cards aparecem sozinhos na coluna "Novo Pedido"</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm shadow-lg opacity-0 pointer-events-none transition-opacity"></div>
 
 <div class="fixed bottom-4 right-4 z-30">
@@ -550,6 +658,7 @@ let attachmentCounts = {};
 function boardType(boardOrId){
   const b = typeof boardOrId === 'string' ? boards.find(x=>x.id===boardOrId) : boardOrId;
   const n = (b?.name || '').toLowerCase();
+  if (n.includes('personaliza')) return 'bordado';
   if (n.includes('produ')) return 'producao';
   if (n.includes('corte')) return 'corte';
   if (n.includes('marketing')) return 'marketing';
@@ -659,10 +768,13 @@ async function switchBoard(boardId){
   const b = boards.find(x => x.id === boardId);
   applyBoardBackground(b?.background_url);
   const isProducao = b && /produ[cç][aã]o/i.test(b.name);
+  const isBordado = boardType(b) === 'bordado';
   const facBtn = document.getElementById('filterFaccaoBtn');
   const facBar = document.getElementById('faccaoFilterBar');
   if (facBtn) facBtn.parentElement.style.display = isProducao ? '' : 'none';
   if (facBar) facBar.classList.add('hidden');
+  const syncBtn = document.getElementById('syncBordadoBtn');
+  if (syncBtn) syncBtn.classList.toggle('hidden', !isBordado);
   const [lR, laR, tR, cR] = await Promise.all([
     sb.from('lists').select('*').eq('board_id', boardId).eq('archived', false).order('position'),
     sb.from('labels').select('*').eq('board_id', boardId).order('name'),
@@ -768,6 +880,15 @@ function renderCard(c, compact){
   } else if (bType === 'marketing'){
     if (c.aprovacao) totalsChips.push(`<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">✅ ${escapeHtml(c.aprovacao)}</span>`);
     if (c.valor) totalsChips.push(`<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">💰 R$ ${c.valor}</span>`);
+  } else if (bType === 'bordado'){
+    if (c.pedido_numero) totalsChips.push(`<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">🧾 #${escapeHtml(c.pedido_numero)}</span>`);
+    if (c.bordado_tipo){
+      const tipoLbl = {logomarca:'🎯 Logomarca', nome_profissao:'✍️ Nome/Prof', ambos:'⚡ Ambos'}[c.bordado_tipo] || c.bordado_tipo;
+      totalsChips.push(`<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">${escapeHtml(tipoLbl)}</span>`);
+    }
+    if (c.bordado_linha1) totalsChips.push(`<span class="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 dark:bg-ink-600 dark:text-slate-300">L1: ${escapeHtml(c.bordado_linha1)}</span>`);
+    if (c.bordado_linha2) totalsChips.push(`<span class="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 dark:bg-ink-600 dark:text-slate-300">L2: ${escapeHtml(c.bordado_linha2)}</span>`);
+    if (c.bordado_imagem_url) totalsChips.push(`<a href="${escapeHtml(c.bordado_imagem_url)}" target="_blank" onclick="event.stopPropagation()" class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-500 hover:bg-blue-600 text-white">⬇️ Baixar logo</a>`);
   }
   const cCount = commentCounts[c.id] || 0;
   const aCount = attachmentCounts[c.id] || 0;
@@ -825,6 +946,7 @@ async function openCard(id){
   document.getElementById('producaoFields').classList.toggle('hidden', bType !== 'producao');
   document.getElementById('corteFields').classList.toggle('hidden', bType !== 'corte');
   document.getElementById('marketingFields').classList.toggle('hidden', bType !== 'marketing');
+  document.getElementById('bordadoFields').classList.toggle('hidden', bType !== 'bordado');
   document.getElementById('tecidoField').classList.toggle('hidden', bType !== 'producao');
   document.getElementById('faccaoField').classList.toggle('hidden', labels.length === 0);
   document.getElementById('cardTitle').value = c.title || '';
@@ -857,6 +979,21 @@ async function openCard(id){
   // Campos de Marketing
   const aEl = document.getElementById('cardAprovacao'); if (aEl) aEl.value = c.aprovacao || '';
   const vEl = document.getElementById('cardValor'); if (vEl) vEl.value = c.valor ?? '';
+  // Campos de Bordado (Personalização)
+  const pnEl = document.getElementById('cardPedidoNumero'); if (pnEl) pnEl.value = c.pedido_numero || '';
+  const pcEl = document.getElementById('cardPedidoCliente'); if (pcEl) pcEl.value = c.pedido_cliente || '';
+  const btEl = document.getElementById('cardBordadoTipo'); if (btEl) btEl.value = c.bordado_tipo || '';
+  const bl1El = document.getElementById('cardBordadoLinha1'); if (bl1El) bl1El.value = c.bordado_linha1 || '';
+  const bl2El = document.getElementById('cardBordadoLinha2'); if (bl2El) bl2El.value = c.bordado_linha2 || '';
+  const bchEl = document.getElementById('cardBordadoCorHex'); if (bchEl) bchEl.value = c.bordado_cor_hex || '#000000';
+  const bcnEl = document.getElementById('cardBordadoCorNome'); if (bcnEl) bcnEl.value = c.bordado_cor_nome || '';
+  const bfEl = document.getElementById('cardBordadoFonte'); if (bfEl) bfEl.value = c.bordado_fonte || '';
+  const blEl = document.getElementById('cardBordadoLado'); if (blEl) blEl.value = c.bordado_lado || '';
+  const biuEl = document.getElementById('cardBordadoImagemUrl'); if (biuEl) biuEl.value = c.bordado_imagem_url || '';
+  const pedidoLink = document.getElementById('cardPedidoLink');
+  if (pedidoLink){ if (c.pedido_url){ pedidoLink.href = c.pedido_url; pedidoLink.classList.remove('hidden'); } else pedidoLink.classList.add('hidden'); }
+  const imgLink = document.getElementById('cardBordadoImagemLink');
+  if (imgLink){ if (c.bordado_imagem_url){ imgLink.href = c.bordado_imagem_url; imgLink.classList.remove('hidden'); } else imgLink.classList.add('hidden'); }
   updateCortadaTotal();
   updateOficinaAlerta();
   const listSel = document.getElementById('cardList');
@@ -1183,6 +1320,17 @@ window.saveCard = async (silent = false) => {
   } else if (bType === 'marketing'){
     updates.aprovacao = document.getElementById('cardAprovacao').value || null;
     updates.valor = parseFloat(document.getElementById('cardValor').value) || null;
+  } else if (bType === 'bordado'){
+    updates.pedido_numero = document.getElementById('cardPedidoNumero').value || null;
+    updates.pedido_cliente = document.getElementById('cardPedidoCliente').value || null;
+    updates.bordado_tipo = document.getElementById('cardBordadoTipo').value || null;
+    updates.bordado_linha1 = document.getElementById('cardBordadoLinha1').value || null;
+    updates.bordado_linha2 = document.getElementById('cardBordadoLinha2').value || null;
+    updates.bordado_cor_hex = document.getElementById('cardBordadoCorHex').value || null;
+    updates.bordado_cor_nome = document.getElementById('cardBordadoCorNome').value || null;
+    updates.bordado_fonte = document.getElementById('cardBordadoFonte').value || null;
+    updates.bordado_lado = document.getElementById('cardBordadoLado').value || null;
+    updates.bordado_imagem_url = document.getElementById('cardBordadoImagemUrl').value || null;
   }
   // Só envia campos que realmente mudaram vs snapshot do card atual
   const diff = {};
@@ -1811,6 +1959,85 @@ function timeAgo(t){
 }
 
 if (localStorage.getItem('dc_dark')==='1') document.documentElement.classList.add('dark');
+
+// ==================== SYNC BORDADOS DA LOJA INTEGRADA ====================
+window.openSyncBordado = () => {
+  // Data padrão = ontem
+  const y = new Date(Date.now() - 24*60*60*1000);
+  const yyyy = y.getFullYear(), mm = String(y.getMonth()+1).padStart(2,'0'), dd = String(y.getDate()).padStart(2,'0');
+  document.getElementById('syncDateInput').value = `${yyyy}-${mm}-${dd}`;
+  // Gera bookmarklet — carrega script remoto (assim conseguimos atualizar sem reinstalar)
+  const bookmarkletCode = `javascript:(function(){var s=document.createElement('script');s.src='${window.location.origin}/sync-li.js?t='+Date.now();s.setAttribute('data-app-origin','${window.location.origin}');document.body.appendChild(s);})();`;
+  document.getElementById('bookmarkletLink').href = bookmarkletCode;
+  document.getElementById('syncStatus').textContent = '';
+  document.getElementById('syncBordadoModal').classList.remove('hidden');
+  document.getElementById('syncBordadoModal').classList.add('flex');
+};
+window.closeSyncBordado = () => {
+  document.getElementById('syncBordadoModal').classList.add('hidden');
+  document.getElementById('syncBordadoModal').classList.remove('flex');
+};
+window.startSyncBordado = () => {
+  const dateVal = document.getElementById('syncDateInput').value;
+  if (!dateVal){ toast('Escolha uma data'); return; }
+  const [yyyy, mm, dd] = dateVal.split('-');
+  const brDate = `${dd}/${mm}/${yyyy}`;
+  const liUrl = `https://app.lojaintegrada.com.br/painel/pedido/listar?data_inicial=${brDate}&data_final=${brDate}`;
+  const win = window.open(liUrl, 'liSyncWindow');
+  if (!win){ toast('Popup bloqueado. Libera pop-ups pra este site.'); return; }
+  document.getElementById('syncStatus').innerHTML = `<span class="text-amber-600">Aguardando você clicar no favorito "🧵 Sincronizar Bordados Dra Charm" na aba do LI...</span>`;
+};
+// Listener global de mensagens vindas do bookmarklet
+window.addEventListener('message', async (e) => {
+  if (e.data?.type !== 'draCharmBordados') return;
+  const orders = e.data.orders || [];
+  document.getElementById('syncStatus').innerHTML = `<span class="text-amber-600">Recebi ${orders.length} pedidos. Salvando...</span>`;
+  // Encontra o board Personalização + lista "Novo Pedido"
+  const persoBoard = boards.find(b => (b.name||'').toLowerCase().includes('personaliza'));
+  if (!persoBoard){ toast('Board Personalização não encontrado'); return; }
+  const { data: persoLists } = await sb.from('lists').select('id, name').eq('board_id', persoBoard.id);
+  const novoList = persoLists.find(l => /novo/i.test(l.name));
+  if (!novoList){ toast('Lista "Novo Pedido" não encontrada'); return; }
+  // Pega labels do board
+  const { data: bLabels } = await sb.from('labels').select('id, name').eq('board_id', persoBoard.id);
+  const labelByType = {
+    logomarca: bLabels.find(l=>/logo/i.test(l.name))?.id,
+    nome_profissao: bLabels.find(l=>/nome/i.test(l.name))?.id,
+    ambos: bLabels.find(l=>/ambos/i.test(l.name))?.id,
+  };
+  let created = 0, skipped = 0;
+  for (const o of orders){
+    // Dedupe por pedido_numero
+    const { data: existing } = await sb.from('cards').select('id').eq('pedido_numero', o.pedido_numero).limit(1);
+    if (existing && existing.length){ skipped++; continue; }
+    const title = `#${o.pedido_numero} — ${o.pedido_cliente || 'Sem nome'}`;
+    const { data: newCard, error } = await sb.from('cards').insert({
+      list_id: novoList.id,
+      title,
+      position: Date.now(),
+      created_by: user.id,
+      pedido_numero: o.pedido_numero,
+      pedido_cliente: o.pedido_cliente,
+      pedido_url: o.pedido_url,
+      bordado_tipo: o.bordado_tipo,
+      bordado_linha1: o.bordado_linha1,
+      bordado_linha2: o.bordado_linha2,
+      bordado_cor_hex: o.bordado_cor_hex,
+      bordado_cor_nome: o.bordado_cor_nome,
+      bordado_fonte: o.bordado_fonte,
+      bordado_lado: o.bordado_lado,
+      bordado_imagem_url: o.bordado_imagem_url,
+    }).select().single();
+    if (error) continue;
+    const labelId = labelByType[o.bordado_tipo];
+    if (labelId) await sb.from('card_labels').insert({card_id: newCard.id, label_id: labelId});
+    created++;
+  }
+  document.getElementById('syncStatus').innerHTML = `<span class="text-emerald-600 font-semibold">✅ ${created} card${created===1?'':'s'} criado${created===1?'':'s'}${skipped?` · ${skipped} já existiam`:''}</span>`;
+  toast(`✅ ${created} pedidos importados`);
+  if (currentBoardId === persoBoard.id) await switchBoard(persoBoard.id);
+});
+document.getElementById('syncBordadoBtn').addEventListener('click', openSyncBordado);
 
 initAuth();
 </script>
