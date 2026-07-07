@@ -1981,8 +1981,8 @@ window.startSyncBordado = () => {
   const dateVal = document.getElementById('syncDateInput').value;
   if (!dateVal){ toast('Escolha uma data'); return; }
   const [yyyy, mm, dd] = dateVal.split('-');
-  const brDate = `${dd}/${mm}/${yyyy}`;
-  const liUrl = `https://app.lojaintegrada.com.br/painel/pedido/listar?data_inicial=${brDate}&data_final=${brDate}`;
+  const brDate = encodeURIComponent(`${dd}/${mm}/${yyyy}`);
+  const liUrl = `https://app.lojaintegrada.com.br/painel/pedido/listar?data_inicio=${brDate}&data_fim=${brDate}`;
   const win = window.open(liUrl, 'liSyncWindow');
   if (!win){ toast('Popup bloqueado. Libera pop-ups pra este site.'); return; }
   document.getElementById('syncStatus').innerHTML = `<span class="text-amber-600">Aguardando você clicar no favorito "🧵 Sincronizar Bordados Dra Charm" na aba do LI...</span>`;

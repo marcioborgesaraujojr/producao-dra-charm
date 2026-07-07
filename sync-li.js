@@ -19,14 +19,44 @@
   const setStatus = (t) => { document.getElementById('drachrm-sync-status').textContent = t; };
   const setProgress = (pct) => { document.getElementById('drachrm-sync-bar').style.width = pct + '%'; };
 
-  // ==================== Extrai números de pedidos da página ====================
-  const orderIds = [...new Set(
-    Array.from(document.querySelectorAll('a[href*="/painel/pedido/"]'))
-      .map(a => a.href.match(/pedido\/(\d+)/)?.[1])
-      .filter(Boolean)
-  )];
+  // ==================== Descobre paginação e coleta TODOS os IDs ====================
+  function collectIdsFromDoc(doc){
+    return [...new Set(
+      Array.from(doc.querySelectorAll('a[href*="/painel/pedido/"]'))
+        .map(a => a.href.match(/pedido\/(\d+)/)?.[1])
+        .filter(Boolean)
+    )];
+  }
+  const currentUrl = new URL(window.location.href);
+  const dateStart = currentUrl.searchParams.get('data_inicio');
+  const dateEnd = currentUrl.searchParams.get('data_fim');
+  if (!dateStart){
+    setStatus('❌ Abra pelo botão "Sincronizar" no app (URL precisa ter ?data_inicio=... na aba do LI).');
+    return;
+  }
+  const totalMatch = document.body.innerText.match(/Mostrando\s+\d+\s+de\s+(\d+)/i);
+  const totalCount = totalMatch ? parseInt(totalMatch[1]) : 50;
+  const pageSize = 50;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  setStatus(`Total ${totalCount} pedidos em ${totalPages} página(s). Coletando IDs...`);
+
+  const allIds = collectIdsFromDoc(document);
+  // Busca páginas 2..N
+  for (let p = 2; p <= totalPages; p++){
+    setStatus(`Coletando IDs da página ${p}/${totalPages}...`);
+    setProgress(Math.round((p/totalPages)*30));
+    try {
+      const pageUrl = `${currentUrl.origin}${currentUrl.pathname}?data_inicio=${encodeURIComponent(dateStart)}&data_fim=${encodeURIComponent(dateEnd)}&pagina=${p}`;
+      const html = await fetch(pageUrl, {credentials:'include'}).then(r => r.text());
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const ids = collectIdsFromDoc(doc);
+      for (const id of ids) if (!allIds.includes(id)) allIds.push(id);
+    } catch(e){}
+  }
+  const orderIds = allIds;
   if (orderIds.length === 0){
-    setStatus('❌ Nenhum pedido encontrado nesta página. Confere se você está na tela de listagem de pedidos.');
+    setStatus('❌ Nenhum pedido encontrado nesta data.');
+    setTimeout(() => panel.remove(), 5000);
     return;
   }
   setStatus(`Encontrei ${orderIds.length} pedidos. Analisando um a um...`);
