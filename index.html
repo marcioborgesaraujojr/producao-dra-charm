@@ -448,7 +448,7 @@ function renderCard(c, compact){
   el.draggable = true;
   const labelChips = clbls.slice(0,3).map(l=>`<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style="background:${l.color}22;color:${l.color}"><span class="w-1.5 h-1.5 rounded-full" style="background:${l.color}"></span>${escapeHtml(l.name)}</span>`).join('');
   const memAvatars = cmembs.slice(0,3).map(m=>`<div class="w-5 h-5 rounded-full bg-pink-500 text-white text-[10px] font-bold flex items-center justify-center" title="${escapeHtml(m.full_name)}">${(m.full_name||'?').charAt(0).toUpperCase()}</div>`).join('');
-  const cover = c.cover_url ? `<img src="${escapeHtml(c.cover_url)}" class="w-full h-24 object-cover" loading="lazy" onerror="this.style.display='none'"/>` : '';
+  const cover = c.cover_url ? `<div class="w-full bg-slate-100 dark:bg-ink-900 flex items-center justify-center" style="aspect-ratio:1"><img src="${escapeHtml(c.cover_url)}" class="max-w-full max-h-full object-contain" loading="lazy" onerror="this.parentElement.style.display='none'"/></div>` : '';
   el.innerHTML = `
     ${cover}
     <div class="p-2">
