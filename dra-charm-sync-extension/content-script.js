@@ -160,10 +160,16 @@
           imagem_url: img?.src || null,
         });
       }
-      // Marca produtos que TÊM bordado (persoBlock começa cada peça com "** SKU **")
+      // Marca produtos que TÊM bordado de verdade — precisam de SKU no persoBlock
+      // com pelo menos 1 campo "-- ..." abaixo (sem campos = SKU só citado, não bordado)
       const bordadoSkus = new Set();
-      for (const m of persoBlock.matchAll(/\*\*\s*([^\s\[*]+)/g)){
-        bordadoSkus.add(m[1].trim().toLowerCase());
+      const skuMatches = [...persoBlock.matchAll(/\*\*\s*([^\s\[*]+)[^*]*\*\*/g)];
+      for (let i = 0; i < skuMatches.length; i++){
+        const sku = skuMatches[i][1].trim().toLowerCase();
+        const start = skuMatches[i].index + skuMatches[i][0].length;
+        const end = i+1 < skuMatches.length ? skuMatches[i+1].index : persoBlock.length;
+        const blockContent = persoBlock.slice(start, end);
+        if (/--\s+\S[^:]*:/.test(blockContent)) bordadoSkus.add(sku);
       }
       for (const p of produtos){
         if (bordadoSkus.has((p.sku||'').toLowerCase())) p.bordado = true;
