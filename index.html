@@ -478,12 +478,12 @@ tailwind.config = {
             </div>
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="text-xs font-bold uppercase text-purple-600">Linha 1</label>
-                <input id="cardBordadoLinha1" type="text" placeholder="Nome" class="mt-1 w-full p-3 rounded-lg bg-slate-50 dark:bg-ink-700 border-2 border-purple-400 focus:border-purple-600 text-base"/>
+                <label class="text-xs font-medium uppercase text-slate-500">Linha 1</label>
+                <input id="cardBordadoLinha1" type="text" placeholder="Nome" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"/>
               </div>
               <div>
-                <label class="text-xs font-bold uppercase text-purple-600">Linha 2</label>
-                <input id="cardBordadoLinha2" type="text" placeholder="Profissão" class="mt-1 w-full p-3 rounded-lg bg-slate-50 dark:bg-ink-700 border-2 border-purple-400 focus:border-purple-600 text-base"/>
+                <label class="text-xs font-medium uppercase text-slate-500">Linha 2</label>
+                <input id="cardBordadoLinha2" type="text" placeholder="Profissão" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"/>
               </div>
             </div>
             <div class="grid grid-cols-3 gap-3">
@@ -1134,19 +1134,6 @@ async function openCard(id){
   const bl2El = document.getElementById('cardBordadoLinha2');
   if (bl1El) bl1El.value = c.bordado_linha1 || '';
   if (bl2El) bl2El.value = c.bordado_linha2 || '';
-  // Aplica a fonte real do bordado + cor por tipo nos inputs de linha 1/2
-  if (bl1El && bl2El){
-    const fam = bordadoFontFamily(c.bordado_fonte);
-    const cor = c.bordado_cor_hex || '';
-    const tipoColor = c.bordado_tipo === 'logomarca' ? '#10b981' : c.bordado_tipo === 'ambos' ? '#ef4444' : '#a855f7';
-    bl1El.style.fontFamily = fam; bl2El.style.fontFamily = fam;
-    bl1El.style.fontSize = '20px'; bl2El.style.fontSize = '18px';
-    bl1El.style.color = cor; bl2El.style.color = cor;
-    bl1El.style.borderColor = tipoColor; bl2El.style.borderColor = tipoColor;
-    // Fundo escuro se cor clara
-    const bg = isLightColor(cor) ? '#0f172a' : '';
-    bl1El.style.backgroundColor = bg; bl2El.style.backgroundColor = bg;
-  }
   // Box de URL só pra logomarca/ambos
   const imgBox = document.getElementById('cardBordadoImagemBox');
   if (imgBox) imgBox.style.display = (c.bordado_tipo === 'logomarca' || c.bordado_tipo === 'ambos') ? '' : 'none';
@@ -1171,7 +1158,13 @@ async function openCard(id){
   const bchEl = document.getElementById('cardBordadoCorHex'); if (bchEl) bchEl.value = c.bordado_cor_hex || '';
   const bcnEl = document.getElementById('cardBordadoCorNome'); if (bcnEl) bcnEl.value = c.bordado_cor_nome || '';
   const swatch = document.getElementById('cardBordadoCorSwatch'); if (swatch) swatch.style.background = c.bordado_cor_hex || '#94a3b8';
-  const bfEl = document.getElementById('cardBordadoFonte'); if (bfEl) bfEl.value = c.bordado_fonte || '';
+  const bfEl = document.getElementById('cardBordadoFonte');
+  if (bfEl){
+    bfEl.value = c.bordado_fonte || '';
+    // Renderiza o nome da fonte na própria fonte (Ballantines Script aparece em Ballantines cursivo)
+    bfEl.style.fontFamily = c.bordado_fonte ? bordadoFontFamily(c.bordado_fonte) : '';
+    bfEl.style.fontSize = c.bordado_fonte ? '18px' : '';
+  }
   const blEl = document.getElementById('cardBordadoLado'); if (blEl) blEl.value = c.bordado_lado || '';
   const biuEl = document.getElementById('cardBordadoImagemUrl'); if (biuEl) biuEl.value = c.bordado_imagem_url || '';
   const bdEl = document.getElementById('cardBordadoDetalhes'); if (bdEl) bdEl.value = c.bordado_detalhes || '';
