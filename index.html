@@ -524,7 +524,12 @@ tailwind.config = {
               <textarea id="cardBordadoDetalhes" rows="2" placeholder="—" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"></textarea>
             </div>
             <div id="cardProdutosBox" class="hidden">
-              <label class="text-xs font-medium uppercase text-slate-500 flex items-center gap-1"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>Produtos do pedido</label>
+              <button type="button" id="cardProdutosToggle" class="w-full flex items-center gap-2 text-xs font-medium uppercase text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                <span>Produtos do pedido</span>
+                <span id="cardProdutosCount" class="bg-slate-200 dark:bg-ink-600 text-slate-700 dark:text-slate-200 normal-case font-semibold text-[10px] px-1.5 py-0.5 rounded-full">0</span>
+                <svg id="cardProdutosChevron" class="ml-auto w-4 h-4 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
               <div id="cardProdutosList" class="mt-2 space-y-2"></div>
             </div>
           </div>
@@ -1160,8 +1165,15 @@ async function openCard(id){
   const prodList = document.getElementById('cardProdutosList');
   if (prodBox && prodList){
     const produtos = c.pedido_produtos || [];
+    const countEl = document.getElementById('cardProdutosCount');
+    if (countEl) countEl.textContent = produtos.length;
     if (produtos.length){
       prodBox.classList.remove('hidden');
+      // Estado de colapso: padrão OCULTO (menos rolagem); usuário pode expandir
+      const isOpen = localStorage.getItem('dc_produtos_open') === '1';
+      prodList.classList.toggle('hidden', !isOpen);
+      const chev = document.getElementById('cardProdutosChevron');
+      if (chev) chev.style.transform = isOpen ? 'rotate(180deg)' : '';
       prodList.innerHTML = produtos.map(p => `
         <div class="produto-item p-2 rounded-lg ${p.bordado ? 'produto-bordado' : 'bg-slate-50 dark:bg-ink-700 border-slate-200 dark:border-ink-600'} border flex gap-3 items-center relative">
           ${p.bordado ? `<div class="produto-badge-bordar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19 7-7 3 3-7 7-3-3z"/><path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="m2 2 7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg><span>Personalização</span></div>` : ''}
@@ -2324,6 +2336,17 @@ window.addEventListener('message', async (e) => {
   document.getElementById('syncStatus').innerHTML = `<span class="text-emerald-600 font-semibold">✅ ${created} criado${created===1?'':'s'}${updated?` · ${updated} atualizado${updated===1?'':'s'}`:''}</span>`;
   toast(`✅ ${created} novos · ${updated} atualizados`);
   if (currentBoardId === persoBoard.id) await switchBoard(persoBoard.id);
+});
+document.addEventListener('click', e => {
+  if (e.target.closest('#cardProdutosToggle')){
+    const list = document.getElementById('cardProdutosList');
+    const chev = document.getElementById('cardProdutosChevron');
+    if (!list) return;
+    const willOpen = list.classList.contains('hidden');
+    list.classList.toggle('hidden', !willOpen);
+    if (chev) chev.style.transform = willOpen ? 'rotate(180deg)' : '';
+    localStorage.setItem('dc_produtos_open', willOpen ? '1' : '0');
+  }
 });
 document.getElementById('syncBordadoBtn').addEventListener('click', openSyncBordado);
 
