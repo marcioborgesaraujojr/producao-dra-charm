@@ -540,10 +540,12 @@ tailwind.config = {
             <label class="text-xs font-medium uppercase text-slate-500">Descrição</label>
             <textarea id="cardDesc" rows="3" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 outline-none focus:border-pink-500"></textarea>
           </div>
-          <div>
-            <label class="text-xs font-medium uppercase text-slate-500">Checklist</label>
+          <div id="cardChecklistBox" class="hidden">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-medium uppercase text-slate-500">Checklist</label>
+              <button onclick="addChecklistItem()" class="text-xs text-pink-600 hover:underline">+ item</button>
+            </div>
             <div id="cardChecklist" class="mt-2 space-y-1"></div>
-            <button onclick="addChecklistItem()" class="mt-2 text-xs text-pink-600 hover:underline">+ item</button>
           </div>
           <div>
             <label class="text-xs font-medium uppercase text-slate-500">Membros do card</label>
@@ -1462,6 +1464,9 @@ async function loadChecklists(cardId){
 
 function renderChecklist(){
   const box = document.getElementById('cardChecklist');
+  const wrap = document.getElementById('cardChecklistBox');
+  const hasAny = checklists.some(cl => (cl.checklist_items||[]).length > 0);
+  if (wrap) wrap.classList.toggle('hidden', !hasAny);
   const cls = checklistsByCard[activeCardId] || [];
   box.innerHTML = '';
   cls.forEach(cl => {
@@ -1490,6 +1495,8 @@ function renderChecklist(){
 }
 
 window.addChecklistItem = async () => {
+  const wrap = document.getElementById('cardChecklistBox');
+  if (wrap) wrap.classList.remove('hidden');
   const text = prompt('Item da checklist');
   if (!text) return;
   let cls = checklistsByCard[activeCardId] || [];
