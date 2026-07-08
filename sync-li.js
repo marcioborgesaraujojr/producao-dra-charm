@@ -88,9 +88,9 @@
     const personaMatch = txt.match(/Personalização de produtos:?([\s\S]{0,5000}?)(?=Pagamento via|Detalhes do cliente|Endereço de entrega|ID\s+da transação|$)/);
     const persoBlock = personaMatch ? personaMatch[1] : '';
     const fields = {};
-    for (const m of persoBlock.matchAll(/--\s*([^:]+?):\s*(.*?)(?=\n\s*--|\n\s*={3,}|\n\s*Mensagem\s+cartão|\n\s*Pagamento|$)/gs)){
+    for (const m of persoBlock.matchAll(/--\s+([A-ZÀ-Ýa-zà-ÿ][^:]*?):\s*(.*?)(?=--\s+[A-ZÀ-Ýa-zà-ÿ]|-{3,}|\*\*|={3,}|Mensagem\s+cartão|Pagamento\s+via|$)/gs)){
       const k = m[1].trim().toLowerCase().replace(/\.$/,''), v = m[2].trim().replace(/\s+/g,' ');
-      if (k) fields[k] = v;
+      if (k && !fields[k]) fields[k] = v;
     }
     const msgCartaoMatch = persoBlock.match(/Mensagem\s+cartão:\s*(.*?)(?=\n\s*--|\n\s*Pagamento|$)/s);
     if (msgCartaoMatch && !fields['detalhes do bordado (opcional)']){

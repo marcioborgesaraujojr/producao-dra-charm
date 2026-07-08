@@ -295,7 +295,7 @@ tailwind.config = {
     <div id="cardHero" class="relative border-b border-slate-200 dark:border-ink-700">
       <div id="cardHeroCover" class="w-full flex items-center justify-center overflow-hidden cursor-pointer group" style="height:240px;background:#eaeaea">
         <img id="cardHeaderCoverImg" class="hidden max-w-full max-h-full object-contain"/>
-        <div id="cardHeaderTextPreview" class="hidden w-full h-full flex-col items-center justify-center text-center px-8"></div>
+        <div id="cardHeaderTextPreview" style="display:none;width:100%;height:100%;text-align:center;padding:16px 32px;align-items:center;justify-content:center;flex-direction:column"></div>
         <div id="cardHeaderCoverPlus" class="flex flex-col items-center text-slate-400 group-hover:text-pink-500">
           <svg class="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>
           <span class="text-xs mt-1">Clique pra adicionar foto</span>
@@ -429,19 +429,21 @@ tailwind.config = {
           <div id="bordadoFields" class="hidden space-y-4">
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="text-xs font-medium uppercase text-amber-600">🧾 Nº do pedido</label>
+                <label class="text-xs font-medium uppercase text-amber-600 flex items-center gap-1"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Nº do pedido</label>
                 <div class="flex gap-1 mt-1 items-center">
                   <input id="cardPedidoNumero" type="text" placeholder="236708" class="flex-1 p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-amber-500 text-sm"/>
-                  <a id="cardPedidoLink" href="#" target="_blank" class="hidden p-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs" title="Abrir na Loja Integrada">🔗</a>
+                  <a id="cardPedidoLink" href="#" target="_blank" class="hidden p-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white" title="Abrir na Loja Integrada">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  </a>
                 </div>
               </div>
               <div>
-                <label class="text-xs font-medium uppercase text-amber-600">👤 Cliente</label>
+                <label class="text-xs font-medium uppercase text-amber-600 flex items-center gap-1"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Cliente</label>
                 <input id="cardPedidoCliente" type="text" placeholder="Nome do cliente" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-amber-500 text-sm"/>
               </div>
             </div>
             <div>
-              <label class="text-xs font-medium uppercase text-amber-600">🎯 Tipo do bordado</label>
+              <label class="text-xs font-medium uppercase text-amber-600 flex items-center gap-1"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>Tipo do bordado</label>
               <select id="cardBordadoTipo" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm">
                 <option value="">—</option>
                 <option value="logomarca">Logomarca (externo)</option>
@@ -461,39 +463,35 @@ tailwind.config = {
             </div>
             <div class="grid grid-cols-3 gap-3">
               <div>
-                <label class="text-xs font-medium uppercase text-slate-500" title="Vem do pedido, não é editável">🔒 Cor</label>
+                <label class="text-xs font-medium uppercase text-slate-500">Cor</label>
                 <div class="flex gap-1 mt-1 items-center">
-                  <input id="cardBordadoCorHex" type="color" disabled class="w-10 h-9 rounded border border-slate-200 opacity-90 cursor-not-allowed"/>
-                  <input id="cardBordadoCorNome" type="text" readonly placeholder="Dourado" class="flex-1 min-w-0 p-2 rounded-lg bg-slate-100 dark:bg-ink-600 border border-slate-200 dark:border-ink-600 text-sm text-slate-600 cursor-not-allowed"/>
+                  <div id="cardBordadoCorSwatch" class="w-9 h-9 rounded border border-slate-300 flex-shrink-0" style="background:#94a3b8"></div>
+                  <input id="cardBordadoCorNome" type="text" readonly placeholder="—" class="flex-1 min-w-0 p-2 rounded-lg bg-slate-100 dark:bg-ink-600 border border-slate-200 dark:border-ink-600 text-sm text-slate-600"/>
+                  <input id="cardBordadoCorHex" type="hidden"/>
                 </div>
               </div>
               <div>
-                <label class="text-xs font-medium uppercase text-slate-500" title="Vem do pedido, não é editável">🔒 Fonte</label>
-                <input id="cardBordadoFonte" type="text" readonly placeholder="—" class="mt-1 w-full p-2 rounded-lg bg-slate-100 dark:bg-ink-600 border border-slate-200 dark:border-ink-600 text-sm text-slate-600 cursor-not-allowed"/>
+                <label class="text-xs font-medium uppercase text-slate-500">Fonte</label>
+                <input id="cardBordadoFonte" type="text" readonly placeholder="—" class="mt-1 w-full p-2 rounded-lg bg-slate-100 dark:bg-ink-600 border border-slate-200 dark:border-ink-600 text-sm text-slate-600"/>
               </div>
               <div>
-                <label class="text-xs font-medium uppercase text-slate-500" title="Vem do pedido, não é editável">🔒 Lado</label>
-                <input id="cardBordadoLado" type="text" readonly placeholder="—" class="mt-1 w-full p-2 rounded-lg bg-slate-100 dark:bg-ink-600 border border-slate-200 dark:border-ink-600 text-sm text-slate-600 cursor-not-allowed"/>
+                <label class="text-xs font-medium uppercase text-slate-500">Lado</label>
+                <input id="cardBordadoLado" type="text" readonly placeholder="—" class="mt-1 w-full p-2 rounded-lg bg-slate-100 dark:bg-ink-600 border border-slate-200 dark:border-ink-600 text-sm text-slate-600"/>
               </div>
             </div>
             <div>
-              <label class="text-xs font-medium uppercase text-slate-500">🖼️ URL da imagem (logomarca)</label>
+              <label class="text-xs font-medium uppercase text-slate-500 flex items-center gap-1"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>URL da imagem (logomarca)</label>
               <div class="flex gap-1 mt-1 items-center">
                 <input id="cardBordadoImagemUrl" type="url" placeholder="https://..." class="flex-1 p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"/>
-                <a id="cardBordadoImagemLink" href="#" target="_blank" class="hidden p-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-xs" title="Baixar imagem">⬇️</a>
+                <a id="cardBordadoImagemLink" href="#" target="_blank" class="hidden p-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white" title="Baixar imagem">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </a>
               </div>
               <img id="cardBordadoImgPreview" class="hidden mt-2 max-w-full max-h-40 rounded border border-slate-200"/>
             </div>
             <div>
-              <label class="text-xs font-medium uppercase text-slate-500">💬 Detalhes do bordado (cliente)</label>
+              <label class="text-xs font-medium uppercase text-slate-500 flex items-center gap-1"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Detalhes do bordado (cliente)</label>
               <textarea id="cardBordadoDetalhes" rows="2" placeholder="—" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"></textarea>
-            </div>
-            <div>
-              <label class="text-xs font-medium uppercase text-slate-500">👁️ Preview do bordado</label>
-              <div id="cardBordadoPreview" class="mt-1 p-4 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-center min-h-[80px] flex flex-col items-center justify-center">
-                <div id="cardBordadoPreviewL1" class="text-2xl"></div>
-                <div id="cardBordadoPreviewL2" class="text-lg"></div>
-              </div>
             </div>
           </div>
           <div>
@@ -1058,8 +1056,9 @@ async function openCard(id){
   const btEl = document.getElementById('cardBordadoTipo'); if (btEl) btEl.value = c.bordado_tipo || '';
   const bl1El = document.getElementById('cardBordadoLinha1'); if (bl1El) bl1El.value = c.bordado_linha1 || '';
   const bl2El = document.getElementById('cardBordadoLinha2'); if (bl2El) bl2El.value = c.bordado_linha2 || '';
-  const bchEl = document.getElementById('cardBordadoCorHex'); if (bchEl) bchEl.value = c.bordado_cor_hex || '#000000';
+  const bchEl = document.getElementById('cardBordadoCorHex'); if (bchEl) bchEl.value = c.bordado_cor_hex || '';
   const bcnEl = document.getElementById('cardBordadoCorNome'); if (bcnEl) bcnEl.value = c.bordado_cor_nome || '';
+  const swatch = document.getElementById('cardBordadoCorSwatch'); if (swatch) swatch.style.background = c.bordado_cor_hex || '#94a3b8';
   const bfEl = document.getElementById('cardBordadoFonte'); if (bfEl) bfEl.value = c.bordado_fonte || '';
   const blEl = document.getElementById('cardBordadoLado'); if (blEl) blEl.value = c.bordado_lado || '';
   const biuEl = document.getElementById('cardBordadoImagemUrl'); if (biuEl) biuEl.value = c.bordado_imagem_url || '';
@@ -1071,21 +1070,6 @@ async function openCard(id){
   // Preview visual
   const imgPreview = document.getElementById('cardBordadoImgPreview');
   if (imgPreview){ if (c.bordado_imagem_url){ imgPreview.src = c.bordado_imagem_url; imgPreview.classList.remove('hidden'); } else imgPreview.classList.add('hidden'); }
-  const prevL1 = document.getElementById('cardBordadoPreviewL1');
-  const prevL2 = document.getElementById('cardBordadoPreviewL2');
-  const prevBox = document.getElementById('cardBordadoPreview');
-  if (prevL1 && prevBox){
-    const fam = bordadoFontFamily(c.bordado_fonte);
-    const cor = c.bordado_cor_hex || '#333';
-    prevL1.textContent = c.bordado_linha1 || '';
-    prevL2.textContent = c.bordado_linha2 || '';
-    prevL1.style.fontFamily = fam; prevL1.style.color = cor;
-    prevL2.style.fontFamily = fam; prevL2.style.color = cor;
-    // Se cor clara, fundo escuro pra ficar visível
-    if (isLightColor(cor)){ prevBox.style.background = '#0f172a'; }
-    else { prevBox.style.background = ''; }
-    prevBox.style.display = (c.bordado_linha1 || c.bordado_linha2) ? 'flex' : 'none';
-  }
   updateCortadaTotal();
   updateOficinaAlerta();
   const listSel = document.getElementById('cardList');
@@ -1202,7 +1186,7 @@ function renderCardCover(c){
   // Reset
   img.classList.add('hidden');
   plus.classList.add('hidden');
-  textPreview.classList.add('hidden');
+  textPreview.style.display = 'none';
   rm.classList.add('hidden');
   hero.style.background = '#eaeaea';
   if (useTextPreview){
@@ -1214,8 +1198,7 @@ function renderCardCover(c){
       <div style="font-size:56px">${escapeHtml(c.bordado_linha1||'')}</div>
       ${c.bordado_linha2 ? `<div style="font-size:38px;margin-top:6px">${escapeHtml(c.bordado_linha2)}</div>` : ''}
     </div>`;
-    textPreview.classList.remove('hidden');
-    textPreview.classList.add('flex');
+    textPreview.style.display = 'flex';
   } else if (src){
     img.src = src;
     img.classList.remove('hidden');
