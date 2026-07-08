@@ -2033,8 +2033,8 @@ window.openArchived = async () => {
         <div class="font-medium text-sm truncate">${escapeHtml(a.title)}</div>
         <div class="text-xs text-slate-500">${escapeHtml(a.lists?.boards?.name||'')} · ${escapeHtml(a.lists?.name||'')}</div>
       </div>
-      <button class="restore text-xs px-3 py-1.5 rounded bg-emerald-500 hover:bg-emerald-600 text-white">Restaurar</button>
-      <button class="delete text-xs px-3 py-1.5 rounded bg-red-500 hover:bg-red-600 text-white">Excluir</button>
+      <button class="restore text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-medium">Restaurar</button>
+      <button class="delete text-xs px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-red-50 hover:border-red-200 hover:text-red-600 font-medium transition-colors">Excluir</button>
     `;
     row.querySelector('.restore').onclick = async () => {
       await sb.from('cards').update({archived: false}).eq('id', a.id);
