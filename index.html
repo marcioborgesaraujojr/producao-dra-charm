@@ -223,6 +223,9 @@ tailwind.config = {
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           <span id="bellBadge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">0</span>
         </button>
+        <button id="painelBtn" title="Painel de Controle" class="hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 text-pink-600">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+        </button>
         <button id="estoqueBtn" title="Estoque" class="hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700">
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
         </button>
@@ -2350,7 +2353,173 @@ document.addEventListener('click', e => {
 });
 document.getElementById('syncBordadoBtn').addEventListener('click', openSyncBordado);
 
+// ============ PAINEL DE CONTROLE (admin only) ============
+const ADMIN_EMAIL = 'marcioborgesaraujojr@gmail.com';
+function isAdmin(){ return user && (user.email||'').toLowerCase() === ADMIN_EMAIL; }
+function showPainelBtnIfAdmin(){
+  const btn = document.getElementById('painelBtn');
+  if (btn && isAdmin()) btn.classList.remove('hidden');
+}
+// Chama após auth
+setTimeout(showPainelBtnIfAdmin, 800);
+setTimeout(showPainelBtnIfAdmin, 2500);
+setTimeout(showPainelBtnIfAdmin, 5000);
+
+async function calcPainelKPIs(){
+  // Boards e listas relevantes
+  const { data: boards } = await sb.from('boards').select('id, name');
+  const corteBoard = boards.find(b => /corte/i.test(b.name));
+  const prodBoard = boards.find(b => /produ/i.test(b.name));
+  const persoBoard = boards.find(b => /personaliza/i.test(b.name));
+
+  const [corteLists, prodLists, persoLists] = await Promise.all([
+    corteBoard ? sb.from('lists').select('id, name').eq('board_id', corteBoard.id) : Promise.resolve({data:[]}),
+    prodBoard ? sb.from('lists').select('id, name').eq('board_id', prodBoard.id) : Promise.resolve({data:[]}),
+    persoBoard ? sb.from('lists').select('id, name').eq('board_id', persoBoard.id) : Promise.resolve({data:[]}),
+  ]);
+
+  const findList = (lists, rx) => (lists.data||[]).find(l => rx.test(l.name));
+  const listMalha = findList(corteLists, /malha.*tec/i);
+  const listAlf = findList(corteLists, /alfaiat/i);
+  const listScuba = findList(corteLists, /scuba/i);
+  const listTwoWay = findList(corteLists, /two.*way/i);
+  const listCortar = findList(corteLists, /para\s*cortar/i);
+
+  const listCostura = findList(prodLists, /costurando/i);
+  const listAguard = findList(prodLists, /entrada.*acab/i);
+  const listAcab = findList(prodLists, /^em\s*acabamento$/i);
+  const listFalt = findList(prodLists, /faltando.*finalizar/i);
+  const listFinal = findList(prodLists, /^finalizado$/i);
+
+  // Query rolos + cards em paralelo
+  async function sumRolos(listId){
+    if (!listId) return 0;
+    const { data } = await sb.from('cards').select('qtd_rolos').eq('list_id', listId).eq('archived', false);
+    return (data||[]).reduce((s,c) => s + (c.qtd_rolos||0), 0);
+  }
+  async function countCards(listId){
+    if (!listId) return 0;
+    const { count } = await sb.from('cards').select('*', {count:'exact', head:true}).eq('list_id', listId).eq('archived', false);
+    return count || 0;
+  }
+  async function sumMetragem(listId){
+    if (!listId) return 0;
+    const { data } = await sb.from('cards').select('metragem').eq('list_id', listId).eq('archived', false);
+    return (data||[]).reduce((s,c) => s + (parseFloat(c.metragem)||0), 0);
+  }
+
+  const [rolosMalha, rolosAlf, rolosScuba, rolosTwo, mCortar,
+         nCostura, nAguard, nAcab, nFalt, nFinal, nPerso] = await Promise.all([
+    sumRolos(listMalha?.id),
+    sumRolos(listAlf?.id),
+    sumRolos(listScuba?.id),
+    sumRolos(listTwoWay?.id),
+    sumMetragem(listCortar?.id),
+    countCards(listCostura?.id),
+    countCards(listAguard?.id),
+    countCards(listAcab?.id),
+    countCards(listFalt?.id),
+    countCards(listFinal?.id),
+    (persoLists.data||[]).reduce((p, l) => p, 0) || Promise.all((persoLists.data||[]).map(l => countCards(l.id))).then(arr => arr.reduce((s,n)=>s+n,0)),
+  ]);
+
+  return {rolosMalha, rolosAlf, rolosScuba, rolosTwo, mCortar,
+          nCostura, nAguard, nAcab, nFalt, nFinal, nPerso,
+          rolosTotal: rolosMalha + rolosAlf + rolosScuba + rolosTwo};
+}
+
+function kpiCard(label, value, icon, cls){
+  return `<div class="rounded-2xl p-5 ${cls || 'bg-white dark:bg-ink-700'} border border-slate-200 dark:border-ink-600 shadow-sm">
+    <div class="flex items-start justify-between mb-2">
+      <div class="text-xs font-medium uppercase text-slate-500 dark:text-slate-400 tracking-wide">${label}</div>
+      <div class="text-slate-400">${icon}</div>
+    </div>
+    <div class="text-4xl font-bold text-slate-900 dark:text-slate-100">${value.toLocaleString('pt-BR')}</div>
+  </div>`;
+}
+
+async function openPainel(){
+  document.getElementById('userMenu').classList.add('hidden');
+  document.getElementById('painelModal').classList.remove('hidden');
+  document.getElementById('painelModal').classList.add('flex');
+  const body = document.getElementById('painelBody');
+  body.innerHTML = '<div class="text-center text-slate-400 py-12">Calculando...</div>';
+  try {
+    const k = await calcPainelKPIs();
+    body.innerHTML = `
+      <div>
+        <div class="text-xs font-semibold uppercase text-slate-500 mb-3 tracking-wide">Estoque de tecidos</div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+          ${kpiCard('Malha Tecnológica', k.rolosMalha,'<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7L12 3 4 7l8 4z"/><path d="M4 7v10l8 4 8-4V7"/></svg>', 'bg-gradient-to-br from-blue-50 to-blue-100/40 dark:from-blue-900/20 dark:to-blue-800/10 border-blue-200')}
+          ${kpiCard('Alfaiataria', k.rolosAlf,'<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3L4 8l3 12h10l3-12-2-5"/><path d="M6 3l6 6 6-6"/></svg>', 'bg-gradient-to-br from-emerald-50 to-emerald-100/40 dark:from-emerald-900/20 dark:to-emerald-800/10 border-emerald-200')}
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          ${k.rolosScuba > 0 ? kpiCard('Scuba', k.rolosScuba,'', 'bg-slate-50 dark:bg-ink-700') : ''}
+          ${k.rolosTwo > 0 ? kpiCard('Two Way', k.rolosTwo,'', 'bg-slate-50 dark:bg-ink-700') : ''}
+          ${kpiCard('Total geral rolos', k.rolosTotal,'<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>', 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 border-transparent')}
+        </div>
+      </div>
+
+      <div>
+        <div class="text-xs font-semibold uppercase text-slate-500 mb-3 tracking-wide">Produção</div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          ${kpiCard('Costurando', k.nCostura,'<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>')}
+          ${kpiCard('Aguardando acabamento', k.nAguard,'<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>')}
+          ${kpiCard('Em acabamento', k.nAcab,'<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg>')}
+          ${kpiCard('Faltando finalizar', k.nFalt,'<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4"/><circle cx="12" cy="17" r="1"/><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>', 'bg-amber-50 dark:bg-amber-900/20 border-amber-200')}
+        </div>
+      </div>
+
+      <div>
+        <div class="text-xs font-semibold uppercase text-slate-500 mb-3 tracking-wide">Extras</div>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+          ${kpiCard('Para cortar (metros)', Math.round(k.mCortar),'<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l4 4 8-8"/></svg>')}
+          ${kpiCard('Finalizados', k.nFinal,'')}
+          ${kpiCard('Pedidos personalização', k.nPerso,'')}
+        </div>
+      </div>
+
+      <div class="text-xs text-slate-400 text-center pt-2">Atualizado agora · dados em tempo real do banco</div>
+    `;
+  } catch(e){
+    body.innerHTML = '<div class="text-center text-red-500 py-12">Erro: '+e.message+'</div>';
+  }
+}
+window.closePainel = () => {
+  document.getElementById('painelModal').classList.add('hidden');
+  document.getElementById('painelModal').classList.remove('flex');
+};
+setTimeout(() => {
+  const btn = document.getElementById('painelBtn');
+  if (btn) btn.onclick = openPainel;
+  const rBtn = document.getElementById('painelRefresh');
+  if (rBtn) rBtn.onclick = openPainel;
+}, 1500);
+// ============ FIM PAINEL ============
+
+
 initAuth();
 </script>
+
+<div id="painelModal" class="hidden fixed inset-0 z-40 modal-bg items-center justify-center p-4">
+  <div class="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[92vh] overflow-hidden flex flex-col">
+    <div class="p-6 border-b border-slate-200 dark:border-ink-700 flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-pink-500 flex items-center justify-center text-white">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+      </div>
+      <div class="flex-1">
+        <h2 class="text-lg font-semibold">Painel de Controle</h2>
+        <p class="text-xs text-slate-500">Visão geral da produção Dra Charm</p>
+      </div>
+      <button id="painelRefresh" title="Atualizar" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+      </button>
+      <button onclick="closePainel()" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 text-xl">×</button>
+    </div>
+    <div class="flex-1 overflow-y-auto p-6 space-y-6" id="painelBody">
+      <div class="text-center text-slate-400 py-12">Carregando...</div>
+    </div>
+  </div>
+</div>
 </body>
 </html>
