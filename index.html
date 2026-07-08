@@ -45,18 +45,30 @@ tailwind.config = {
   .product-cover-normal{max-width:120px;max-height:120px}
   .bordado-preview{background:#faf8f5;border:3px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.08);border-radius:8px;flex-shrink:0;align-self:flex-start;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
   .bordado-preview-dark{background:#0f172a}
-  /* Trama do tecido: linhas diagonais finas simulando fios */
-  .fabric-weave{position:relative;background-image:
-    repeating-linear-gradient(45deg, rgba(0,0,0,.10) 0, rgba(0,0,0,.10) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(-45deg, rgba(255,255,255,.10) 0, rgba(255,255,255,.10) 1px, transparent 1px, transparent 4px)}
-  /* Texto com efeito de bordado (raised/embossed com sombras + luzes) */
-  .bordado-text{
+  /* Trama do tecido: SVG inline exato do site dracharm (bordado-modalv9.css .abm-prevbox) */
+  .fabric-weave{
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='6' height='6'><path d='M6,0 L0,6 M9,3 L3,9 M3,-3 L-3,3' stroke='rgba(0,0,0,0.2)' stroke-width='0.7' stroke-dasharray='1,1.4' fill='none'/></svg>");
+  }
+  /* Texto com efeito de fio bordado — repeating gradient clipado no texto (exato do site) */
+  .bordado-text > div, .bordado-text{
+    --thread-color: #b8860b;
+  }
+  .bordado-thread{
+    margin:0; padding:0; line-height:1.3;
+    background: transparent;
+    background-image: repeating-linear-gradient(
+      80deg,
+      var(--thread-color) 0 1.2px,
+      color-mix(in srgb, var(--thread-color) 75%, #fff) 1.2px 1.6px,
+      var(--thread-color) 1.6px 2.8px
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
     text-shadow:
-      0 1px 0 rgba(255,255,255,.5),
-      0 -1px 0 rgba(0,0,0,.25),
-      1px 1px 2px rgba(0,0,0,.35),
-      0 0 1px rgba(0,0,0,.2);
-    filter: drop-shadow(0 1px 1px rgba(0,0,0,.15));
+      -0.4px -0.4px 0 rgba(255,255,255,.3),
+      0.5px 0.6px 0.3px rgba(0,0,0,.18);
   }
   /* Fontes nativas do bordado (mesmas do site dracharm.com.br) */
   @font-face { font-family: 'MonotypeCorsiva'; src: url('https://cdn.awsli.com.br/1930/1930166/arquivos/monotypecorsiva.TTF') format('truetype'); font-display: swap; }
@@ -992,7 +1004,7 @@ function renderCard(c, compact){
       const w = compact ? 88 : 120, h = compact ? 88 : 120;
       const l1 = escapeHtml((c.bordado_linha1||'').slice(0,28));
       const l2 = escapeHtml((c.bordado_linha2||'').slice(0,28));
-      cover = `<div class="bordado-preview fabric-weave" style="width:${w}px;height:${h}px;${bgStyle}" title="${l1} ${l2}"><div class="bordado-text" style="font-family:${fontFam};color:${cor};line-height:1.05;text-align:center;padding:4px;overflow:hidden"><div style="font-size:${compact?11:14}px">${l1}</div>${l2?`<div style="font-size:${compact?9:11}px;margin-top:2px">${l2}</div>`:''}</div></div>`;
+      cover = `<div class="bordado-preview fabric-weave" style="width:${w}px;height:${h}px;${bgStyle}" title="${l1} ${l2}"><div style="font-family:${fontFam};line-height:1.3;text-align:center;padding:4px;overflow:hidden;--thread-color:${cor}"><div class="bordado-thread" style="font-size:${compact?11:14}px">${l1}</div>${l2?`<div class="bordado-thread" style="font-size:${compact?9:11}px;margin-top:2px">${l2}</div>`:''}</div></div>`;
     }
   } else if (c.cover_url){
     cover = `<img src="${escapeHtml(c.cover_url)}" class="product-cover ${compact?'product-cover-compact':'product-cover-normal'}" loading="lazy" onerror="this.style.display='none'"/>`;
@@ -1299,9 +1311,9 @@ function renderCardCover(c){
     else if (isLightColor(cor)) hero.style.background = '#0f172a';
     // Adiciona a trama do tecido como overlay
     hero.classList.add('fabric-weave');
-    textPreview.innerHTML = `<div class="bordado-text" style="font-family:${fam};color:${cor};line-height:1.05">
-      <div style="font-size:56px">${escapeHtml(c.bordado_linha1||'')}</div>
-      ${c.bordado_linha2 ? `<div style="font-size:38px;margin-top:6px">${escapeHtml(c.bordado_linha2)}</div>` : ''}
+    textPreview.innerHTML = `<div style="font-family:${fam};line-height:1.3;--thread-color:${cor}">
+      <div class="bordado-thread" style="font-size:56px">${escapeHtml(c.bordado_linha1||'')}</div>
+      ${c.bordado_linha2 ? `<div class="bordado-thread" style="font-size:38px;margin-top:6px">${escapeHtml(c.bordado_linha2)}</div>` : ''}
     </div>`;
     textPreview.style.display = 'flex';
   } else if (src){
