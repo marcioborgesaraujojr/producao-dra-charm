@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Dra Charm — Sync Bordados",
+  "version": "1.0.9",
+  "description": "Auto-sincroniza pedidos com bordado da Loja Integrada com o app Dra Charm",
+  "content_scripts": [
+    {
+      "matches": ["https://app.lojaintegrada.com.br/painel/pedido/*"],
+      "js": ["content-script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "host_permissions": ["https://app.lojaintegrada.com.br/*"]
+}

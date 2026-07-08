@@ -98,39 +98,29 @@
       const k = m[1].trim().toLowerCase().replace(/\.$/,''), v = m[2].trim().replace(/\s+/g,' ');
       if (k && !fields[k]) fields[k] = v;
     }
-    // Produtos com fotos — pula o "Produtos" do menu lateral
-    const produtos = [];
+    // Produtos com fotos — parser DOM (funciona em página fetched sem layout)
     const skusSkip = ['U4UDXDTVP', 'QGH2F6NFR', 'embalagem-de-presente_hidden'];
-    let realProdIdx = -1, sIdx = 0;
-    while ((sIdx = txt.indexOf('Produtos\n', sIdx)) !== -1){
-      if (/SKU:/i.test(txt.slice(sIdx, sIdx + 400))){ realProdIdx = sIdx; break; }
-      sIdx++;
-    }
-    const prodRawBlock = realProdIdx > 0 ? txt.slice(realProdIdx + 9, realProdIdx + 4500).match(/^([\s\S]*?)(?=\nEnvio via|\nDesconto|\nFrete|\nTotal|\nPagamento|$)/) : null;
-    if (prodRawBlock){
-      const lines = prodRawBlock[1].split('\n').filter(l => l.trim());
-      let current = null;
-      for (const line of lines){
-        const skuMatch = line.match(/^SKU:\s*(.+)/);
-        const tamMatch = line.match(/^TAMANHO\s*:\s*(.+)/);
-        const qtyMatch = line.match(/^Qtd:\s*(\d+)/);
-        if (!skuMatch && !tamMatch && !qtyMatch && !line.startsWith('Disponibilidade') && !line.startsWith('Peso') && !line.startsWith('R$') && line.length > 3){
-          if (current && current.sku && !skusSkip.includes(current.sku) && !current.nome.match(/Acréscimo|Embalagem/i)) produtos.push(current);
-          current = {nome: line.trim(), sku:'', tamanho:'', qtd:1};
-        }
-        if (current){
-          if (skuMatch) current.sku = skuMatch[1].trim();
-          if (tamMatch) current.tamanho = tamMatch[1].trim();
-          if (qtyMatch) current.qtd = parseInt(qtyMatch[1]);
-        }
-      }
-      if (current && current.sku && !skusSkip.includes(current.sku) && !current.nome.match(/Acréscimo|Embalagem/i)) produtos.push(current);
-    }
-    const allImgs = Array.from(doc.querySelectorAll('img')).map(i => i.src).filter(s => s && s.includes('cdn.awsli.com.br'));
-    for (const p of produtos){
-      const baseSku = p.sku.split('-')[0];
-      const found = allImgs.find(u => u.includes(baseSku) || u.includes(p.sku));
-      if (found) p.imagem_url = found;
+    const produtos = [];
+    const prodLinks = Array.from(doc.querySelectorAll('a[href*="/painel/catalogo/produto/"]'))
+      .filter(a => /\/produto\/\d+\/editar/.test(a.href) && a.textContent.trim().length > 3);
+    for (const link of prodLinks){
+      const nome = link.textContent.trim();
+      if (/Acréscimo|Embalagem/i.test(nome)) continue;
+      const infoBox = link.parentElement;
+      const row = infoBox?.parentElement;
+      const boxTxt = infoBox?.textContent || '';
+      const skuM = boxTxt.match(/SKU:\s*([^\s\n]+)/);
+      const sku = skuM ? skuM[1].trim() : '';
+      if (!sku || skusSkip.includes(sku)) continue;
+      const tamM = boxTxt.match(/TAMANHO\s*:\s*([^\s\n]+)/);
+      const qtyM = (row?.textContent || '').match(/Qtd:\s*(\d+)/);
+      const img = row?.querySelector('img');
+      produtos.push({
+        nome, sku,
+        tamanho: tamM ? tamM[1].trim() : '',
+        qtd: qtyM ? parseInt(qtyM[1]) : 1,
+        imagem_url: img?.src || null,
+      });
     }
     // Cores: "#hex-Nome"
     let corHex = null, corNome = null;
