@@ -98,12 +98,17 @@
       const k = m[1].trim().toLowerCase().replace(/\.$/,''), v = m[2].trim().replace(/\s+/g,' ');
       if (k && !fields[k]) fields[k] = v;
     }
-    // Produtos com fotos
+    // Produtos com fotos — pula o "Produtos" do menu lateral
     const produtos = [];
     const skusSkip = ['U4UDXDTVP', 'QGH2F6NFR', 'embalagem-de-presente_hidden'];
-    const prodBlock = txt.match(/Produtos\n([\s\S]{0,4000}?)(?=Envio via|Desconto|Frete|Total|Endereço de entrega|Pagamento|$)/);
-    if (prodBlock){
-      const lines = prodBlock[1].split('\n').filter(l => l.trim());
+    let realProdIdx = -1, sIdx = 0;
+    while ((sIdx = txt.indexOf('Produtos\n', sIdx)) !== -1){
+      if (/SKU:/i.test(txt.slice(sIdx, sIdx + 400))){ realProdIdx = sIdx; break; }
+      sIdx++;
+    }
+    const prodRawBlock = realProdIdx > 0 ? txt.slice(realProdIdx + 9, realProdIdx + 4500).match(/^([\s\S]*?)(?=\nEnvio via|\nDesconto|\nFrete|\nTotal|\nPagamento|$)/) : null;
+    if (prodRawBlock){
+      const lines = prodRawBlock[1].split('\n').filter(l => l.trim());
       let current = null;
       for (const line of lines){
         const skuMatch = line.match(/^SKU:\s*(.+)/);
