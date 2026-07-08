@@ -98,9 +98,34 @@
       const k = m[1].trim().toLowerCase().replace(/\.$/,''), v = m[2].trim().replace(/\s+/g,' ');
       if (k && !fields[k]) fields[k] = v;
     }
-    const msgCartaoMatch = persoBlock.match(/Mensagem\s+cartão:\s*(.*?)(?=\n\s*--|\n\s*Pagamento|$)/s);
-    if (msgCartaoMatch && !fields['detalhes do bordado (opcional)']){
-      fields['mensagem_cartao'] = msgCartaoMatch[1].trim().replace(/\s+/g,' ');
+    // Produtos com fotos
+    const produtos = [];
+    const skusSkip = ['U4UDXDTVP', 'QGH2F6NFR', 'embalagem-de-presente_hidden'];
+    const prodBlock = txt.match(/Produtos\n([\s\S]{0,4000}?)(?=Envio via|Desconto|Frete|Total|Endereço de entrega|Pagamento|$)/);
+    if (prodBlock){
+      const lines = prodBlock[1].split('\n').filter(l => l.trim());
+      let current = null;
+      for (const line of lines){
+        const skuMatch = line.match(/^SKU:\s*(.+)/);
+        const tamMatch = line.match(/^TAMANHO\s*:\s*(.+)/);
+        const qtyMatch = line.match(/^Qtd:\s*(\d+)/);
+        if (!skuMatch && !tamMatch && !qtyMatch && !line.startsWith('Disponibilidade') && !line.startsWith('Peso') && !line.startsWith('R$') && line.length > 3){
+          if (current && current.sku && !skusSkip.includes(current.sku) && !current.nome.match(/Acréscimo|Embalagem/i)) produtos.push(current);
+          current = {nome: line.trim(), sku:'', tamanho:'', qtd:1};
+        }
+        if (current){
+          if (skuMatch) current.sku = skuMatch[1].trim();
+          if (tamMatch) current.tamanho = tamMatch[1].trim();
+          if (qtyMatch) current.qtd = parseInt(qtyMatch[1]);
+        }
+      }
+      if (current && current.sku && !skusSkip.includes(current.sku) && !current.nome.match(/Acréscimo|Embalagem/i)) produtos.push(current);
+    }
+    const allImgs = Array.from(doc.querySelectorAll('img')).map(i => i.src).filter(s => s && s.includes('cdn.awsli.com.br'));
+    for (const p of produtos){
+      const baseSku = p.sku.split('-')[0];
+      const found = allImgs.find(u => u.includes(baseSku) || u.includes(p.sku));
+      if (found) p.imagem_url = found;
     }
     // Cores: "#hex-Nome"
     let corHex = null, corNome = null;
@@ -134,7 +159,8 @@
       bordado_fonte: fields['tipo de letra'] || null,
       bordado_lado: fields['lados'] || fields['lado'] || null,
       bordado_imagem_url: imgUrl,
-      bordado_detalhes: fields['detalhes do bordado (opcional)'] || fields['detalhes do bordado'] || fields['mensagem_cartao'] || null,
+      bordado_detalhes: fields['detalhes do bordado (opcional)'] || fields['detalhes do bordado'] || null,
+      pedido_produtos: produtos.length ? produtos : null,
     };
   }
 
