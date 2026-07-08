@@ -827,15 +827,17 @@ async function switchBoard(boardId){
   if (facBar) facBar.classList.add('hidden');
   const syncBtn = document.getElementById('syncBordadoBtn');
   if (syncBtn) syncBtn.classList.toggle('hidden', !isBordado);
-  const [lR, laR, tR, cR] = await Promise.all([
-    sb.from('lists').select('*').eq('board_id', boardId).eq('archived', false).order('position'),
+  // Carrega lists PRIMEIRO pra filtrar cards no server (evita limite 1000 do Supabase)
+  const { data: listsData } = await sb.from('lists').select('*').eq('board_id', boardId).eq('archived', false).order('position');
+  lists = listsData || [];
+  const listIdsArr = lists.map(l=>l.id);
+  const [laR, tR, cR] = await Promise.all([
     sb.from('labels').select('*').eq('board_id', boardId).order('name'),
     sb.from('tecidos').select('*').eq('board_id', boardId).order('name'),
-    sb.from('cards').select('*, card_labels(label_id), card_members(user_id)').eq('archived', false),
+    listIdsArr.length ? sb.from('cards').select('*, card_labels(label_id), card_members(user_id)').eq('archived', false).in('list_id', listIdsArr) : Promise.resolve({data:[]}),
   ]);
-  lists = lR.data || []; labels = laR.data || []; tecidos = tR.data || [];
-  const listIds = new Set(lists.map(l=>l.id));
-  cards = (cR.data || []).filter(c => listIds.has(c.list_id));
+  labels = laR.data || []; tecidos = tR.data || [];
+  cards = cR.data || [];
   cardLabels = {}; cardMembers = {};
   cards.forEach(c => {
     cardLabels[c.id] = (c.card_labels||[]).map(cl => labels.find(l=>l.id===cl.label_id)).filter(Boolean);
