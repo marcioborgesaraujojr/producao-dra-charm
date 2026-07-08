@@ -42,6 +42,7 @@ tailwind.config = {
   /* Cover unificada: imagem mantém proporção original, escalada dentro de bounding box */
   .product-cover{background:#eaeaea;border:3px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.08);border-radius:8px;flex-shrink:0;align-self:flex-start;display:block;height:auto;width:auto;object-fit:contain}
   .product-cover-compact{max-width:88px;max-height:88px}
+  .produto-thumb{width:70px;height:88px;object-fit:cover;border-radius:8px;border:3px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.08);background:#eaeaea;flex-shrink:0}
   .product-cover-normal{max-width:120px;max-height:120px}
   .bordado-preview{background:#faf8f5;border:3px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.08);border-radius:8px;flex-shrink:0;align-self:flex-start;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
   .bordado-preview-dark{background:#0f172a}
@@ -738,9 +739,12 @@ function matchProductColor(productName){
   return null;
 }
 // Pega a cor de fundo do bordado a partir dos produtos do pedido
+// Prioriza produtos marcados com bordado=true (peça que vai ser bordada)
 function bordadoBackgroundFromCard(c){
   if (!c.pedido_produtos) return null;
-  for (const p of c.pedido_produtos){
+  const bordados = c.pedido_produtos.filter(p => p.bordado);
+  const target = bordados.length ? bordados : c.pedido_produtos;
+  for (const p of target){
     const color = matchProductColor(p.nome);
     if (color) return color;
   }
@@ -1147,12 +1151,12 @@ async function openCard(id){
     if (produtos.length){
       prodBox.classList.remove('hidden');
       prodList.innerHTML = produtos.map(p => `
-        <div class="p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 flex gap-3 items-center">
+        <div class="p-2 rounded-lg ${p.bordado ? 'bg-pink-50 dark:bg-pink-900/20 border-pink-300' : 'bg-slate-50 dark:bg-ink-700 border-slate-200 dark:border-ink-600'} border flex gap-3 items-center">
           ${p.imagem_url
-            ? `<img src="${escapeHtml(p.imagem_url)}" class="w-14 h-14 object-cover rounded flex-shrink-0 border border-slate-200" onerror="this.style.display='none'"/>`
-            : `<div class="w-14 h-14 bg-slate-200 dark:bg-ink-600 rounded flex-shrink-0 flex items-center justify-center text-slate-400"><svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg></div>`}
+            ? `<img src="${escapeHtml(p.imagem_url)}" class="produto-thumb" onerror="this.style.display='none'"/>`
+            : `<div class="produto-thumb flex items-center justify-center text-slate-400"><svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg></div>`}
           <div class="flex-1 min-w-0 text-xs">
-            <div class="font-semibold text-sm text-slate-800 dark:text-slate-100 leading-tight truncate">${escapeHtml(p.nome || '')}</div>
+            <div class="font-semibold text-sm text-slate-800 dark:text-slate-100 leading-tight truncate">${escapeHtml(p.nome || '')}${p.bordado ? ' <span class="text-[10px] font-bold uppercase text-pink-600 bg-pink-100 dark:bg-pink-900/40 px-1.5 py-0.5 rounded ml-1">bordado</span>' : ''}</div>
             <div class="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-slate-600 dark:text-slate-400">
               ${p.tamanho ? `<span><b>Tam:</b> ${escapeHtml(p.tamanho)}</span>` : ''}
               ${p.sku ? `<span><b>SKU:</b> ${escapeHtml(p.sku)}</span>` : ''}

@@ -154,6 +154,14 @@
           imagem_url: img?.src || null,
         });
       }
+      // Marca produtos que TÊM bordado (persoBlock começa cada peça com "** SKU **")
+      const bordadoSkus = new Set();
+      for (const m of persoBlock.matchAll(/\*\*\s*([^\s\[*]+)/g)){
+        bordadoSkus.add(m[1].trim().toLowerCase());
+      }
+      for (const p of produtos){
+        if (bordadoSkus.has((p.sku||'').toLowerCase())) p.bordado = true;
+      }
       let corHex = null, corNome = null;
       if (fields['cores']){
         const cm = fields['cores'].match(/^(#[0-9a-fA-F]{3,8})-(.+)$/);
