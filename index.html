@@ -2022,11 +2022,21 @@ window.addEventListener('message', async (e) => {
   if (e.data?.type !== 'draCharmBordados') return;
   const orders = e.data.orders || [];
   document.getElementById('syncStatus').innerHTML = `<span class="text-amber-600">Recebi ${orders.length} pedidos. Salvando...</span>`;
-  // Encontra o board Personalização + lista "Novo Pedido"
-  const persoBoard = boards.find(b => (b.name||'').toLowerCase().includes('personaliza'));
-  if (!persoBoard){ toast('Board Personalização não encontrado'); return; }
-  const { data: persoLists } = await sb.from('lists').select('id, name').eq('board_id', persoBoard.id);
-  const novoList = persoLists.find(l => /novo/i.test(l.name));
+  console.log('[SYNC] Recebi orders:', orders);
+  // Busca o board Personalização direto no banco (evita cache local defasado)
+  const { data: persoBoardRows, error: pbErr } = await sb.from('boards').select('id, name').ilike('name', '%personaliza%').limit(1);
+  if (pbErr || !persoBoardRows?.length){
+    document.getElementById('syncStatus').innerHTML = `<span class="text-red-600">❌ Board Personalização não encontrado no banco</span>`;
+    toast('Board Personalização não encontrado');
+    return;
+  }
+  const persoBoard = persoBoardRows[0];
+  const { data: persoLists, error: lErr } = await sb.from('lists').select('id, name').eq('board_id', persoBoard.id);
+  if (lErr || !persoLists?.length){
+    document.getElementById('syncStatus').innerHTML = `<span class="text-red-600">❌ Nenhuma lista no board (RLS?): ${lErr?.message||'vazio'}</span>`;
+    return;
+  }
+  const novoList = persoLists.find(l => /novo/i.test(l.name)) || persoLists[0];
   if (!novoList){ toast('Lista "Novo Pedido" não encontrada'); return; }
   // Pega labels do board
   const { data: bLabels } = await sb.from('labels').select('id, name').eq('board_id', persoBoard.id);

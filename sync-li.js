@@ -46,7 +46,8 @@
     setStatus(`Coletando IDs da página ${p}/${totalPages}...`);
     setProgress(Math.round((p/totalPages)*30));
     try {
-      const pageUrl = `${currentUrl.origin}${currentUrl.pathname}?data_inicio=${encodeURIComponent(dateStart)}&data_fim=${encodeURIComponent(dateEnd)}&pagina=${p}`;
+      // LI usa PATH pra paginar: /painel/pedido/listar/pagina/N
+      const pageUrl = `${currentUrl.origin}/painel/pedido/listar/pagina/${p}?data_inicio=${encodeURIComponent(dateStart)}&data_fim=${encodeURIComponent(dateEnd)}`;
       const html = await fetch(pageUrl, {credentials:'include'}).then(r => r.text());
       const doc = new DOMParser().parseFromString(html, 'text/html');
       const ids = collectIdsFromDoc(doc);
