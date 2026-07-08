@@ -43,8 +43,21 @@ tailwind.config = {
   .product-cover{background:#eaeaea;border:3px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.08);border-radius:8px;flex-shrink:0;align-self:flex-start;display:block;height:auto;width:auto;object-fit:contain}
   .product-cover-compact{max-width:88px;max-height:88px}
   .product-cover-normal{max-width:120px;max-height:120px}
-  .bordado-preview{background:#faf8f5;border:3px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.08);border-radius:8px;flex-shrink:0;align-self:flex-start;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .bordado-preview{background:#faf8f5;border:3px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.08);border-radius:8px;flex-shrink:0;align-self:flex-start;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
   .bordado-preview-dark{background:#0f172a}
+  /* Trama do tecido: linhas diagonais finas simulando fios */
+  .fabric-weave{position:relative;background-image:
+    repeating-linear-gradient(45deg, rgba(0,0,0,.10) 0, rgba(0,0,0,.10) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(-45deg, rgba(255,255,255,.10) 0, rgba(255,255,255,.10) 1px, transparent 1px, transparent 4px)}
+  /* Texto com efeito de bordado (raised/embossed com sombras + luzes) */
+  .bordado-text{
+    text-shadow:
+      0 1px 0 rgba(255,255,255,.5),
+      0 -1px 0 rgba(0,0,0,.25),
+      1px 1px 2px rgba(0,0,0,.35),
+      0 0 1px rgba(0,0,0,.2);
+    filter: drop-shadow(0 1px 1px rgba(0,0,0,.15));
+  }
   /* Fontes nativas do bordado (mesmas do site dracharm.com.br) */
   @font-face { font-family: 'MonotypeCorsiva'; src: url('https://cdn.awsli.com.br/1930/1930166/arquivos/monotypecorsiva.TTF') format('truetype'); font-display: swap; }
   @font-face { font-family: 'BallantinesScript'; src: url('https://cdn.awsli.com.br/1930/1930166/arquivos/ballantinesscriptefregular.ttf') format('truetype'); font-display: swap; }
@@ -979,7 +992,7 @@ function renderCard(c, compact){
       const w = compact ? 88 : 120, h = compact ? 88 : 120;
       const l1 = escapeHtml((c.bordado_linha1||'').slice(0,28));
       const l2 = escapeHtml((c.bordado_linha2||'').slice(0,28));
-      cover = `<div class="bordado-preview" style="width:${w}px;height:${h}px;${bgStyle}" title="${l1} ${l2}"><div style="font-family:${fontFam};color:${cor};line-height:1.05;text-align:center;padding:4px;overflow:hidden"><div style="font-size:${compact?11:14}px">${l1}</div>${l2?`<div style="font-size:${compact?9:11}px;margin-top:2px">${l2}</div>`:''}</div></div>`;
+      cover = `<div class="bordado-preview fabric-weave" style="width:${w}px;height:${h}px;${bgStyle}" title="${l1} ${l2}"><div class="bordado-text" style="font-family:${fontFam};color:${cor};line-height:1.05;text-align:center;padding:4px;overflow:hidden"><div style="font-size:${compact?11:14}px">${l1}</div>${l2?`<div style="font-size:${compact?9:11}px;margin-top:2px">${l2}</div>`:''}</div></div>`;
     }
   } else if (c.cover_url){
     cover = `<img src="${escapeHtml(c.cover_url)}" class="product-cover ${compact?'product-cover-compact':'product-cover-normal'}" loading="lazy" onerror="this.style.display='none'"/>`;
@@ -1276,6 +1289,7 @@ function renderCardCover(c){
   textPreview.style.display = 'none';
   rm.classList.add('hidden');
   hero.style.background = '#eaeaea';
+  hero.classList.remove('fabric-weave');
   if (useTextPreview){
     // Preview de texto com fonte + cor real. Fundo = cor da peça (via nome do produto)
     const fam = bordadoFontFamily(c.bordado_fonte);
@@ -1283,7 +1297,9 @@ function renderCardCover(c){
     const pecaCor = bordadoBackgroundFromCard(c);
     if (pecaCor) hero.style.background = pecaCor.hex;
     else if (isLightColor(cor)) hero.style.background = '#0f172a';
-    textPreview.innerHTML = `<div style="font-family:${fam};color:${cor};line-height:1.05">
+    // Adiciona a trama do tecido como overlay
+    hero.classList.add('fabric-weave');
+    textPreview.innerHTML = `<div class="bordado-text" style="font-family:${fam};color:${cor};line-height:1.05">
       <div style="font-size:56px">${escapeHtml(c.bordado_linha1||'')}</div>
       ${c.bordado_linha2 ? `<div style="font-size:38px;margin-top:6px">${escapeHtml(c.bordado_linha2)}</div>` : ''}
     </div>`;
