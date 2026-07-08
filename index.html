@@ -2271,9 +2271,15 @@ window.addEventListener('message', async (e) => {
     nome_profissao: bLabels.find(l=>/nome/i.test(l.name))?.id,
     ambos: bLabels.find(l=>/ambos/i.test(l.name))?.id,
   };
-  let created = 0, updated = 0;
+  // Batch: 1 SELECT + updates paralelos + 1 INSERT em massa (era 3N round-trips, agora ~4)
+  document.getElementById('syncStatus').innerHTML = `<span class="text-amber-600">Verificando cards existentes...</span>`;
+  const pedidoNumeros = orders.map(o => o.pedido_numero);
+  const { data: existingCards } = await sb.from('cards').select('id, pedido_numero').in('pedido_numero', pedidoNumeros);
+  const existingByNum = {};
+  for (const c of (existingCards || [])) existingByNum[c.pedido_numero] = c.id;
+
+  const toUpdate = [], toInsert = [];
   for (const o of orders){
-    const { data: existing } = await sb.from('cards').select('id').eq('pedido_numero', o.pedido_numero).limit(1);
     const payload = {
       pedido_cliente: o.pedido_cliente,
       pedido_url: o.pedido_url,
@@ -2288,25 +2294,45 @@ window.addEventListener('message', async (e) => {
       bordado_detalhes: o.bordado_detalhes,
       pedido_produtos: o.pedido_produtos,
     };
-    if (existing && existing.length){
-      const { error } = await sb.from('cards').update(payload).eq('id', existing[0].id);
-      if (!error) updated++;
-      continue;
+    if (existingByNum[o.pedido_numero]){
+      toUpdate.push({id: existingByNum[o.pedido_numero], ...payload});
+    } else {
+      toInsert.push({
+        list_id: novoList.id,
+        title: `#${o.pedido_numero} · ${o.pedido_cliente || 'Sem nome'}`,
+        position: Date.now() + toInsert.length,
+        created_by: user.id,
+        due_date: calcPrazoBordado(o.bordado_tipo),
+        pedido_numero: o.pedido_numero,
+        _tipo: o.bordado_tipo,
+        ...payload,
+      });
     }
-    const title = `#${o.pedido_numero} · ${o.pedido_cliente || 'Sem nome'}`;
-    const { data: newCard, error } = await sb.from('cards').insert({
-      list_id: novoList.id,
-      title,
-      position: Date.now(),
-      created_by: user.id,
-      due_date: calcPrazoBordado(o.bordado_tipo),
-      pedido_numero: o.pedido_numero,
-      ...payload,
-    }).select().single();
-    if (error) continue;
-    const labelId = labelByType[o.bordado_tipo];
-    if (labelId) await sb.from('card_labels').insert({card_id: newCard.id, label_id: labelId});
-    created++;
+  }
+  document.getElementById('syncStatus').innerHTML = `<span class="text-amber-600">Salvando ${toInsert.length} novos e ${toUpdate.length} atualizações...</span>`;
+  let created = 0, updated = 0;
+  if (toUpdate.length){
+    for (let i=0; i<toUpdate.length; i+=20){
+      const batch = toUpdate.slice(i, i+20);
+      const results = await Promise.all(batch.map(u => {
+        const {id, ...rest} = u;
+        return sb.from('cards').update(rest).eq('id', id);
+      }));
+      updated += results.filter(r => !r.error).length;
+    }
+  }
+  if (toInsert.length){
+    const inserts = toInsert.map(({_tipo, ...c}) => c);
+    const { data: newCards, error: insErr } = await sb.from('cards').insert(inserts).select();
+    if (!insErr && newCards){
+      created = newCards.length;
+      const labelInserts = [];
+      for (let i=0; i<newCards.length; i++){
+        const labelId = labelByType[toInsert[i]._tipo];
+        if (labelId) labelInserts.push({card_id: newCards[i].id, label_id: labelId});
+      }
+      if (labelInserts.length) await sb.from('card_labels').insert(labelInserts);
+    }
   }
   document.getElementById('syncStatus').innerHTML = `<span class="text-emerald-600 font-semibold">✅ ${created} criado${created===1?'':'s'}${updated?` · ${updated} atualizado${updated===1?'':'s'}`:''}</span>`;
   toast(`✅ ${created} novos · ${updated} atualizados`);

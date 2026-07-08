@@ -40,20 +40,25 @@
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   setStatus(`Total ${totalCount} pedidos em ${totalPages} página(s). Coletando IDs...`);
 
-  const allIds = collectIdsFromDoc(document);
-  // Busca páginas 2..N
-  for (let p = 2; p <= totalPages; p++){
-    setStatus(`Coletando IDs da página ${p}/${totalPages}...`);
-    setProgress(Math.round((p/totalPages)*30));
-    try {
-      // LI usa PATH pra paginar: /painel/pedido/listar/pagina/N
-      const pageUrl = `${currentUrl.origin}/painel/pedido/listar/pagina/${p}?data_inicio=${encodeURIComponent(dateStart)}&data_fim=${encodeURIComponent(dateEnd)}`;
-      const html = await fetch(pageUrl, {credentials:'include'}).then(r => r.text());
-      const doc = new DOMParser().parseFromString(html, 'text/html');
-      const ids = collectIdsFromDoc(doc);
-      for (const id of ids) if (!allIds.includes(id)) allIds.push(id);
-    } catch(e){}
+  const allIdsSet = new Set(collectIdsFromDoc(document));
+  // Páginas 2..N em PARALELO
+  if (totalPages > 1){
+    setStatus(`Coletando IDs de ${totalPages} páginas em paralelo...`);
+    setProgress(20);
+    const pageUrls = [];
+    for (let p = 2; p <= totalPages; p++){
+      pageUrls.push(`${currentUrl.origin}/painel/pedido/listar/pagina/${p}?data_inicio=${encodeURIComponent(dateStart)}&data_fim=${encodeURIComponent(dateEnd)}`);
+    }
+    const pageResults = await Promise.all(pageUrls.map(async url => {
+      try {
+        const html = await fetch(url, {credentials:'include'}).then(r => r.text());
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        return collectIdsFromDoc(doc);
+      } catch(e){ return []; }
+    }));
+    for (const ids of pageResults) for (const id of ids) allIdsSet.add(id);
   }
+  const allIds = [...allIdsSet];
   const orderIds = allIds;
   if (orderIds.length === 0){
     setStatus('❌ Nenhum pedido encontrado nesta data.');
@@ -171,7 +176,7 @@
   (async () => {
     const results = [];
     let done = 0;
-    const CONCURRENCY = 4;
+    const CONCURRENCY = 10;
     for (let i=0; i<orderIds.length; i += CONCURRENCY){
       const batch = orderIds.slice(i, i+CONCURRENCY);
       const parsed = await Promise.all(batch.map(async id => {
