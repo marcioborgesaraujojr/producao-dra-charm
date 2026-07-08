@@ -1190,12 +1190,12 @@ async function openCard(id){
   const biuEl = document.getElementById('cardBordadoImagemUrl'); if (biuEl) biuEl.value = c.bordado_imagem_url || '';
   const bdEl = document.getElementById('cardBordadoDetalhes'); if (bdEl) bdEl.value = c.bordado_detalhes || '';
   // Esconde/mostra campos conforme tipo de bordado (mesmas regras do site dracharm.com.br)
-  const linhasBox = document.getElementById('cardBordadoLinhasBox');
-  const imgBox = document.getElementById('cardBordadoImagemBox');
-  if (linhasBox && imgBox){
-    const t = c.bordado_tipo;
-    linhasBox.classList.toggle('hidden', t === 'logomarca');
-    imgBox.classList.toggle('hidden', t === 'nome_profissao');
+  const _lbWrap = document.getElementById('cardBordadoLinhasBox');
+  const _imgWrap = document.getElementById('cardBordadoImagemBox');
+  if (_lbWrap && _imgWrap){
+    const _t = c.bordado_tipo;
+    _lbWrap.classList.toggle('hidden', _t === 'logomarca');
+    _imgWrap.classList.toggle('hidden', _t === 'nome_profissao');
   }
   const pedidoLink = document.getElementById('cardPedidoLink');
   if (pedidoLink){ if (c.pedido_url){ pedidoLink.href = c.pedido_url; pedidoLink.classList.remove('hidden'); } else pedidoLink.classList.add('hidden'); }
