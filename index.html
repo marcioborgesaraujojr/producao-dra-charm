@@ -2259,19 +2259,10 @@ window.addEventListener('message', async (e) => {
     nome_profissao: bLabels.find(l=>/nome/i.test(l.name))?.id,
     ambos: bLabels.find(l=>/ambos/i.test(l.name))?.id,
   };
-  let created = 0, skipped = 0;
+  let created = 0, updated = 0;
   for (const o of orders){
-    // Dedupe por pedido_numero
     const { data: existing } = await sb.from('cards').select('id').eq('pedido_numero', o.pedido_numero).limit(1);
-    if (existing && existing.length){ skipped++; continue; }
-    const title = `#${o.pedido_numero} · ${o.pedido_cliente || 'Sem nome'}`;
-    const { data: newCard, error } = await sb.from('cards').insert({
-      list_id: novoList.id,
-      title,
-      position: Date.now(),
-      created_by: user.id,
-      due_date: calcPrazoBordado(o.bordado_tipo),
-      pedido_numero: o.pedido_numero,
+    const payload = {
       pedido_cliente: o.pedido_cliente,
       pedido_url: o.pedido_url,
       bordado_tipo: o.bordado_tipo,
@@ -2284,14 +2275,29 @@ window.addEventListener('message', async (e) => {
       bordado_imagem_url: o.bordado_imagem_url,
       bordado_detalhes: o.bordado_detalhes,
       pedido_produtos: o.pedido_produtos,
+    };
+    if (existing && existing.length){
+      const { error } = await sb.from('cards').update(payload).eq('id', existing[0].id);
+      if (!error) updated++;
+      continue;
+    }
+    const title = `#${o.pedido_numero} · ${o.pedido_cliente || 'Sem nome'}`;
+    const { data: newCard, error } = await sb.from('cards').insert({
+      list_id: novoList.id,
+      title,
+      position: Date.now(),
+      created_by: user.id,
+      due_date: calcPrazoBordado(o.bordado_tipo),
+      pedido_numero: o.pedido_numero,
+      ...payload,
     }).select().single();
     if (error) continue;
     const labelId = labelByType[o.bordado_tipo];
     if (labelId) await sb.from('card_labels').insert({card_id: newCard.id, label_id: labelId});
     created++;
   }
-  document.getElementById('syncStatus').innerHTML = `<span class="text-emerald-600 font-semibold">✅ ${created} card${created===1?'':'s'} criado${created===1?'':'s'}${skipped?` · ${skipped} já existiam`:''}</span>`;
-  toast(`✅ ${created} pedidos importados`);
+  document.getElementById('syncStatus').innerHTML = `<span class="text-emerald-600 font-semibold">✅ ${created} criado${created===1?'':'s'}${updated?` · ${updated} atualizado${updated===1?'':'s'}`:''}</span>`;
+  toast(`✅ ${created} novos · ${updated} atualizados`);
   if (currentBoardId === persoBoard.id) await switchBoard(persoBoard.id);
 });
 document.getElementById('syncBordadoBtn').addEventListener('click', openSyncBordado);
