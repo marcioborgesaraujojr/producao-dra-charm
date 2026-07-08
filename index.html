@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Produção Dra. Charm</title>
 <link id="faviconLink" rel="icon" type="image/png" href="https://cdn.awsli.com.br/1930/1930166/arquivos/logo.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Dancing+Script:wght@700&family=Sacramento&family=Alex+Brush&family=Playfair+Display:wght@700&family=Anton&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
 tailwind.config = {
@@ -47,6 +44,10 @@ tailwind.config = {
   .product-cover-compact{max-width:88px;max-height:88px}
   .product-cover-normal{max-width:120px;max-height:120px}
   .bordado-preview{background:#faf8f5;border:3px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.08);border-radius:8px;flex-shrink:0;align-self:flex-start;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .bordado-preview-dark{background:#0f172a}
+  /* Fontes nativas do bordado (mesmas do site dracharm.com.br) */
+  @font-face { font-family: 'MonotypeCorsiva'; src: url('https://cdn.awsli.com.br/1930/1930166/arquivos/monotypecorsiva.TTF') format('truetype'); font-display: swap; }
+  @font-face { font-family: 'BallantinesScript'; src: url('https://cdn.awsli.com.br/1930/1930166/arquivos/ballantinesscriptefregular.ttf') format('truetype'); font-display: swap; }
   .mention-tag{background:#fce7f3;color:#be185d;padding:0 4px;border-radius:4px;font-weight:600}
   .dark .mention-tag{background:#831843;color:#f9a8d4}
   .mention-menu{position:absolute;background:white;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);z-index:60;max-height:200px;overflow-y:auto;min-width:200px}
@@ -459,19 +460,19 @@ tailwind.config = {
             </div>
             <div class="grid grid-cols-3 gap-3">
               <div>
-                <label class="text-xs font-medium uppercase text-slate-500">Cor</label>
+                <label class="text-xs font-medium uppercase text-slate-500" title="Vem do pedido, não é editável">🔒 Cor</label>
                 <div class="flex gap-1 mt-1 items-center">
-                  <input id="cardBordadoCorHex" type="color" class="w-10 h-9 rounded border border-slate-200"/>
-                  <input id="cardBordadoCorNome" type="text" placeholder="Dourado" class="flex-1 min-w-0 p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"/>
+                  <input id="cardBordadoCorHex" type="color" disabled class="w-10 h-9 rounded border border-slate-200 opacity-90 cursor-not-allowed"/>
+                  <input id="cardBordadoCorNome" type="text" readonly placeholder="Dourado" class="flex-1 min-w-0 p-2 rounded-lg bg-slate-100 dark:bg-ink-600 border border-slate-200 dark:border-ink-600 text-sm text-slate-600 cursor-not-allowed"/>
                 </div>
               </div>
               <div>
-                <label class="text-xs font-medium uppercase text-slate-500">Fonte</label>
-                <input id="cardBordadoFonte" type="text" placeholder="Monotype Corsiva" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"/>
+                <label class="text-xs font-medium uppercase text-slate-500" title="Vem do pedido, não é editável">🔒 Fonte</label>
+                <input id="cardBordadoFonte" type="text" readonly placeholder="—" class="mt-1 w-full p-2 rounded-lg bg-slate-100 dark:bg-ink-600 border border-slate-200 dark:border-ink-600 text-sm text-slate-600 cursor-not-allowed"/>
               </div>
               <div>
-                <label class="text-xs font-medium uppercase text-slate-500">Lado</label>
-                <input id="cardBordadoLado" type="text" placeholder="Peito Esquerdo" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"/>
+                <label class="text-xs font-medium uppercase text-slate-500" title="Vem do pedido, não é editável">🔒 Lado</label>
+                <input id="cardBordadoLado" type="text" readonly placeholder="—" class="mt-1 w-full p-2 rounded-lg bg-slate-100 dark:bg-ink-600 border border-slate-200 dark:border-ink-600 text-sm text-slate-600 cursor-not-allowed"/>
               </div>
             </div>
             <div>
@@ -672,18 +673,37 @@ let filters = { faccao: new Set(), search: '', hideFinalizado: true, density:'co
 let commentCounts = {};
 let attachmentCounts = {};
 
-// Mapa das fontes de bordado da LI para Google Fonts equivalentes
+// Mapeia fonte do LI para a fonte native carregada (mesma do site dracharm.com.br)
 function bordadoFontFamily(fonteName){
   const n = (fonteName || '').toLowerCase();
-  if (n.includes('ballantines') || n.includes('great vibes')) return "'Great Vibes', cursive";
-  if (n.includes('sacramento')) return "'Sacramento', cursive";
-  if (n.includes('alex') || n.includes('brush')) return "'Alex Brush', cursive";
-  if (n.includes('monotype corsiva') || n.includes('corsiva') || n.includes('dancing')) return "'Dancing Script', cursive";
-  if (n.includes('playfair') || n.includes('serif')) return "'Playfair Display', serif";
-  if (n.includes('anton') || n.includes('impact')) return "'Anton', sans-serif";
-  if (n.includes('times')) return "'Playfair Display', serif";
-  if (n.includes('arial') || n.includes('sans')) return "sans-serif";
-  return "'Dancing Script', cursive"; // fallback cursivo elegante
+  if (n.includes('ballantines')) return "'BallantinesScript', cursive";
+  if (n.includes('monotype') || n.includes('corsiva')) return "'MonotypeCorsiva', cursive";
+  // Fallback pra fonte cursiva bonita
+  return "'MonotypeCorsiva', cursive";
+}
+// Detecta se a cor é muito clara (precisa fundo escuro pra ficar visível)
+function isLightColor(hex){
+  if (!hex) return false;
+  const h = hex.replace('#','');
+  if (h.length !== 3 && h.length !== 6) return false;
+  const hh = h.length === 3 ? h.split('').map(c=>c+c).join('') : h;
+  const r = parseInt(hh.slice(0,2),16), g = parseInt(hh.slice(2,4),16), b = parseInt(hh.slice(4,6),16);
+  // Luminância percebida
+  const lum = (0.299*r + 0.587*g + 0.114*b);
+  return lum > 200;
+}
+// Calcula data prevista automática (5 dias úteis pra nome/prof, 10 pra logo/ambos)
+function calcPrazoBordado(tipo){
+  const dias = (tipo === 'logomarca' || tipo === 'ambos') ? 10 : 5;
+  const d = new Date();
+  let adicionados = 0;
+  while (adicionados < dias){
+    d.setDate(d.getDate() + 1);
+    const dw = d.getDay();
+    if (dw !== 0 && dw !== 6) adicionados++;
+  }
+  const yyyy = d.getFullYear(), mm = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 // Detecta o tipo do board pelo nome (usado pra decidir quais campos mostrar)
@@ -900,13 +920,14 @@ function renderCard(c, compact){
       // Logomarca: thumb da imagem
       cover = `<img src="${escapeHtml(c.bordado_imagem_url)}" class="product-cover ${compact?'product-cover-compact':'product-cover-normal'}" loading="lazy" onerror="this.style.display='none'" title="Logo do cliente"/>`;
     } else if (c.bordado_linha1 || c.bordado_linha2){
-      // Nome/profissão: preview texto na fonte + cor do pedido
+      // Nome/profissão: preview texto na fonte + cor do pedido (fundo escuro se cor clara)
       const fontFam = bordadoFontFamily(c.bordado_fonte);
       const cor = c.bordado_cor_hex || '#333';
+      const darkBg = isLightColor(cor);
       const w = compact ? 88 : 120, h = compact ? 88 : 120;
       const l1 = escapeHtml((c.bordado_linha1||'').slice(0,28));
       const l2 = escapeHtml((c.bordado_linha2||'').slice(0,28));
-      cover = `<div class="bordado-preview" style="width:${w}px;height:${h}px" title="${l1} ${l2}"><div style="font-family:${fontFam};color:${cor};line-height:1.05;text-align:center;padding:4px;overflow:hidden"><div style="font-size:${compact?11:14}px">${l1}</div>${l2?`<div style="font-size:${compact?9:11}px;margin-top:2px">${l2}</div>`:''}</div></div>`;
+      cover = `<div class="bordado-preview ${darkBg?'bordado-preview-dark':''}" style="width:${w}px;height:${h}px" title="${l1} ${l2}"><div style="font-family:${fontFam};color:${cor};line-height:1.05;text-align:center;padding:4px;overflow:hidden"><div style="font-size:${compact?11:14}px">${l1}</div>${l2?`<div style="font-size:${compact?9:11}px;margin-top:2px">${l2}</div>`:''}</div></div>`;
     }
   } else if (c.cover_url){
     cover = `<img src="${escapeHtml(c.cover_url)}" class="product-cover ${compact?'product-cover-compact':'product-cover-normal'}" loading="lazy" onerror="this.style.display='none'"/>`;
@@ -999,7 +1020,14 @@ async function openCard(id){
   document.getElementById('faccaoField').classList.toggle('hidden', labels.length === 0);
   document.getElementById('cardTitle').value = c.title || '';
   document.getElementById('cardDesc').value = c.description || '';
-  document.getElementById('cardDue').value = c.due_date || '';
+  // Prazo automático pra bordado: 5 dias úteis (nome/prof) ou 10 dias úteis (logo/ambos)
+  let dueVal = c.due_date || '';
+  if (bType === 'bordado' && !dueVal && c.bordado_tipo){
+    dueVal = calcPrazoBordado(c.bordado_tipo);
+    // Salva no banco pra não recalcular
+    sb.from('cards').update({due_date: dueVal}).eq('id', c.id).then(() => { c.due_date = dueVal; });
+  }
+  document.getElementById('cardDue').value = dueVal;
   document.getElementById('cardTecidoQtd').value = c.tecido_qtd || '';
   document.getElementById('cardTamPP').value = c.tam_pp || '';
   document.getElementById('cardTamP').value = c.tam_p || '';
@@ -1056,7 +1084,10 @@ async function openCard(id){
     prevL2.textContent = c.bordado_linha2 || '';
     prevL1.style.fontFamily = fam; prevL1.style.color = cor;
     prevL2.style.fontFamily = fam; prevL2.style.color = cor;
-    prevBox.style.display = (c.bordado_linha1 || c.bordado_linha2) ? '' : 'none';
+    // Se cor clara, fundo escuro pra ficar visível
+    if (isLightColor(cor)){ prevBox.style.background = '#0f172a'; }
+    else { prevBox.style.background = ''; }
+    prevBox.style.display = (c.bordado_linha1 || c.bordado_linha2) ? 'flex' : 'none';
   }
   updateCortadaTotal();
   updateOficinaAlerta();
@@ -1165,11 +1196,16 @@ function renderCardCover(c){
   const img = document.getElementById('cardHeaderCoverImg');
   const plus = document.getElementById('cardHeaderCoverPlus');
   const rm = document.getElementById('cardHeaderCoverRemove');
-  if (c.cover_url){
-    img.src = c.cover_url;
+  // Cover source: em bordado (logomarca/ambos) usa bordado_imagem_url, senão usa cover_url
+  const bType = boardType(currentBoardId);
+  const useLogo = bType === 'bordado' && (c.bordado_tipo === 'logomarca' || c.bordado_tipo === 'ambos') && c.bordado_imagem_url;
+  const src = useLogo ? c.bordado_imagem_url : c.cover_url;
+  if (src){
+    img.src = src;
     img.classList.remove('hidden');
     plus.classList.add('hidden');
-    rm.classList.remove('hidden');
+    // Remove só pra imagem manualmente adicionada (cover_url), não pra logo puxada do pedido
+    if (useLogo) rm.classList.add('hidden'); else rm.classList.remove('hidden');
   } else {
     img.classList.add('hidden');
     plus.classList.remove('hidden');
@@ -2119,6 +2155,7 @@ window.addEventListener('message', async (e) => {
       title,
       position: Date.now(),
       created_by: user.id,
+      due_date: calcPrazoBordado(o.bordado_tipo),
       pedido_numero: o.pedido_numero,
       pedido_cliente: o.pedido_cliente,
       pedido_url: o.pedido_url,
