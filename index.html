@@ -675,6 +675,53 @@ let filters = { faccao: new Set(), search: '', hideFinalizado: true, density:'co
 let commentCounts = {};
 let attachmentCounts = {};
 
+// Mapa das cores das peças (mesmo do site dracharm.com.br /painel/configuracao/html/1454026)
+// Ordenado por nome mais longo primeiro pra evitar match parcial ("Vermelho Cardinal" antes de "Vermelho")
+const PRODUCT_COLORS = [
+  {name:"Vermelho Cardinal", hex:"#C25863"},{name:"Amarelo Limonada", hex:"#FFFCB7"},{name:"Marrom Chocolate", hex:"#592F28"},
+  {name:"Lilás Blueberry", hex:"#954CAC"},{name:"Vermelho Cereja", hex:"#9C2230"},{name:"Rosa Milkshake", hex:"#D890A4"},
+  {name:"Rosé Sapatilha", hex:"#F2CCCA"},{name:"Lilas Daybreak", hex:"#B198B2"},{name:"Lilás Harmonia", hex:"#BC9BBA"},
+  {name:"Lilás Orquidea", hex:"#903DA8"},{name:"Lilás Mulberry", hex:"#AB6075"},{name:"Verde Pistache", hex:"#BFEDC8"},
+  {name:"Verde Bandeira", hex:"#0DAF66"},{name:"Verde Petróleo", hex:"#2E5053"},{name:"Azul Petróleo", hex:"#1289B2"},
+  {name:"Rosa Chiclete", hex:"#F69DBB"},{name:"Pink Chiclete", hex:"#F85EC5"},{name:"Pink Lemonade", hex:"#FF9EA9"},
+  {name:"Verde Tiffany", hex:"#A6E1D8"},{name:"Cinza Minério", hex:"#9F99A9"},{name:"Roxo Púrpura", hex:"#9B54B8"},
+  {name:"Mocha Mousse", hex:"#DFA17C"},{name:"Azul Frozen", hex:"#AEC2DF"},{name:"Azul Bertie", hex:"#98E1E6"},
+  {name:"Rosa Punch", hex:"#F95988"},{name:"Rosa Coral", hex:"#F86375"},{name:"Rosa Fancy", hex:"#FFE2E3"},
+  {name:"Verde Sage", hex:"#D6DDD3"},{name:"Verde Mint", hex:"#E2FFEB"},{name:"Cinza Dark", hex:"#7C7372"},
+  {name:"Verde Baby", hex:"#CFEDCD"},{name:"New Mickey", hex:"#F8F8F8"},{name:"Azul Acqua", hex:"#B4E8F4"},
+  {name:"Rosa Baby", hex:"#F4D8DD"},{name:"Rosa Hera", hex:"#FFA5C5"},{name:"Rosa Seco", hex:"#E7CAC6"},
+  {name:"Rosa Nude", hex:"#F0B4A9"},{name:"Rosa Fumê", hex:"#D6969D"},{name:"Blueberry", hex:"#9682C7"},
+  {name:"Roxo Açai", hex:"#683186"},{name:"Verde Mar", hex:"#D2F6E8"},{name:"Terracota", hex:"#D45D46"},
+  {name:"Capuccino", hex:"#F1B483"},{name:"Azul New", hex:"#83C2EF"},{name:"Rosé Tan", hex:"#DE8D81"},
+  {name:"Orquídea", hex:"#A960C4"},{name:"Deep Sea", hex:"#7FAAA8"},{name:"Azul Mid", hex:"#0279CB"},
+  {name:"Marinho", hex:"#11114E"},{name:"Amarelo", hex:"#FFF3CE"},{name:"Marsala", hex:"#6F1926"},
+  {name:"Violeta", hex:"#B13ACB"},{name:"Estampa", hex:"#FDFAF5"},{name:"Branco", hex:"#FFFFFF"},
+  {name:"Malbec", hex:"#871127"},{name:"Netuno", hex:"#7675B7"},{name:"Fúcsia", hex:"#C64C8E"},
+  {name:"Chumbo", hex:"#454659"},{name:"Preto", hex:"#1e1f28"},{name:"Avelã", hex:"#D4BEA5"},
+  {name:"Vinho", hex:"#861F29"},{name:"Bordô", hex:"#A81920"},{name:"Lilás", hex:"#B7AAD4"},
+  {name:"Rosé", hex:"#EEA3A3"},{name:"Pink", hex:"#F15788"},{name:"Azul Royal", hex:"#3853B9"},
+  {name:"Azul Indigo", hex:"#4C79BB"},{name:"Azul Claro", hex:"#AEC6F1"},{name:"Branco off", hex:"#FDFAF5"}
+];
+// Match: encontra a cor da peça pelo nome do produto (ex: "Scrub Feminino Ava Branco" -> Branco -> #FFFFFF)
+function matchProductColor(productName){
+  if (!productName) return null;
+  const n = productName.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  for (const c of PRODUCT_COLORS){
+    const cn = c.name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+    if (n.includes(cn)) return c;
+  }
+  return null;
+}
+// Pega a cor de fundo do bordado a partir dos produtos do pedido
+function bordadoBackgroundFromCard(c){
+  if (!c.pedido_produtos) return null;
+  for (const p of c.pedido_produtos){
+    const color = matchProductColor(p.nome);
+    if (color) return color;
+  }
+  return null;
+}
+
 // Mapeia fonte do LI para a fonte native carregada (mesma do site dracharm.com.br)
 function bordadoFontFamily(fonteName){
   const n = (fonteName || '').toLowerCase();
@@ -924,14 +971,15 @@ function renderCard(c, compact){
       // Logomarca: thumb da imagem
       cover = `<img src="${escapeHtml(c.bordado_imagem_url)}" class="product-cover ${compact?'product-cover-compact':'product-cover-normal'}" loading="lazy" onerror="this.style.display='none'" title="Logo do cliente"/>`;
     } else if (c.bordado_linha1 || c.bordado_linha2){
-      // Nome/profissão: preview texto na fonte + cor do pedido (fundo escuro se cor clara)
+      // Nome/profissão: preview texto na fonte + cor do pedido. Fundo = cor da peça
       const fontFam = bordadoFontFamily(c.bordado_fonte);
       const cor = c.bordado_cor_hex || '#333';
-      const darkBg = isLightColor(cor);
+      const pecaCor = bordadoBackgroundFromCard(c);
+      const bgStyle = pecaCor ? `background:${pecaCor.hex}` : (isLightColor(cor) ? 'background:#0f172a' : '');
       const w = compact ? 88 : 120, h = compact ? 88 : 120;
       const l1 = escapeHtml((c.bordado_linha1||'').slice(0,28));
       const l2 = escapeHtml((c.bordado_linha2||'').slice(0,28));
-      cover = `<div class="bordado-preview ${darkBg?'bordado-preview-dark':''}" style="width:${w}px;height:${h}px" title="${l1} ${l2}"><div style="font-family:${fontFam};color:${cor};line-height:1.05;text-align:center;padding:4px;overflow:hidden"><div style="font-size:${compact?11:14}px">${l1}</div>${l2?`<div style="font-size:${compact?9:11}px;margin-top:2px">${l2}</div>`:''}</div></div>`;
+      cover = `<div class="bordado-preview" style="width:${w}px;height:${h}px;${bgStyle}" title="${l1} ${l2}"><div style="font-family:${fontFam};color:${cor};line-height:1.05;text-align:center;padding:4px;overflow:hidden"><div style="font-size:${compact?11:14}px">${l1}</div>${l2?`<div style="font-size:${compact?9:11}px;margin-top:2px">${l2}</div>`:''}</div></div>`;
     }
   } else if (c.cover_url){
     cover = `<img src="${escapeHtml(c.cover_url)}" class="product-cover ${compact?'product-cover-compact':'product-cover-normal'}" loading="lazy" onerror="this.style.display='none'"/>`;
@@ -1229,10 +1277,12 @@ function renderCardCover(c){
   rm.classList.add('hidden');
   hero.style.background = '#eaeaea';
   if (useTextPreview){
-    // Preview de texto com fonte + cor real
+    // Preview de texto com fonte + cor real. Fundo = cor da peça (via nome do produto)
     const fam = bordadoFontFamily(c.bordado_fonte);
     const cor = c.bordado_cor_hex || '#333';
-    if (isLightColor(cor)) hero.style.background = '#0f172a';
+    const pecaCor = bordadoBackgroundFromCard(c);
+    if (pecaCor) hero.style.background = pecaCor.hex;
+    else if (isLightColor(cor)) hero.style.background = '#0f172a';
     textPreview.innerHTML = `<div style="font-family:${fam};color:${cor};line-height:1.05">
       <div style="font-size:56px">${escapeHtml(c.bordado_linha1||'')}</div>
       ${c.bordado_linha2 ? `<div style="font-size:38px;margin-top:6px">${escapeHtml(c.bordado_linha2)}</div>` : ''}
@@ -2183,7 +2233,7 @@ window.addEventListener('message', async (e) => {
     // Dedupe por pedido_numero
     const { data: existing } = await sb.from('cards').select('id').eq('pedido_numero', o.pedido_numero).limit(1);
     if (existing && existing.length){ skipped++; continue; }
-    const title = o.pedido_cliente || `Pedido #${o.pedido_numero}`;
+    const title = `#${o.pedido_numero} · ${o.pedido_cliente || 'Sem nome'}`;
     const { data: newCard, error } = await sb.from('cards').insert({
       list_id: novoList.id,
       title,
