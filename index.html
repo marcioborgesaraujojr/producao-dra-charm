@@ -514,13 +514,13 @@ tailwind.config = {
                 </a>
               </div>
             </div>
-            <div id="cardProdutosBox" class="hidden">
-              <label class="text-xs font-medium uppercase text-slate-500 flex items-center gap-1"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>Produtos do pedido</label>
-              <div id="cardProdutosList" class="mt-2 space-y-2"></div>
-            </div>
             <div>
               <label class="text-xs font-medium uppercase text-slate-500 flex items-center gap-1"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Detalhes do bordado (cliente)</label>
               <textarea id="cardBordadoDetalhes" rows="2" placeholder="—" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"></textarea>
+            </div>
+            <div id="cardProdutosBox" class="hidden">
+              <label class="text-xs font-medium uppercase text-slate-500 flex items-center gap-1"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>Produtos do pedido</label>
+              <div id="cardProdutosList" class="mt-2 space-y-2"></div>
             </div>
           </div>
           <div id="cardDescBox">
@@ -1514,7 +1514,7 @@ window.saveCard = async (silent = false) => {
   // Campos comuns a todos os boards
   const updates = {
     title: document.getElementById('cardTitle').value,
-    description: document.getElementById('cardDesc').value,
+    description: document.getElementById('cardDesc').value || null,
     list_id: document.getElementById('cardList').value,
     due_date: document.getElementById('cardDue').value || null,
   };
@@ -1561,11 +1561,11 @@ window.saveCard = async (silent = false) => {
     updates.bordado_detalhes = document.getElementById('cardBordadoDetalhes').value || null;
   }
   // Só envia campos que realmente mudaram vs snapshot do card atual
+  // Normaliza "" e null como equivalentes (evita diff falso tipo "— → —")
+  const norm = v => (v === '' || v === undefined) ? null : v;
   const diff = {};
   for (const k in updates){
-    const oldVal = c0[k];
-    const newVal = updates[k];
-    if (JSON.stringify(oldVal ?? null) !== JSON.stringify(newVal ?? null)) diff[k] = newVal;
+    if (JSON.stringify(norm(c0[k])) !== JSON.stringify(norm(updates[k]))) diff[k] = updates[k];
   }
   if (Object.keys(diff).length === 0){
     if (silent) document.getElementById('autosaveStatus').textContent = 'salvo';
