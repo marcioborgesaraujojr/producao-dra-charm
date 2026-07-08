@@ -76,12 +76,12 @@
     const cliente = clienteMatch ? clienteMatch[1].trim() : '';
 
     // Personalização (bloco padrão da LI)
-    const personaMatch = txt.match(/Personalização de produtos:?([\s\S]{0,3000}?)(?=\n\n[A-Z]|Pagamento via|$)/);
+    const personaMatch = txt.match(/Personalização de produtos:?([\s\S]{0,5000}?)(?=Pagamento via|Detalhes do cliente|Endereço de entrega|ID\s+da transação|$)/);
     const persoBlock = personaMatch ? personaMatch[1] : '';
     const fields = {};
-    for (const m of persoBlock.matchAll(/--\s*([^:]+):\s*([^\n]+)/g)){
-      const k = m[1].trim().toLowerCase(), v = m[2].trim();
-      fields[k] = v;
+    for (const m of persoBlock.matchAll(/--\s*([^:]+?):\s*(.*?)(?=--|$)/gs)){
+      const k = m[1].trim().toLowerCase().replace(/\.$/,''), v = m[2].trim().replace(/\s+/g,' ');
+      if (k) fields[k] = v;
     }
     // Cores: "#hex-Nome"
     let corHex = null, corNome = null;
@@ -115,6 +115,7 @@
       bordado_fonte: fields['tipo de letra'] || null,
       bordado_lado: fields['lados'] || fields['lado'] || null,
       bordado_imagem_url: imgUrl,
+      bordado_detalhes: fields['detalhes do bordado (opcional)'] || fields['detalhes do bordado'] || null,
     };
   }
 
