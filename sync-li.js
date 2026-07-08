@@ -71,17 +71,30 @@
     const hasPerso = skus.includes(SKU_PERSONALIZACAO);
     if (!hasLogo && !hasPerso) return null;
 
-    // Cliente (procura "Pedido efetuado" ou "(cliente)")
-    const clienteMatch = txt.match(/([A-Z][A-Za-zÀ-ÿ' ]+)\s*\(cliente\)/);
-    const cliente = clienteMatch ? clienteMatch[1].trim() : '';
+    // Cliente: aceita case-insensitive OR fallback pro endereço
+    let cliente = '';
+    const cliMatch = txt.match(/Pedido Efetuado\s*\t?\s*([^\n\t]+?)\s*\(cliente\)/i);
+    if (cliMatch) cliente = cliMatch[1].trim();
+    if (!cliente){
+      const cliMatch2 = txt.match(/([\S ]+?)\s*\(cliente\)/);
+      if (cliMatch2) cliente = cliMatch2[1].trim();
+    }
+    if (!cliente){
+      const endMatch = txt.match(/Endereço de entrega[^\n]*\n\s*([^\n]+)/);
+      if (endMatch) cliente = endMatch[1].trim();
+    }
+    cliente = cliente.split(/\s+/).map(w => w.length>2 ? w.charAt(0).toUpperCase()+w.slice(1).toLowerCase() : w).join(' ');
 
-    // Personalização (bloco padrão da LI)
     const personaMatch = txt.match(/Personalização de produtos:?([\s\S]{0,5000}?)(?=Pagamento via|Detalhes do cliente|Endereço de entrega|ID\s+da transação|$)/);
     const persoBlock = personaMatch ? personaMatch[1] : '';
     const fields = {};
-    for (const m of persoBlock.matchAll(/--\s*([^:]+?):\s*(.*?)(?=--|$)/gs)){
+    for (const m of persoBlock.matchAll(/--\s*([^:]+?):\s*(.*?)(?=\n\s*--|\n\s*={3,}|\n\s*Mensagem\s+cartão|\n\s*Pagamento|$)/gs)){
       const k = m[1].trim().toLowerCase().replace(/\.$/,''), v = m[2].trim().replace(/\s+/g,' ');
       if (k) fields[k] = v;
+    }
+    const msgCartaoMatch = persoBlock.match(/Mensagem\s+cartão:\s*(.*?)(?=\n\s*--|\n\s*Pagamento|$)/s);
+    if (msgCartaoMatch && !fields['detalhes do bordado (opcional)']){
+      fields['mensagem_cartao'] = msgCartaoMatch[1].trim().replace(/\s+/g,' ');
     }
     // Cores: "#hex-Nome"
     let corHex = null, corNome = null;
@@ -115,7 +128,7 @@
       bordado_fonte: fields['tipo de letra'] || null,
       bordado_lado: fields['lados'] || fields['lado'] || null,
       bordado_imagem_url: imgUrl,
-      bordado_detalhes: fields['detalhes do bordado (opcional)'] || fields['detalhes do bordado'] || null,
+      bordado_detalhes: fields['detalhes do bordado (opcional)'] || fields['detalhes do bordado'] || fields['mensagem_cartao'] || null,
     };
   }
 
