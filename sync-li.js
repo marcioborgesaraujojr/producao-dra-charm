@@ -71,6 +71,12 @@
     const hasPerso = skus.includes(SKU_PERSONALIZACAO);
     if (!hasLogo && !hasPerso) return null;
 
+    // Filtro de status: pula cancelados/aguardando/disputa/etc
+    const situacoes = [...txt.matchAll(/Situação:\s*([^\n]+)/g)].map(m => m[1].trim());
+    const ultimaSituacao = situacoes[situacoes.length-1] || '';
+    const statusInvalido = /cancelad|devolvid|chargeback|disputa|análise|analise|aguardando pgto|solicitad/i;
+    if (statusInvalido.test(ultimaSituacao)) return null;
+
     // Cliente: aceita case-insensitive OR fallback pro endereço
     let cliente = '';
     const cliMatch = txt.match(/Pedido Efetuado\s*\t?\s*([^\n\t]+?)\s*\(cliente\)/i);
