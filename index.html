@@ -29,6 +29,16 @@ tailwind.config = {
   .board-scroll::-webkit-scrollbar-thumb{background:#94a3b8;border-radius:8px}
   .dark .board-scroll::-webkit-scrollbar-thumb{background:#475569}
   .card-drag{cursor:grab}
+  .hub-card{position:relative;display:flex;align-items:flex-start;gap:14px;padding:18px;background:#fff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 1px 2px rgba(15,23,42,.04);cursor:pointer;transition:all .18s ease;text-decoration:none;color:inherit}
+  .dark .hub-card{background:#1e293b;border-color:#334155}
+  .hub-card:hover:not([disabled]){transform:translateY(-2px);box-shadow:0 8px 24px rgba(15,23,42,.10);border-color:#94a3b8}
+  .hub-card-icon{flex-shrink:0;width:52px;height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.10)}
+  .hub-card-body{flex:1;min-width:0}
+  .hub-card-title{font-size:15px;font-weight:600;color:#0f172a;margin-bottom:2px;line-height:1.2}
+  .dark .hub-card-title{color:#f1f5f9}
+  .hub-card-desc{font-size:12px;color:#64748b;line-height:1.4}
+  .dark .hub-card-desc{color:#94a3b8}
+  .hub-card-badge{position:absolute;top:12px;right:12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;padding:2px 8px;border-radius:999px}
   .card-drag img{-webkit-user-drag:none;user-drag:none;pointer-events:none}
   .card-drag .card-drag-handle{-webkit-user-drag:element}
   .card-drag:active{cursor:grabbing}
@@ -167,10 +177,114 @@ tailwind.config = {
   </div>
 </div>
 
+
+<div id="hubScreen" class="hidden min-h-screen flex flex-col items-center justify-start px-4 py-10 bg-gradient-to-br from-pink-50 via-white to-slate-50 dark:from-ink-900 dark:via-ink-800 dark:to-ink-900">
+  <div class="w-full max-w-6xl">
+    <div class="flex items-center justify-between mb-10">
+      <div class="flex items-center gap-3">
+        <div class="system-logo w-12 h-12 rounded-2xl flex items-center justify-center overflow-hidden bg-white shadow-sm">
+          <img src="https://cdn.awsli.com.br/2500/2500989/logo/dra-charm-favicon-72kfpktecx.png" class="w-full h-full object-contain" onerror="this.style.display='none'"/>
+        </div>
+        <div>
+          <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Suíte Dra Charm</h1>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Escolha um sistema pra começar</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="hubThemeBtn" title="Tema" class="p-2 rounded-lg hover:bg-white dark:hover:bg-ink-700">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <button id="hubLogoutBtn" title="Sair" class="p-2 rounded-lg hover:bg-white dark:hover:bg-ink-700">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <!-- Quadros de Produção -->
+      <button class="hub-card group text-left" data-hub-open="quadros">
+        <div class="hub-card-icon bg-gradient-to-br from-pink-500 to-rose-500 text-white">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="10" rx="1"/></svg>
+        </div>
+        <div class="hub-card-body">
+          <div class="hub-card-title">Quadros de Produção</div>
+          <div class="hub-card-desc">Kanban de Produção, Personalização, Corte e Marketing</div>
+        </div>
+        <span class="hub-card-badge bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">Ativo</span>
+      </button>
+
+      <!-- Validador de CEP -->
+      <a href="https://cep-validador.vercel.app" target="_blank" class="hub-card group text-left">
+        <div class="hub-card-icon bg-gradient-to-br from-blue-500 to-cyan-500 text-white">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        </div>
+        <div class="hub-card-body">
+          <div class="hub-card-title">Validador de CEP</div>
+          <div class="hub-card-desc">Confere endereços em massa e valida entregas</div>
+        </div>
+        <span class="hub-card-badge bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">Ativo</span>
+      </a>
+
+      <!-- Atendimento -->
+      <button class="hub-card group text-left opacity-70 cursor-not-allowed" disabled>
+        <div class="hub-card-icon bg-gradient-to-br from-amber-500 to-orange-500 text-white">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <div class="hub-card-body">
+          <div class="hub-card-title">Atendimento ao Cliente</div>
+          <div class="hub-card-desc">Central de mensagens e notificações inteligentes</div>
+        </div>
+        <span class="hub-card-badge bg-slate-100 text-slate-500 dark:bg-ink-600 dark:text-slate-400">Em breve</span>
+      </button>
+
+      <!-- Marketing -->
+      <button class="hub-card group text-left opacity-70 cursor-not-allowed" disabled>
+        <div class="hub-card-icon bg-gradient-to-br from-purple-500 to-fuchsia-500 text-white">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+        </div>
+        <div class="hub-card-body">
+          <div class="hub-card-title">Marketing / Campanhas</div>
+          <div class="hub-card-desc">Gestão de conteúdo, calendário e criativos</div>
+        </div>
+        <span class="hub-card-badge bg-slate-100 text-slate-500 dark:bg-ink-600 dark:text-slate-400">Em breve</span>
+      </button>
+
+      <!-- Cadê Meu Pedido -->
+      <button class="hub-card group text-left opacity-70 cursor-not-allowed" disabled>
+        <div class="hub-card-icon bg-gradient-to-br from-teal-500 to-emerald-500 text-white">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        </div>
+        <div class="hub-card-body">
+          <div class="hub-card-title">Cadê Meu Pedido</div>
+          <div class="hub-card-desc">Rastreamento e status pro cliente final</div>
+        </div>
+        <span class="hub-card-badge bg-slate-100 text-slate-500 dark:bg-ink-600 dark:text-slate-400">Em breve</span>
+      </button>
+
+      <!-- Painel de Controle (admin) -->
+      <button class="hub-card group text-left hidden" id="hubPainelCard" data-hub-open="painel">
+        <div class="hub-card-icon bg-gradient-to-br from-slate-800 to-slate-900 text-white">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+        </div>
+        <div class="hub-card-body">
+          <div class="hub-card-title">Painel de Controle</div>
+          <div class="hub-card-desc">Visão geral com KPIs de estoque e produção</div>
+        </div>
+        <span class="hub-card-badge bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300">Admin</span>
+      </button>
+    </div>
+
+    <p class="text-center text-xs text-slate-400 mt-10">v2 · Suíte Dra Charm · <span id="hubUserEmail"></span></p>
+  </div>
+</div>
+
 <div id="app" class="hidden">
   <header class="sticky top-0 z-30 bg-white/90 dark:bg-ink-800/90 backdrop-blur border-b border-slate-200 dark:border-ink-700">
     <div class="px-4 py-2 flex flex-wrap items-center gap-3">
       <div class="flex items-center gap-2">
+        <button onclick="backToHub()" title="Voltar à Suíte Dra Charm" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        </button>
         <div class="system-logo w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-white">
         <img src="https://cdn.awsli.com.br/1930/1930166/arquivos/logo.png" class="w-full h-full object-contain">
       </div>
@@ -2358,6 +2472,45 @@ document.addEventListener('click', e => {
 });
 document.getElementById('syncBordadoBtn').addEventListener('click', openSyncBordado);
 
+
+function showHub(){
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('hubScreen').classList.remove('hidden');
+  const em = document.getElementById('hubUserEmail');
+  if (em && typeof user !== 'undefined' && user) em.textContent = user.email || '';
+  const painelCard = document.getElementById('hubPainelCard');
+  if (painelCard && typeof user !== 'undefined' && user && (user.email||'').toLowerCase() === 'marcioborgesaraujojr@gmail.com'){
+    painelCard.classList.remove('hidden');
+  }
+}
+window.enterQuadros = function(){
+  document.getElementById('hubScreen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+};
+window.backToHub = function(){
+  showHub();
+};
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-hub-open]');
+  if (!btn) return;
+  const target = btn.getAttribute('data-hub-open');
+  if (target === 'quadros'){ enterQuadros(); }
+  else if (target === 'painel'){
+    enterQuadros();
+    // Abre painel se existir
+    setTimeout(() => { if (typeof openPainel === 'function') openPainel(); }, 300);
+  }
+});
+document.addEventListener('click', e => {
+  if (e.target.closest('#hubLogoutBtn')){
+    if (typeof sb !== 'undefined') sb.auth.signOut().then(() => window.location.reload());
+  }
+  if (e.target.closest('#hubThemeBtn')){
+    document.documentElement.classList.toggle('dark');
+    localStorage.setItem('dc_dark', document.documentElement.classList.contains('dark') ? '1':'0');
+  }
+});
 initAuth();
 </script>
 </body>
