@@ -218,7 +218,7 @@ tailwind.config = {
       </button>
 
       <!-- Validador de CEP -->
-      <a href="https://cep-validador.vercel.app" target="_blank" class="hub-card group text-left">
+      <a href="https://cep-validador-indol.vercel.app/" target="_blank" class="hub-card group text-left">
         <div class="hub-card-icon bg-gradient-to-br from-blue-500 to-cyan-500 text-white">
           <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
         </div>
@@ -266,13 +266,25 @@ tailwind.config = {
       </button>
 
       <!-- Painel de Controle (admin) -->
-      <button class="hub-card group text-left hidden" id="hubPainelCard" data-hub-open="painel">
+      <button class="hub-card group text-left hidden opacity-70 cursor-not-allowed" id="hubPainelCard" disabled>
         <div class="hub-card-icon bg-gradient-to-br from-slate-800 to-slate-900 text-white">
           <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
         </div>
         <div class="hub-card-body">
           <div class="hub-card-title">Painel de Controle</div>
           <div class="hub-card-desc">Visão geral com KPIs de estoque e produção</div>
+        </div>
+        <span class="hub-card-badge bg-slate-100 text-slate-500 dark:bg-ink-600 dark:text-slate-400">Em breve</span>
+      </button>
+
+      <!-- Configuracoes da Suite (admin) -->
+      <button class="hub-card group text-left hidden" id="hubSettingsCard" data-hub-open="settings">
+        <div class="hub-card-icon bg-gradient-to-br from-slate-600 to-slate-800 text-white">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+        </div>
+        <div class="hub-card-body">
+          <div class="hub-card-title">Configurações da Suíte</div>
+          <div class="hub-card-desc">Aparência, permissões, usuários e sistema</div>
         </div>
         <span class="hub-card-badge bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300">Admin</span>
       </button>
@@ -950,7 +962,7 @@ async function initAuth(){
   });
 }
 
-function showLogin(){ document.getElementById('loginScreen').classList.remove('hidden'); document.getElementById('app').classList.add('hidden'); }
+function showLogin(){ document.getElementById('loginScreen').classList.remove('hidden'); document.getElementById('app').classList.add('hidden'); document.getElementById('hubScreen').classList.add('hidden'); document.body.style.backgroundImage=''; document.body.classList.remove('has-bg'); }
 function showApp(){ document.getElementById('loginScreen').classList.add('hidden'); document.getElementById('app').classList.remove('hidden'); }
 
 window.doLogin = async () => {
@@ -979,7 +991,7 @@ async function afterLogin(){
   }
   const { data: allP } = await sb.from('profiles').select('*');
   profiles = allP || [];
-  showApp();
+  showHub();
   updateUserAvatar();
   await loadAppSettings();
   const { data: bs } = await sb.from('boards').select('*, board_members!inner(*)').eq('board_members.user_id', user.id).order('created_at');
@@ -2521,11 +2533,18 @@ function showHub(){
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('app').classList.add('hidden');
   document.getElementById('hubScreen').classList.remove('hidden');
+  document.body.style.backgroundImage = '';
+  document.body.classList.remove('has-bg');
+  applySuiteBg();
   const em = document.getElementById('hubUserEmail');
   if (em && typeof user !== 'undefined' && user) em.textContent = user.email || '';
   const painelCard = document.getElementById('hubPainelCard');
   if (painelCard && typeof user !== 'undefined' && user && (user.email||'').toLowerCase() === 'marcioborgesaraujojr@gmail.com'){
     painelCard.classList.remove('hidden');
+  }
+  const settingsCard = document.getElementById('hubSettingsCard');
+  if (settingsCard && typeof user !== 'undefined' && user && (user.email||'').toLowerCase() === 'marcioborgesaraujojr@gmail.com'){
+    settingsCard.classList.remove('hidden');
   }
   const loginBgBtn = document.getElementById('loginBgBtn');
   if (loginBgBtn && typeof user !== 'undefined' && user && (user.email||'').toLowerCase() === 'marcioborgesaraujojr@gmail.com'){
@@ -2535,6 +2554,8 @@ function showHub(){
 window.enterQuadros = function(){
   document.getElementById('hubScreen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
+  const _b = boards.find(x => x.id === currentBoardId);
+  if (_b) applyBoardBackground(_b.background_url);
 };
 window.openUsers = async () => {
   document.getElementById('usersModal').classList.remove('hidden');
@@ -2606,14 +2627,11 @@ document.addEventListener('click', e => {
   if (!btn) return;
   const target = btn.getAttribute('data-hub-open');
   if (target === 'quadros'){ enterQuadros(); }
-  else if (target === 'painel'){
-    enterQuadros();
-    // Abre painel se existir
-    setTimeout(() => { if (typeof openPainel === 'function') openPainel(); }, 300);
-  }
+  else if (target === 'settings'){ openSuiteSettings(); }
 });
 document.addEventListener('click', e => {
   if (e.target.closest('#hubLogoutBtn')){
+    document.body.style.backgroundImage=''; document.body.classList.remove('has-bg');
     if (typeof sb !== 'undefined') sb.auth.signOut().then(() => window.location.reload());
   }
   if (e.target.closest('#hubThemeBtn')){
@@ -2621,6 +2639,24 @@ document.addEventListener('click', e => {
     localStorage.setItem('dc_dark', document.documentElement.classList.contains('dark') ? '1':'0');
   }
 });
+/* === Suite: Configuracoes da Suite (v66) === */
+function applySuiteBg(){try{var b=sb.storage.from('system-assets').getPublicUrl('suite-bg.jpg').data.publicUrl;var u=b+'?t='+Date.now();var im=new Image();im.onload=function(){['hubScreen','loginScreen'].forEach(function(id){var el=document.getElementById(id);if(el){el.style.backgroundImage="url('"+u+"')";el.style.backgroundSize='cover';el.style.backgroundPosition='center';el.style.backgroundRepeat='no-repeat';}});};im.src=u;}catch(e){}}
+function ensSuiteModal(){if(document.getElementById('suiteSettingsModal'))return;var d=document.createElement('div');d.id='suiteSettingsModal';d.className='hidden fixed inset-0 z-50 items-center justify-center p-4';var h=[];
+h.push('<div class="absolute inset-0 bg-black/50" onclick="closeSuiteSettings()"></div>');
+h.push('<div class="relative bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">');
+h.push('<div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-ink-700"><h2 class="text-lg font-bold text-slate-900 dark:text-slate-100">Configurações da Suíte</h2><button onclick="closeSuiteSettings()" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-2xl leading-none">&times;</button></div>');
+h.push('<div class="p-6 space-y-6">');
+h.push('<section><h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">Aparência</h3><button id="suiteBgBtn" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-ink-600 text-sm hover:bg-slate-50 dark:hover:bg-ink-700">Trocar wallpaper da Suíte</button><input type="file" id="suiteBgInput" accept="image/*" class="hidden"><p class="text-xs text-slate-400 mt-2">Aparece na tela da Suíte e no login. Máximo 5MB.</p><div id="suiteBgStatus" class="text-xs mt-1"></div></section>');
+h.push('<section><h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">Permissões de acesso</h3><p class="text-xs text-slate-500 mb-3">Controle quais sistemas cada usuário pode acessar.</p><button onclick="closeSuiteSettings(); openUsers();" class="px-4 py-2 rounded-lg bg-pink-600 text-white text-sm hover:bg-pink-700">Gerenciar permissões</button></section>');
+h.push('<section><h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">Convidar usuário</h3><div class="flex flex-wrap items-end gap-3"><div class="flex-1 min-w-[180px]"><label class="text-xs text-slate-500">Email</label><input id="inviteEmail" type="email" placeholder="pessoa@dracharm.com.br" class="mt-1 w-full p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm"></div><div class="min-w-[150px]"><label class="text-xs text-slate-500">Senha provisória</label><input id="invitePass" type="text" placeholder="mínimo 6 caracteres" class="mt-1 w-full p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm"></div><button id="inviteBtn" class="px-4 py-2.5 rounded-lg bg-slate-800 text-white text-sm hover:bg-slate-900">Criar acesso</button></div><div id="inviteStatus" class="text-xs mt-2"></div></section>');
+h.push('</div></div>');
+d.innerHTML=h.join('');document.body.appendChild(d);}
+window.openSuiteSettings=function(){ensSuiteModal();var m=document.getElementById('suiteSettingsModal');m.classList.remove('hidden');m.classList.add('flex');};
+window.closeSuiteSettings=function(){var m=document.getElementById('suiteSettingsModal');if(m){m.classList.add('hidden');m.classList.remove('flex');}};
+document.addEventListener('click',function(e){if(e.target.closest('#suiteBgBtn'))document.getElementById('suiteBgInput').click();});
+document.addEventListener('change',async function(e){if(e.target&&e.target.id==='suiteBgInput'&&e.target.files[0]){var file=e.target.files[0];var st=document.getElementById('suiteBgStatus');if(file.size>5*1024*1024){st.className='text-xs mt-1 text-red-600';st.textContent='Imagem muito grande (máximo 5MB)';return;}st.className='text-xs mt-1 text-slate-500';st.textContent='Enviando wallpaper...';try{var r=await sb.storage.from('system-assets').upload('suite-bg.jpg',file,{upsert:true,contentType:file.type});if(r.error)throw r.error;applySuiteBg();st.className='text-xs mt-1 text-emerald-600';st.textContent='Wallpaper atualizado!';}catch(err){st.className='text-xs mt-1 text-red-600';st.textContent='Erro: '+err.message;}}});
+document.addEventListener('click',async function(e){if(e.target.closest('#inviteBtn')){var email=(document.getElementById('inviteEmail').value||'').trim();var pass=(document.getElementById('invitePass').value||'').trim();var st=document.getElementById('inviteStatus');if(!email||pass.length<6){st.className='text-xs mt-2 text-red-600';st.textContent='Informe email e senha (mínimo 6 caracteres).';return;}st.className='text-xs mt-2 text-slate-500';st.textContent='Criando acesso...';try{var c2=createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:false,storageKey:'dc_invite_tmp'}});var r=await c2.auth.signUp({email:email,password:pass});if(r.error)throw r.error;st.className='text-xs mt-2 text-emerald-600';st.textContent='Acesso criado para '+email+'. Passe email e senha provisória pra pessoa e libere os sistemas em Permissões. (Se a confirmação de email estiver ligada no Supabase, a pessoa precisa confirmar antes.)';document.getElementById('inviteEmail').value='';document.getElementById('invitePass').value='';}catch(err){st.className='text-xs mt-2 text-red-600';st.textContent='Erro: '+err.message;}}});
+applySuiteBg();
 initAuth();
 </script>
 </body>
