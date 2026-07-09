@@ -29,6 +29,8 @@ tailwind.config = {
   .board-scroll::-webkit-scrollbar-thumb{background:#94a3b8;border-radius:8px}
   .dark .board-scroll::-webkit-scrollbar-thumb{background:#475569}
   .card-drag{cursor:grab}
+  .card-drag img{-webkit-user-drag:none;user-drag:none;pointer-events:none}
+  .card-drag .card-drag-handle{-webkit-user-drag:element}
   .card-drag:active{cursor:grabbing}
   .drop-hint{outline:2px dashed #ec4899;outline-offset:-4px;background:rgba(236,72,153,.06)}
   .modal-bg{background:rgba(0,0,0,.5);backdrop-filter:blur(2px)}
@@ -1066,7 +1068,13 @@ function renderCard(c, compact){
     ${cmembs.length ? `<div class="flex -space-x-1 mt-1">${memAvatars}${cmembs.length>3?`<div class="w-5 h-5 rounded-full bg-slate-400 text-white text-[9px] flex items-center justify-center">+${cmembs.length-3}</div>`:''}</div>`:''}
   `;
   el.innerHTML = `<div class="flex gap-2">${cover}<div class="flex-1 min-w-0">${bodyInner}</div></div>`;
-  el.addEventListener('dragstart', () => { draggingCardId = c.id; el.classList.add('opacity-50'); });
+  el.addEventListener('dragstart', (ev) => {
+    draggingCardId = c.id;
+    el.classList.add('opacity-50');
+    if (ev.dataTransfer){
+      try { ev.dataTransfer.setDragImage(el, 20, 20); ev.dataTransfer.effectAllowed = 'move'; } catch(_){}
+    }
+  });
   el.addEventListener('dragend', () => { draggingCardId = null; el.classList.remove('opacity-50'); });
   el.addEventListener('click', () => openCard(c.id));
   return el;
