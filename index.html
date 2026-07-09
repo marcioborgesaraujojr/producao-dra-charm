@@ -2534,7 +2534,7 @@ function showHub(){
 }
 window.enterQuadros = function(){
   document.getElementById('hubScreen').classList.add('hidden');
-  showHub();
+  document.getElementById('app').classList.remove('hidden');
 };
 window.openUsers = async () => {
   document.getElementById('usersModal').classList.remove('hidden');
