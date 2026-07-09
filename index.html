@@ -29,6 +29,10 @@ tailwind.config = {
   .board-scroll::-webkit-scrollbar-thumb{background:#94a3b8;border-radius:8px}
   .dark .board-scroll::-webkit-scrollbar-thumb{background:#475569}
   .card-drag{cursor:grab}
+  .login-with-bg{background-size:cover;background-position:center;background-repeat:no-repeat;position:relative}
+  .login-with-bg::before{content:'';position:absolute;inset:0;background:rgba(255,255,255,.65);backdrop-filter:blur(4px);z-index:0}
+  .dark .login-with-bg::before{background:rgba(15,23,42,.75)}
+  .login-with-bg > *{position:relative;z-index:1}
   .hub-card{position:relative;display:flex;align-items:flex-start;gap:14px;padding:18px;background:#fff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 1px 2px rgba(15,23,42,.04);cursor:pointer;transition:all .18s ease;text-decoration:none;color:inherit}
   .dark .hub-card{background:#1e293b;border-color:#334155}
   .hub-card:hover:not([disabled]){transform:translateY(-2px);box-shadow:0 8px 24px rgba(15,23,42,.10);border-color:#94a3b8}
@@ -186,7 +190,7 @@ tailwind.config = {
           <img src="https://cdn.awsli.com.br/2500/2500989/logo/dra-charm-favicon-72kfpktecx.png" class="w-full h-full object-contain" onerror="this.style.display='none'"/>
         </div>
         <div>
-          <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Suíte Dra Charm</h1>
+          <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Sistema Grupo Aragão</h1>
           <p class="text-xs text-slate-500 dark:text-slate-400">Escolha um sistema pra começar</p>
         </div>
       </div>
@@ -379,6 +383,11 @@ tailwind.config = {
       <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>
       Trocar logo do sistema
     </button>
+    <button id="loginBgBtn" onclick="document.getElementById('loginBgInput').click()" class="hidden w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-slate-100 dark:hover:bg-ink-700 flex items-center gap-2">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+      Trocar fundo do login
+    </button>
+    <input type="file" id="loginBgInput" accept="image/*" class="hidden">
     <button onclick="openArchived()" class="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-slate-100 dark:hover:bg-ink-700 flex items-center gap-2">
       <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="5" rx="2"/><path d="M4 9v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/></svg>
       Cards arquivados
@@ -2482,6 +2491,32 @@ document.addEventListener('click', e => {
 document.getElementById('syncBordadoBtn').addEventListener('click', openSyncBordado);
 
 
+const SB_URL = 'https://wwytzoyeibekhstinott.supabase.co';
+const LOGIN_BG_URL = SB_URL + '/storage/v1/object/public/system-assets/login-bg.jpg';
+// Aplica fundo do login se disponivel (tenta cache-buster)
+function applyLoginBg(){
+  const scr = document.getElementById('loginScreen');
+  if (!scr) return;
+  const img = new Image();
+  img.onload = () => { scr.style.backgroundImage = 'url('+LOGIN_BG_URL+'?t='+Date.now()+')'; scr.classList.add('login-with-bg'); };
+  img.src = LOGIN_BG_URL + '?t=' + Date.now();
+}
+applyLoginBg();
+
+// Upload de fundo pelo admin
+document.addEventListener('change', async e => {
+  if (e.target && e.target.id === 'loginBgInput'){
+    const file = e.target.files[0];
+    if (!file || typeof sb === 'undefined') return;
+    toast && toast('Enviando fundo...');
+    const { error } = await sb.storage.from('system-assets').upload('login-bg.jpg', file, {upsert: true, contentType: file.type});
+    if (error) { alert('Erro: '+error.message); return; }
+    toast && toast('Fundo atualizado');
+    applyLoginBg();
+    e.target.value = '';
+  }
+});
+
 function showHub(){
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('app').classList.add('hidden');
@@ -2491,6 +2526,10 @@ function showHub(){
   const painelCard = document.getElementById('hubPainelCard');
   if (painelCard && typeof user !== 'undefined' && user && (user.email||'').toLowerCase() === 'marcioborgesaraujojr@gmail.com'){
     painelCard.classList.remove('hidden');
+  }
+  const loginBgBtn = document.getElementById('loginBgBtn');
+  if (loginBgBtn && typeof user !== 'undefined' && user && (user.email||'').toLowerCase() === 'marcioborgesaraujojr@gmail.com'){
+    loginBgBtn.classList.remove('hidden');
   }
 }
 window.enterQuadros = function(){
