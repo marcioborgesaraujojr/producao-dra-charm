@@ -3076,6 +3076,31 @@ window.cepExport=function(){
   var csv=rows.join(NL); var blob=new Blob([csv], {type:'text/csv;charset=utf-8'});
   var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='divergencias-cep.csv'; a.click();
 };
+
+/* === Navegacao nativa: voltar com gesto/botao do celular === */
+(function(){
+  function wrapView(name, view){
+    var orig=window[name];
+    if(typeof orig==='function'){
+      window[name]=function(){ var r=orig.apply(this, arguments); try{ history.pushState({dcView:view}, ''); }catch(e){} return r; };
+    }
+  }
+  wrapView('enterCep','cep');
+  wrapView('enterQuadros','quadros');
+  wrapView('openSuiteSettings','settings');
+  wrapView('openUsers','users');
+  wrapView('openPainel','painel');
+  var origBack=window.backToHub;
+  window.backToHub=function(){ if(history.state && history.state.dcView){ history.back(); } else if(typeof origBack==='function'){ origBack(); } };
+  function isOpen(id){ var el=document.getElementById(id); return el && !el.classList.contains('hidden'); }
+  window.addEventListener('popstate', function(){
+    if(isOpen('usersModal')){ if(typeof closeUsers==='function') closeUsers(); return; }
+    if(isOpen('suiteSettingsModal')){ if(typeof closeSuiteSettings==='function') closeSuiteSettings(); return; }
+    if(isOpen('painelModal')){ var p=document.getElementById('painelModal'); if(p){ p.classList.add('hidden'); p.classList.remove('flex'); } return; }
+    if(isOpen('cepScreen')){ var c=document.getElementById('cepScreen'); if(c) c.classList.add('hidden'); if(typeof showHub==='function') showHub(); return; }
+    if(isOpen('app')){ if(typeof showHub==='function') showHub(); return; }
+  });
+})();
 initAuth();
 </script>
 <div id="painelModal" class="hidden fixed inset-0 z-40 modal-bg items-center justify-center p-4">
