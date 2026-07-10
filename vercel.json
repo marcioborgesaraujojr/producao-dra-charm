@@ -7,7 +7,7 @@
   "crons": [
     {
       "path": "/api/refresh",
-      "schedule": "*/30 * * * *"
+      "schedule": "0 6 * * *"
     }
   ]
 }
