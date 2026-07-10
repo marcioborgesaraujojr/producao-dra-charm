@@ -375,6 +375,20 @@ tailwind.config = {
   </div>
 </div>
 
+<div id="usersModal" class="hidden fixed inset-0 z-50 items-center justify-center p-4">
+  <div class="absolute inset-0 bg-black/50" onclick="closeUsers()"></div>
+  <div class="relative bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-ink-700 sticky top-0 bg-white dark:bg-ink-800 z-10">
+      <div>
+        <h2 class="text-lg font-bold text-slate-900 dark:text-slate-100">Usuários & Permissões</h2>
+        <p class="text-xs text-slate-500 dark:text-slate-400">Marque os sistemas que cada usuário pode acessar. Salva automático ao clicar.</p>
+      </div>
+      <button onclick="closeUsers()" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-2xl leading-none">&times;</button>
+    </div>
+    <div id="usersBody" class="p-6"></div>
+  </div>
+</div>
+
 <div id="app" class="hidden">
   <header class="sticky top-0 z-30 bg-white/90 dark:bg-ink-800/90 backdrop-blur border-b border-slate-200 dark:border-ink-700">
     <div class="px-4 py-2 flex flex-wrap items-center gap-3">
