@@ -2949,10 +2949,17 @@ window.cepBuscar=async function(){
   try{
     var pagina=1, all=[], guard=0;
     while(true){
-      guard++; if(guard>80) break;
+      guard++; if(guard>120) break;
       var url='/api/pedidos?data_inicio='+di+'&data_fim='+df+'&pagina='+pagina+(sit?'&situacao_id='+sit:'');
-      var r=await fetch(url); if(!r.ok) break;
-      var d=await r.json(); var lote=d.pedidos||[];
+      var d=null, lote=[];
+      for(var att=1; att<=3; att++){
+        try{ var r=await fetch(url); if(r.ok){ d=await r.json(); lote=d.pedidos||[]; } else { d=null; } }catch(e){ d=null; }
+        if(d && lote.length>0) break;
+        if(d && d.hasMore===false) break;
+        cepSetMsg('Reconsultando pagina '+pagina+' (token do Bling rotacionando)...');
+        await new Promise(function(res){ setTimeout(res, 700*att); });
+      }
+      if(!d || !lote.length) break;
       lote.forEach(function(p){ all.push(p); });
       if(!d.hasMore) break; pagina++;
     }
