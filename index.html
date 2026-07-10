@@ -2886,7 +2886,7 @@ setTimeout(() => {
 // ============ FIM PAINEL ============
 
 /* === Validador de CEP (modulo suite v72) === */
-var cepPedidos=[], cepSitMap={}, cepCache={}, cepKpi='all', cepLoaded=false, cepRun=0;
+var cepPedidos=[], cepSitMap={}, cepCache={}, cepKpi='all', cepLoaded=false;
 function cepClean(s){ s=((s==null?'':s)+''); var o=''; for(var i=0;i<s.length;i++){ var c=s[i]; if(c>='0'&&c<='9') o+=c; } return o; }
 function cepNorm(s){ s=((s==null?'':s)+'').toLowerCase().normalize('NFD'); var o=''; for(var i=0;i<s.length;i++){ var c=s[i], k=s.charCodeAt(i); if(k>=768&&k<=879) continue; if((c>='a'&&c<='z')||(c>='0'&&c<='9')||c===' ') o+=c; } return o.trim(); }
 function cepWords(s){ return cepNorm(s).split(' ').filter(function(w){ return w; }); }
@@ -2945,23 +2945,21 @@ window.cepBuscar=async function(){
   if(!di||!df){ cepSetMsg('Informe as datas.'); return; }
   try{ localStorage.setItem('dc_cep_filter', JSON.stringify({di:di,df:df,sit:sit,sd:sd})); }catch(e){}
   var btn=document.getElementById('cepBuscar'); btn.disabled=true;
-  cepPedidos=[]; document.getElementById('cepTb').innerHTML=''; cepKpi='all'; cepHighlightKpi(); cepUpdateStats(); cepSetMsg('Buscando pedidos...'); var myRun=++cepRun;
+  cepPedidos=[]; document.getElementById('cepTb').innerHTML=''; cepKpi='all'; cepHighlightKpi(); cepUpdateStats(); cepSetMsg('Buscando pedidos...');
   try{
     var pagina=1, all=[], guard=0;
     while(true){
-      guard++; if(guard>80) break; if(myRun!==cepRun) return;
+      guard++; if(guard>80) break;
       var url='/api/pedidos?data_inicio='+di+'&data_fim='+df+'&pagina='+pagina+(sit?'&situacao_id='+sit:'');
       var r=await fetch(url); if(!r.ok) break;
       var d=await r.json(); var lote=d.pedidos||[];
       lote.forEach(function(p){ all.push(p); });
       if(!d.hasMore) break; pagina++;
     }
-    if(myRun!==cepRun) return;
     cepPedidos=all;
     if(!all.length){ cepSetMsg('Nenhum pedido no periodo/situacao.'); btn.disabled=false; cepUpdateStats(); return; }
     cepSetMsg(all.length+' pedidos encontrados. Validando enderecos...');
-    await cepProcessar(all, myRun);
-    if(myRun!==cepRun) return;
+    await cepProcessar(all);
     cepSetMsg(all.length+' pedidos validados.');
   }catch(e){ cepSetMsg('Erro: '+e.message); }
   btn.disabled=false;
@@ -2974,12 +2972,10 @@ async function cepDet(id, tent){
     if(!r.ok) return null; return await r.json();
   }catch(_){ return null; }
 }
-async function cepProcessar(lista, myRun){
+async function cepProcessar(lista){
   var done=0; var prog=document.getElementById('cepProg'); prog.classList.remove('hidden');
   for(var i=0;i<lista.length;i+=4){
-    if(myRun!==cepRun){ prog.classList.add('hidden'); return; }
     await Promise.all(lista.slice(i,i+4).map(async function(p){
-      if(myRun!==cepRun) return;
       var det=await cepDet(p.id);
       p.cep=det?(det.cep||''):''; p.cidade=det?(det.cidade||''):''; p.estado=det?(det.estado||''):''; p.rua=det?(det.endereco||''):'';
       var loc=cepValLocal(p.cep);
