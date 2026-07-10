@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "api/pedidos.js": {
+      "maxDuration": 60
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/refresh",
+      "schedule": "*/30 * * * *"
+    }
+  ]
+}
