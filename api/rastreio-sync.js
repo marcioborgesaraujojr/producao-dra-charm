@@ -30,6 +30,9 @@ async function blingTokenPost(cid, secret, params) {
   return { status: r.status, j };
 }
 async function blingExchange(code, cid, secret) {
+  if (!cid || !secret) { const s = await blingLoad(); cid = cid || s?.cid; secret = secret || s?.secret; }
+  if (!cid || !secret) return { ok: false, error: 'credenciais Bling não configuradas' };
+  if (!code) return { ok: false, error: 'sem code' };
   const { status, j } = await blingTokenPost(cid, secret, { grant_type: 'authorization_code', code });
   if (!j || !j.access_token) return { ok: false, status, error: (j && (j.error?.description || j.error || JSON.stringify(j))) || 'sem token' };
   await blingSave({ cid, secret, access_token: j.access_token, refresh_token: j.refresh_token, expires_at: Date.now() + (j.expires_in || 21600) * 1000 });
@@ -180,6 +183,12 @@ async function probeLI(numero) {
 }
 
 export default async function handler(req, res) {
+  // Rota PÚBLICA: troca OAuth do Bling. O code é single-use e ultracurto,
+  // então a página de redirect (rastreio.html) chama isto no ato do retorno.
+  if (req.query.bling === 'exchange') {
+    try { return res.status(200).json(await blingExchange(req.query.code, req.query.cid, req.query.secret)); }
+    catch (e) { return res.status(200).json({ ok: false, error: e.message }); }
+  }
   const secret = process.env.CMP_CRON_SECRET;
   const provided = (req.headers.authorization || '').replace('Bearer ', '') || req.query.secret;
   const isVercelCron = !!req.headers['x-vercel-cron'];
@@ -188,8 +197,8 @@ export default async function handler(req, res) {
   }
   try {
     if (req.query.probe === 'li') return res.status(200).json(await probeLI(req.query.numero));
-    if (req.query.bling === 'exchange') return res.status(200).json(await blingExchange(req.query.code, req.query.cid, req.query.secret));
-    if (req.query.bling === 'status') { const s = await blingLoad(); return res.status(200).json({ conectado: !!s, expira: s?.expires_at || null }); }
+    if (req.query.bling === 'setcreds') { await blingSave({ cid: req.query.cid, secret: req.query.secret }); return res.status(200).json({ ok: true }); }
+    if (req.query.bling === 'status') { const s = await blingLoad(); return res.status(200).json({ conectado: !!(s && s.access_token), temCreds: !!(s && s.cid), expira: s?.expires_at || null }); }
     if (req.query.bling === 'probe') return res.status(200).json(await blingProbe());
     const result = await runCycle();
     return res.status(200).json({ ok: true, ...result });
