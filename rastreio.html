@@ -4,6 +4,23 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Central de Rastreamento · Dra. Charm</title>
+<script>
+// Callback OAuth do Bling: se voltar com ?code=, troca por token NO ATO
+// (o code do Bling expira em segundos, por isso a troca é feita aqui).
+(async function(){
+  var code=new URLSearchParams(location.search).get('code');
+  if(!code) return;
+  var ok=false, msg='';
+  try{ var r=await fetch('/api/rastreio-sync?bling=exchange&code='+encodeURIComponent(code)); var j=await r.json(); ok=j.ok; msg=j.error||''; }
+  catch(e){ msg=e.message; }
+  document.addEventListener('DOMContentLoaded',function(){
+    var el=document.createElement('div');
+    el.style.cssText='position:fixed;top:0;left:0;right:0;padding:14px;text-align:center;font-weight:700;z-index:999;color:#fff;background:'+(ok?'#43a047':'#e53935');
+    el.textContent=ok?'Bling Taymah conectado com sucesso ✓':('Falha ao conectar Bling: '+msg);
+    document.body.appendChild(el);
+  });
+})();
+</script>
 <style>
   :root{ --brand:#c2185b; }
   *{box-sizing:border-box}
