@@ -2,6 +2,7 @@
 // Protegido por CMP_CRON_SECRET. A Vercel Cron chama com header Authorization.
 import { runCycle } from '../lib/engine.js';
 import * as sb from '../lib/supabase.js';
+import { carrierKey } from '../lib/statusmap.js';
 
 export const config = { maxDuration: 60 };
 
@@ -75,6 +76,39 @@ async function blingProbe() {
   out.pv_status = pv.status;
   const pvs = pv.j?.data || [];
   if (pvs[0]) { out.pv_campos = Object.keys(pvs[0]); const pd = await blingGet(`/pedidos/vendas/${pvs[0].id}`); out.pv_det_campos = Object.keys(pd.j?.data || {}); out.pv_transporte = (pd.j?.data || {}).transporte || null; }
+  return out;
+}
+// SYNC do Bling Taymah: puxa NFs recentes, extrai código de rastreio +
+// transportadora + chave DANFE, casa com nosso pedido (numeroPedidoLoja) e
+// marca Enviado. NÃO escreve status na LI (parallel run — evita WhatsApp duplo).
+async function blingSync(limite = 50) {
+  const nf = await blingGet(`/nfe?limite=${limite}`);
+  const list = nf.j?.data || [];
+  const out = { nfes: list.length, atualizados: 0, comCodigo: 0, semMatch: 0, marcadosEnviado: 0, amostra: [] };
+  for (const n of list) {
+    let d;
+    try { const det = await blingGet(`/nfe/${n.id}`); d = det.j?.data || {}; } catch { continue; }
+    const numeroLoja = d.numeroPedidoLoja || n.numeroPedidoLoja;
+    if (!numeroLoja) continue;
+    const tr = d.transporte || {};
+    const vol = (tr.volumes || [])[0] || {};
+    const codigo = vol.codigoRastreamento || null;
+    const servico = vol.servico || tr.transportador?.nome || '';
+    const chave = d.chaveAcesso || null;
+    const cpf = (d.contato && (d.contato.numeroDocumento || d.contato.cpfCnpj)) || null;
+    const ordr = await sb.selectOne('cmp_orders', { where: `numero=eq.${encodeURIComponent(String(numeroLoja))}` });
+    if (!ordr) { out.semMatch++; continue; }
+    const patch = {};
+    if (d.numero && !ordr.nota_fiscal) patch.nota_fiscal = String(d.numero);
+    if (codigo) { patch.tracking_code = codigo; out.comCodigo++; }
+    if (servico) { patch.transportadora = carrierKey(servico); patch.servico = servico; }
+    patch.raw = { ...(ordr.raw || {}), chave_danfe: chave, cpf_cliente: cpf, bling_nfe_id: n.id };
+    const naoFinal = !['enviado', 'entregue', 'atrasado', 'devolvido', 'cancelado'].includes(ordr.status);
+    if (codigo && naoFinal) { patch.status = 'enviado'; if (!ordr.data_envio) patch.data_envio = new Date().toISOString(); out.marcadosEnviado++; }
+    await sb.update('cmp_orders', `id=eq.${ordr.id}`, patch);
+    out.atualizados++;
+    if (out.amostra.length < 6) out.amostra.push({ pedido: numeroLoja, transportadora: patch.transportadora, temCodigo: !!codigo });
+  }
   return out;
 }
 // ================================================================================
@@ -206,6 +240,7 @@ export default async function handler(req, res) {
     if (req.query.bling === 'setcreds') { await blingSave({ cid: req.query.cid, secret: req.query.secret }); return res.status(200).json({ ok: true }); }
     if (req.query.bling === 'status') { const s = await blingLoad(); return res.status(200).json({ conectado: !!(s && s.access_token), temCreds: !!(s && s.cid), expira: s?.expires_at || null }); }
     if (req.query.bling === 'probe') return res.status(200).json(await blingProbe());
+    if (req.query.bling === 'sync') return res.status(200).json(await blingSync(Number(req.query.limite) || 50));
     const result = await runCycle();
     return res.status(200).json({ ok: true, ...result });
   } catch (e) {
