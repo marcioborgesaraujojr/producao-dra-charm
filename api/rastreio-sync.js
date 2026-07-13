@@ -197,6 +197,12 @@ export default async function handler(req, res) {
   }
   try {
     if (req.query.probe === 'li') return res.status(200).json(await probeLI(req.query.numero));
+    if (req.query.cws === 'test') {
+      const u = req.query.u || process.env.CORREIOS_CWS_USUARIO, s = req.query.s || process.env.CORREIOS_CWS_SENHA, c = req.query.c || process.env.CORREIOS_CARTAO_POSTAGEM;
+      const rr = await fetch('https://api.correios.com.br/token/v1/autentica/cartaopostagem', { method: 'POST', headers: { Authorization: 'Basic ' + Buffer.from(`${u}:${s}`).toString('base64'), 'Content-Type': 'application/json' }, body: JSON.stringify({ numero: c }) });
+      const tt = await rr.text(); let jj = null; try { jj = JSON.parse(tt); } catch {}
+      return res.status(200).json({ status: rr.status, autenticou: !!(jj && jj.token), expira: jj?.expiraEm || null, ambiente: jj?.ambiente || null, erro: (jj && !jj.token) ? (jj.mensagem || tt.slice(0, 160)) : null });
+    }
     if (req.query.bling === 'setcreds') { await blingSave({ cid: req.query.cid, secret: req.query.secret }); return res.status(200).json({ ok: true }); }
     if (req.query.bling === 'status') { const s = await blingLoad(); return res.status(200).json({ conectado: !!(s && s.access_token), temCreds: !!(s && s.cid), expira: s?.expires_at || null }); }
     if (req.query.bling === 'probe') return res.status(200).json(await blingProbe());
