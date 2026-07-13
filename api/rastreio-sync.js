@@ -1,8 +1,80 @@
 // Cron da Vercel: roda o ciclo de monitoramento (importa + rastreia + regras).
 // Protegido por CMP_CRON_SECRET. A Vercel Cron chama com header Authorization.
 import { runCycle } from '../lib/engine.js';
+import * as sb from '../lib/supabase.js';
 
 export const config = { maxDuration: 60 };
+
+// ================= Bling Taymah (faturamento) — códigos de rastreio =================
+// Token guardado numa linha sentinela em cmp_rules (enabled=false, nunca executa).
+const BLING_TOKEN_URL = 'https://www.bling.com.br/Api/v3/oauth/token';
+const BLING_API = 'https://www.bling.com.br/Api/v3';
+const BLING_KEY = '__bling_taymah__';
+
+async function blingLoad() {
+  const r = await sb.selectOne('cmp_rules', { where: `name=eq.${BLING_KEY}` });
+  return r ? { id: r.id, ...r.then_json } : null;
+}
+async function blingSave(data) {
+  const ex = await sb.selectOne('cmp_rules', { where: `name=eq.${BLING_KEY}`, columns: 'id' });
+  if (ex) await sb.update('cmp_rules', `id=eq.${ex.id}`, { then_json: data });
+  else await sb.insert('cmp_rules', { name: BLING_KEY, enabled: false, priority: 99999, when_json: {}, then_json: data }, { returning: false });
+}
+async function blingTokenPost(cid, secret, params) {
+  const r = await fetch(BLING_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json', Authorization: 'Basic ' + Buffer.from(`${cid}:${secret}`).toString('base64') },
+    body: new URLSearchParams(params).toString(),
+  });
+  let j = null; try { j = await r.json(); } catch {}
+  return { status: r.status, j };
+}
+async function blingExchange(code, cid, secret) {
+  const { status, j } = await blingTokenPost(cid, secret, { grant_type: 'authorization_code', code });
+  if (!j || !j.access_token) return { ok: false, status, error: (j && (j.error?.description || j.error || JSON.stringify(j))) || 'sem token' };
+  await blingSave({ cid, secret, access_token: j.access_token, refresh_token: j.refresh_token, expires_at: Date.now() + (j.expires_in || 21600) * 1000 });
+  return { ok: true, hasRefresh: !!j.refresh_token, expires_in: j.expires_in };
+}
+async function blingToken() {
+  const s = await blingLoad();
+  if (!s) throw new Error('Bling não conectado');
+  if (s.access_token && s.expires_at && Date.now() < s.expires_at - 120000) return s.access_token;
+  const { j } = await blingTokenPost(s.cid, s.secret, { grant_type: 'refresh_token', refresh_token: s.refresh_token });
+  if (!j || !j.access_token) throw new Error('refresh Bling falhou');
+  await blingSave({ cid: s.cid, secret: s.secret, access_token: j.access_token, refresh_token: j.refresh_token || s.refresh_token, expires_at: Date.now() + (j.expires_in || 21600) * 1000 });
+  return j.access_token;
+}
+async function blingGet(path) {
+  const tok = await blingToken();
+  const r = await fetch(BLING_API + path, { headers: { Authorization: 'Bearer ' + tok, Accept: 'application/json' } });
+  let j = null; try { j = await r.json(); } catch {}
+  return { status: r.status, j };
+}
+// Explora NFe/pedido para achar o código de rastreio + transportadora + chave DANFE.
+async function blingProbe() {
+  const out = {};
+  const nf = await blingGet('/nfe?limite=5');
+  out.nfe_status = nf.status;
+  const list = nf.j?.data || nf.j?.retorno?.nfes || [];
+  out.nfe_qtd = list.length;
+  if (list[0]) {
+    out.nfe_list_campos = Object.keys(list[0]);
+    const id = list[0].id;
+    const det = await blingGet(`/nfe/${id}`);
+    out.nfe_det_status = det.status;
+    const d = det.j?.data || det.j || {};
+    out.nfe_det_campos = Object.keys(d);
+    out.transporte = d.transporte || d.transportador || null;
+    out.chave_danfe = d.chaveAcesso || d.chave_acesso || d.chave || null;
+  }
+  // também tenta pedidos de venda (traz rastreio em alguns casos)
+  const pv = await blingGet('/pedidos/vendas?limite=3');
+  out.pv_status = pv.status;
+  const pvs = pv.j?.data || [];
+  if (pvs[0]) { out.pv_campos = Object.keys(pvs[0]); const pd = await blingGet(`/pedidos/vendas/${pvs[0].id}`); out.pv_det_campos = Object.keys(pd.j?.data || {}); out.pv_transporte = (pd.j?.data || {}).transporte || null; }
+  return out;
+}
+// ================================================================================
 
 // Teste READ-ONLY da Loja Integrada (?probe=li) — valida chaves e revela
 // os códigos de situação reais da conta. Não escreve nada.
@@ -116,6 +188,9 @@ export default async function handler(req, res) {
   }
   try {
     if (req.query.probe === 'li') return res.status(200).json(await probeLI(req.query.numero));
+    if (req.query.bling === 'exchange') return res.status(200).json(await blingExchange(req.query.code, req.query.cid, req.query.secret));
+    if (req.query.bling === 'status') { const s = await blingLoad(); return res.status(200).json({ conectado: !!s, expira: s?.expires_at || null }); }
+    if (req.query.bling === 'probe') return res.status(200).json(await blingProbe());
     const result = await runCycle();
     return res.status(200).json({ ok: true, ...result });
   } catch (e) {
