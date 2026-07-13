@@ -1,13 +1,10 @@
 {
   "functions": {
-    "api/pedidos.js": {
-      "maxDuration": 60
-    }
+    "api/pedidos.js": { "maxDuration": 60 },
+    "api/rastreio-sync.js": { "maxDuration": 60 }
   },
   "crons": [
-    {
-      "path": "/api/refresh",
-      "schedule": "0 6 * * *"
-    }
+    { "path": "/api/refresh", "schedule": "0 6 * * *" },
+    { "path": "/api/rastreio-sync", "schedule": "0 8 * * *" }
   ]
 }
