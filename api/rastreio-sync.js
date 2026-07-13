@@ -8,31 +8,24 @@ export const config = { maxDuration: 60 };
 // os códigos de situação reais da conta. Não escreve nada.
 async function probeLI() {
   const base = process.env.LI_BASE_URL || 'https://api.awsli.com.br/v1';
-  const auth = `chave_api ${process.env.LI_CHAVE_API} chave_aplicacao ${process.env.LI_CHAVE_APLICACAO}`;
-  const call = async (path) => {
-    const r = await fetch(base + path, { headers: { Authorization: auth, Accept: 'application/json' } });
-    const t = await r.text();
-    let j = null; try { j = JSON.parse(t); } catch {}
-    return { status: r.status, json: j, raw: j ? null : t.slice(0, 300) };
+  const API = process.env.LI_CHAVE_API, APP = process.env.LI_CHAVE_APLICACAO;
+  const tryFetch = async (url, headers) => {
+    try {
+      const r = await fetch(url, { headers: { Accept: 'application/json', ...headers } });
+      const t = await r.text();
+      return { status: r.status, body: t.slice(0, 250) };
+    } catch (e) { return { erro: e.message }; }
   };
-  const out = { base, temChaveApi: !!process.env.LI_CHAVE_API, temChaveApp: !!process.env.LI_CHAVE_APLICACAO };
-  const p = await call('/pedido?limit=20');
-  out.pedido_status = p.status;
-  if (p.raw) out.pedido_raw = p.raw;
-  const objs = p.json?.objects || p.json?.results || (Array.isArray(p.json) ? p.json : []);
-  out.total_meta = p.json?.meta?.total_count ?? null;
-  out.amostra_qtd = objs.length;
-  out.situacoes = [...new Map(objs.map((o) => { const s = o.situacao || {}; return [s.codigo ?? o.situacao_id, { codigo: s.codigo ?? o.situacao_id, nome: s.nome || s.label }]; })).values()];
-  if (objs[0]) {
-    const o = objs[0]; const envio = (o.envios && o.envios[0]) || {};
-    out.campos_pedido = Object.keys(o);
-    out.exemplo = { numero: o.numero, situacao: o.situacao, forma_envio: envio.forma_envio_nome || o.forma_envio_nome, objeto: envio.objeto || o.codigo_rastreio || null, sku: (o.itens || o.items || [])[0]?.sku || null, tem_cliente: !!o.cliente, tem_endereco: !!o.endereco_entrega };
-  }
-  for (const path of ['/situacao', '/pedido/situacao', '/situacao_pedido']) {
-    const s = await call(path);
-    if (s.status === 200 && s.json) { out.situacao_endpoint = path; const l = s.json.objects || s.json.results || s.json; out.situacoes_oficiais = (Array.isArray(l) ? l : []).map((x) => ({ codigo: x.codigo ?? x.id, nome: x.nome || x.label })); break; }
-  }
-  return out;
+  const variacoes = [
+    { nome: 'header chave_api X chave_aplicacao Y + /pedido/', url: base + '/pedido/?limite=3', h: { Authorization: `chave_api ${API} chave_aplicacao ${APP}` } },
+    { nome: 'header invertido (Y/X) + /pedido/', url: base + '/pedido/?limite=3', h: { Authorization: `chave_api ${APP} chave_aplicacao ${API}` } },
+    { nome: 'sem barra final /pedido', url: base + '/pedido?limite=3', h: { Authorization: `chave_api ${API} chave_aplicacao ${APP}` } },
+    { nome: 'query params chave_api/chave_aplicacao', url: `${base}/pedido/?chave_api=${API}&chave_aplicacao=${APP}&limite=3`, h: {} },
+    { nome: 'headers separados', url: base + '/pedido/?limite=3', h: { 'chave_api': API, 'chave_aplicacao': APP } },
+  ];
+  const resultados = [];
+  for (const v of variacoes) { const r = await tryFetch(v.url, v.h); resultados.push({ nome: v.nome, ...r }); }
+  return { base, apiLen: (API || '').length, appLen: (APP || '').length, resultados };
 }
 
 export default async function handler(req, res) {
