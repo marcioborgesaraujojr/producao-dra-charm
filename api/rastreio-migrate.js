@@ -33,6 +33,12 @@ function mapOrder(o) {
 }
 
 export default async function handler(req, res) {
+  // CORS: o script de migração roda no domínio do cademeupedido e envia pra cá
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+
   const secret = process.env.CMP_CRON_SECRET;
   const provided = (req.headers.authorization || '').replace('Bearer ', '') || req.query.secret;
   if (secret && provided !== secret) return res.status(401).json({ error: 'não autorizado' });
@@ -41,10 +47,17 @@ export default async function handler(req, res) {
   const orders = req.body?.orders || [];
   if (!Array.isArray(orders) || !orders.length) return res.status(400).json({ error: 'envie { orders: [...] }' });
 
-  let ok = 0, erros = 0;
-  for (const o of orders) {
-    try { await sb.upsert('cmp_orders', mapOrder(o), 'li_id'); ok++; }
-    catch (e) { erros++; }
+  // grava em LOTE (um único upsert), bem mais rápido
+  try {
+    const rows = orders.map(mapOrder);
+    await sb.upsert('cmp_orders', rows, 'li_id');
+    return res.status(200).json({ recebidos: orders.length, gravados: rows.length });
+  } catch (e) {
+    // fallback: grava um a um para não perder o lote inteiro por causa de 1 registro
+    let ok = 0, erros = 0;
+    for (const o of orders) {
+      try { await sb.upsert('cmp_orders', mapOrder(o), 'li_id'); ok++; } catch { erros++; }
+    }
+    return res.status(200).json({ recebidos: orders.length, gravados: ok, erros, modo: 'individual' });
   }
-  return res.status(200).json({ recebidos: orders.length, gravados: ok, erros });
 }
