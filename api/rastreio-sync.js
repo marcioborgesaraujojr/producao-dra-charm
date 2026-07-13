@@ -6,7 +6,43 @@ export const config = { maxDuration: 60 };
 
 // Teste READ-ONLY da Loja Integrada (?probe=li) — valida chaves e revela
 // os códigos de situação reais da conta. Não escreve nada.
-async function probeLI() {
+async function liGet(path) {
+  const base = process.env.LI_BASE_URL || 'https://api.awsli.com.br/v1';
+  const u = new URL(path.startsWith('http') ? path : base + path);
+  u.searchParams.set('chave_api', process.env.LI_CHAVE_API || '');
+  u.searchParams.set('chave_aplicacao', process.env.LI_CHAVE_APLICACAO || '');
+  const r = await fetch(u.toString(), { headers: { Accept: 'application/json' } });
+  let j = null; try { j = await r.json(); } catch {}
+  return { status: r.status, json: j };
+}
+
+// Explora um pedido específico (por número) para mapear obs + itens + personalização.
+async function probeOrder(numero) {
+  const out = { numero };
+  const lst = await liGet(`/pedido/?numero=${numero}`);
+  out.list_status = lst.status;
+  const o = (lst.json?.objects || [])[0];
+  if (!o) { out.achou = false; return out; }
+  out.campos = Object.keys(o);
+  out.obs = o.observacoes || o.obs || o.observacao || o.mensagem || null;
+  // buscar itens: geralmente sub-recurso /pedido_item/?pedido=<id> ou embutido
+  let itens = o.itens || o.items || [];
+  if ((!itens || !itens.length) && o.id) {
+    const it = await liGet(`/pedido_item/?pedido=${o.id}&limit=50`);
+    out.item_status = it.status;
+    itens = it.json?.objects || [];
+  }
+  out.itens = (itens || []).map((i) => ({
+    campos: Object.keys(i),
+    sku: i.sku, nome: i.nome, quantidade: i.quantidade,
+    obs: i.observacao || i.obs || i.personalizacao || null,
+    personalizacoes: i.personalizacoes || i.customizacoes || null,
+  }));
+  return out;
+}
+
+async function probeLI(numero) {
+  if (numero) return probeOrder(numero);
   const base = process.env.LI_BASE_URL || 'https://api.awsli.com.br/v1';
   const u = new URL(base + '/pedido/');
   u.searchParams.set('chave_api', process.env.LI_CHAVE_API || '');
@@ -51,7 +87,7 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'não autorizado' });
   }
   try {
-    if (req.query.probe === 'li') return res.status(200).json(await probeLI());
+    if (req.query.probe === 'li') return res.status(200).json(await probeLI(req.query.numero));
     const result = await runCycle();
     return res.status(200).json({ ok: true, ...result });
   } catch (e) {
