@@ -16,27 +16,31 @@ async function liGet(path) {
   return { status: r.status, json: j };
 }
 
-// Explora um pedido específico (por número) para mapear obs + itens + personalização.
+// Explora um pedido recente para mapear obs + itens + personalização (bordado).
 async function probeOrder(numero) {
-  const out = { numero };
-  const lst = await liGet(`/pedido/?numero=${numero}`);
+  const out = { alvo: numero || 'recentes' };
+  // pega pedidos recentes; procura o alvo ou o primeiro com itens
+  const lst = await liGet(`/pedido/?limit=10&order_by=-data_criacao`);
   out.list_status = lst.status;
-  const o = (lst.json?.objects || [])[0];
-  if (!o) { out.achou = false; return out; }
+  const objs = lst.json?.objects || [];
+  let o = numero ? objs.find((x) => String(x.numero) === String(numero)) : null;
+  if (!o) o = objs[0];
+  if (!o) { out.achou = false; out.list_raw = JSON.stringify(lst.json).slice(0, 200); return out; }
+  out.numero = o.numero;
   out.campos = Object.keys(o);
-  out.obs = o.observacoes || o.obs || o.observacao || o.mensagem || null;
-  // buscar itens: geralmente sub-recurso /pedido_item/?pedido=<id> ou embutido
+  out.obs = o.observacoes ?? o.obs ?? o.observacao ?? o.mensagem ?? o.observacao_interna ?? null;
+  // itens embutidos ou via sub-recurso
   let itens = o.itens || o.items || [];
-  if ((!itens || !itens.length) && o.id) {
-    const it = await liGet(`/pedido_item/?pedido=${o.id}&limit=50`);
-    out.item_status = it.status;
-    itens = it.json?.objects || [];
+  out.itens_inline = itens.length;
+  if ((!itens.length) && o.id) {
+    for (const p of [`/pedido_item/?pedido=${o.id}&limit=50`, `/pedido/${o.id}/itens/`, `/pedido/${o.id}/`]) {
+      const it = await liGet(p);
+      if (it.status === 200 && it.json) { out.item_endpoint = p; itens = it.json.objects || it.json.itens || []; if (itens.length) break; }
+    }
   }
-  out.itens = (itens || []).map((i) => ({
-    campos: Object.keys(i),
-    sku: i.sku, nome: i.nome, quantidade: i.quantidade,
-    obs: i.observacao || i.obs || i.personalizacao || null,
-    personalizacoes: i.personalizacoes || i.customizacoes || null,
+  out.itens = (itens || []).slice(0, 6).map((i) => ({
+    campos: Object.keys(i), sku: i.sku, nome: i.nome, qtd: i.quantidade,
+    obs: i.observacao ?? i.obs ?? null, person: i.personalizacoes ?? i.personalizacao ?? i.customizacoes ?? null,
   }));
   return out;
 }
