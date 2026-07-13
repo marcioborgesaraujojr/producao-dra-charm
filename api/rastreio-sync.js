@@ -22,13 +22,37 @@ async function probeOrder(numero) {
   // pega pedidos recentes; procura o alvo ou o primeiro com itens
   const lst = await liGet(`/pedido/?limit=10&order_by=-data_criacao`);
   out.list_status = lst.status;
-  const objs = lst.json?.objects || [];
+  let objs = lst.json?.objects || [];
+  const codOf = (x) => (x.situacao && (x.situacao.codigo || x.situacao)) || '';
   let o = numero ? objs.find((x) => String(x.numero) === String(numero)) : null;
+  if (!o) o = objs.find((x) => /enviado/i.test(codOf(x)));
+  // se nenhum recente está ENVIADO, busca especificamente enviados (tenta filtros)
+  if (!o) {
+    for (const f of ['situacao__codigo=pedido_enviado', 'situacao=pedido_enviado']) {
+      const en = await liGet(`/pedido/?${f}&limit=3`);
+      if (en.status === 200 && (en.json?.objects || []).length) { o = en.json.objects[0]; out.filtro_enviado = f; break; }
+    }
+  }
   if (!o) o = objs[0];
   if (!o) { out.achou = false; out.list_raw = JSON.stringify(lst.json).slice(0, 200); return out; }
   out.numero = o.numero;
   out.campos = Object.keys(o);
   out.obs = o.observacoes ?? o.obs ?? o.observacao ?? o.mensagem ?? o.observacao_interna ?? null;
+  // DETALHE do pedido (via resource_uri) — onde ficam envios/rastreio
+  if (o.resource_uri) {
+    const det = await liGet(o.resource_uri);
+    out.detalhe_status = det.status;
+    const d = det.json || {};
+    out.detalhe_campos = Object.keys(d);
+    const envios = d.envios || d.envio || [];
+    out.envios = (Array.isArray(envios) ? envios : [envios]).map((e) => ({
+      campos: Object.keys(e || {}),
+      objeto: e?.objeto ?? e?.codigo_rastreio ?? e?.rastreio ?? null,
+      forma: e?.forma_envio_nome ?? e?.forma_envio ?? e?.nome ?? null,
+      url_rastreio: e?.url_rastreamento ?? e?.url ?? null,
+    }));
+    out.rastreio_top = d.codigo_rastreio ?? d.rastreio ?? null;
+  }
   // itens embutidos ou via sub-recurso
   let itens = o.itens || o.items || [];
   out.itens_inline = itens.length;
