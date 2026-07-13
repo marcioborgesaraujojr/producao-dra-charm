@@ -8,24 +8,39 @@ export const config = { maxDuration: 60 };
 // os códigos de situação reais da conta. Não escreve nada.
 async function probeLI() {
   const base = process.env.LI_BASE_URL || 'https://api.awsli.com.br/v1';
-  const API = process.env.LI_CHAVE_API, APP = process.env.LI_CHAVE_APLICACAO;
-  const tryFetch = async (url, headers) => {
-    try {
-      const r = await fetch(url, { headers: { Accept: 'application/json', ...headers } });
-      const t = await r.text();
-      return { status: r.status, body: t.slice(0, 250) };
-    } catch (e) { return { erro: e.message }; }
-  };
-  const variacoes = [
-    { nome: 'header chave_api X chave_aplicacao Y + /pedido/', url: base + '/pedido/?limite=3', h: { Authorization: `chave_api ${API} chave_aplicacao ${APP}` } },
-    { nome: 'header invertido (Y/X) + /pedido/', url: base + '/pedido/?limite=3', h: { Authorization: `chave_api ${APP} chave_aplicacao ${API}` } },
-    { nome: 'sem barra final /pedido', url: base + '/pedido?limite=3', h: { Authorization: `chave_api ${API} chave_aplicacao ${APP}` } },
-    { nome: 'query params chave_api/chave_aplicacao', url: `${base}/pedido/?chave_api=${API}&chave_aplicacao=${APP}&limite=3`, h: {} },
-    { nome: 'headers separados', url: base + '/pedido/?limite=3', h: { 'chave_api': API, 'chave_aplicacao': APP } },
-  ];
-  const resultados = [];
-  for (const v of variacoes) { const r = await tryFetch(v.url, v.h); resultados.push({ nome: v.nome, ...r }); }
-  return { base, apiLen: (API || '').length, appLen: (APP || '').length, resultados };
+  const u = new URL(base + '/pedido/');
+  u.searchParams.set('chave_api', process.env.LI_CHAVE_API || '');
+  u.searchParams.set('chave_aplicacao', process.env.LI_CHAVE_APLICACAO || '');
+  u.searchParams.set('limit', '20');
+  const out = {};
+  const r = await fetch(u.toString(), { headers: { Accept: 'application/json' } });
+  out.status = r.status;
+  let j = null; try { j = await r.json(); } catch {}
+  const objs = j?.objects || j?.results || (Array.isArray(j) ? j : []);
+  out.total = j?.meta?.total_count ?? null;
+  out.amostra = objs.length;
+  // códigos de situação reais (para o mapa)
+  out.situacoes = [...new Map(objs.map((o) => {
+    const s = o.situacao || {}; const cod = s.codigo ?? s.id ?? o.situacao_id;
+    return [cod, { codigo: cod, nome: s.nome || s.label || null }];
+  })).values()];
+  if (objs[0]) {
+    const o = objs[0];
+    out.campos = Object.keys(o);
+    // detectar estrutura de envio/rastreio e itens
+    const envio = (o.envios && o.envios[0]) || o.envio || {};
+    out.campos_envio = Object.keys(envio);
+    const item = (o.itens || o.items || [])[0] || {};
+    out.campos_item = Object.keys(item);
+    out.exemplo = {
+      numero: o.numero, situacao_cod: (o.situacao || {}).codigo, situacao_nome: (o.situacao || {}).nome,
+      forma_envio: envio.forma_envio_nome || envio.nome || o.forma_envio_nome,
+      objeto: envio.objeto || envio.codigo_rastreio || o.codigo_rastreio || null,
+      sku: item.sku || item.produto?.sku || null,
+      tem_cliente: !!o.cliente, tem_endereco: !!(o.endereco_entrega || o.enderecoEntrega),
+    };
+  }
+  return out;
 }
 
 export default async function handler(req, res) {
