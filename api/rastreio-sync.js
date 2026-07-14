@@ -407,10 +407,10 @@ async function clienteProbe() {
 }
 // Enriquecimento + IMPORTAÇÃO via LI: puxa pedidos recentes; cria os que ainda
 // não existem (preenche o gap desde a migração) e enriquece endereço/rastreio.
-async function liEnrich(paginas = 3, importar = true, comImagem = true) {
-  const out = { pedidos: 0, atualizados: 0, criados: 0, comEndereco: 0, comRastreio: 0, comProdutos: 0, erros: 0 };
+async function liEnrich(paginas = 3, importar = true, comImagem = true, desde = 0) {
+  const out = { pedidos: 0, atualizados: 0, criados: 0, comEndereco: 0, comRastreio: 0, comProdutos: 0, comTelefone: 0, erros: 0, desde };
   for (let p = 0; p < paginas; p++) {
-    const lst = await liDetGet(`/v1/pedido/?limit=20&offset=${p * 20}&order_by=-data_criacao`);
+    const lst = await liDetGet(`/v1/pedido/?limit=20&offset=${(desde + p) * 20}&order_by=-data_criacao`);
     const objs = lst.j?.objects || [];
     if (!objs.length) break;
     for (const o of objs) {
@@ -428,6 +428,7 @@ async function liEnrich(paginas = 3, importar = true, comImagem = true) {
         if (typeof cli === 'string' && cli.startsWith('/api')) { const cr = await liDetGet(cli); cli = cr.j || {}; }
         cli = cli || {};
         const contato = contatoCliente(cli, end, d);
+        if (contato.telefone) out.comTelefone++;
         const produtos = await mapProdutos(d, comImagem);
         const ord = await sb.selectOne('cmp_orders', { columns: 'id,raw,tracking_code,transportadora,status', where: `numero=eq.${numero}` });
         if (!ord) {
@@ -656,7 +657,7 @@ export default async function handler(req, res) {
     if (req.query.jt === 'diag') return res.status(200).json(await jtDiag(Number(req.query.dias) || 29));
     if (req.query.bordado === 'probe') return res.status(200).json(await bordadoProbe(req.query.numero));
     if (req.query.probe === 'cliente') return res.status(200).json(await clienteProbe());
-    if (req.query.enrich === 'li') return res.status(200).json(await liEnrich(Number(req.query.paginas) || 3, true, req.query.imagens !== '0'));
+    if (req.query.enrich === 'li') return res.status(200).json(await liEnrich(Number(req.query.paginas) || 3, true, req.query.imagens !== '0', Number(req.query.desde) || 0));
     if (req.query.bordado === 'link') return res.status(200).json(await bordadoLink(Number(req.query.limite) || 1500));
     if (req.query.admin === 'disableTimeRules') return res.status(200).json(await disableTimeRules());
     if (req.query.motoboy_key === 'get') return res.status(200).json({ key: await motoboyKey() });
