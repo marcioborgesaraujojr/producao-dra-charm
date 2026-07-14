@@ -3,6 +3,7 @@
 import * as sb from '../lib/supabase.js';
 import * as li from '../lib/li.js';
 import { processOrder } from '../lib/engine.js';
+import * as oc from '../lib/ocorrencias.js';
 
 async function requireAdmin(req, res) {
   const token = (req.headers.authorization || '').replace('Bearer ', '');
@@ -16,13 +17,16 @@ export default async function handler(req, res) {
 
   // ------- GET: lista ou detalhe -------
   if (req.method === 'GET') {
-    const { id, status, q, transportadora, nf, rastreio, acareacao, ocorrencia } = req.query;
+    const { id, status, q, transportadora, nf, rastreio, acareacao, ocorrencia, meta, arquivados } = req.query;
+    if (meta === 'tipos') return res.status(200).json({ tipos: oc.TIPOS, emailConfigurado: oc.isConfigured() });
     if (id) {
       const order = await sb.selectOne('cmp_orders', { where: `id=eq.${id}` });
       if (!order) return res.status(404).json({ error: 'não encontrado' });
       const events = await sb.select('cmp_events', { where: `order_id=eq.${id}`, order: 'data.desc' });
       const history = await sb.select('cmp_status_history', { where: `order_id=eq.${id}`, order: 'created_at.desc' });
-      return res.status(200).json({ order, events, history });
+      let ocorrencias = [];
+      try { ocorrencias = await oc.listByOrder(id); } catch { /* tabela ainda não migrada */ }
+      return res.status(200).json({ order, events, history, ocorrencias, emailConfigurado: oc.isConfigured() });
     }
     // ---- filtros server-side (varre o banco inteiro, não só os recentes) ----
     let where = '';
@@ -35,7 +39,9 @@ export default async function handler(req, res) {
     if (ocorrencia === 'true') conds.push('ocorrencia=not.is.null');
     if (q) conds.push(`or=(numero.ilike.*${q}*,tracking_code.ilike.*${q}*,nota_fiscal.ilike.*${q}*,cliente_nome.ilike.*${q}*,cliente_email.ilike.*${q}*)`);
     if (conds.length) where = conds.join('&');
-    const orders = await sb.select('cmp_orders', { where, order: 'criado_em.desc', limit: 500 });
+    let orders = await sb.select('cmp_orders', { where, order: 'criado_em.desc', limit: 500 });
+    // esconde pedidos arquivados das listas (a não ser que peça arquivados=true)
+    if (arquivados !== 'true') orders = orders.filter((o) => !(o.raw && o.raw.arquivado));
     // contadores EXATOS via count (não limitado a 1000 linhas)
     const STATUSES = ['criado', 'pago', 'em_separacao', 'faturado', 'enviado', 'aguardando_retirada', 'atrasado', 'entregue', 'devolvido', 'cancelado'];
     const counts = {};
@@ -51,9 +57,21 @@ export default async function handler(req, res) {
 
   // ------- POST: ações -------
   if (req.method === 'POST') {
-    const { action, id, status } = req.body || {};
+    const { action, id, status, tipo, ocId, texto, notificar } = req.body || {};
+
+    // ---- ações de ocorrência que operam por ocId (não precisam do pedido) ----
+    if (action === 'ocorrenciaComentar') { const r = await oc.comentar(ocId, texto); return res.status(200).json({ ok: !!r, ocorrencia: r }); }
+    if (action === 'ocorrenciaTratativa') { const r = await oc.tratativa(ocId); return res.status(200).json({ ok: !!r, ocorrencia: r }); }
+    if (action === 'ocorrenciaFechar') { const r = await oc.fechar(ocId); return res.status(200).json({ ok: !!r, ocorrencia: r }); }
+    if (action === 'ocorrenciaNotificar') { const r = await oc.notificarCliente(ocId); return res.status(200).json({ ok: !!r?.sent, email: r }); }
+
     const order = await sb.selectOne('cmp_orders', { where: `id=eq.${id}` });
     if (!order) return res.status(404).json({ error: 'não encontrado' });
+
+    if (action === 'ocorrenciaAbrir') {
+      const r = await oc.abrir(order, tipo || 'Problemas diversos', { auto: false, notificar: notificar === true });
+      return res.status(200).json({ ok: true, ...r });
+    }
 
     if (action === 'setStatus') {
       await sb.update('cmp_orders', `id=eq.${id}`, { status, updated_at: new Date().toISOString() });
@@ -63,6 +81,21 @@ export default async function handler(req, res) {
     }
     if (action === 'track') { const r = await processOrder(Number(id)); return res.status(200).json({ ok: true, r }); }
     if (action === 'closeAcareacao') { await sb.update('cmp_orders', `id=eq.${id}`, { acareacao_aberta: false }); return res.status(200).json({ ok: true }); }
+    if (action === 'voltarStatus') {
+      const hist = await sb.selectOne('cmp_status_history', { where: `order_id=eq.${id}`, order: 'created_at.desc' });
+      let prev = hist?.from_status;
+      if (!prev) { const ORD = ['criado', 'pago', 'em_separacao', 'faturado', 'enviado', 'entregue']; const i = ORD.indexOf(order.status); prev = i > 0 ? ORD[i - 1] : order.status; }
+      const patch = { status: prev, updated_at: new Date().toISOString() };
+      if (order.status === 'entregue') patch.data_entrega = null;
+      await sb.update('cmp_orders', `id=eq.${id}`, patch);
+      await sb.insert('cmp_status_history', { order_id: id, from_status: order.status, to_status: prev, source: 'voltar' }, { returning: false });
+      try { await li.updateOrderStatus(order.li_id, prev); } catch {}
+      return res.status(200).json({ ok: true, status: prev });
+    }
+    if (action === 'arquivar') {
+      await sb.update('cmp_orders', `id=eq.${id}`, { raw: { ...(order.raw || {}), arquivado: true }, updated_at: new Date().toISOString() });
+      return res.status(200).json({ ok: true });
+    }
     return res.status(400).json({ error: 'ação inválida' });
   }
 
