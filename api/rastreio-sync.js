@@ -380,8 +380,30 @@ async function mapProdutos(d, comImagem = true) {
   }
   return out;
 }
-function contatoCliente(cli, end) {
-  return { nome: cli.nome || (end && end.nome) || null, telefone: cli.telefone || cli.celular || cli.fone || (end && end.telefone) || null, documento: (cli.cpf || cli.cnpj || '').replace(/\D/g, '') || null };
+function acharTelefone(obj) {
+  if (!obj) return null;
+  const campos = ['telefone', 'celular', 'fone', 'telefone_celular', 'telefone_principal', 'telefone_comercial', 'whatsapp', 'phone', 'phone_number'];
+  for (const c of campos) if (obj[c]) return String(obj[c]);
+  const arr = obj.telefones || obj.contatos || obj.phones;
+  if (Array.isArray(arr) && arr[0]) { const t = arr[0]; return String(t.numero || t.telefone || t.number || t.value || t); }
+  return null;
+}
+function contatoCliente(cli, end, d) {
+  const tel = acharTelefone(cli) || acharTelefone(end) || acharTelefone(d) || (d && (d.cliente_telefone || d.telefone)) || null;
+  return { nome: cli.nome || (end && end.nome) || null, telefone: tel, documento: (cli.cpf || cli.cnpj || (end && (end.cpf || end.cnpj)) || '').replace(/\D/g, '') || null };
+}
+// Sonda: onde a LI guarda o telefone do cliente (para o botão "Falar com cliente").
+async function clienteProbe() {
+  const lst = await liDetGet(`/v1/pedido/?limit=6&order_by=-data_criacao`);
+  const out = { amostras: [] };
+  for (const o of (lst.j?.objects || [])) {
+    const det = await liDetGet(o.resource_uri); const d = det.j || {};
+    let cli = d.cliente; if (typeof cli === 'string' && cli.startsWith('/api')) { const cr = await liDetGet(cli); cli = cr.j || {}; }
+    cli = cli || {};
+    out.amostras.push({ numero: d.numero, cliente_campos: Object.keys(cli), cliente_amostra: cli, telefone_detectado: acharTelefone(cli) || acharTelefone(d.endereco_entrega) || acharTelefone(d), pedido_campos_tel: Object.keys(d).filter((k) => /tel|fone|phone|whats|cel/i.test(k)) });
+    if (out.amostras.length >= 2) break;
+  }
+  return out;
 }
 // Enriquecimento + IMPORTAÇÃO via LI: puxa pedidos recentes; cria os que ainda
 // não existem (preenche o gap desde a migração) e enriquece endereço/rastreio.
@@ -405,7 +427,7 @@ async function liEnrich(paginas = 3, importar = true, comImagem = true) {
         let cli = d.cliente;
         if (typeof cli === 'string' && cli.startsWith('/api')) { const cr = await liDetGet(cli); cli = cr.j || {}; }
         cli = cli || {};
-        const contato = contatoCliente(cli, end);
+        const contato = contatoCliente(cli, end, d);
         const produtos = await mapProdutos(d, comImagem);
         const ord = await sb.selectOne('cmp_orders', { columns: 'id,raw,tracking_code,transportadora,status', where: `numero=eq.${numero}` });
         if (!ord) {
@@ -633,6 +655,7 @@ export default async function handler(req, res) {
     if (req.query.jt === 'sync') return res.status(200).json(await jtSync(Number(req.query.paginas) || 3, Number(req.query.dias) || 30));
     if (req.query.jt === 'diag') return res.status(200).json(await jtDiag(Number(req.query.dias) || 29));
     if (req.query.bordado === 'probe') return res.status(200).json(await bordadoProbe(req.query.numero));
+    if (req.query.probe === 'cliente') return res.status(200).json(await clienteProbe());
     if (req.query.enrich === 'li') return res.status(200).json(await liEnrich(Number(req.query.paginas) || 3, true, req.query.imagens !== '0'));
     if (req.query.bordado === 'link') return res.status(200).json(await bordadoLink(Number(req.query.limite) || 1500));
     if (req.query.admin === 'disableTimeRules') return res.status(200).json(await disableTimeRules());
