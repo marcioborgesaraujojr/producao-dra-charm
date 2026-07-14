@@ -78,6 +78,58 @@ async function blingProbe() {
   if (pvs[0]) { out.pv_campos = Object.keys(pvs[0]); const pd = await blingGet(`/pedidos/vendas/${pvs[0].id}`); out.pv_det_campos = Object.keys(pd.j?.data || {}); out.pv_transporte = (pd.j?.data || {}).transporte || null; }
   return out;
 }
+// ================= J&T VIP (JMS) — rastreio pela sua conta, grátis =================
+const JT_BASE = 'https://vipgw.jtjms-br.com';
+async function jtLoad() { const r = await sb.selectOne('cmp_rules', { where: 'name=eq.__jt_vip__' }); return r ? r.then_json : null; }
+async function jtSave(d) {
+  const ex = await sb.selectOne('cmp_rules', { where: 'name=eq.__jt_vip__', columns: 'id' });
+  if (ex) await sb.update('cmp_rules', `id=eq.${ex.id}`, { then_json: d });
+  else await sb.insert('cmp_rules', { name: '__jt_vip__', enabled: false, priority: 99999, when_json: {}, then_json: d }, { returning: false });
+}
+async function jtPost(path, body) {
+  const s = await jtLoad(); if (!s?.token) throw new Error('J&T VIP sem token');
+  const r = await fetch(JT_BASE + path, {
+    method: 'POST',
+    headers: { Authorization: s.token, routeName: s.routeName || 'waybill', language: 'EN', 'Content-Type': 'application/json', Accept: 'application/json, text/plain, */*' },
+    body: JSON.stringify(body),
+  });
+  let j = null; try { j = await r.json(); } catch {}
+  return { status: r.status, j };
+}
+function ymd(d) { return d.toISOString().slice(0, 10); }
+async function jtSync(paginas = 2, dias = 20) {
+  const t0 = `${ymd(new Date(Date.now() - dias * 86400000))} 00:00:00`;
+  const t1 = `${ymd(new Date())} 23:59:59`;
+  const out = { paginas: 0, waybills: 0, atualizados: 0, marcadosEnviado: 0, entregues: 0, semMatch: 0 };
+  for (let current = 1; current <= paginas; current++) {
+    const { status, j } = await jtPost('/ccm-vip/waybillOrder/page', { current, size: 50, time: [t0, t1], billType: 2, inputTimeStart: t0, inputTimeEnd: t1 });
+    if (status !== 200 || j?.code !== 1) { out.erro = `status ${status} code ${j?.code || '?'} (token pode ter expirado)`; break; }
+    const list = j.data?.records || j.data?.list || [];
+    if (!list.length) break;
+    out.paginas++; out.waybills += list.length;
+    for (const w of list) {
+      const nf = w.invoiceNo; if (!nf) continue;
+      const ord = await sb.selectOne('cmp_orders', { where: `nota_fiscal=eq.${encodeURIComponent(String(nf))}` });
+      if (!ord) { out.semMatch++; continue; }
+      const patch = { transportadora: 'jt' };
+      if (w.waybillNo) patch.tracking_code = w.waybillNo;
+      patch.raw = { ...(ord.raw || {}), chave_danfe: w.invoiceAccessKey || ord.raw?.chave_danfe, jt_status: w.waybillStatusCode };
+      let novo = null;
+      if (w.signTime) novo = 'entregue'; else if (w.collectTime) novo = 'enviado';
+      if (novo && ord.status !== novo && !['cancelado', 'devolvido'].includes(ord.status)) {
+        patch.status = novo;
+        if (novo === 'enviado' && !ord.data_envio) patch.data_envio = w.collectTime;
+        if (novo === 'enviado') out.marcadosEnviado++;
+        if (novo === 'entregue') { if (!ord.data_entrega) patch.data_entrega = w.signTime; if (ord.acareacao_aberta) patch.acareacao_aberta = false; out.entregues++; }
+      }
+      await sb.update('cmp_orders', `id=eq.${ord.id}`, patch);
+      out.atualizados++;
+    }
+    if (list.length < 50) break;
+  }
+  return out;
+}
+// ==================================================================================
 // ================= Melhor Envio (rastreio grátis do que passa por lá) =================
 const ME_BASE = 'https://melhorenvio.com.br/api/v2';
 async function meLoad() { const r = await sb.selectOne('cmp_rules', { where: 'name=eq.__melhorenvio__' }); return r ? r.then_json : null; }
@@ -259,6 +311,19 @@ export default async function handler(req, res) {
     try { return res.status(200).json(await blingExchange(req.query.code, req.query.cid, req.query.secret)); }
     catch (e) { return res.status(200).json({ ok: false, error: e.message }); }
   }
+  // Salvar/atualizar token do J&T VIP (público+CORS, guardado pelo secret no corpo —
+  // permite colar o token direto do painel do J&T sem sair de lá).
+  if (req.query.jt === 'save') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    if (req.method === 'OPTIONS') return res.status(200).end();
+    const b = req.body || {};
+    if (b.secret !== process.env.CMP_CRON_SECRET) return res.status(401).json({ error: 'não autorizado' });
+    if (!b.token) return res.status(400).json({ error: 'sem token' });
+    await jtSave({ token: b.token, routeName: b.routeName || 'waybill', saved_at: new Date().toISOString() });
+    return res.status(200).json({ ok: true });
+  }
   const secret = process.env.CMP_CRON_SECRET;
   const provided = (req.headers.authorization || '').replace('Bearer ', '') || req.query.secret;
   const isVercelCron = !!req.headers['x-vercel-cron'];
@@ -279,6 +344,8 @@ export default async function handler(req, res) {
     if (req.query.bling === 'sync') return res.status(200).json(await blingSync(Number(req.query.limite) || 50));
     if (req.query.me === 'save') { await meSave({ token: req.query.token || req.body?.token }); return res.status(200).json({ ok: true }); }
     if (req.query.me === 'probe') return res.status(200).json(await meProbe());
+    if (req.query.jt === 'status') { const s = await jtLoad(); return res.status(200).json({ temToken: !!s?.token, salvo_em: s?.saved_at || null }); }
+    if (req.query.jt === 'sync') return res.status(200).json(await jtSync(Number(req.query.paginas) || 2));
     const result = await runCycle();
     return res.status(200).json({ ok: true, ...result });
   } catch (e) {
