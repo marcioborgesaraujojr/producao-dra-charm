@@ -23,7 +23,7 @@ export default async function handler(req, res) {
     res.setHeader("Access-Control-Allow-Origin", "*");
     try {
           const token = await getToken();
-          const hoje = new Date().toISOString().slice(0, 10);
+          const hoje = (req.query && req.query.data) || new Date().toISOString().slice(0, 10);
           const listR = await fetch("https://www.bling.com.br/Api/v3/pedidos/vendas?dataInicial=" + hoje + "&dataFinal=" + hoje + "&pagina=1&limite=1", {
                   headers: { "Authorization": "Bearer " + token }
           });
