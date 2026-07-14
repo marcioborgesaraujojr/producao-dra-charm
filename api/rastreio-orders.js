@@ -16,7 +16,7 @@ export default async function handler(req, res) {
 
   // ------- GET: lista ou detalhe -------
   if (req.method === 'GET') {
-    const { id, status, q } = req.query;
+    const { id, status, q, transportadora, nf, rastreio, acareacao, ocorrencia } = req.query;
     if (id) {
       const order = await sb.selectOne('cmp_orders', { where: `id=eq.${id}` });
       if (!order) return res.status(404).json({ error: 'não encontrado' });
@@ -24,10 +24,16 @@ export default async function handler(req, res) {
       const history = await sb.select('cmp_status_history', { where: `order_id=eq.${id}`, order: 'created_at.desc' });
       return res.status(200).json({ order, events, history });
     }
+    // ---- filtros server-side (varre o banco inteiro, não só os recentes) ----
     let where = '';
     const conds = [];
     if (status) conds.push(`status=eq.${status}`);
-    if (q) conds.push(`or=(numero.ilike.*${q}*,tracking_code.ilike.*${q}*,cliente_nome.ilike.*${q}*,cliente_email.ilike.*${q}*)`);
+    if (transportadora) conds.push(transportadora === 'local' ? `transportadora=in.(local,motoboy)` : `transportadora=eq.${transportadora}`);
+    if (nf) conds.push(`nota_fiscal=ilike.*${nf}*`);
+    if (rastreio) conds.push(`tracking_code=ilike.*${rastreio}*`);
+    if (acareacao === 'true') conds.push('acareacao_aberta=eq.true');
+    if (ocorrencia === 'true') conds.push('ocorrencia=not.is.null');
+    if (q) conds.push(`or=(numero.ilike.*${q}*,tracking_code.ilike.*${q}*,nota_fiscal.ilike.*${q}*,cliente_nome.ilike.*${q}*,cliente_email.ilike.*${q}*)`);
     if (conds.length) where = conds.join('&');
     const orders = await sb.select('cmp_orders', { where, order: 'criado_em.desc', limit: 500 });
     // contadores EXATOS via count (não limitado a 1000 linhas)

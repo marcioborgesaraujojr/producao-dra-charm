@@ -22,7 +22,9 @@ export default async function handler(req, res) {
   }
   if (!order) return res.status(404).json({ error: 'Não encontramos um pedido com esses dados.' });
 
-  await sb.update('cmp_orders', `id=eq.${order.id}`, { visitas: (order.visitas || 0) + 1 }).catch(() => {});
+  // conta visita só quando é o CLIENTE (não quando o admin usa "Acompanhar Pedido")
+  const isPreview = (req.query.preview || req.body?.preview) === '1';
+  if (!isPreview) await sb.update('cmp_orders', `id=eq.${order.id}`, { visitas: (order.visitas || 0) + 1 }).catch(() => {});
   const events = await sb.select('cmp_events', { where: `order_id=eq.${order.id}`, order: 'data.desc' });
 
   // devolve só campos seguros para o cliente
