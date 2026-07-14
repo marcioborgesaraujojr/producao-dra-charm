@@ -38,16 +38,17 @@ async function sbREST(method, path, body){
   return {status:r.status, j};
 }
 async function validUser(token){
-  if(!token) return false;
-  try{ const r=await fetch(process.env.SUPABASE_URL+'/auth/v1/user',{headers:{apikey:process.env.SUPABASE_SERVICE_ROLE_KEY, Authorization:'Bearer '+token}}); const j=await r.json(); return !!(j && j.id); }catch(e){ return false; }
+  if(!token) return null;
+  try{ const r=await fetch(process.env.SUPABASE_URL+'/auth/v1/user',{headers:{apikey:process.env.SUPABASE_SERVICE_ROLE_KEY, Authorization:'Bearer '+token}}); const j=await r.json(); return (j && j.id) ? j.id : null; }catch(e){ return null; }
 }
 export default async function handler(req,res){
   res.setHeader('Access-Control-Allow-Origin','*');
   const q=req.query||{};
   const commit = q.commit==='1';
   const bearer=(req.headers.authorization||'').replace('Bearer ','');
+  let userId = null;
   let auth = (q.key && q.key===process.env.CMP_CRON_SECRET);
-  if(commit && !auth){ auth = await validUser(bearer); }
+  if(commit && !auth){ userId = await validUser(bearer); auth = !!userId; }
   if(commit && !auth) return res.status(401).json({error:'precisa estar logado pra sincronizar'});
   const limit=Math.min(parseInt(q.limit||'120',10),200);
   try{
@@ -69,7 +70,7 @@ export default async function handler(req,res){
     if(nums.length){ const ex=await sbREST('GET','cards?select=pedido_numero&pedido_numero=in.('+nums.join(',')+')'); existentes=(ex.j||[]).map(x=>String(x.pedido_numero)); }
     const seen={}; const novos=candidatos.filter(c=>{ if(existentes.includes(c.numero)||seen[c.numero]) return false; seen[c.numero]=1; return true; });
     const rows=novos.map(c=>({
-      list_id:PERSO_LIST, title:(c.cliente||('Pedido '+c.numero)), position:Date.now(),
+      list_id:PERSO_LIST, title:(c.cliente||('Pedido '+c.numero)), position:Date.now(), created_by:userId,
       pedido_numero:c.numero, pedido_cliente:c.cliente,
       bordado_tipo:c.b.tipo, bordado_linha1:c.b.linha1||null, bordado_linha2:c.b.linha2||null,
       bordado_cor_hex:c.b.corHex, bordado_cor_nome:c.b.corNome, bordado_fonte:c.b.fonte, bordado_lado:c.b.lado,
