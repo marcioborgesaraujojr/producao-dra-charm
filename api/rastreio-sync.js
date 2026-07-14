@@ -387,6 +387,25 @@ async function bordadoProbe(numero) {
   return out;
 }
 const LI_SIT_TO_INTERNAL = { pedido_pago: 'pago', pedido_enviado: 'enviado', pedido_entregue: 'entregue', pedido_cancelado: 'cancelado', pedido_devolvido: 'devolvido', aguardando_pagamento: 'criado', pedido_em_separacao: 'em_separacao', pedido_faturado: 'faturado' };
+// DIAGNÓSTICO: mostra a estrutura crua do produto na LI p/ descobrir onde está a imagem.
+async function prodImgProbe(numero) {
+  const lst = await liDetGet(`/v1/pedido/?numero=${encodeURIComponent(numero || '')}&limit=1`);
+  const o = (lst.j?.objects || [])[0];
+  if (!o) return { erro: 'pedido não encontrado', numero };
+  const det = await liDetGet(o.resource_uri); const d = det.j || {};
+  const it = (d.itens || [])[0] || {};
+  const out = { numero: d.numero, item0_campos: Object.keys(it), produto_uri: it.produto || null, sku: it.sku };
+  if (it.produto) {
+    const pr = await liDetGet(it.produto); const p = pr.j || {};
+    out.produto_status = pr.status;
+    out.produto_campos = Object.keys(p);
+    out.imagens = p.imagens ?? p.imagem ?? p.images ?? p.imagem_principal ?? null;
+    // se imagens é uma URI de sub-recurso, busca ela
+    if (typeof out.imagens === 'string' && out.imagens.startsWith('/')) { const im = await liDetGet(out.imagens); out.imagens_sub = im.j; }
+    out.produto_amostra = JSON.stringify(p).slice(0, 1200);
+  }
+  return out;
+}
 // Cache de imagem de produto (produtos se repetem entre pedidos).
 const _prodImg = new Map();
 async function produtoImagem(uri) {
@@ -690,6 +709,7 @@ export default async function handler(req, res) {
     if (req.query.jt === 'sync') return res.status(200).json(await jtSync(Number(req.query.paginas) || 3, Number(req.query.dias) || 30));
     if (req.query.jt === 'diag') return res.status(200).json(await jtDiag(Number(req.query.dias) || 29));
     if (req.query.bordado === 'probe') return res.status(200).json(await bordadoProbe(req.query.numero));
+    if (req.query.probe === 'prodimg') return res.status(200).json(await prodImgProbe(req.query.numero));
     if (req.query.probe === 'cliente') return res.status(200).json(await clienteProbe());
     if (req.query.enrich === 'li') return res.status(200).json(await liEnrich(Number(req.query.paginas) || 3, true, req.query.imagens !== '0', Number(req.query.desde) || 0));
     if (req.query.bordado === 'link') return res.status(200).json(await bordadoLink(Number(req.query.limite) || 1500));
