@@ -282,15 +282,30 @@ async function motoboySetup() {
   return key;
 }
 async function motoboyList() {
-  const where = 'and=(transportadora.in.(local,motoboy),status.in.(faturado,em_separacao,enviado,aguardando_retirada,atrasado))';
-  const rows = await sb.select('cmp_orders', { columns: 'id,numero,cliente_nome,destino,uf,servico,status,data_envio,skus,raw', where, order: 'criado_em.desc', limit: 300 });
+  const where = 'and=(transportadora.in.(local,motoboy,retirada),status.in.(faturado,em_separacao,enviado,aguardando_retirada,atrasado))';
+  const rows = await sb.select('cmp_orders', { columns: 'id,numero,cliente_nome,destino,uf,servico,status,transportadora,data_envio,skus,raw', where, order: 'criado_em.desc', limit: 300 });
   return rows.map((o) => ({
     id: o.id, numero: o.numero, cliente: o.cliente_nome, destino: o.destino, uf: o.uf,
-    servico: o.servico, status: o.status,
+    servico: o.servico, status: o.status, transportadora: o.transportadora,
     endereco: o.raw?.endereco_entrega || o.raw?.endereco || o.raw?.shipping_address || null,
-    telefone: o.raw?.telefone || o.raw?.cliente_telefone || null,
+    telefone: (o.raw?.cliente_contato && o.raw.cliente_contato.telefone) || o.raw?.telefone || null,
     bordado: o.raw?.bordado || null,
   }));
+}
+// Reclassifica pedidos 'local' antigos em motoboy / retirada (pelo nome do serviço).
+async function reclassLocal() {
+  const out = { motoboy: 0, retirada: 0 };
+  for (let loop = 0; loop < 40; loop++) {
+    const rows = await sb.select('cmp_orders', { columns: 'id,servico', where: 'transportadora=eq.local', limit: 200 });
+    if (!rows.length) break;
+    for (const r of rows) {
+      const s = (r.servico || '').toLowerCase();
+      const t = /retir|pessoal|na loja|balc/.test(s) ? 'retirada' : 'motoboy';
+      await sb.update('cmp_orders', `id=eq.${r.id}`, { transportadora: t });
+      out[t]++;
+    }
+  }
+  return out;
 }
 async function motoboyEntregar(id, source = 'motoboy') {
   const o = await sb.selectOne('cmp_orders', { where: `id=eq.${id}` });
@@ -677,6 +692,7 @@ export default async function handler(req, res) {
     if (req.query.admin === 'disableTimeRules') return res.status(200).json(await disableTimeRules());
     if (req.query.rules === 'list') { const rs = await sb.select('cmp_rules', { order: 'priority.asc' }); return res.status(200).json({ total: rs.length, regras: rs.filter((r) => !String(r.name).startsWith('__')).map((r) => ({ id: r.id, name: r.name, enabled: r.enabled, priority: r.priority, when: r.when_json, then: r.then_json })) }); }
     if (req.query.rules === 'seed') { return res.status(200).json(await seedRules()); }
+    if (req.query.reclass === 'local') return res.status(200).json(await reclassLocal());
     if (req.query.motoboy_key === 'get') return res.status(200).json({ key: await motoboyKey() });
     if (req.query.process === 'batch') return res.status(200).json(await processActiveBatch(Number(req.query.limit) || 40));
 

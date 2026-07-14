@@ -28,7 +28,7 @@ export default async function handler(req, res) {
     let where = '';
     const conds = [];
     if (status) conds.push(`status=eq.${status}`);
-    if (transportadora) conds.push(transportadora === 'local' ? `transportadora=in.(local,motoboy)` : `transportadora=eq.${transportadora}`);
+    if (transportadora) conds.push(transportadora === 'local' ? `transportadora=in.(local,motoboy,retirada)` : `transportadora=eq.${transportadora}`);
     if (nf) conds.push(`nota_fiscal=ilike.*${nf}*`);
     if (rastreio) conds.push(`tracking_code=ilike.*${rastreio}*`);
     if (acareacao === 'true') conds.push('acareacao_aberta=eq.true');
