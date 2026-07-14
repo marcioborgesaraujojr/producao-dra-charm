@@ -353,10 +353,40 @@ async function bordadoProbe(numero) {
   return out;
 }
 const LI_SIT_TO_INTERNAL = { pedido_pago: 'pago', pedido_enviado: 'enviado', pedido_entregue: 'entregue', pedido_cancelado: 'cancelado', pedido_devolvido: 'devolvido', aguardando_pagamento: 'criado', pedido_em_separacao: 'em_separacao', pedido_faturado: 'faturado' };
+// Cache de imagem de produto (produtos se repetem entre pedidos).
+const _prodImg = new Map();
+async function produtoImagem(uri) {
+  if (!uri) return null;
+  if (_prodImg.has(uri)) return _prodImg.get(uri);
+  let img = null;
+  try {
+    const r = await liDetGet(uri);
+    const d = r.j || {};
+    let arr = d.imagens || d.imagem || d.images || [];
+    if (!Array.isArray(arr)) arr = [arr];
+    const f = arr[0];
+    if (f) img = f.media || f.grande || f.pequena || f.thumbnail || f.url || f.src || (typeof f === 'string' ? f : null);
+  } catch {}
+  _prodImg.set(uri, img);
+  return img;
+}
+// Produtos do pedido (nome, sku, qtd, preço, tamanho, imagem) — igual ao original.
+async function mapProdutos(d, comImagem = true) {
+  const out = [];
+  for (const i of (d.itens || [])) {
+    let imagem = null;
+    if (comImagem && i.produto) imagem = await produtoImagem(i.produto);
+    out.push({ nome: i.nome, sku: i.sku, qtd: Number(i.quantidade || 1), preco: Number(i.preco_venda || i.preco_subtotal || 0), tamanho: i.variacao ? (Object.values(i.variacao)[0] || {}).nome : null, imagem });
+  }
+  return out;
+}
+function contatoCliente(cli, end) {
+  return { nome: cli.nome || (end && end.nome) || null, telefone: cli.telefone || cli.celular || cli.fone || (end && end.telefone) || null, documento: (cli.cpf || cli.cnpj || '').replace(/\D/g, '') || null };
+}
 // Enriquecimento + IMPORTAÇÃO via LI: puxa pedidos recentes; cria os que ainda
 // não existem (preenche o gap desde a migração) e enriquece endereço/rastreio.
-async function liEnrich(paginas = 3, importar = true) {
-  const out = { pedidos: 0, atualizados: 0, criados: 0, comEndereco: 0, comRastreio: 0, erros: 0 };
+async function liEnrich(paginas = 3, importar = true, comImagem = true) {
+  const out = { pedidos: 0, atualizados: 0, criados: 0, comEndereco: 0, comRastreio: 0, comProdutos: 0, erros: 0 };
   for (let p = 0; p < paginas; p++) {
     const lst = await liDetGet(`/v1/pedido/?limit=20&offset=${p * 20}&order_by=-data_criacao`);
     const objs = lst.j?.objects || [];
@@ -375,26 +405,30 @@ async function liEnrich(paginas = 3, importar = true) {
         let cli = d.cliente;
         if (typeof cli === 'string' && cli.startsWith('/api')) { const cr = await liDetGet(cli); cli = cr.j || {}; }
         cli = cli || {};
+        const contato = contatoCliente(cli, end);
+        const produtos = await mapProdutos(d, comImagem);
         const ord = await sb.selectOne('cmp_orders', { columns: 'id,raw,tracking_code,transportadora,status', where: `numero=eq.${numero}` });
         if (!ord) {
           if (!importar) continue;
           const row = {
             li_id: numero, numero, nota_fiscal: '',
-            cliente_nome: cli.nome || (end && end.nome) || '', cliente_email: (cli.email || '').toLowerCase(),
-            cliente_cpf: (cli.cpf || cli.cnpj || '').replace(/\D/g, ''),
+            cliente_nome: contato.nome || '', cliente_email: (cli.email || '').toLowerCase(),
+            cliente_cpf: contato.documento || '',
             destino: end ? [end.cidade, end.estado || end.uf].filter(Boolean).join('/') : '', uf: (end && (end.estado || end.uf)) || '',
             preco: Number(d.valor_total || 0), transportadora: carrierKey(forma), servico: forma,
             tracking_code: codigo || null, status: LI_SIT_TO_INTERNAL[sit] || 'criado',
             skus: (d.itens || []).map((i) => i.sku).filter(Boolean),
             criado_em: d.data_criacao || new Date().toISOString(),
-            raw: { endereco_entrega: end, cliente_obs: d.cliente_obs || null, li_id_interno: d.id },
+            raw: { endereco_entrega: end, cliente_obs: d.cliente_obs || null, li_id_interno: d.id, produtos, cliente_contato: contato },
           };
           await sb.insert('cmp_orders', row, { returning: false });
-          out.criados++; continue;
+          out.criados++; if (produtos.length) out.comProdutos++; continue;
         }
         const raw = { ...(ord.raw || {}) };
         if (end) { raw.endereco_entrega = end; out.comEndereco++; }
         if (d.cliente_obs) raw.cliente_obs = d.cliente_obs;
+        if (produtos.length) { raw.produtos = produtos; out.comProdutos++; }
+        raw.cliente_contato = contato;
         const patch = { raw };
         if (codigo && !ord.tracking_code) { patch.tracking_code = codigo; out.comRastreio++; }
         if (forma && (!ord.transportadora || ord.transportadora === 'correios')) { patch.transportadora = carrierKey(forma); patch.servico = forma; }
@@ -599,7 +633,7 @@ export default async function handler(req, res) {
     if (req.query.jt === 'sync') return res.status(200).json(await jtSync(Number(req.query.paginas) || 3, Number(req.query.dias) || 30));
     if (req.query.jt === 'diag') return res.status(200).json(await jtDiag(Number(req.query.dias) || 29));
     if (req.query.bordado === 'probe') return res.status(200).json(await bordadoProbe(req.query.numero));
-    if (req.query.enrich === 'li') return res.status(200).json(await liEnrich(Number(req.query.paginas) || 3));
+    if (req.query.enrich === 'li') return res.status(200).json(await liEnrich(Number(req.query.paginas) || 3, true, req.query.imagens !== '0'));
     if (req.query.bordado === 'link') return res.status(200).json(await bordadoLink(Number(req.query.limite) || 1500));
     if (req.query.admin === 'disableTimeRules') return res.status(200).json(await disableTimeRules());
     if (req.query.motoboy_key === 'get') return res.status(200).json({ key: await motoboyKey() });
@@ -607,7 +641,7 @@ export default async function handler(req, res) {
 
     // ===== Ciclo automático (cron diário): pipeline REAL, sem dados mock =====
     const out = { ranAt: new Date().toISOString() };
-    try { out.liImport = await liEnrich(3, true); } catch (e) { out.liImport = { error: e.message }; }
+    try { out.liImport = await liEnrich(2, true, false); } catch (e) { out.liImport = { error: e.message }; }
     try { out.bling = await blingSync(80, 1); } catch (e) { out.bling = { error: e.message }; }
     try { out.jt = await jtSync(3, 29); } catch (e) { out.jt = { error: e.message }; }
     try { out.bordado = await bordadoLink(400); } catch (e) { out.bordado = { error: e.message }; }
