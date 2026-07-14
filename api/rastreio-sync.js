@@ -424,9 +424,10 @@ const LI_CDN = 'https://cdn.awsli.com.br/';
 async function imagemPorId(uri) {
   const id = String(uri || '').split('/').filter(Boolean).pop();
   if (!id) return null;
-  const r = await liDetGet(`/v1/produto_imagem/?produto=${id}&limit=5&order_by=posicao`);
-  const objs = r.j?.objects || [];
-  const o = objs.find((x) => x.principal) || objs[0];
+  const r = await liDetGet(`/v1/produto_imagem/?produto=${id}&limit=20`);
+  // SEMPRE a 1ª imagem (menor posição = foto de catálogo, fundo cinza/limpo)
+  const objs = (r.j?.objects || []).slice().sort((a, b) => (a.posicao ?? 999) - (b.posicao ?? 999));
+  const o = objs[0];
   if (o?.caminho) return LI_CDN + String(o.caminho).replace(/^\/+/, '');
   return null;
 }
@@ -452,8 +453,8 @@ async function imgMapSave(map) {
   else await sb.insert('cmp_rules', { name: IMGMAP_KEY, enabled: false, priority: 99999, when_json: {}, then_json: map }, { returning: false });
 }
 // Constrói/atualiza o mapa SKU->URL a partir do catálogo da LI (chunk por offset).
-async function imgMapBuild(offset = 0, paginas = 20) {
-  const map = await imgMapLoad();
+async function imgMapBuild(offset = 0, paginas = 20, reset = false) {
+  const map = reset ? {} : await imgMapLoad();
   let off = offset, novos = 0, vistos = 0, fim = false;
   for (let k = 0; k < paginas; k++) {
     const r = await liDetGet(`/v1/produto/?limit=50&offset=${off}`);
@@ -473,7 +474,7 @@ async function imgMapBuild(offset = 0, paginas = 20) {
   return { proximoOffset: fim ? -1 : off, fim, totalSkus: Object.keys(map).length, novos, vistos };
 }
 // Aplica o mapa aos pedidos (preenche raw.produtos[].imagem por SKU), do mais novo p/ o mais antigo.
-async function imgMapApply(cursor = 0, limite = 500) {
+async function imgMapApply(cursor = 0, limite = 500, force = false) {
   const map = await imgMapLoad();
   const cur = cursor || 9999999999;
   const orders = await sb.select('cmp_orders', { columns: 'id,raw', where: `id=lt.${cur}`, order: 'id.desc', limit: limite });
@@ -483,7 +484,7 @@ async function imgMapApply(cursor = 0, limite = 500) {
     const prod = o.raw?.produtos;
     if (!Array.isArray(prod) || !prod.length) continue;
     let mudou = false;
-    for (const it of prod) { if (!it.imagem && it.sku && map[it.sku]) { it.imagem = map[it.sku]; mudou = true; } }
+    for (const it of prod) { if (it.sku && map[it.sku] && (force || !it.imagem) && it.imagem !== map[it.sku]) { it.imagem = map[it.sku]; mudou = true; } }
     if (mudou) { await sb.update('cmp_orders', `id=eq.${o.id}`, { raw: { ...o.raw, produtos: prod } }); atualizados++; }
   }
   const fim = orders.length < limite;
@@ -783,8 +784,8 @@ export default async function handler(req, res) {
     if (req.query.jt === 'diag') return res.status(200).json(await jtDiag(Number(req.query.dias) || 29));
     if (req.query.bordado === 'probe') return res.status(200).json(await bordadoProbe(req.query.numero));
     if (req.query.probe === 'prodimg') return res.status(200).json(await prodImgProbe(req.query.numero));
-    if (req.query.imgmap === 'build') return res.status(200).json(await imgMapBuild(Number(req.query.offset) || 0, Number(req.query.paginas) || 20));
-    if (req.query.imgmap === 'apply') return res.status(200).json(await imgMapApply(Number(req.query.cursor) || 0, Number(req.query.limite) || 500));
+    if (req.query.imgmap === 'build') return res.status(200).json(await imgMapBuild(Number(req.query.offset) || 0, Number(req.query.paginas) || 20, req.query.reset === '1'));
+    if (req.query.imgmap === 'apply') return res.status(200).json(await imgMapApply(Number(req.query.cursor) || 0, Number(req.query.limite) || 500, req.query.force === '1'));
     // Backfill do HISTÓRICO: enriquece produtos+imagem página a página, com cursor próprio.
     if (req.query.imgfull === '1') {
       const KEY = '__li_enrich_cursor__';
