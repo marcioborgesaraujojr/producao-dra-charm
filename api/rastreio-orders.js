@@ -30,10 +30,16 @@ export default async function handler(req, res) {
     if (q) conds.push(`or=(numero.ilike.*${q}*,tracking_code.ilike.*${q}*,cliente_nome.ilike.*${q}*,cliente_email.ilike.*${q}*)`);
     if (conds.length) where = conds.join('&');
     const orders = await sb.select('cmp_orders', { where, order: 'criado_em.desc', limit: 500 });
-    // contadores por status
-    const all = await sb.select('cmp_orders', { columns: 'status,acareacao_aberta' });
-    const counts = { _total: all.length, _acareacao: all.filter((o) => o.acareacao_aberta).length };
-    for (const o of all) counts[o.status] = (counts[o.status] || 0) + 1;
+    // contadores EXATOS via count (não limitado a 1000 linhas)
+    const STATUSES = ['criado', 'pago', 'em_separacao', 'faturado', 'enviado', 'aguardando_retirada', 'atrasado', 'entregue', 'devolvido', 'cancelado'];
+    const counts = {};
+    const [total, acare, ...perStatus] = await Promise.all([
+      sb.count('cmp_orders'),
+      sb.count('cmp_orders', 'acareacao_aberta=eq.true'),
+      ...STATUSES.map((s) => sb.count('cmp_orders', `status=eq.${s}`)),
+    ]);
+    counts._total = total; counts._acareacao = acare;
+    STATUSES.forEach((s, i) => { counts[s] = perStatus[i] || 0; });
     return res.status(200).json({ orders, counts });
   }
 
