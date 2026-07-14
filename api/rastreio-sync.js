@@ -785,6 +785,20 @@ export default async function handler(req, res) {
     if (req.query.probe === 'prodimg') return res.status(200).json(await prodImgProbe(req.query.numero));
     if (req.query.imgmap === 'build') return res.status(200).json(await imgMapBuild(Number(req.query.offset) || 0, Number(req.query.paginas) || 20));
     if (req.query.imgmap === 'apply') return res.status(200).json(await imgMapApply(Number(req.query.cursor) || 0, Number(req.query.limite) || 500));
+    // Backfill do HISTÓRICO: enriquece produtos+imagem página a página, com cursor próprio.
+    if (req.query.imgfull === '1') {
+      const KEY = '__li_enrich_cursor__';
+      const cs = await sb.selectOne('cmp_rules', { where: `name=eq.${KEY}` });
+      const cur = cs?.then_json?.desde || 0;
+      const pgs = Number(req.query.paginas) || 4;
+      const r = await liEnrich(pgs, true, true, cur);
+      const fim = r.pedidos === 0;
+      const val = { desde: fim ? 0 : cur + pgs, fim, lastRun: new Date().toISOString(), ultimo: r };
+      const ex = await sb.selectOne('cmp_rules', { where: `name=eq.${KEY}`, columns: 'id' });
+      if (ex) await sb.update('cmp_rules', `id=eq.${ex.id}`, { then_json: val });
+      else await sb.insert('cmp_rules', { name: KEY, enabled: false, priority: 99999, when_json: {}, then_json: val }, { returning: false });
+      return res.status(200).json({ paginaDesde: cur, proximaDesde: val.desde, fim, pedidos: r.pedidos, comProdutos: r.comProdutos, atualizados: r.atualizados, criados: r.criados });
+    }
     if (req.query.probe === 'cliente') return res.status(200).json(await clienteProbe());
     if (req.query.enrich === 'li') return res.status(200).json(await liEnrich(Number(req.query.paginas) || 3, true, req.query.imagens !== '0', Number(req.query.desde) || 0));
     if (req.query.bordado === 'link') return res.status(200).json(await bordadoLink(Number(req.query.limite) || 1500));
