@@ -123,6 +123,7 @@ const IC={
   x:S('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>','16'),
   refresh:S('<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>','15'),
   box:S('<path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/>'),
+  chart:S('<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/>'),
 };
 
 const SUPABASE_REF='wwytzoyeibekhstinott';
@@ -175,7 +176,7 @@ const api=(path,opts={})=>fetch('/api/'+path,{...opts,headers:{'Content-Type':'a
 const NAV=[
   ['pedidos','cart','Pedidos'], ['atrasados','truck','Atrasados'], ['acareacoes','users','Acareações'],
   ['ocorrencias','alert','Ocorrências'], ['devolucao','ret','Devolução'],
-  ['retirada','store','Retirada & Entrega'], ['regras','rules','Regras'],
+  ['retirada','store','Retirada & Entrega'], ['estatisticas','chart','Estatísticas'], ['regras','rules','Regras'],
 ];
 let VIEW='pedidos', DATA={orders:[],counts:{}}, filt={status:'',q:''};
 
@@ -205,7 +206,7 @@ window.__go=(v)=>{
   VIEW=v;
   if(v!=='pedidos'){ filt={status:'',q:''}; ['fPedido','fNF','fRastreio'].forEach(id=>{const e=document.getElementById(id); if(e)e.value='';}); const s=document.getElementById('fSit'); if(s)s.value=''; const t=document.getElementById('fTrans'); if(t)t.value=''; }
   renderNav();
-  if(v==='regras') render(); else load();
+  if(v==='regras'||v==='estatisticas') render(); else load();
 };
 window.__runCycle=async()=>{ const b=document.getElementById('runBtn'); b.textContent='Rodando…'; try{await api('rastreio-sync');}catch(e){} b.textContent='Rodar ciclo'; load(); };
 
@@ -235,6 +236,7 @@ window.applyFilters=()=>{ VIEW='pedidos'; filt.status=document.getElementById('f
 function render(){
   const v=document.getElementById('view');
   if(VIEW==='regras') return renderRules(v);
+  if(VIEW==='estatisticas') return renderStats(v);
   if(VIEW==='retirada') return renderRetirada(v);
   let orders=DATA.orders||[]; const c=DATA.counts||{};
   const chips=['<span class="chip '+(!filt.status?'active':'')+'" onclick="__chip(\'\')"><span class="n">'+(c._total||0)+'</span> Todos</span>']
@@ -267,22 +269,39 @@ function bordadoRows(b){
     return `<div style="padding:3px 0"><b style="color:var(--brand)">${esc(nome)||'Personalização'}</b>${det?` <span class="muted">(${esc(det)})</span>`:''}${x.detalhes?`<div class="muted">${esc(x.detalhes)}</div>`:''}</div>`;}).join('');
   return `<tr><th>Bordado</th><td>${inner}</td></tr>`;
 }
-// linha do tempo HORIZONTAL (igual ao rodapé do original)
-function stepperH(o,history){
-  const dateOf={criado:o.criado_em,pago:null,faturado:null,enviado:o.data_envio,entregue:o.data_entrega};
-  (history||[]).slice().reverse().forEach(h=>{ if(h.to_status&&dateOf[h.to_status]==null) dateOf[h.to_status]=h.created_at; });
-  const pos=FPOS[o.status]??0; const special=(o.status==='cancelado'||o.status==='devolvido'||o.status==='atrasado');
+// linha do tempo HORIZONTAL — inclui eventos de ocorrência como etapas (igual ao original)
+function stepperH(o,history,ocorrencias){
+  const dh={};
+  (history||[]).slice().reverse().forEach(h=>{ if(h.to_status&&!dh[h.to_status]) dh[h.to_status]=h.created_at; });
+  const dOf=(k,fb)=>fb||dh[k]||null;
+  const P=FPOS[o.status]??0;
+  const base=[
+    {l:'Criado',d:o.criado_em,done:true},
+    {l:'Pago',d:dOf('pago'),done:P>=1},
+    {l:'Faturado',d:dOf('faturado'),done:P>=2},
+    {l:'Enviado',d:dOf('enviado',o.data_envio),done:P>=3},
+  ];
+  const occ=(ocorrencias||[]).slice().sort((a,b)=>new Date(a.criada_em)-new Date(b.criada_em))
+    .map(x=>({l:x.tipo,d:x.criada_em,done:true,warn:true}));
+  const isDev=(o.status==='devolvido');
+  const fin={l:isDev?'Devolvido ao Remetente':'Entregue',d:o.data_entrega,done:(o.status==='entregue'||isDev)};
+  const nodes=[...base,...occ,fin];
+  const firstPending=nodes.findIndex(n=>!n.done);
   const chk='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-  const steps=FUNNEL.map((s,i)=>{
-    const done=i<=pos && !(special&&o.status!=='atrasado'&&i>1); const d=dateOf[s[0]];
-    const line=i<FUNNEL.length-1?`<div style="position:absolute;top:14px;left:50%;width:100%;height:3px;background:${i<pos?'var(--brand)':'#e5e7eb'};z-index:0"></div>`:'';
+  const warnIcon='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+  const steps=nodes.map((n,i)=>{
+    const isCur=(i===firstPending);
+    const col=n.warn?'#e6820e':'var(--brand)';
+    const bg=n.done?col:(isCur?'#fff':'#e5e7eb');
+    const ring=isCur?`box-shadow:inset 0 0 0 3px var(--brand);`:'';
+    const inner=n.done?(n.warn?warnIcon:chk):(isCur?`<span style="width:9px;height:9px;border-radius:50%;background:var(--brand)"></span>`:(i+1));
+    const line=i<nodes.length-1?`<div style="position:absolute;top:14px;left:50%;width:100%;height:3px;background:${n.done?col:'#e5e7eb'};z-index:0"></div>`:'';
     return `<div style="flex:1;text-align:center;position:relative;min-width:0">${line}
-      <div style="position:relative;width:30px;height:30px;border-radius:50%;margin:0 auto;background:${done?'var(--brand)':'#e5e7eb'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;z-index:1">${done?chk:i+1}</div>
-      <div style="font-size:12.5px;margin-top:7px;font-weight:${i===pos?'800':'500'};color:${done?'#222':'#9aa2ae'}">${s[1]}</div>
-      <div style="font-size:11px;color:#aab">${d?fmtDs(d):''}</div></div>`;
+      <div style="position:relative;width:30px;height:30px;border-radius:50%;margin:0 auto;background:${bg};${ring}color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;z-index:1">${inner}</div>
+      <div style="font-size:11.5px;margin-top:7px;font-weight:${(isCur||n.warn)?'800':'500'};color:${n.warn?'#c26a00':(n.done?'#222':'#9aa2ae')};line-height:1.2;word-break:break-word">${esc(n.l)}</div>
+      <div style="font-size:11px;color:#aab">${n.d?fmtDs(n.d):''}</div></div>`;
   }).join('');
-  return `<div style="display:flex;align-items:flex-start;padding:8px 6px 2px">${steps}</div>`
-    +(special?`<div style="margin-top:8px;background:#fde8e8;border:1px solid #ffcdd2;color:#c62828;padding:8px 10px;border-radius:8px;font-size:13px">Situação atual: <b>${STATUS[o.status][0]}</b></div>`:'');
+  return `<div style="display:flex;align-items:flex-start;padding:8px 6px 2px;overflow-x:auto">${steps}</div>`;
 }
 function produtosBlock(prod){
   if(!prod||!Array.isArray(prod)||!prod.length) return '<p class="muted">Produtos não carregados ainda.</p>';
@@ -359,6 +378,71 @@ function ocorrenciasBlock(ocs,id,emailOk){
   }).join('');
   return abrirBox+cards;
 }
+/* ---------- Estatísticas / SLA ---------- */
+function slaColor(x){ return x>=95?'#43a047':x>=85?'#f9a825':'#e53935'; }
+function gauge(pct,sub){
+  const p=Math.max(0,Math.min(100,pct||0)); const t=p/100; const th=Math.PI*(1-t);
+  const x=(100+80*Math.cos(th)).toFixed(1), y=(100-80*Math.sin(th)).toFixed(1);
+  return `<svg viewBox="0 0 200 128" width="210" style="max-width:100%">
+    <path d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke="#eee" stroke-width="14" stroke-linecap="round"/>
+    <path d="M20 100 A80 80 0 0 1 ${x} ${y}" fill="none" stroke="${slaColor(p)}" stroke-width="14" stroke-linecap="round"/>
+    <text x="100" y="90" text-anchor="middle" font-size="30" font-weight="800" fill="#222">${p}%</text>
+    <text x="100" y="114" text-anchor="middle" font-size="11" fill="#8a93a0">${esc(sub||'')}</text>
+  </svg>`;
+}
+function hbars(items,unit){
+  const max=Math.max(1,...items.map(i=>i.val||0));
+  return items.map(i=>{
+    const w=Math.round(((i.val||0)/max)*100);
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:3px"><span>${esc(i.nome)}</span><b>${i.val==null?'—':i.val+(unit||'')}</b></div>
+      <div style="background:#eef0f3;border-radius:6px;height:14px;overflow:hidden"><div style="width:${w}%;height:100%;background:${i.color||'var(--brand)'}"></div></div>
+    </div>`;
+  }).join('');
+}
+async function renderStats(v){
+  v.innerHTML='<h2 style="margin:2px 0 14px">Estatísticas</h2><p class="muted">Carregando…</p>';
+  const desde=new Date(Date.now()-30*86400000).toISOString().slice(0,10);
+  let d; try{ d=await api('rastreio-orders?analytics=1&desde='+desde); }catch(e){ v.innerHTML='<p class="muted">Não foi possível carregar as estatísticas.</p>'; return; }
+  const g=d.global||{}; const cs=d.porTransportadora||[];
+  const card=(t,inner)=>`<div style="background:#fff;border:1px solid #eef0f3;border-radius:14px;padding:16px 18px;box-shadow:0 1px 4px rgba(0,0,0,.04)"><h3 style="margin:0 0 12px;font-size:15px">${t}</h3>${inner}</div>`;
+  const slaBars=hbars(cs.map(c=>({nome:c.nome,val:c.sla,color:slaColor(c.sla||0)})),'%');
+  const entBars=hbars(cs.map(c=>({nome:c.nome,val:c.tempoEntrega})).sort((a,b)=>(a.val||99)-(b.val||99)),' dias');
+  v.innerHTML=`
+    <h2 style="margin:2px 0 4px">Estatísticas</h2>
+    <div class="muted" style="margin-bottom:16px">Pedidos desde ${fmtDs(d.desde)} · ${d.total} analisados · ${g.entregues||0} entregues</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      ${card('SLA Global (entregas no prazo)',`<div style="text-align:center">${gauge(g.sla||0,'no prazo')}</div>`)}
+      ${card('Tempo médio de entrega',`<div style="text-align:center">${gauge(Math.min(100,Math.round(((g.tempoEntrega||0)/26)*100)),(g.tempoEntrega!=null?g.tempoEntrega+' dias':'—'))}</div><div class="muted" style="text-align:center;font-size:12px">postagem média: ${g.tempoPostagem!=null?g.tempoPostagem+' dias':'—'}</div>`)}
+      ${card('SLA por transportadora',slaBars||'<p class="muted">Sem dados.</p>')}
+      ${card('Tempo médio de entrega por transportadora',entBars||'<p class="muted">Sem dados.</p>')}
+    </div>`;
+}
+const _svg=(p)=>`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const IC_REWIND=_svg('<polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/>');
+const IC_REFRESH=_svg('<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>');
+const IC_RETURN=_svg('<polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/>');
+const IC_ARCH=_svg('<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 001 1h12a1 1 0 001-1V8"/><path d="M10 12h4"/>');
+// Botões do rodapé — contextuais por status, iguais ao cademeupedido
+function modalBottom(o,id){
+  const s=o.status;
+  const B={
+    voltar:`<button class="btn ghost" onclick="__voltar(${id})">${IC_REWIND} Voltar Status</button>`,
+    atualizar:`<button class="btn ghost" onclick="__trk(${id})">${IC_REFRESH} Atualizar Status</button>`,
+    enviado:`<button class="btn" onclick="__st(${id},'enviado')">${IC.truck} Pedido Enviado</button>`,
+    entregue:`<button class="btn" onclick="__st(${id},'entregue')">${IC.truck} Pedido Entregue</button>`,
+    devolvido:`<button class="btn ghost" onclick="__st(${id},'devolvido')">${IC_RETURN} Pedido Devolvido</button>`,
+    arquivar:`<button class="btn ghost" onclick="__arquivar(${id})">${IC_ARCH} Arquivar Pedido</button>`,
+  };
+  let arr;
+  if(['criado','pago','em_separacao'].includes(s)) arr=[B.arquivar];
+  else if(s==='faturado') arr=[B.atualizar,B.enviado,B.arquivar];
+  else if(['enviado','atrasado','aguardando_retirada'].includes(s)) arr=[B.atualizar,B.entregue,B.devolvido,B.arquivar];
+  else if(s==='entregue') arr=[B.voltar,B.devolvido,B.arquivar];
+  else if(['devolvido','cancelado'].includes(s)) arr=[B.voltar,B.arquivar];
+  else arr=[B.arquivar];
+  return arr.join('');
+}
 window.__open=async(id)=>{
   const {order:o,events,history,ocorrencias,emailConfigurado}=await api('rastreio-orders?id='+id);
   const tl=(events||[]).map((e,i)=>`<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid #f2f2f2"><div style="width:9px;height:9px;border-radius:50%;background:${i===0?'var(--brand)':'#ccc'};margin-top:5px;flex:none"></div><div><b style="font-size:13px">${esc(e.descricao)}</b><div class="muted" style="font-size:12px">${fmt(e.data)}${e.local?' · '+esc(e.local):''}</div></div></div>`).join('')||'<p class="muted">Sem eventos da transportadora ainda.</p>';
@@ -372,7 +456,7 @@ window.__open=async(id)=>{
       <div><div class="muted" style="font-size:12px">PEDIDO</div>
         <h2 style="margin:2px 0">#${esc(o.numero)} ${pill(o.status)}</h2>
         <div style="font-weight:700">${esc(o.cliente_nome)||'—'}</div>
-        <div style="margin-top:3px;font-size:13px">${contatoLinha(o)}</div>
+        <div style="margin-top:3px;font-size:13px">${contatoLinha(o)} <button class="btn ghost" style="padding:1px 7px;font-size:11px" onclick="__altEmail(${id},'${esc(o.cliente_email||'')}')">✎ e-mail</button></div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <a class="btn ghost" target="_blank" href="${acompanhar}">${IC.eye} Acompanhar Pedido</a>
@@ -381,7 +465,7 @@ window.__open=async(id)=>{
         <span class="close" onclick="__close()">${IC.x} fechar</span>
       </div>
     </div>
-    <div style="margin:16px 0;background:#fafbfc;border:1px solid #eef0f3;border-radius:12px;padding:14px 16px">${stepperH(o,history)}</div>
+    <div style="margin:16px 0;background:#fafbfc;border:1px solid #eef0f3;border-radius:12px;padding:14px 16px">${stepperH(o,history,ocorrencias)}</div>
     <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:22px">
       <div>
         <h3 style="margin:2px 0 8px">Produtos</h3>
@@ -393,7 +477,7 @@ window.__open=async(id)=>{
           <tr><th>Nota Fiscal</th><td>${esc(o.nota_fiscal)||'—'}</td></tr>
           <tr><th>Total do Pedido</th><td>${money(o.preco)}</td></tr>
           <tr><th>Transportadora</th><td>${carrierLogo(o.transportadora)} <span class="muted">${esc(o.servico||'')}</span></td></tr>
-          <tr><th>Código de Rastreio</th><td>${esc(o.tracking_code)||'—'}</td></tr>
+          <tr><th>Código de Rastreio</th><td>${esc(o.tracking_code)||'—'} <button class="btn ghost" style="padding:2px 8px;font-size:11px;margin-left:4px" onclick="__altRastreio(${id},'${esc(o.tracking_code||'')}')">Alterar</button></td></tr>
           ${bordadoRows(o.raw&&o.raw.bordado)}
           <tr><th>Prazo de Entrega</th><td>${o.prazo_entrega?fmtD(o.prazo_entrega):'—'} ${['entregue','cancelado','devolvido'].includes(o.status)?'':'· '+prazoTxt(o)}</td></tr>
           <tr><th>Visitas do cliente</th><td>${o.visitas||0}</td></tr>
@@ -408,9 +492,7 @@ window.__open=async(id)=>{
       ${ocorrenciasBlock(ocorrencias,id,emailConfigurado)}
     </div>
     <div style="margin-top:18px;border-top:1px solid #eee;padding-top:16px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
-      <button class="btn ghost" onclick="__voltar(${id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg> Voltar Status</button>
-      <button class="btn" onclick="__st(${id},'entregue')">${IC.truck} Pedido Entregue</button>
-      <button class="btn ghost" onclick="__arquivar(${id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 001 1h12a1 1 0 001-1V8"/><path d="M10 12h4"/></svg> Arquivar Pedido</button>
+      ${modalBottom(o,id)}
     </div>`;
   document.getElementById('modalBg').style.display='flex';
 };
@@ -425,6 +507,8 @@ window.__ocComentar=async(id,ocId)=>{ const el=document.getElementById('ocCm'+oc
 window.__ocTratativa=async(id,ocId)=>{ await api('rastreio-orders',{method:'POST',body:JSON.stringify({action:'ocorrenciaTratativa',ocId})}); __open(id); };
 window.__ocFechar=async(id,ocId)=>{ if(!confirm('Fechar esta ocorrência?'))return; await api('rastreio-orders',{method:'POST',body:JSON.stringify({action:'ocorrenciaFechar',ocId})}); __open(id); load(); };
 window.__ocNotificar=async(id,ocId)=>{ const r=await api('rastreio-orders',{method:'POST',body:JSON.stringify({action:'ocorrenciaNotificar',ocId})}); if(!r.ok)alert('Não foi possível enviar o e-mail: '+(r.email?.reason||'')); __open(id); };
+window.__altRastreio=async(id,atual)=>{ const c=prompt('Novo código de rastreio:',atual||''); if(c===null)return; await api('rastreio-orders',{method:'POST',body:JSON.stringify({action:'alterarRastreio',id,tracking_code:c})}); __open(id); load(); };
+window.__altEmail=async(id,atual)=>{ const e=prompt('E-mail do cliente:',atual||''); if(e===null)return; await api('rastreio-orders',{method:'POST',body:JSON.stringify({action:'alterarEmail',id,email:e})}); __open(id); };
 
 /* ---------- Retirada & Entrega ---------- */
 function renderRetirada(v){
