@@ -146,35 +146,94 @@ async function render(tab){
 window.__f = s => { state.filterStatus=s; render('orders'); };
 window.__q = () => { state.q=document.getElementById('q').value.trim(); render('orders'); };
 
+// --- Blocos do detalhe (espelham o cademeupedido original) ---
+const FUNNEL = [['criado','Criado'],['pago','Pago'],['faturado','Faturado'],['enviado','Enviado'],['entregue','Entregue']];
+const FPOS = {criado:0,pago:1,em_separacao:1,faturado:2,enviado:3,atrasado:3,aguardando_retirada:3,entregue:4,devolvido:4,cancelado:1};
+function funnelRuler(o, history){
+  const dateOf = {criado:o.criado_em, pago:null, faturado:null, enviado:o.data_envio, entregue:o.data_entrega};
+  (history||[]).slice().reverse().forEach(h=>{ if(h.to_status && dateOf[h.to_status]==null) dateOf[h.to_status]=h.created_at; });
+  const pos = FPOS[o.status] ?? 0;
+  const special = (o.status==='cancelado'||o.status==='devolvido'||o.status==='atrasado');
+  return `<div style="position:relative;padding-left:6px">`+FUNNEL.map((s,i)=>{
+    const done = i<=pos && !(special && o.status!=='atrasado' && i>1);
+    const isCur = i===pos;
+    const line = i<FUNNEL.length-1 ? `<div style="position:absolute;left:14px;top:24px;width:2px;height:26px;background:${i<pos?'var(--brand)':'#e5e7eb'}"></div>`:'';
+    return `<div style="position:relative;display:flex;gap:12px;align-items:flex-start;min-height:44px">
+      ${line}
+      <div style="width:22px;height:22px;border-radius:50%;flex:none;background:${done?'var(--brand)':'#e5e7eb'};color:#fff;font-size:12px;line-height:22px;text-align:center;font-weight:700">${done?'✓':i+1}</div>
+      <div><div style="font-weight:${isCur?'800':'600'};color:${done?'#222':'#999'}">${s[1]}</div>
+      <div class="muted" style="font-size:12px">${dateOf[s[0]]?fmt(dateOf[s[0]]):(done?'':'—')}</div></div>
+    </div>`;
+  }).join('')+`</div>`
+  + (special ? `<div style="margin-top:8px;background:#fff3f3;border:1px solid #ffcdd2;color:#c62828;padding:8px 10px;border-radius:8px;font-size:13px">Situação atual: <b>${STATUS[o.status][0]}</b></div>`:'');
+}
+function produtosBlock(prod){
+  if(!prod||!Array.isArray(prod)||!prod.length) return '';
+  const rows = prod.map(p=>`
+    <div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #f2f2f2">
+      <div style="width:46px;height:46px;border-radius:8px;background:#f3f3f5 center/cover no-repeat${p.imagem?` url('${esc(p.imagem)}')`:''};flex:none;border:1px solid #eee"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:13px">${esc(p.nome)||esc(p.sku)}</div>
+        <div class="muted" style="font-size:12px">${p.tamanho?('Tam '+esc(p.tamanho)+' · '):''}${esc(p.sku)||''} · Qtd ${p.qtd||1}</div>
+      </div>
+      <div style="font-weight:600;font-size:13px">${money(p.preco)}</div>
+    </div>`).join('');
+  return `<h3 style="margin:4px 0 2px">Produtos</h3>${rows}`;
+}
+function clienteBlock(o){
+  const c = (o.raw&&o.raw.cliente_contato)||{};
+  const tel = c.telefone, doc = c.documento;
+  const parts = [
+    o.cliente_email?`✉️ ${esc(o.cliente_email)}`:'',
+    tel?`📞 ${esc(tel)}`:'',
+    doc?`🪪 ${esc(doc)}`:'',
+  ].filter(Boolean).join(' &nbsp;·&nbsp; ');
+  return parts || '';
+}
+function enderecoBlock(o){
+  const e = o.raw&&o.raw.endereco_entrega;
+  if(!e) return '';
+  const linha = typeof e==='string'? e : [e.endereco||e.logradouro, e.numero, e.complemento, e.bairro, [e.cidade,e.estado||e.uf].filter(Boolean).join('/'), e.cep].filter(Boolean).join(', ');
+  return linha?`<div style="margin-top:8px"><b style="font-size:13px">Endereço de entrega</b><div class="muted" style="font-size:13px">📍 ${esc(linha)}</div></div>`:'';
+}
+
 window.__open = async (id) => {
   const { order:o, events, history } = await api('rastreio-orders?id='+id);
-  const tl = (events||[]).map((e,i)=>`<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #f2f2f2"><div style="width:9px;height:9px;border-radius:50%;background:${i===0?'var(--brand)':'#ccc'};margin-top:5px"></div><div><b>${esc(e.descricao)}</b><div class="muted">${fmt(e.data)}${e.local?' · '+esc(e.local):''}</div></div></div>`).join('') || '<p class="muted">Sem eventos.</p>';
-  const btns = ORDER.map(s=>`<button class="btn ghost" onclick="__st(${id},'${s}')" style="${o.status===s?`border-color:${STATUS[s][1]};color:${STATUS[s][1]}`:''}">${STATUS[s][0]}</button>`).join(' ');
+  const tl = (events||[]).map((e,i)=>`<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid #f2f2f2"><div style="width:9px;height:9px;border-radius:50%;background:${i===0?'var(--brand)':'#ccc'};margin-top:5px;flex:none"></div><div><b style="font-size:13px">${esc(e.descricao)}</b><div class="muted" style="font-size:12px">${fmt(e.data)}${e.local?' · '+esc(e.local):''}</div></div></div>`).join('') || '<p class="muted">Sem eventos da transportadora ainda.</p>';
+  const btns = ORDER.map(s=>`<button class="btn ghost" onclick="__st(${id},'${s}')" style="margin:0 4px 6px 0;${o.status===s?`border-color:${STATUS[s][1]};color:${STATUS[s][1]};font-weight:700`:''}">${STATUS[s][0]}</button>`).join('');
   document.getElementById('modal').innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
       <h2 style="margin:0">Pedido #${esc(o.numero)} ${badge(o.status)}</h2>
       <span class="link" onclick="__close()">fechar ✕</span>
     </div>
-    <p class="muted">${esc(o.cliente_nome)} · ${esc(o.cliente_email)}</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+    <div style="font-weight:700">${esc(o.cliente_nome)||'—'}</div>
+    <div class="muted" style="margin-bottom:12px">${clienteBlock(o)}</div>
+    <div style="display:grid;grid-template-columns:1.1fr 1fr;gap:20px">
       <div>
-        <table style="box-shadow:none">
+        ${produtosBlock(o.raw&&o.raw.produtos)}
+        <table style="box-shadow:none;margin-top:6px">
           <tr><th>Nota Fiscal</th><td>${esc(o.nota_fiscal)||'—'}</td></tr>
-          <tr><th>Preço</th><td>${money(o.preco)}</td></tr>
-          <tr><th>Destino</th><td>${esc(o.destino)||'—'}</td></tr>
+          <tr><th>Total</th><td>${money(o.preco)}</td></tr>
           <tr><th>Transportadora</th><td>${esc(o.transportadora)} ${esc(o.servico||'')}</td></tr>
           <tr><th>Rastreio</th><td>${esc(o.tracking_code)||'—'}</td></tr>
-          <tr><th>SKUs</th><td>${esc((Array.isArray(o.skus)?o.skus:[]).join(', '))||'—'}</td></tr>
           ${bordadoRows(o.raw&&o.raw.bordado)}
           <tr><th>Prazo</th><td>${fmtD(o.prazo_entrega)}</td></tr>
-          <tr><th>Visitas</th><td>${o.visitas||0}</td></tr>
-          <tr><th>Acareação</th><td>${o.acareacao_aberta?`Aberta ${fmtD(o.acareacao_em)} <button class="btn ghost" onclick="__ac(${id})">Encerrar</button>`:'—'}</td></tr>
+          <tr><th>Visitas do cliente</th><td>${o.visitas||0}</td></tr>
+          <tr><th>Acareação</th><td>${o.acareacao_aberta?`<span style="color:#e53935;font-weight:700">Aberta</span> ${fmtD(o.acareacao_em)} <button class="btn ghost" onclick="__ac(${id})">Encerrar</button>`:'—'}</td></tr>
         </table>
-        <div style="margin-top:10px"><button class="btn" onclick="__trk(${id})">Rastrear agora</button>
-        <a class="btn ghost" style="text-decoration:none" target="_blank" href="/rastreio.html">Ver página do cliente</a></div>
-        <div style="margin-top:12px"><div class="muted" style="margin-bottom:6px">Alterar status (sincroniza com a Loja Integrada):</div>${btns}</div>
+        ${enderecoBlock(o)}
       </div>
-      <div><h3 style="margin-top:0">Linha do tempo</h3>${tl}</div>
+      <div>
+        <h3 style="margin-top:0">Linha do tempo</h3>
+        ${funnelRuler(o, history)}
+        <h3 style="margin:16px 0 4px">Rastreio da transportadora</h3>
+        <div style="max-height:180px;overflow:auto">${tl}</div>
+      </div>
+    </div>
+    <div style="margin-top:14px;border-top:1px solid #eee;padding-top:12px">
+      <div class="muted" style="margin-bottom:6px">Alterar situação (sincroniza com a Loja Integrada):</div>${btns}
+      <div style="margin-top:8px"><button class="btn" onclick="__trk(${id})">Rastrear agora</button>
+      <a class="btn ghost" style="text-decoration:none" target="_blank" href="/rastreio.html">Ver página do cliente ↗</a></div>
     </div>`;
   document.getElementById('modalBg').style.display='flex';
 };
