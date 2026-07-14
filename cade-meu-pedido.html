@@ -304,6 +304,8 @@ function stepperH(o,history,ocorrencias){
   }).join('');
   return `<div style="display:flex;align-items:flex-start;padding:8px 6px 2px;overflow-x:auto">${steps}</div>`;
 }
+// esconde "serviço" quando é nome de empresa (ex.: "TAM LINHAS AEREAS S.A.") em vez de serviço real
+function servicoLimpo(s){ s=(s||'').trim(); if(!s) return ''; if(/(s\.?\s*a\.?$|ltda\b|linhas a[eé]reas|transportes?\b|log[íi]stica|telegrafos)/i.test(s)) return ''; return s; }
 function produtosBlock(prod){
   if(!prod||!Array.isArray(prod)||!prod.length) return '<p class="muted">Produtos não carregados ainda.</p>';
   return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">`+prod.map(p=>`
@@ -478,7 +480,7 @@ window.__open=async(id)=>{
         <table style="box-shadow:none">
           <tr><th>Nota Fiscal</th><td>${o.nota_fiscal?`Nº ${esc(o.nota_fiscal)} <span class="muted" style="font-size:11px">· Ativa</span>${o.raw&&o.raw.nf_link?` <a class="btn ghost" style="padding:2px 8px;font-size:11px" target="_blank" href="${esc(o.raw.nf_link)}">Ver NF</a>`:''}${o.raw&&o.raw.chave_danfe?`<div class="muted" style="font-size:10.5px;word-break:break-all">chave ${esc(o.raw.chave_danfe)}</div>`:''}`:'—'}</td></tr>
           <tr><th>Total do Pedido</th><td>${money(o.preco)}</td></tr>
-          <tr><th>Transportadora</th><td>${carrierLogo(o.transportadora)} <span class="muted">${esc(o.servico||'')}</span></td></tr>
+          <tr><th>Transportadora</th><td>${carrierLogo(o.transportadora)} <span class="muted">${esc(servicoLimpo(o.servico))}</span></td></tr>
           <tr><th>Código de Rastreio</th><td>${esc(o.tracking_code)||'—'} <button class="btn ghost" style="padding:2px 8px;font-size:11px;margin-left:4px" onclick="__altRastreio(${id},'${esc(o.tracking_code||'')}')">Alterar</button></td></tr>
           ${bordadoRows(o.raw&&o.raw.bordado)}
           <tr><th>Prazo de Entrega</th><td>${o.prazo_entrega?fmtD(o.prazo_entrega):'—'} ${['entregue','cancelado','devolvido'].includes(o.status)?'':'· '+prazoTxt(o)}</td></tr>
