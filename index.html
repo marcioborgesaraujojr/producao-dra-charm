@@ -2469,7 +2469,7 @@ if (localStorage.getItem('dc_dark')==='1') document.documentElement.classList.ad
 // ==================== SYNC BORDADOS DA LOJA INTEGRADA ====================
 let extensionInstalled = false;
 let extProbeWindow = null;
-openSyncBordado = async function(){
+window.openSyncBordado = async function(){
   var modal=document.getElementById('syncBordadoModal'); if(!modal) return;
   modal.classList.remove('hidden'); modal.classList.add('flex');
   var body=modal.querySelector('.overflow-y-auto') || modal.querySelector('div > div > div:last-child');
