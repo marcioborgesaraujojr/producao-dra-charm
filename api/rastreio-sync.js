@@ -427,8 +427,8 @@ async function imagemPorId(uri) {
   const r = await liDetGet(`/v1/produto_imagem/?produto=${id}&limit=20`);
   const objs = r.j?.objects || [];
   if (!objs.length) return null;
-  // prioridade: imagem PRINCIPAL (foto de catálogo definida pela loja) -> senão a de menor posição
-  const o = objs.find((x) => x.principal) || objs.slice().sort((a, b) => (a.posicao ?? 999) - (b.posicao ?? 999))[0];
+  // SEMPRE a de MENOR posição (a loja seta a foto cinza como 1ª). Ignora "principal".
+  const o = objs.slice().sort((a, b) => (a.posicao ?? 999) - (b.posicao ?? 999))[0];
   if (o?.caminho) return LI_CDN + String(o.caminho).replace(/^\/+/, '');
   return null;
 }
