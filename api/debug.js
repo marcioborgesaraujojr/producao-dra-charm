@@ -34,6 +34,6 @@ export default async function handler(req, res) {
                   headers: { "Authorization": "Bearer " + token }
           });
           const detD = await detR.json();
-          return res.json({ id: firstId, lista_campos: listD.data[0], detalhe_campos: detD.data });
+          return res.json({ id: firstId, lista_campos: (listD && listD.data && listD.data[0]) || null, detalhe_campos: (detD && detD.data) || detD });
     } catch(e) { res.status(500).json({ erro: e.message }); }
 }
