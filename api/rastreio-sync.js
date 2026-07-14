@@ -352,10 +352,11 @@ async function bordadoProbe(numero) {
   if (!out.achados.length) { const det = await liDetGet(objs[0].resource_uri); out.amostra_item = (det.j?.itens || [])[0]; out.amostra_cliente_obs = det.j?.cliente_obs; }
   return out;
 }
-// Enriquecimento via LI: puxa endereço de entrega (p/ motoboy), rastreio (envios),
-// obs e personalização (bordado) dos pedidos recentes -> grava no cmp_orders.raw.
-async function liEnrich(paginas = 3) {
-  const out = { pedidos: 0, atualizados: 0, comEndereco: 0, comBordado: 0, comRastreio: 0, erros: 0 };
+const LI_SIT_TO_INTERNAL = { pedido_pago: 'pago', pedido_enviado: 'enviado', pedido_entregue: 'entregue', pedido_cancelado: 'cancelado', pedido_devolvido: 'devolvido', aguardando_pagamento: 'criado', pedido_em_separacao: 'em_separacao', pedido_faturado: 'faturado' };
+// Enriquecimento + IMPORTAÇÃO via LI: puxa pedidos recentes; cria os que ainda
+// não existem (preenche o gap desde a migração) e enriquece endereço/rastreio.
+async function liEnrich(paginas = 3, importar = true) {
+  const out = { pedidos: 0, atualizados: 0, criados: 0, comEndereco: 0, comRastreio: 0, erros: 0 };
   for (let p = 0; p < paginas; p++) {
     const lst = await liDetGet(`/v1/pedido/?limit=20&offset=${p * 20}&order_by=-data_criacao`);
     const objs = lst.j?.objects || [];
@@ -365,24 +366,66 @@ async function liEnrich(paginas = 3) {
       try {
         const det = await liDetGet(o.resource_uri); const d = det.j || {};
         const numero = String(d.numero || o.numero);
-        const ord = await sb.selectOne('cmp_orders', { columns: 'id,raw,tracking_code,transportadora', where: `numero=eq.${numero}` });
-        if (!ord) continue;
         const end = d.endereco_entrega || null;
         const envio = (d.envios || [])[0] || {};
         const codigo = envio.objeto || envio.codigo_rastreio || envio.rastreio || null;
-        const bordado = extractBordado(d);
+        const forma = envio.forma_envio_nome || envio.nome || '';
+        const sit = (d.situacao && (d.situacao.codigo || d.situacao)) || '';
+        // cliente pode vir como objeto ou URI
+        let cli = d.cliente;
+        if (typeof cli === 'string' && cli.startsWith('/api')) { const cr = await liDetGet(cli); cli = cr.j || {}; }
+        cli = cli || {};
+        const ord = await sb.selectOne('cmp_orders', { columns: 'id,raw,tracking_code,transportadora,status', where: `numero=eq.${numero}` });
+        if (!ord) {
+          if (!importar) continue;
+          const row = {
+            li_id: numero, numero, nota_fiscal: '',
+            cliente_nome: cli.nome || (end && end.nome) || '', cliente_email: (cli.email || '').toLowerCase(),
+            cliente_cpf: (cli.cpf || cli.cnpj || '').replace(/\D/g, ''),
+            destino: end ? [end.cidade, end.estado || end.uf].filter(Boolean).join('/') : '', uf: (end && (end.estado || end.uf)) || '',
+            preco: Number(d.valor_total || 0), transportadora: carrierKey(forma), servico: forma,
+            tracking_code: codigo || null, status: LI_SIT_TO_INTERNAL[sit] || 'criado',
+            skus: (d.itens || []).map((i) => i.sku).filter(Boolean),
+            criado_em: d.data_criacao || new Date().toISOString(),
+            raw: { endereco_entrega: end, cliente_obs: d.cliente_obs || null, li_id_interno: d.id },
+          };
+          await sb.insert('cmp_orders', row, { returning: false });
+          out.criados++; continue;
+        }
         const raw = { ...(ord.raw || {}) };
         if (end) { raw.endereco_entrega = end; out.comEndereco++; }
         if (d.cliente_obs) raw.cliente_obs = d.cliente_obs;
-        if (bordado) { raw.bordado = bordado; out.comBordado++; }
         const patch = { raw };
         if (codigo && !ord.tracking_code) { patch.tracking_code = codigo; out.comRastreio++; }
-        const forma = envio.forma_envio_nome || envio.nome;
         if (forma && (!ord.transportadora || ord.transportadora === 'correios')) { patch.transportadora = carrierKey(forma); patch.servico = forma; }
         await sb.update('cmp_orders', `id=eq.${ord.id}`, patch);
         out.atualizados++;
       } catch (e) { out.erros++; }
     }
+  }
+  return out;
+}
+// Bordado REAL: une a tabela `cards` (preenchida pela extensão) ao pedido, pelo
+// número. Copia nome/profissão/cor/fonte para cmp_orders.raw.bordado — sem raspagem
+// extra. Substitui a "gambiarra" de o módulo depender da extensão diretamente.
+async function bordadoLink(limite = 1500) {
+  const cards = await sb.select('cards', { columns: 'pedido_numero,bordado_tipo,bordado_linha1,bordado_linha2,bordado_cor_nome,bordado_cor_hex,bordado_fonte,bordado_lado,bordado_detalhes', where: 'bordado_linha1=not.is.null', order: 'created_at.desc', limit: limite });
+  const byPed = {};
+  for (const c of cards) { if (c.pedido_numero) (byPed[c.pedido_numero] = byPed[c.pedido_numero] || []).push(c); }
+  const numeros = Object.keys(byPed);
+  const out = { cards: cards.length, pedidos: numeros.length, linkados: 0, semPedido: 0 };
+  for (let i = 0; i < numeros.length; i += 50) {
+    const chunk = numeros.slice(i, i + 50);
+    const rows = await sb.select('cmp_orders', { columns: 'id,numero,raw', where: `numero=in.(${chunk.join(',')})`, limit: 100 });
+    const map = {}; for (const r of rows) map[r.numero] = r;
+    const ups = [];
+    for (const numero of chunk) {
+      const ord = map[numero]; if (!ord) { out.semPedido++; continue; }
+      const bordado = byPed[numero].map((c) => ({ tipo: c.bordado_tipo, linha1: c.bordado_linha1, linha2: c.bordado_linha2, cor: c.bordado_cor_nome, cor_hex: c.bordado_cor_hex, fonte: c.bordado_fonte, lado: c.bordado_lado, detalhes: c.bordado_detalhes }));
+      ups.push(sb.update('cmp_orders', `id=eq.${ord.id}`, { raw: { ...(ord.raw || {}), bordado } }));
+      out.linkados++;
+    }
+    await Promise.all(ups);
   }
   return out;
 }
@@ -557,15 +600,18 @@ export default async function handler(req, res) {
     if (req.query.jt === 'diag') return res.status(200).json(await jtDiag(Number(req.query.dias) || 29));
     if (req.query.bordado === 'probe') return res.status(200).json(await bordadoProbe(req.query.numero));
     if (req.query.enrich === 'li') return res.status(200).json(await liEnrich(Number(req.query.paginas) || 3));
+    if (req.query.bordado === 'link') return res.status(200).json(await bordadoLink(Number(req.query.limite) || 1500));
     if (req.query.admin === 'disableTimeRules') return res.status(200).json(await disableTimeRules());
     if (req.query.motoboy_key === 'get') return res.status(200).json({ key: await motoboyKey() });
     if (req.query.process === 'batch') return res.status(200).json(await processActiveBatch(Number(req.query.limit) || 40));
 
     // ===== Ciclo automático (cron diário): pipeline REAL, sem dados mock =====
     const out = { ranAt: new Date().toISOString() };
-    try { out.bling = await blingSync(100, 1); } catch (e) { out.bling = { error: e.message }; }
+    try { out.liImport = await liEnrich(3, true); } catch (e) { out.liImport = { error: e.message }; }
+    try { out.bling = await blingSync(80, 1); } catch (e) { out.bling = { error: e.message }; }
     try { out.jt = await jtSync(3, 29); } catch (e) { out.jt = { error: e.message }; }
-    try { out.cycle = await processActiveBatch(40); } catch (e) { out.cycle = { error: e.message }; }
+    try { out.bordado = await bordadoLink(400); } catch (e) { out.bordado = { error: e.message }; }
+    try { out.cycle = await processActiveBatch(30); } catch (e) { out.cycle = { error: e.message }; }
     return res.status(200).json({ ok: true, ...out });
   } catch (e) {
     return res.status(500).json({ ok: false, error: e.message });

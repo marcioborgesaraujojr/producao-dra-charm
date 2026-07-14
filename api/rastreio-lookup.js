@@ -31,6 +31,7 @@ export default async function handler(req, res) {
       numero: order.numero, status: order.status, transportadora: order.transportadora,
       servico: order.servico, tracking_code: order.tracking_code, destino: order.destino,
       prazo_entrega: order.prazo_entrega, data_envio: order.data_envio, data_entrega: order.data_entrega,
+      bordado: (order.raw && order.raw.bordado) || null,
     },
     events: events.map((e) => ({ data: e.data, descricao: e.descricao, local: e.local })),
   });
