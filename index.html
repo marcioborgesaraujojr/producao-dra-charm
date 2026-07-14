@@ -110,10 +110,14 @@ tailwind.config = {
     header button{padding:5px}
     header button svg{width:18px;height:18px}
     #bellBadge{font-size:9px;min-width:16px;height:16px}
-    #boardSelect{max-width:140px;font-size:13px}
+    #boardSelect{max-width:none;width:100%;font-size:14px;padding:6px 8px;font-weight:600}
+    /* Header vira 2 linhas: primeira = logo + board full width; segunda = filtros e botoes */
+    header > div{flex-wrap:wrap}
+    header > div > div.flex.items-center.gap-2:first-child{flex:1 1 100%;order:1;margin-bottom:6px}
+    header .flex-1.flex.items-center.gap-2{flex-basis:100%;order:10}
     #statsLine{display:none}
     header label.flex.items-center.gap-2{display:none} /* Ocultar finalizados label */
-    #density{font-size:12px;padding:4px 6px}
+    #density{font-size:12px;padding:6px 8px}
     #filterFaccaoBtn{padding:6px 8px;font-size:12px}
     #search{font-size:14px}
     /* Search vira linha própria abaixo */
