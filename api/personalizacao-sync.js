@@ -29,7 +29,7 @@ function parseBordado(obs){
     return { tipo, linha1:l1, linha2:l2||l3, fonte:f['tipo de letra']||null, corHex, corNome:corNome||null, lado:f['lados']||f['lado']||null };
   }).filter(b=>b.linha1||b.linha2||b.tipo);
 }
-async function sb(method, path, body){
+async function sbREST(method, path, body){
   const url=process.env.SUPABASE_URL+'/rest/v1/'+path;
   const h={'apikey':process.env.SUPABASE_SERVICE_ROLE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_SERVICE_ROLE_KEY,'Content-Type':'application/json'};
   if(method!=='GET') h['Prefer']='return=representation';
@@ -37,29 +37,37 @@ async function sb(method, path, body){
   let j=null; try{ j=await r.json(); }catch(e){}
   return {status:r.status, j};
 }
+async function validUser(token){
+  if(!token) return false;
+  try{ const r=await fetch(process.env.SUPABASE_URL+'/auth/v1/user',{headers:{apikey:process.env.SUPABASE_SERVICE_ROLE_KEY, Authorization:'Bearer '+token}}); const j=await r.json(); return !!(j && j.id); }catch(e){ return false; }
+}
 export default async function handler(req,res){
   res.setHeader('Access-Control-Allow-Origin','*');
   const q=req.query||{};
   const commit = q.commit==='1';
-  const keyOk = q.key && q.key===process.env.CMP_CRON_SECRET;
-  if(commit && !keyOk) return res.status(401).json({error:'commit requer key valida'});
-  const limit=Math.min(parseInt(q.limit||'60',10),100);
+  const bearer=(req.headers.authorization||'').replace('Bearer ','');
+  let auth = (q.key && q.key===process.env.CMP_CRON_SECRET);
+  if(commit && !auth){ auth = await validUser(bearer); }
+  if(commit && !auth) return res.status(401).json({error:'precisa estar logado pra sincronizar'});
+  const limit=Math.min(parseInt(q.limit||'120',10),200);
   try{
-    const lst=await liGet('/v1/pedido/?limit='+limit+'&order_by=-data_criacao');
-    const objs=(lst.j&&lst.j.objects)||[];
-    const candidatos=[];
-    for(const o of objs){
-      if(!o.resource_uri) continue;
-      const det=await liGet(o.resource_uri); const d=det.j||{};
-      const blocks=parseBordado(d.cliente_obs);
-      if(!blocks.length) continue;
-      const b=blocks[0];
-      candidatos.push({ numero:String(d.numero), id_li:d.id, cliente:(d.cliente&&(d.cliente.nome||d.cliente.email))||null, b, qtd:blocks.length });
+    const candidatos=[]; let pagina=0; let scanned=0; const perPage=50;
+    while(scanned<limit){
+      const off=pagina*perPage;
+      const lst=await liGet('/v1/pedido/?limit='+perPage+'&offset='+off+'&order_by=-data_criacao');
+      const objs=(lst.j&&lst.j.objects)||[]; if(!objs.length) break;
+      for(const o of objs){ scanned++; if(!o.resource_uri) continue;
+        const det=await liGet(o.resource_uri); const d=det.j||{};
+        const blocks=parseBordado(d.cliente_obs); if(!blocks.length) continue;
+        const b=blocks[0];
+        candidatos.push({ numero:String(d.numero), id_li:d.id, cliente:(d.cliente&&(d.cliente.nome||d.cliente.email))||null, b, qtd:blocks.length });
+      }
+      if(objs.length<perPage) break; pagina++;
     }
-    const nums=candidatos.map(c=>c.numero);
+    const nums=[...new Set(candidatos.map(c=>c.numero))];
     let existentes=[];
-    if(nums.length){ const ex=await sb('GET','cards?select=pedido_numero&pedido_numero=in.('+nums.join(',')+')'); existentes=(ex.j||[]).map(x=>String(x.pedido_numero)); }
-    const novos=candidatos.filter(c=>!existentes.includes(c.numero));
+    if(nums.length){ const ex=await sbREST('GET','cards?select=pedido_numero&pedido_numero=in.('+nums.join(',')+')'); existentes=(ex.j||[]).map(x=>String(x.pedido_numero)); }
+    const seen={}; const novos=candidatos.filter(c=>{ if(existentes.includes(c.numero)||seen[c.numero]) return false; seen[c.numero]=1; return true; });
     const rows=novos.map(c=>({
       list_id:PERSO_LIST, title:(c.cliente||('Pedido '+c.numero)), position:Date.now(),
       pedido_numero:c.numero, pedido_cliente:c.cliente,
@@ -68,7 +76,7 @@ export default async function handler(req,res){
       pedido_url: c.id_li?('https://app.lojaintegrada.com.br/painel/pedido/'+c.id_li+'/detalhar'):null
     }));
     let inserted=0, insErr=null;
-    if(commit && rows.length){ const ins=await sb('POST','cards',rows); if(ins.status>=200&&ins.status<300){ inserted=(ins.j||[]).length; } else { insErr=ins.j; } }
-    res.status(200).json({ dryrun:!commit, varridos:objs.length, comBordado:candidatos.length, jaExistem:candidatos.length-novos.length, criaria:novos.length, inserted, insErr, amostra: novos.slice(0,3).map(c=>({numero:c.numero, tipo:c.b.tipo, temL1:!!c.b.linha1, temL2:!!c.b.linha2, cor:c.b.corNome, fonte:c.b.fonte, lado:c.b.lado})) });
+    if(commit && rows.length){ const ins=await sbREST('POST','cards',rows); if(ins.status>=200&&ins.status<300){ inserted=(ins.j||[]).length; } else { insErr=ins.j; } }
+    res.status(200).json({ dryrun:!commit, varridos:scanned, comBordado:candidatos.length, jaExistem:candidatos.length-novos.length, criaria:novos.length, inserted, insErr, amostra: novos.slice(0,4).map(c=>({numero:c.numero, cliente:c.cliente?'ok':null, tipo:c.b.tipo, cor:c.b.corNome, fonte:c.b.fonte, lado:c.b.lado})) });
   }catch(e){ res.status(500).json({error:e.message}); }
 }
