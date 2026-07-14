@@ -412,7 +412,7 @@ async function prodImgProbe(numero) {
     // variação não tem imagem — busca no produto PAI
     const paiUri = it.produto_pai || p.pai || null;
     out.pai_uri = paiUri;
-    if (paiUri) { const paiId = String(paiUri).split('/').filter(Boolean).pop(); const pip = await liDetGet(`/v1/produto_imagem/?produto=${paiId}&limit=2`); out.pai_imagem_qtd = (pip.j?.objects || []).length; out.pai_imagem_0 = (pip.j?.objects || [])[0] || null; }
+    if (paiUri) { const paiId = String(paiUri).split('/').filter(Boolean).pop(); const pip = await liDetGet(`/v1/produto_imagem/?produto=${paiId}&limit=20`); out.pai_imagem_qtd = (pip.j?.objects || []).length; out.pai_imagens = (pip.j?.objects || []).map((x) => ({ posicao: x.posicao, principal: x.principal, caminho: x.caminho })); }
   }
   return out;
 }
