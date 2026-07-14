@@ -145,6 +145,14 @@ document.getElementById('f').addEventListener('submit', async (e)=>{
       </div>`;
   }catch(err){ box.innerHTML = '<div class="err">Erro ao consultar. Tente novamente.</div>'; }
 });
+
+// Vindo do painel (Acompanhar Pedido): preenche e busca automaticamente.
+(function(){
+  const p=new URLSearchParams(location.search);
+  const doc=p.get('doc'), ped=p.get('pedido');
+  if(doc){ document.getElementById('doc').value=doc; if(ped) document.getElementById('pedido').value=ped;
+    document.getElementById('f').dispatchEvent(new Event('submit',{cancelable:true})); }
+})();
 </script>
 </body>
 </html>
