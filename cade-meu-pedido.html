@@ -175,7 +175,7 @@ const api=(path,opts={})=>fetch('/api/'+path,{...opts,headers:{'Content-Type':'a
 
 const NAV=[
   ['pedidos','cart','Pedidos'], ['atrasados','truck','Atrasados'], ['acareacoes','users','Acareações'],
-  ['ocorrencias','alert','Ocorrências'], ['devolucao','ret','Devolução'],
+  ['ocorrencias','alert','Ocorrências'], ['extravio','box','Extravio'], ['devolucao','ret','Devolução'],
   ['retirada','store','Retirada & Entrega'], ['estatisticas','chart','Estatísticas'], ['regras','rules','Regras'],
 ];
 let VIEW='pedidos', DATA={orders:[],counts:{}}, filt={status:'',q:''};
@@ -225,6 +225,7 @@ async function load(){
   else if(VIEW==='devolucao') qp.push('status=devolvido');
   else if(VIEW==='acareacoes') qp.push('acareacao=true');
   else if(VIEW==='ocorrencias') qp.push('ocorrencia=true');
+  else if(VIEW==='extravio') qp.push('ocorrencia=Extravio');
   else if(VIEW==='retirada') qp.push('transportadora=local');
   DATA=await api('rastreio-orders'+(qp.length?'?'+qp.join('&'):''));
   renderNav(); render();
@@ -360,7 +361,7 @@ function ocorrenciasBlock(ocs,id,emailOk){
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;font-size:12.5px;margin-bottom:10px">
           <div><span class="muted">Nota Fiscal:</span> ${esc(oc.nota_fiscal)||'—'}</div>
           <div><span class="muted">Notificação do Cliente:</span> ${notif}</div>
-          <div><span class="muted">Notificação da Transportadora:</span> <span style="color:#999">Não notificada</span></div>
+          <div><span class="muted">Notificação da Transportadora:</span> ${oc.notif_transportadora?'<span style="color:#43a047;font-weight:700">Notificada</span>':'<span style="color:#999">Não notificada</span>'}</div>
           <div><span class="muted">Aberta:</span> ${oc.auto?'automaticamente':'manualmente'}</div>
         </div>
         <div style="font-weight:700;font-size:12px;margin-bottom:2px">Comentários</div>
@@ -372,6 +373,7 @@ function ocorrenciasBlock(ocs,id,emailOk){
           ${oc.status==='aberta'?`<button class="btn" style="background:#3E7CB8" onclick="__ocTratativa(${id},${oc.id})">Realizar Tratativa</button>`:''}
           ${oc.status!=='fechada'?`<button class="btn" style="background:var(--orange)" onclick="__ocFechar(${id},${oc.id})">Fechar Ocorrência</button>`:''}
           ${canNotif&&!oc.notif_cliente?`<button class="btn ghost" onclick="__ocNotificar(${id},${oc.id})">${IC.mail} Notificar cliente</button>`:''}
+          ${oc.status!=='fechada'&&!oc.notif_transportadora?`<button class="btn ghost" onclick="__ocNotifTransp(${id},${oc.id})">${IC.truck} Notificar transportadora</button>`:''}
         </div>
       </div>
     </div>`;
@@ -474,7 +476,7 @@ window.__open=async(id)=>{
       </div>
       <div>
         <table style="box-shadow:none">
-          <tr><th>Nota Fiscal</th><td>${esc(o.nota_fiscal)||'—'}</td></tr>
+          <tr><th>Nota Fiscal</th><td>${o.nota_fiscal?`Nº ${esc(o.nota_fiscal)} <span class="muted" style="font-size:11px">· Ativa</span>${o.raw&&o.raw.chave_danfe?`<div class="muted" style="font-size:10.5px;word-break:break-all">chave ${esc(o.raw.chave_danfe)}</div>`:''}`:'—'}</td></tr>
           <tr><th>Total do Pedido</th><td>${money(o.preco)}</td></tr>
           <tr><th>Transportadora</th><td>${carrierLogo(o.transportadora)} <span class="muted">${esc(o.servico||'')}</span></td></tr>
           <tr><th>Código de Rastreio</th><td>${esc(o.tracking_code)||'—'} <button class="btn ghost" style="padding:2px 8px;font-size:11px;margin-left:4px" onclick="__altRastreio(${id},'${esc(o.tracking_code||'')}')">Alterar</button></td></tr>
@@ -507,6 +509,7 @@ window.__ocComentar=async(id,ocId)=>{ const el=document.getElementById('ocCm'+oc
 window.__ocTratativa=async(id,ocId)=>{ await api('rastreio-orders',{method:'POST',body:JSON.stringify({action:'ocorrenciaTratativa',ocId})}); __open(id); };
 window.__ocFechar=async(id,ocId)=>{ if(!confirm('Fechar esta ocorrência?'))return; await api('rastreio-orders',{method:'POST',body:JSON.stringify({action:'ocorrenciaFechar',ocId})}); __open(id); load(); };
 window.__ocNotificar=async(id,ocId)=>{ const r=await api('rastreio-orders',{method:'POST',body:JSON.stringify({action:'ocorrenciaNotificar',ocId})}); if(!r.ok)alert('Não foi possível enviar o e-mail: '+(r.email?.reason||'')); __open(id); };
+window.__ocNotifTransp=async(id,ocId)=>{ await api('rastreio-orders',{method:'POST',body:JSON.stringify({action:'ocorrenciaNotifTransp',ocId})}); __open(id); };
 window.__altRastreio=async(id,atual)=>{ const c=prompt('Novo código de rastreio:',atual||''); if(c===null)return; await api('rastreio-orders',{method:'POST',body:JSON.stringify({action:'alterarRastreio',id,tracking_code:c})}); __open(id); load(); };
 window.__altEmail=async(id,atual)=>{ const e=prompt('E-mail do cliente:',atual||''); if(e===null)return; await api('rastreio-orders',{method:'POST',body:JSON.stringify({action:'alterarEmail',id,email:e})}); __open(id); };
 
