@@ -31,6 +31,8 @@ tailwind.config = {
   body.has-bg #app,body.has-bg #loginScreen{position:relative;z-index:1}
   body.has-bg header{background:rgba(255,255,255,.85)!important;backdrop-filter:blur(12px)}
   body.has-bg.dark header{background:rgba(17,24,39,.85)!important}
+  /* v82: hubScreen tem bg-gradient inline do Tailwind que cobre o #appBg fixed. Zera quando has-bg */
+  body.has-bg #hubScreen,body.has-bg #loginScreen{background:transparent !important;background-image:none !important}
   .board-scroll{scrollbar-width:thin}
   .board-scroll::-webkit-scrollbar{height:10px;width:10px}
   .board-scroll::-webkit-scrollbar-thumb{background:#94a3b8;border-radius:8px}
