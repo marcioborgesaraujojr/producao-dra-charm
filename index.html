@@ -2687,7 +2687,7 @@ function showHub(){
   document.getElementById('app').classList.add('hidden');
   document.getElementById('hubScreen').classList.remove('hidden');
   (document.getElementById('appBg')||document.body).style.backgroundImage = '';
-  document.body.classList.remove('has-bg');
+  document.body.classList.add('has-bg');
   applySuiteBg();
   const em = document.getElementById('hubUserEmail');
   if (em && typeof user !== 'undefined' && user) em.textContent = user.email || '';
@@ -2795,8 +2795,7 @@ document.addEventListener('click', e => {
   }
 });
 /* === Suite: Configuracoes da Suite (v66) === */
-function applySuiteBg(){try{var b=sb.storage.from('system-assets').getPublicUrl('suite-bg.jpg').data.publicUrl;var u=b+'?t='+Date.now();var im=new Image();im.onload=function(){['hubScreen','loginScreen'].forEach(function(id){var el=document.getElementById(id);if(el){el.style.backgroundImage="url('"+u+"')";el.style.backgroundSize='cover';el.style.backgroundPosition='center';el.style.backgroundRepeat='no-repeat';}});};im.src=u;}catch(e){}}
-function ensSuiteModal(){if(document.getElementById('suiteSettingsModal'))return;var d=document.createElement('div');d.id='suiteSettingsModal';d.className='hidden fixed inset-0 z-50 items-center justify-center p-4';var h=[];
+function applySuiteBg(){try{var b=sb.storage.from('system-assets').getPublicUrl('suite-bg.jpg').data.publicUrl;var u=b+'?t='+Date.now();var im=new Image();im.onload=function(){var el=document.getElementById('appBg');if(el){el.style.backgroundImage="url('"+u+"')";}document.body.classList.add('has-bg');};im.src=u;}catch(e){}}function ensSuiteModal(){if(document.getElementById('suiteSettingsModal'))return;var d=document.createElement('div');d.id='suiteSettingsModal';d.className='hidden fixed inset-0 z-50 items-center justify-center p-4';var h=[];
 h.push('<div class="absolute inset-0 bg-black/50" onclick="closeSuiteSettings()"></div>');
 h.push('<div class="relative bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">');
 h.push('<div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-ink-700"><h2 class="text-lg font-bold text-slate-900 dark:text-slate-100">Configurações da Suíte</h2><button onclick="closeSuiteSettings()" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-2xl leading-none">&times;</button></div>');
