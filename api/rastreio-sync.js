@@ -400,10 +400,12 @@ async function prodImgProbe(numero) {
     const pr = await liDetGet(it.produto); const p = pr.j || {};
     out.produto_status = pr.status;
     out.produto_campos = Object.keys(p);
-    out.imagens = p.imagens ?? p.imagem ?? p.images ?? p.imagem_principal ?? null;
-    // se imagens é uma URI de sub-recurso, busca ela
-    if (typeof out.imagens === 'string' && out.imagens.startsWith('/')) { const im = await liDetGet(out.imagens); out.imagens_sub = im.j; }
-    out.produto_amostra = JSON.stringify(p).slice(0, 1200);
+    out.imagens_len = Array.isArray(p.imagens) ? p.imagens.length : null;
+    out.imagens0 = Array.isArray(p.imagens) ? p.imagens[0] : null;
+    out.imagem_principal = p.imagem_principal ?? null;
+    // busca o sub-recurso da imagem principal (onde ficam as URLs reais)
+    if (typeof p.imagem_principal === 'string' && p.imagem_principal.startsWith('/')) { const im = await liDetGet(p.imagem_principal); out.imagem_principal_obj = im.j; }
+    if (typeof out.imagens0 === 'string' && out.imagens0.startsWith('/')) { const im = await liDetGet(out.imagens0); out.imagens0_obj = im.j; }
   }
   return out;
 }
