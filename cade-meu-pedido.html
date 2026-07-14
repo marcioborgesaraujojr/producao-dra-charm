@@ -187,7 +187,7 @@ async function boot(){
   document.getElementById('meNome').textContent=(USER&&(USER.user_metadata?.name||USER.email))||'Equipe Dra. Charm';
   document.getElementById('meEmail').textContent=(USER&&USER.email)||'';
   const fSit=document.getElementById('fSit'); ORDER.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=STATUS[s][0];fSit.appendChild(o);});
-  const fTr=document.getElementById('fTrans'); Object.keys(CARRIERS).forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=CARRIERS[k][0];fTr.appendChild(o);});
+  const fTr=document.getElementById('fTrans'); [['correios','Correios'],['jt','J&T Express'],['melhorenvio','Melhor Envio'],['total','Total Express'],['local','Personalizada / Motoboy'],['sem','Sem transportadora']].forEach(([k,lbl])=>{const o=document.createElement('option');o.value=k;o.textContent=lbl;fTr.appendChild(o);});
   // fechar modal clicando fora
   document.getElementById('modalBg').addEventListener('click',e=>{ if(e.target.id==='modalBg') __close(); });
   document.addEventListener('keydown',e=>{ if(e.key==='Escape') __close(); });
@@ -200,35 +200,42 @@ function renderNav(){
     return `<a class="${VIEW===n[0]?'active':''}" onclick="__go('${n[0]}')"><span class="lbl"><span class="ic">${IC[n[1]]}</span> ${n[2]}</span>${cnt?`<span class="cnt">${cnt}</span>`:''}</a>`;
   }).join('');
 }
-window.__go=(v)=>{ VIEW=v; renderNav(); render(); };
+window.__go=(v)=>{
+  VIEW=v;
+  if(v!=='pedidos'){ filt={status:'',q:''}; ['fPedido','fNF','fRastreio'].forEach(id=>{const e=document.getElementById(id); if(e)e.value='';}); const s=document.getElementById('fSit'); if(s)s.value=''; const t=document.getElementById('fTrans'); if(t)t.value=''; }
+  renderNav();
+  if(v==='regras') render(); else load();
+};
 window.__runCycle=async()=>{ const b=document.getElementById('runBtn'); b.textContent='Rodando…'; try{await api('rastreio-sync');}catch(e){} b.textContent='Rodar ciclo'; load(); };
 
+function barVal(id){ const e=document.getElementById(id); return e?e.value.trim():''; }
 async function load(){
   document.getElementById('view').innerHTML='<p class="muted">Carregando…</p>';
-  const qs=filt.status?`?status=${filt.status}`:'';
-  DATA=await api('rastreio-orders'+qs+(filt.q?`${filt.status?'&':'?'}q=${encodeURIComponent(filt.q)}`:''));
+  const qp=[];
+  if(VIEW==='pedidos'){
+    if(filt.status) qp.push('status='+filt.status);
+    if(filt.q) qp.push('q='+encodeURIComponent(filt.q));
+    const tr=barVal('fTrans'); if(tr) qp.push('transportadora='+tr);
+    const nf=barVal('fNF'); if(nf) qp.push('nf='+encodeURIComponent(nf));
+    const rk=barVal('fRastreio'); if(rk) qp.push('rastreio='+encodeURIComponent(rk));
+  }
+  else if(VIEW==='atrasados') qp.push('status=atrasado');
+  else if(VIEW==='devolucao') qp.push('status=devolvido');
+  else if(VIEW==='acareacoes') qp.push('acareacao=true');
+  else if(VIEW==='ocorrencias') qp.push('ocorrencia=true');
+  else if(VIEW==='retirada') qp.push('transportadora=local');
+  DATA=await api('rastreio-orders'+(qp.length?'?'+qp.join('&'):''));
   renderNav(); render();
 }
 let debT;
 window.__deb=()=>{ clearTimeout(debT); debT=setTimeout(applyFilters,350); };
-window.applyFilters=()=>{ filt.status=document.getElementById('fSit').value; filt.q=document.getElementById('fPedido').value.trim(); load(); };
-function clientFilter(orders){
-  const nf=(document.getElementById('fNF')?.value||'').trim();
-  const tr=document.getElementById('fTrans')?.value||'';
-  const rk=(document.getElementById('fRastreio')?.value||'').trim().toLowerCase();
-  return orders.filter(o=>(!nf||String(o.nota_fiscal||'').includes(nf))&&(!tr||o.transportadora===tr)&&(!rk||String(o.tracking_code||'').toLowerCase().includes(rk)));
-}
+window.applyFilters=()=>{ VIEW='pedidos'; filt.status=document.getElementById('fSit').value; filt.q=barVal('fPedido'); renderNav(); load(); };
 
 function render(){
   const v=document.getElementById('view');
   if(VIEW==='regras') return renderRules(v);
   if(VIEW==='retirada') return renderRetirada(v);
   let orders=DATA.orders||[]; const c=DATA.counts||{};
-  if(VIEW==='atrasados') orders=orders.filter(o=>o.status==='atrasado');
-  if(VIEW==='acareacoes') orders=orders.filter(o=>o.acareacao_aberta);
-  if(VIEW==='ocorrencias') orders=orders.filter(o=>o.ocorrencia);
-  if(VIEW==='devolucao') orders=orders.filter(o=>o.status==='devolvido');
-  orders=clientFilter(orders);
   const chips=['<span class="chip '+(!filt.status?'active':'')+'" onclick="__chip(\'\')"><span class="n">'+(c._total||0)+'</span> Todos</span>']
     .concat(['pago','faturado','enviado','atrasado','entregue','devolvido'].map(s=>`<span class="chip ${filt.status===s?'active':''}" onclick="__chip('${s}')"><span class="n" style="color:${STATUS[s][2]}">${c[s]||0}</span> ${STATUS[s][0]}</span>`)).join('');
   v.innerHTML=`
@@ -248,7 +255,7 @@ function render(){
     </tbody></table>
     <div class="muted" style="margin-top:8px">Exibindo ${orders.length} pedido(s)${VIEW==='pedidos'?` · Total no sistema: ${c._total||0}`:''}.</div>`;
 }
-window.__chip=(s)=>{ filt.status=s; document.getElementById('fSit').value=s; load(); };
+window.__chip=(s)=>{ VIEW='pedidos'; filt.status=s; const el=document.getElementById('fSit'); if(el)el.value=s; renderNav(); load(); };
 
 /* ---------- Detalhe do pedido ---------- */
 const FUNNEL=[['criado','Criado'],['pago','Pago'],['faturado','Faturado'],['enviado','Enviado'],['entregue','Entregue']];
@@ -306,7 +313,7 @@ window.__open=async(id)=>{
   const c=(o.raw&&o.raw.cliente_contato)||{};
   const waTel=(c.telefone||'').replace(/\D/g,'');
   const wa=waTel?(waTel.length<=11?'55'+waTel:waTel):'';
-  const acompanhar=`/rastreio.html?doc=${encodeURIComponent(o.cliente_email||'')}&pedido=${encodeURIComponent(o.numero)}`;
+  const acompanhar=`/rastreio.html?doc=${encodeURIComponent(o.cliente_email||'')}&pedido=${encodeURIComponent(o.numero)}&preview=1`;
   document.getElementById('modal').innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
       <div><div class="muted" style="font-size:12px">PEDIDO</div>

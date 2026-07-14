@@ -122,7 +122,8 @@ document.getElementById('f').addEventListener('submit', async (e)=>{
   const box = document.getElementById('result');
   box.innerHTML = '<p style="color:#999">Buscando…</p>';
   try{
-    const r = await fetch('/api/rastreio-lookup?doc='+encodeURIComponent(doc)+'&pedido='+encodeURIComponent(pedido));
+    const _pv = new URLSearchParams(location.search).get('preview')==='1' ? '&preview=1' : '';
+    const r = await fetch('/api/rastreio-lookup?doc='+encodeURIComponent(doc)+'&pedido='+encodeURIComponent(pedido)+_pv);
     const data = await r.json();
     if(!r.ok){ box.innerHTML = '<div class="err">'+esc(data.error||'Não encontrado.')+'</div>'; return; }
     const o = data.order, evs = data.events||[];
