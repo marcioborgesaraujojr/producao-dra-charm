@@ -1179,7 +1179,11 @@ async function switchBoard(boardId){
   // Carrega lists PRIMEIRO pra filtrar cards no server (evita limite 1000 do Supabase)
   const { data: listsData } = await sb.from('lists').select('*').eq('board_id', boardId).eq('archived', false).order('position');
   lists = listsData || [];
-  const listIdsArr = lists.map(l=>l.id);
+  // v78: se hideFinalizado ativo, exclui a lista FINALIZADO da query inicial (grande win mobile: 771->120 cards)
+  let listIdsArr = lists.map(l=>l.id);
+  const finalizadoIdInit = lists.find(l => /finalizado|conclu/i.test(l.name))?.id;
+  const skipFinalizado = filters.hideFinalizado && finalizadoIdInit;
+  if (skipFinalizado) listIdsArr = listIdsArr.filter(id => id !== finalizadoIdInit);
   const [laR, tR, cR] = await Promise.all([
     sb.from('labels').select('*').eq('board_id', boardId).order('name'),
     sb.from('tecidos').select('*').eq('board_id', boardId).order('name'),
@@ -2419,7 +2423,7 @@ window.clearFacFilter = () => { filters.faccao.clear(); renderFacFilterList(docu
 window.closeFacFilter = () => document.getElementById('filterFaccaoDropdown').classList.add('hidden');
 
 document.getElementById('search').oninput = e => { filters.search = e.target.value; renderBoard(); };
-document.getElementById('hideFinalizado').onchange = e => { filters.hideFinalizado = e.target.checked; renderBoard(); };
+document.getElementById('hideFinalizado').onchange = async e => { filters.hideFinalizado = e.target.checked; if (!e.target.checked) { await enterBoard(currentBoardId); } else { renderBoard(); } };
 document.getElementById('density').onchange = e => { filters.density = e.target.value; renderBoard(); };
 setTimeout(() => { const d = document.getElementById('density'); if (d) d.value = filters.density; }, 100);
 document.getElementById('estoqueBtn').onclick = openEstoque;
