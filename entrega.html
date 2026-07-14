@@ -90,8 +90,8 @@ async function load(){
 function render(){
   const q=(document.getElementById('q')?.value||'').toLowerCase();
   let list=ORDERS.filter(o=>o.status!=='entregue');
-  if(FILTER==='retirada') list=list.filter(o=>o.status==='aguardando_retirada'||/retirada|loja/i.test(o.servico||''));
-  else if(FILTER==='motoboy') list=list.filter(o=>!(o.status==='aguardando_retirada'||/retirada|loja/i.test(o.servico||'')));
+  if(FILTER==='retirada') list=list.filter(o=>o.transportadora==='retirada');
+  else if(FILTER==='motoboy') list=list.filter(o=>o.transportadora==='motoboy'||o.transportadora==='local');
   if(q) list=list.filter(o=>(o.numero+' '+o.cliente+' '+(o.destino||'')).toLowerCase().includes(q));
   const el=document.getElementById('list');
   if(!list.length){ el.innerHTML='<div class="empty">Nenhuma entrega pendente aqui. 🎉</div>'; return; }
@@ -112,7 +112,8 @@ async function entregar(id){
   const btn=document.querySelector('#c'+id+' .btn'); if(!btn)return;
   if(!confirm('Confirmar que o pedido foi ENTREGUE?')) return;
   btn.disabled=true; btn.textContent='Confirmando…';
-  const r=await api('motoboy=entregar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({k:KEY,id})});
+  const _o=ORDERS.find(x=>x.id===id); const _src=(_o&&_o.transportadora==='retirada')?'retirada':'motoboy';
+  const r=await api('motoboy=entregar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({k:KEY,id,source:_src})});
   if(r.ok){ btn.classList.add('done'); btn.textContent='✓ Entregue!'; setTimeout(()=>{ ORDERS=ORDERS.filter(o=>o.id!==id); render(); },900); }
   else { btn.disabled=false; btn.textContent='✓ Marcar Entregue'; alert('Erro: '+(r.error||'tente de novo')); }
 }

@@ -140,7 +140,7 @@ const STATUS={
   atrasado:['Atrasado','#fde8e8','#e53935'], entregue:['Entregue','#e6f6ea','#2e9e4a'], devolvido:['Devolvido','#efe7e2','#8d6e63'], cancelado:['Cancelado','#eceef1','#616161']
 };
 const ORDER=Object.keys(STATUS);
-const CARRIERS={ correios:['Correios','#003399','#FFE11A'], jt:['J&T Express','#ffffff','#E2231A'], melhorenvio:['Melhor Envio','#ffffff','#0FAA57'], total:['Total Express','#ffffff','#12276b'], local:['Personalizada','#ffffff','#c2185b'], motoboy:['Motoboy','#ffffff','#c2185b'], sem:['Sem transportadora','#555','#eceef1'] };
+const CARRIERS={ correios:['Correios','#003399','#FFE11A'], jt:['J&T Express','#ffffff','#E2231A'], melhorenvio:['Melhor Envio','#ffffff','#0FAA57'], total:['Total Express','#ffffff','#12276b'], motoboy:['Motoboy','#ffffff','#6D28D9'], retirada:['Entrega Pessoalmente','#ffffff','#0EA5A4'], local:['Entrega local','#ffffff','#6D28D9'], sem:['Sem transportadora','#555','#eceef1'] };
 const fmtD=d=>d?new Date(d).toLocaleDateString('pt-BR'):'—';
 const fmtDs=d=>d?new Date(d).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}):'';
 const fmt=d=>d?new Date(d).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
@@ -148,12 +148,13 @@ const money=v=>'R$ '+Number(v||0).toFixed(2).replace('.',',');
 const esc=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
 const pill=s=>{const x=STATUS[s]||[s,'#eee','#555'];return `<span class="pill" style="background:${x[1]};color:${x[2]}">${x[0]}</span>`;};
 const CARRIER_MARK={
-  correios:'<rect width="24" height="24" rx="6" fill="#FFDD00"/><path d="M5 10h7V7l7 5-7 5v-3H5z" fill="#003399"/>',
+  correios:'<rect width="24" height="24" rx="6" fill="#FFDD00"/><path d="M6.5 15.5l7-7" stroke="#00318F" stroke-width="2.3" stroke-linecap="round"/><path d="M10.3 8.5h4v4" stroke="#00318F" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>',
   jt:'<rect width="24" height="24" rx="6" fill="#E2231A"/><text x="12" y="16" font-size="8.5" font-weight="900" fill="#fff" text-anchor="middle" font-family="Arial,Helvetica,sans-serif">J&amp;T</text>',
   melhorenvio:'<rect width="24" height="24" rx="6" fill="#0FAA57"/><text x="12" y="16" font-size="9" font-weight="800" fill="#fff" text-anchor="middle" font-family="Arial,Helvetica,sans-serif">ME</text>',
   total:'<rect width="24" height="24" rx="6" fill="#12276B"/><text x="12" y="16" font-size="9" font-weight="800" fill="#fff" text-anchor="middle" font-family="Arial,Helvetica,sans-serif">TE</text>',
-  local:'<rect width="24" height="24" rx="6" fill="#FF3C6F"/><rect x="3" y="8" width="8" height="6" rx="1" fill="#fff"/><path d="M11 10h3.5l3.5 3v1h-7z" fill="#fff"/><circle cx="7" cy="16" r="1.6" fill="#fff"/><circle cx="16" cy="16" r="1.6" fill="#fff"/>',
-  motoboy:'<rect width="24" height="24" rx="6" fill="#FF3C6F"/><rect x="3" y="8" width="8" height="6" rx="1" fill="#fff"/><path d="M11 10h3.5l3.5 3v1h-7z" fill="#fff"/><circle cx="7" cy="16" r="1.6" fill="#fff"/><circle cx="16" cy="16" r="1.6" fill="#fff"/>',
+  motoboy:'<rect width="24" height="24" rx="6" fill="#6D28D9"/><g fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="16" r="2.5"/><circle cx="17" cy="16" r="2.5"/><path d="M7 16h3.5l2.5-4.5h2.5"/><path d="M13 11.5l2 4.5"/><path d="M15.3 11.5H18"/></g>',
+  retirada:'<rect width="24" height="24" rx="6" fill="#0EA5A4"/><g fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l1-3h12l1 3"/><path d="M6 9v9h12V9"/><path d="M5 9h14"/><path d="M10 18v-4h4v4"/></g>',
+  local:'<rect width="24" height="24" rx="6" fill="#6D28D9"/><g fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="16" r="2.5"/><circle cx="17" cy="16" r="2.5"/><path d="M7 16h3.5l2.5-4.5h2.5"/><path d="M13 11.5l2 4.5"/><path d="M15.3 11.5H18"/></g>',
   sem:'<rect width="24" height="24" rx="6" fill="#c9ced6"/><path d="M8 12h8" stroke="#fff" stroke-width="2" stroke-linecap="round"/>',
 };
 function carrierLogo(t){
@@ -187,7 +188,7 @@ async function boot(){
   document.getElementById('meNome').textContent=(USER&&(USER.user_metadata?.name||USER.email))||'Equipe Dra. Charm';
   document.getElementById('meEmail').textContent=(USER&&USER.email)||'';
   const fSit=document.getElementById('fSit'); ORDER.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=STATUS[s][0];fSit.appendChild(o);});
-  const fTr=document.getElementById('fTrans'); [['correios','Correios'],['jt','J&T Express'],['melhorenvio','Melhor Envio'],['total','Total Express'],['local','Personalizada / Motoboy'],['sem','Sem transportadora']].forEach(([k,lbl])=>{const o=document.createElement('option');o.value=k;o.textContent=lbl;fTr.appendChild(o);});
+  const fTr=document.getElementById('fTrans'); [['correios','Correios'],['jt','J&T Express'],['melhorenvio','Melhor Envio'],['total','Total Express'],['motoboy','Motoboy'],['retirada','Entrega Pessoalmente'],['sem','Sem transportadora']].forEach(([k,lbl])=>{const o=document.createElement('option');o.value=k;o.textContent=lbl;fTr.appendChild(o);});
   // fechar modal clicando fora
   document.getElementById('modalBg').addEventListener('click',e=>{ if(e.target.id==='modalBg') __close(); });
   document.addEventListener('keydown',e=>{ if(e.key==='Escape') __close(); });
