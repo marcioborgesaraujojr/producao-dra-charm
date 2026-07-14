@@ -476,7 +476,7 @@ window.__open=async(id)=>{
       </div>
       <div>
         <table style="box-shadow:none">
-          <tr><th>Nota Fiscal</th><td>${o.nota_fiscal?`Nº ${esc(o.nota_fiscal)} <span class="muted" style="font-size:11px">· Ativa</span>${o.raw&&o.raw.chave_danfe?`<div class="muted" style="font-size:10.5px;word-break:break-all">chave ${esc(o.raw.chave_danfe)}</div>`:''}`:'—'}</td></tr>
+          <tr><th>Nota Fiscal</th><td>${o.nota_fiscal?`Nº ${esc(o.nota_fiscal)} <span class="muted" style="font-size:11px">· Ativa</span>${o.raw&&o.raw.nf_link?` <a class="btn ghost" style="padding:2px 8px;font-size:11px" target="_blank" href="${esc(o.raw.nf_link)}">Ver NF</a>`:''}${o.raw&&o.raw.chave_danfe?`<div class="muted" style="font-size:10.5px;word-break:break-all">chave ${esc(o.raw.chave_danfe)}</div>`:''}`:'—'}</td></tr>
           <tr><th>Total do Pedido</th><td>${money(o.preco)}</td></tr>
           <tr><th>Transportadora</th><td>${carrierLogo(o.transportadora)} <span class="muted">${esc(o.servico||'')}</span></td></tr>
           <tr><th>Código de Rastreio</th><td>${esc(o.tracking_code)||'—'} <button class="btn ghost" style="padding:2px 8px;font-size:11px;margin-left:4px" onclick="__altRastreio(${id},'${esc(o.tracking_code||'')}')">Alterar</button></td></tr>
