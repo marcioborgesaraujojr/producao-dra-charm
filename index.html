@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes,interactive-widget=resizes-content">
 <title>Produção Dra. Charm</title>
 <link id="faviconLink" rel="icon" type="image/png" href="https://cdn.awsli.com.br/1930/1930166/arquivos/logo.png">
 <script src="https://cdn.tailwindcss.com"></script>
@@ -103,12 +103,17 @@ tailwind.config = {
   /* ============ MOBILE (<768px) ============ */
   @media (max-width: 767px){
     /* Header — reorganiza em 2 linhas, esconde textos e força controles a caber */
-    header .px-4{padding-left:8px;padding-right:8px}
-    header .py-2{padding-top:6px;padding-bottom:6px}
+    header .px-4{padding-left:6px;padding-right:6px}
+    header .py-2{padding-top:5px;padding-bottom:5px}
+    header .flex.items-center.gap-3{gap:4px}
+    header .flex.items-center.gap-2{gap:4px}
+    header button{padding:5px}
+    header button svg{width:18px;height:18px}
+    #bellBadge{font-size:9px;min-width:16px;height:16px}
     #boardSelect{max-width:140px;font-size:13px}
     #statsLine{display:none}
     header label.flex.items-center.gap-2{display:none} /* Ocultar finalizados label */
-    #density{display:none}
+    #density{font-size:12px;padding:4px 6px}
     #filterFaccaoBtn{padding:6px 8px;font-size:12px}
     #search{font-size:14px}
     /* Search vira linha própria abaixo */
@@ -948,7 +953,7 @@ let lists = [], labels = [], tecidos = [], cards = [];
 let cardLabels = {}, cardMembers = {}, checklistsByCard = {};
 let comments = [], activity = [], notifications = [];
 let activeCardId = null, draggingCardId = null;
-let filters = { faccao: new Set(), search: '', hideFinalizado: true, density:'cozy' };
+let filters = { faccao: new Set(), search: '', hideFinalizado: true, density: (window.matchMedia('(max-width: 767px)').matches ? 'compact' : 'cozy') };
 let commentCounts = {};
 let attachmentCounts = {};
 
@@ -2401,6 +2406,7 @@ window.closeFacFilter = () => document.getElementById('filterFaccaoDropdown').cl
 document.getElementById('search').oninput = e => { filters.search = e.target.value; renderBoard(); };
 document.getElementById('hideFinalizado').onchange = e => { filters.hideFinalizado = e.target.checked; renderBoard(); };
 document.getElementById('density').onchange = e => { filters.density = e.target.value; renderBoard(); };
+setTimeout(() => { const d = document.getElementById('density'); if (d) d.value = filters.density; }, 100);
 document.getElementById('estoqueBtn').onclick = openEstoque;
 document.getElementById('themeBtn').onclick = () => {
   document.documentElement.classList.toggle('dark');
