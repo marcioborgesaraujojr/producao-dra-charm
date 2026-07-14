@@ -69,6 +69,7 @@ export default async function handler(req, res) {
     if (rastreio) conds.push(`tracking_code=ilike.*${rastreio}*`);
     if (acareacao === 'true') conds.push('acareacao_aberta=eq.true');
     if (ocorrencia === 'true') conds.push('ocorrencia=not.is.null');
+    else if (ocorrencia) conds.push(`ocorrencia=eq.${ocorrencia}`);
     if (q) conds.push(`or=(numero.ilike.*${q}*,tracking_code.ilike.*${q}*,nota_fiscal.ilike.*${q}*,cliente_nome.ilike.*${q}*,cliente_email.ilike.*${q}*)`);
     if (conds.length) where = conds.join('&');
     let orders = await sb.select('cmp_orders', { where, order: 'criado_em.desc', limit: 500 });
@@ -96,6 +97,7 @@ export default async function handler(req, res) {
     if (action === 'ocorrenciaTratativa') { const r = await oc.tratativa(ocId); return res.status(200).json({ ok: !!r, ocorrencia: r }); }
     if (action === 'ocorrenciaFechar') { const r = await oc.fechar(ocId); return res.status(200).json({ ok: !!r, ocorrencia: r }); }
     if (action === 'ocorrenciaNotificar') { const r = await oc.notificarCliente(ocId); return res.status(200).json({ ok: !!r?.sent, email: r }); }
+    if (action === 'ocorrenciaNotifTransp') { const r = await oc.notifTransportadora(ocId); return res.status(200).json({ ok: !!r, ocorrencia: r }); }
 
     const order = await sb.selectOne('cmp_orders', { where: `id=eq.${id}` });
     if (!order) return res.status(404).json({ error: 'não encontrado' });
