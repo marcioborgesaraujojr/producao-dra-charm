@@ -78,6 +78,42 @@ async function blingProbe() {
   if (pvs[0]) { out.pv_campos = Object.keys(pvs[0]); const pd = await blingGet(`/pedidos/vendas/${pvs[0].id}`); out.pv_det_campos = Object.keys(pd.j?.data || {}); out.pv_transporte = (pd.j?.data || {}).transporte || null; }
   return out;
 }
+// ================= Melhor Envio (rastreio grátis do que passa por lá) =================
+const ME_BASE = 'https://melhorenvio.com.br/api/v2';
+async function meLoad() { const r = await sb.selectOne('cmp_rules', { where: 'name=eq.__melhorenvio__' }); return r ? r.then_json : null; }
+async function meSave(d) {
+  const ex = await sb.selectOne('cmp_rules', { where: 'name=eq.__melhorenvio__', columns: 'id' });
+  if (ex) await sb.update('cmp_rules', `id=eq.${ex.id}`, { then_json: d });
+  else await sb.insert('cmp_rules', { name: '__melhorenvio__', enabled: false, priority: 99999, when_json: {}, then_json: d }, { returning: false });
+}
+async function meGet(path) {
+  const s = await meLoad(); if (!s?.token) throw new Error('Melhor Envio sem token');
+  const r = await fetch(ME_BASE + path, { headers: { Authorization: 'Bearer ' + s.token, Accept: 'application/json', 'Content-Type': 'application/json', 'User-Agent': 'Rastreio Aragao (contato@dracharm.com.br)' } });
+  let j = null; try { j = await r.json(); } catch {}
+  return { status: r.status, j };
+}
+async function meProbe() {
+  const out = {};
+  const me = await meGet('/me');
+  out.me_status = me.status;
+  out.conta = me.j ? { id: me.j.id, nome: me.j.firstname || me.j.name, email: me.j.email } : null;
+  // lista pedidos/envios recentes
+  const ord = await meGet('/me/orders?limit=10');
+  out.orders_status = ord.status;
+  const list = ord.j?.data || ord.j || [];
+  out.orders_qtd = Array.isArray(list) ? list.length : 0;
+  if (Array.isArray(list) && list[0]) {
+    out.order_campos = Object.keys(list[0]);
+    out.amostra = list.slice(0, 8).map((o) => ({
+      protocol: o.protocol, status: o.status,
+      transportadora: o.service?.company?.name || o.company?.name || o.service?.name,
+      rastreio: o.tracking || o.self_tracking || null,
+      nf: o.invoice?.number || null,
+    }));
+  }
+  return out;
+}
+// ==================================================================================
 // SYNC do Bling Taymah: puxa NFs recentes, extrai código de rastreio +
 // transportadora + chave DANFE, casa com nosso pedido (numeroPedidoLoja) e
 // marca Enviado. NÃO escreve status na LI (parallel run — evita WhatsApp duplo).
@@ -241,6 +277,8 @@ export default async function handler(req, res) {
     if (req.query.bling === 'status') { const s = await blingLoad(); return res.status(200).json({ conectado: !!(s && s.access_token), temCreds: !!(s && s.cid), expira: s?.expires_at || null }); }
     if (req.query.bling === 'probe') return res.status(200).json(await blingProbe());
     if (req.query.bling === 'sync') return res.status(200).json(await blingSync(Number(req.query.limite) || 50));
+    if (req.query.me === 'save') { await meSave({ token: req.query.token || req.body?.token }); return res.status(200).json({ ok: true }); }
+    if (req.query.me === 'probe') return res.status(200).json(await meProbe());
     const result = await runCycle();
     return res.status(200).json({ ok: true, ...result });
   } catch (e) {
