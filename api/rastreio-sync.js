@@ -406,6 +406,9 @@ async function prodImgProbe(numero) {
     // busca o sub-recurso da imagem principal (onde ficam as URLs reais)
     if (typeof p.imagem_principal === 'string' && p.imagem_principal.startsWith('/')) { const im = await liDetGet(p.imagem_principal); out.imagem_principal_obj = im.j; }
     if (typeof out.imagens0 === 'string' && out.imagens0.startsWith('/')) { const im = await liDetGet(out.imagens0); out.imagens0_obj = im.j; }
+    // Loja Integrada guarda imagem em endpoint separado: /produto_imagem/?produto=ID
+    const pid = String(it.produto || '').split('/').filter(Boolean).pop();
+    if (pid) { const pi = await liDetGet(`/v1/produto_imagem/?produto=${pid}&limit=3`); out.produto_imagem_qtd = (pi.j?.objects || []).length; out.produto_imagem_0 = (pi.j?.objects || [])[0] || pi.j; }
   }
   return out;
 }
