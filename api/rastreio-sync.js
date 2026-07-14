@@ -442,6 +442,60 @@ async function produtoImagem(prodUri, paiUri) {
   _prodImg.set(key, img);
   return img;
 }
+// ---- Backfill de imagens via mapa SKU->URL (catálogo é pequeno; pedidos são milhares) ----
+const IMGMAP_KEY = '__prod_img_map__';
+const IMGCUR_KEY = '__img_apply_cursor__';
+async function imgMapLoad() { const r = await sb.selectOne('cmp_rules', { where: `name=eq.${IMGMAP_KEY}` }); return r?.then_json || {}; }
+async function imgMapSave(map) {
+  const ex = await sb.selectOne('cmp_rules', { where: `name=eq.${IMGMAP_KEY}`, columns: 'id' });
+  if (ex) await sb.update('cmp_rules', `id=eq.${ex.id}`, { then_json: map });
+  else await sb.insert('cmp_rules', { name: IMGMAP_KEY, enabled: false, priority: 99999, when_json: {}, then_json: map }, { returning: false });
+}
+// Constrói/atualiza o mapa SKU->URL a partir do catálogo da LI (chunk por offset).
+async function imgMapBuild(offset = 0, paginas = 20) {
+  const map = await imgMapLoad();
+  let off = offset, novos = 0, vistos = 0, fim = false;
+  for (let k = 0; k < paginas; k++) {
+    const r = await liDetGet(`/v1/produto/?limit=50&offset=${off}`);
+    const objs = r.j?.objects || [];
+    if (!objs.length) { fim = true; break; }
+    for (const p of objs) {
+      vistos++;
+      if (!p.sku || map[p.sku]) continue;
+      let img = null;
+      try { img = await imagemPorId(p.resource_uri); if (!img && p.pai) img = await imagemPorId(p.pai); } catch {}
+      if (img) { map[p.sku] = img; novos++; }
+    }
+    off += 50;
+    if (!r.j?.meta?.next) { fim = true; break; }
+  }
+  await imgMapSave(map);
+  return { proximoOffset: fim ? -1 : off, fim, totalSkus: Object.keys(map).length, novos, vistos };
+}
+// Aplica o mapa aos pedidos (preenche raw.produtos[].imagem por SKU), do mais novo p/ o mais antigo.
+async function imgMapApply(cursor = 0, limite = 500) {
+  const map = await imgMapLoad();
+  const cur = cursor || 9999999999;
+  const orders = await sb.select('cmp_orders', { columns: 'id,raw', where: `id=lt.${cur}`, order: 'id.desc', limit: limite });
+  let atualizados = 0, ultimo = cur;
+  for (const o of orders) {
+    ultimo = o.id;
+    const prod = o.raw?.produtos;
+    if (!Array.isArray(prod) || !prod.length) continue;
+    let mudou = false;
+    for (const it of prod) { if (!it.imagem && it.sku && map[it.sku]) { it.imagem = map[it.sku]; mudou = true; } }
+    if (mudou) { await sb.update('cmp_orders', `id=eq.${o.id}`, { raw: { ...o.raw, produtos: prod } }); atualizados++; }
+  }
+  const fim = orders.length < limite;
+  // guarda cursor p/ o cron continuar
+  try {
+    const ex = await sb.selectOne('cmp_rules', { where: `name=eq.${IMGCUR_KEY}`, columns: 'id' });
+    const val = { cursor: fim ? 0 : ultimo, fim, updated: new Date().toISOString() };
+    if (ex) await sb.update('cmp_rules', `id=eq.${ex.id}`, { then_json: val });
+    else await sb.insert('cmp_rules', { name: IMGCUR_KEY, enabled: false, priority: 99999, when_json: {}, then_json: val }, { returning: false });
+  } catch {}
+  return { processados: orders.length, atualizados, ultimoId: ultimo, fim, skusNoMapa: Object.keys(map).length };
+}
 // Produtos do pedido (nome, sku, qtd, preço, tamanho, imagem) — igual ao original.
 async function mapProdutos(d, comImagem = true) {
   const out = [];
@@ -729,6 +783,8 @@ export default async function handler(req, res) {
     if (req.query.jt === 'diag') return res.status(200).json(await jtDiag(Number(req.query.dias) || 29));
     if (req.query.bordado === 'probe') return res.status(200).json(await bordadoProbe(req.query.numero));
     if (req.query.probe === 'prodimg') return res.status(200).json(await prodImgProbe(req.query.numero));
+    if (req.query.imgmap === 'build') return res.status(200).json(await imgMapBuild(Number(req.query.offset) || 0, Number(req.query.paginas) || 20));
+    if (req.query.imgmap === 'apply') return res.status(200).json(await imgMapApply(Number(req.query.cursor) || 0, Number(req.query.limite) || 500));
     if (req.query.probe === 'cliente') return res.status(200).json(await clienteProbe());
     if (req.query.enrich === 'li') return res.status(200).json(await liEnrich(Number(req.query.paginas) || 3, true, req.query.imagens !== '0', Number(req.query.desde) || 0));
     if (req.query.bordado === 'link') return res.status(200).json(await bordadoLink(Number(req.query.limite) || 1500));
@@ -745,6 +801,8 @@ export default async function handler(req, res) {
     try { out.bling = await blingSync(80, 1); } catch (e) { out.bling = { error: e.message }; }
     try { out.jt = await jtSync(3, 29); } catch (e) { out.jt = { error: e.message }; }
     try { out.bordado = await bordadoLink(400); } catch (e) { out.bordado = { error: e.message }; }
+    // continua o backfill de imagens de onde parou (até terminar todos os pedidos)
+    try { const cs = await sb.selectOne('cmp_rules', { where: `name=eq.${IMGCUR_KEY}` }); const cur = cs?.then_json?.cursor || 0; out.imgBackfill = await imgMapApply(cur, 800); } catch (e) { out.imgBackfill = { error: e.message }; }
     try { out.cycle = await processActiveBatch(30); } catch (e) { out.cycle = { error: e.message }; }
     return res.status(200).json({ ok: true, ...out });
   } catch (e) {
