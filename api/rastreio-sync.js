@@ -237,7 +237,9 @@ async function blingSyncOne(n, out) {
   const tr = d.transporte || {};
   const vol = (tr.volumes || [])[0] || {};
   const codigo = vol.codigoRastreamento || null;
-  const servico = vol.servico || tr.transportador?.nome || tr.etiqueta?.nome || '';
+  const realServico = vol.servico || '';                        // serviço REAL (PAC/SEDEX/...), não nome de empresa
+  const carrierSrc = realServico || tr.transportador?.nome || tr.etiqueta?.nome || '';
+  const carrierConhecida = /correios|pac|sedex|jt|j&t|melhor\s*envio|total\s*express|motoboy|retir|pessoal/i.test(carrierSrc);
   const chave = d.chaveAcesso || null;
   const cpf = (d.contato && (d.contato.numeroDocumento || d.contato.cpfCnpj)) || null;
   const ordr = await sb.selectOne('cmp_orders', { where: `numero=eq.${encodeURIComponent(String(numeroLoja))}` });
@@ -245,7 +247,8 @@ async function blingSyncOne(n, out) {
   const patch = {};
   if (d.numero) patch.nota_fiscal = String(d.numero);          // alinha NF com o J&T (mesmo numero da NFe)
   if (codigo) { patch.tracking_code = codigo; out.comCodigo++; }
-  if (servico) { patch.transportadora = carrierKey(servico); patch.servico = servico; }
+  if (carrierConhecida) patch.transportadora = carrierKey(carrierSrc);   // só troca se casar de verdade (não força Correios)
+  patch.servico = realServico || null;                                   // limpa nome de empresa que ficava aqui
   const nfLink = d.linkDanfe || d.linkPDF || null;   // link do PDF da NF (igual "Ver NF" do cademeupedido)
   patch.raw = { ...(ordr.raw || {}), chave_danfe: chave, cpf_cliente: cpf, bling_nfe_id: n.id, nf_link: nfLink };
   const naoFinal = !['enviado', 'entregue', 'atrasado', 'devolvido', 'cancelado'].includes(ordr.status);
@@ -699,7 +702,7 @@ export default async function handler(req, res) {
 
     // ===== Ciclo automático (cron diário): pipeline REAL, sem dados mock =====
     const out = { ranAt: new Date().toISOString() };
-    try { out.liImport = await liEnrich(2, true, false); } catch (e) { out.liImport = { error: e.message }; }
+    try { out.liImport = await liEnrich(2, true, true); } catch (e) { out.liImport = { error: e.message }; }
     try { out.bling = await blingSync(80, 1); } catch (e) { out.bling = { error: e.message }; }
     try { out.jt = await jtSync(3, 29); } catch (e) { out.jt = { error: e.message }; }
     try { out.bordado = await bordadoLink(400); } catch (e) { out.bordado = { error: e.message }; }
