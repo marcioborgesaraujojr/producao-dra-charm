@@ -303,6 +303,21 @@ async function motoboyEntregar(id, source = 'motoboy') {
   try { await li.updateOrderStatus(o.li_id, 'entregue'); } catch {}
   return { ok: true, numero: o.numero };
 }
+// Semeia regras-padrão úteis (idempotente por nome).
+async function seedRules() {
+  const defaults = [
+    { name: 'Correios sem rastreio há 2 dias → alertar equipe', priority: 50, when_json: { carrier: ['correios'], statusIn: ['enviado'], noTrackingCode: true, daysSinceSentGte: 2 }, then_json: { alertInternal: true } },
+    { name: 'Correios atrasado → abrir acareação', priority: 60, when_json: { carrier: ['correios'], statusIn: ['atrasado'] }, then_json: { openAcareacao: true, alertInternal: true } },
+  ];
+  const out = { criadas: 0, existentes: 0 };
+  for (const d of defaults) {
+    const ex = await sb.selectOne('cmp_rules', { where: `name=eq.${encodeURIComponent(d.name)}`, columns: 'id' });
+    if (ex) { out.existentes++; continue; }
+    await sb.insert('cmp_rules', { ...d, enabled: true, when_json: d.when_json, then_json: d.then_json }, { returning: false });
+    out.criadas++;
+  }
+  return out;
+}
 // Desliga as regras de auto-entrega por tempo (substituídas pela confirmação manual).
 async function disableTimeRules() {
   const rules = await sb.select('cmp_rules', { columns: 'id,name,then_json,enabled', where: 'enabled=eq.true' });
@@ -660,6 +675,8 @@ export default async function handler(req, res) {
     if (req.query.enrich === 'li') return res.status(200).json(await liEnrich(Number(req.query.paginas) || 3, true, req.query.imagens !== '0', Number(req.query.desde) || 0));
     if (req.query.bordado === 'link') return res.status(200).json(await bordadoLink(Number(req.query.limite) || 1500));
     if (req.query.admin === 'disableTimeRules') return res.status(200).json(await disableTimeRules());
+    if (req.query.rules === 'list') { const rs = await sb.select('cmp_rules', { order: 'priority.asc' }); return res.status(200).json({ total: rs.length, regras: rs.filter((r) => !String(r.name).startsWith('__')).map((r) => ({ id: r.id, name: r.name, enabled: r.enabled, priority: r.priority, when: r.when_json, then: r.then_json })) }); }
+    if (req.query.rules === 'seed') { return res.status(200).json(await seedRules()); }
     if (req.query.motoboy_key === 'get') return res.status(200).json({ key: await motoboyKey() });
     if (req.query.process === 'batch') return res.status(200).json(await processActiveBatch(Number(req.query.limit) || 40));
 
