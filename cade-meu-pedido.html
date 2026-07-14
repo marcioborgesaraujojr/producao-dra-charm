@@ -377,7 +377,7 @@ function describeThen(t){
 }
 async function renderRules(v){
   const {rules}=await api('rastreio-rules');
-  const cards=(rules||[]).sort((a,b)=>a.priority-b.priority).map(r=>`
+  const cards=(rules||[]).filter(r=>!String(r.name).startsWith('__')).sort((a,b)=>a.priority-b.priority).map(r=>`
     <div class="rule ${r.enabled?'':'off'}">
       <div style="display:flex;align-items:center;gap:12px">
         <label class="sw"><input type="checkbox" ${r.enabled?'checked':''} onchange="__rt(${r.id})"><span class="tk"></span></label>
