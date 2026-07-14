@@ -246,7 +246,8 @@ async function blingSyncOne(n, out) {
   if (d.numero) patch.nota_fiscal = String(d.numero);          // alinha NF com o J&T (mesmo numero da NFe)
   if (codigo) { patch.tracking_code = codigo; out.comCodigo++; }
   if (servico) { patch.transportadora = carrierKey(servico); patch.servico = servico; }
-  patch.raw = { ...(ordr.raw || {}), chave_danfe: chave, cpf_cliente: cpf, bling_nfe_id: n.id };
+  const nfLink = d.linkDanfe || d.linkPDF || null;   // link do PDF da NF (igual "Ver NF" do cademeupedido)
+  patch.raw = { ...(ordr.raw || {}), chave_danfe: chave, cpf_cliente: cpf, bling_nfe_id: n.id, nf_link: nfLink };
   const naoFinal = !['enviado', 'entregue', 'atrasado', 'devolvido', 'cancelado'].includes(ordr.status);
   if (codigo && naoFinal) { patch.status = 'enviado'; if (!ordr.data_envio) patch.data_envio = new Date().toISOString(); out.marcadosEnviado++; }
   await sb.update('cmp_orders', `id=eq.${ordr.id}`, patch);
