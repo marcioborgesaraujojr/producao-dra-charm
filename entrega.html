@@ -58,6 +58,14 @@
 <script>
 const STATUS={faturado:['Faturado','#00897b'],em_separacao:['Em Separação','#7e57c2'],enviado:['Saiu p/ Entrega','#1e88e5'],aguardando_retirada:['Aguard. Retirada','#f9a825'],atrasado:['Atrasado','#e53935'],entregue:['Entregue','#43a047']};
 const esc=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+function bordadoLine(b){
+  if(!b||!Array.isArray(b)||!b.length) return '';
+  return b.map(x=>{
+    const nome=[x.linha1,x.linha2].filter(Boolean).join(' · ');
+    const det=[x.cor,x.fonte].filter(Boolean).join(' · ');
+    return `<div class="end" style="color:#c2185b">✒️ ${esc(nome)||'Bordado'}${det?' · '+esc(det):''}</div>`;
+  }).join('');
+}
 let KEY=new URLSearchParams(location.search).get('k')||localStorage.getItem('mb_key')||'';
 let ORDERS=[], FILTER='motoboy';
 
@@ -93,6 +101,7 @@ function render(){
       <div class="cli">${esc(o.cliente)||'—'}</div>
       <div class="end">📍 ${esc(endereco)||'—'}${o.telefone?' · 📞 '+esc(o.telefone):''}</div>
       ${o.servico?`<div class="end">🚚 ${esc(o.servico)}</div>`:''}
+      ${bordadoLine(o.bordado)}
       <button class="btn" onclick="entregar(${o.id})">✓ Marcar Entregue</button>
     </div>`;
   }).join('');

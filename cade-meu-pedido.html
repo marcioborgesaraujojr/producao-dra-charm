@@ -87,6 +87,15 @@ const fmt = d => d ? new Date(d).toLocaleString('pt-BR',{day:'2-digit',month:'2-
 const money = v => 'R$ '+Number(v||0).toFixed(2).replace('.',',');
 const esc = s => String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
 const badge = s => { const x=STATUS[s]||[s,'#9e9e9e']; return `<span class="badge" style="background:${x[1]}">${x[0]}</span>`; };
+function bordadoRows(b){
+  if(!b||!Array.isArray(b)||!b.length) return '';
+  const inner = b.map(x=>{
+    const nome=[x.linha1,x.linha2].filter(Boolean).join(' · ');
+    const det=[x.tipo,x.cor&&('cor '+x.cor),x.fonte&&('fonte '+x.fonte),x.lado].filter(Boolean).join(' · ');
+    return `<div style="padding:3px 0"><b style="color:var(--brand)">✒️ ${esc(nome)||'Personalização'}</b>${det?` <span class="muted">(${esc(det)})</span>`:''}${x.detalhes?`<div class="muted">${esc(x.detalhes)}</div>`:''}</div>`;
+  }).join('');
+  return `<tr><th>Bordado</th><td>${inner}</td></tr>`;
+}
 const api = (path, opts={}) => fetch('/api/'+path, { ...opts, headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+TOKEN, ...(opts.headers||{}) } }).then(r=>r.json());
 
 let state = { filterStatus:'', q:'' };
@@ -156,6 +165,7 @@ window.__open = async (id) => {
           <tr><th>Transportadora</th><td>${esc(o.transportadora)} ${esc(o.servico||'')}</td></tr>
           <tr><th>Rastreio</th><td>${esc(o.tracking_code)||'—'}</td></tr>
           <tr><th>SKUs</th><td>${esc((Array.isArray(o.skus)?o.skus:[]).join(', '))||'—'}</td></tr>
+          ${bordadoRows(o.raw&&o.raw.bordado)}
           <tr><th>Prazo</th><td>${fmtD(o.prazo_entrega)}</td></tr>
           <tr><th>Visitas</th><td>${o.visitas||0}</td></tr>
           <tr><th>Acareação</th><td>${o.acareacao_aberta?`Aberta ${fmtD(o.acareacao_em)} <button class="btn ghost" onclick="__ac(${id})">Encerrar</button>`:'—'}</td></tr>

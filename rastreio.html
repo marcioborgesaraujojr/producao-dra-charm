@@ -76,6 +76,18 @@ const STATUS = {
 const fmt = d => d ? new Date(d).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
 const fmtD = d => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
 const esc = s => String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+function bordadoBox(b){
+  if(!b || !Array.isArray(b) || !b.length) return '';
+  const rows = b.map(x=>{
+    const nome = [x.linha1,x.linha2].filter(Boolean).join(' · ');
+    const det = [x.cor?('Cor: '+x.cor):'', x.fonte?('Fonte: '+x.fonte):''].filter(Boolean).join(' · ');
+    return `<div style="padding:6px 0;border-bottom:1px solid #f3e6ee">
+      <div style="font-weight:700">✒️ ${esc(nome)||'Personalização'}</div>
+      ${det?`<div style="color:#a05; font-size:13px">${esc(det)}</div>`:''}</div>`;
+  }).join('');
+  return `<div style="background:#fff5fa;border:1px solid #f3d6e6;border-radius:12px;padding:12px 14px;margin:10px 0">
+    <div style="font-weight:800;color:var(--brand);margin-bottom:4px">Bordado personalizado</div>${rows}</div>`;
+}
 
 // Régua de status (stepper) — igual ao cademeupedido
 const FUNNEL = [['criado','Criado'],['pago','Pago'],['faturado','Faturado'],['enviado','Enviado'],['entregue','Entregue']];
@@ -126,6 +138,7 @@ document.getElementById('f').addEventListener('submit', async (e)=>{
           ${o.tracking_code?`<div><b>Rastreio:</b> ${esc(o.tracking_code)}</div>`:''}
           ${o.prazo_entrega?`<div><b>Previsão:</b> ${fmtD(o.prazo_entrega)}</div>`:''}
         </div>
+        ${bordadoBox(o.bordado)}
         ${stepper(o.status)}
         <h3 style="margin:16px 0 4px">Acompanhe sua entrega</h3>
         ${steps}
