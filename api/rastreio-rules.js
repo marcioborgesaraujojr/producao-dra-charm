@@ -12,7 +12,9 @@ export default async function handler(req, res) {
   if (!(await requireAdmin(req, res))) return;
 
   if (req.method === 'GET') {
-    const rules = await sb.select('cmp_rules', { order: 'priority.asc' });
+    const all = await sb.select('cmp_rules', { order: 'priority.asc' });
+    // Esconde linhas-sentinela internas (tokens do Bling/J&T/motoboy/etc.).
+    const rules = (all || []).filter((r) => !String(r.name).startsWith('__'));
     return res.status(200).json({ rules });
   }
   if (req.method === 'POST') {
