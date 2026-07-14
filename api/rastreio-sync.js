@@ -418,19 +418,28 @@ async function prodImgProbe(numero) {
 }
 // Cache de imagem de produto (produtos se repetem entre pedidos).
 const _prodImg = new Map();
-async function produtoImagem(uri) {
-  if (!uri) return null;
-  if (_prodImg.has(uri)) return _prodImg.get(uri);
+const LI_CDN = 'https://cdn.awsli.com.br/';
+// Imagem na Loja Integrada: endpoint /produto_imagem/?produto=ID, campo "caminho".
+// Variações (tamanho) não têm imagem — ela fica no produto PAI. Por isso tentamos os dois.
+async function imagemPorId(uri) {
+  const id = String(uri || '').split('/').filter(Boolean).pop();
+  if (!id) return null;
+  const r = await liDetGet(`/v1/produto_imagem/?produto=${id}&limit=5&order_by=posicao`);
+  const objs = r.j?.objects || [];
+  const o = objs.find((x) => x.principal) || objs[0];
+  if (o?.caminho) return LI_CDN + String(o.caminho).replace(/^\/+/, '');
+  return null;
+}
+async function produtoImagem(prodUri, paiUri) {
+  const key = prodUri || paiUri;
+  if (!key) return null;
+  if (_prodImg.has(key)) return _prodImg.get(key);
   let img = null;
   try {
-    const r = await liDetGet(uri);
-    const d = r.j || {};
-    let arr = d.imagens || d.imagem || d.images || [];
-    if (!Array.isArray(arr)) arr = [arr];
-    const f = arr[0];
-    if (f) img = f.media || f.grande || f.pequena || f.thumbnail || f.url || f.src || (typeof f === 'string' ? f : null);
+    img = await imagemPorId(prodUri);
+    if (!img && paiUri) img = await imagemPorId(paiUri);
   } catch {}
-  _prodImg.set(uri, img);
+  _prodImg.set(key, img);
   return img;
 }
 // Produtos do pedido (nome, sku, qtd, preço, tamanho, imagem) — igual ao original.
@@ -438,7 +447,7 @@ async function mapProdutos(d, comImagem = true) {
   const out = [];
   for (const i of (d.itens || [])) {
     let imagem = null;
-    if (comImagem && i.produto) imagem = await produtoImagem(i.produto);
+    if (comImagem && (i.produto || i.produto_pai)) imagem = await produtoImagem(i.produto, i.produto_pai);
     out.push({ nome: i.nome, sku: i.sku, qtd: Number(i.quantidade || 1), preco: Number(i.preco_venda || i.preco_subtotal || 0), tamanho: i.variacao ? (Object.values(i.variacao)[0] || {}).nome : null, imagem });
   }
   return out;
