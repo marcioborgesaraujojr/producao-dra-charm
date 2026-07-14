@@ -147,7 +147,20 @@ const fmt=d=>d?new Date(d).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit'
 const money=v=>'R$ '+Number(v||0).toFixed(2).replace('.',',');
 const esc=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
 const pill=s=>{const x=STATUS[s]||[s,'#eee','#555'];return `<span class="pill" style="background:${x[1]};color:${x[2]}">${x[0]}</span>`;};
-const carrierBadge=t=>{const c=CARRIERS[t]||[t||'—','#555','#eceef1'];return `<span style="display:inline-block;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:800;color:${c[1]};background:${c[2]}">${esc(c[0])}</span>`;};
+const CARRIER_MARK={
+  correios:'<rect width="24" height="24" rx="6" fill="#FFDD00"/><path d="M5 10h7V7l7 5-7 5v-3H5z" fill="#003399"/>',
+  jt:'<rect width="24" height="24" rx="6" fill="#E2231A"/><text x="12" y="16" font-size="8.5" font-weight="900" fill="#fff" text-anchor="middle" font-family="Arial,Helvetica,sans-serif">J&amp;T</text>',
+  melhorenvio:'<rect width="24" height="24" rx="6" fill="#0FAA57"/><text x="12" y="16" font-size="9" font-weight="800" fill="#fff" text-anchor="middle" font-family="Arial,Helvetica,sans-serif">ME</text>',
+  total:'<rect width="24" height="24" rx="6" fill="#12276B"/><text x="12" y="16" font-size="9" font-weight="800" fill="#fff" text-anchor="middle" font-family="Arial,Helvetica,sans-serif">TE</text>',
+  local:'<rect width="24" height="24" rx="6" fill="#FF3C6F"/><rect x="3" y="8" width="8" height="6" rx="1" fill="#fff"/><path d="M11 10h3.5l3.5 3v1h-7z" fill="#fff"/><circle cx="7" cy="16" r="1.6" fill="#fff"/><circle cx="16" cy="16" r="1.6" fill="#fff"/>',
+  motoboy:'<rect width="24" height="24" rx="6" fill="#FF3C6F"/><rect x="3" y="8" width="8" height="6" rx="1" fill="#fff"/><path d="M11 10h3.5l3.5 3v1h-7z" fill="#fff"/><circle cx="7" cy="16" r="1.6" fill="#fff"/><circle cx="16" cy="16" r="1.6" fill="#fff"/>',
+  sem:'<rect width="24" height="24" rx="6" fill="#c9ced6"/><path d="M8 12h8" stroke="#fff" stroke-width="2" stroke-linecap="round"/>',
+};
+function carrierLogo(t){
+  const mark=CARRIER_MARK[t]; const name=(CARRIERS[t]&&CARRIERS[t][0])||t||'—';
+  const svg=mark?`<svg width="22" height="22" viewBox="0 0 24 24" style="border-radius:5px;flex:none">${mark}</svg>`:'';
+  return `<span style="display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:13px">${svg}${esc(name)}</span>`;
+}
 function prazoTxt(o){
   if(['entregue','cancelado','devolvido'].includes(o.status)) return '—';
   if(!o.prazo_entrega) return '<span class="muted">—</span>';
@@ -223,12 +236,12 @@ function render(){
     <table><thead><tr>
       <th>Situação</th><th>Pedido</th><th>Nota Fiscal</th><th>Preço</th><th>Criação do Pedido</th><th>Prazo de Entrega</th><th>Transportadora</th><th>Ocorrência</th><th style="text-align:center">Visitas</th>
     </tr></thead><tbody>
-    ${orders.map(o=>`<tr>
+    ${orders.map(o=>`<tr onclick="__open(${o.id})" style="cursor:pointer">
       <td>${pill(o.status)}</td>
-      <td><span class="link" onclick="__open(${o.id})">${esc(o.numero)}</span></td>
+      <td><span class="link">${esc(o.numero)}</span></td>
       <td>${esc(o.nota_fiscal)||'—'}</td><td>${money(o.preco)}</td>
       <td>${fmtD(o.criado_em)}</td><td>${prazoTxt(o)}</td>
-      <td>${carrierBadge(o.transportadora)}</td>
+      <td>${carrierLogo(o.transportadora)}</td>
       <td class="muted" style="max-width:150px">${esc((o.ocorrencia||'').slice(0,42))||'—'}</td>
       <td style="text-align:center">${o.visitas||0}</td>
     </tr>`).join('')||'<tr><td colspan="9" class="muted" style="text-align:center;padding:26px">Nenhum pedido aqui.</td></tr>'}
@@ -318,7 +331,7 @@ window.__open=async(id)=>{
         <table style="box-shadow:none">
           <tr><th>Nota Fiscal</th><td>${esc(o.nota_fiscal)||'—'}</td></tr>
           <tr><th>Total do Pedido</th><td>${money(o.preco)}</td></tr>
-          <tr><th>Transportadora</th><td>${carrierBadge(o.transportadora)} <span class="muted">${esc(o.servico||'')}</span></td></tr>
+          <tr><th>Transportadora</th><td>${carrierLogo(o.transportadora)} <span class="muted">${esc(o.servico||'')}</span></td></tr>
           <tr><th>Código de Rastreio</th><td>${esc(o.tracking_code)||'—'}</td></tr>
           ${bordadoRows(o.raw&&o.raw.bordado)}
           <tr><th>Prazo de Entrega</th><td>${o.prazo_entrega?fmtD(o.prazo_entrega):'—'} ${['entregue','cancelado','devolvido'].includes(o.status)?'':'· '+prazoTxt(o)}</td></tr>
@@ -347,7 +360,7 @@ function renderRetirada(v){
     <p class="muted" style="margin-bottom:12px">As meninas confirmam a <b>retirada</b> aqui; o motoboy confirma pela <a class="link" href="/entrega.html" target="_blank">página do entregador</a>. Ao confirmar, o pedido vira <b>Entregue</b>.</p>
     <table><thead><tr><th>Situação</th><th>Pedido</th><th>Cliente</th><th>Serviço</th><th>Destino</th><th>Criação</th><th></th></tr></thead><tbody>
     ${local.map(o=>`<tr id="lr${o.id}"><td>${pill(o.status)}</td><td><span class="link" onclick="__open(${o.id})">${esc(o.numero)}</span></td>
-      <td>${esc(o.cliente_nome)||'—'}</td><td>${esc(o.servico)||carrierBadge(o.transportadora)}</td><td>${esc(o.destino)||'—'}</td><td>${fmtD(o.criado_em)}</td>
+      <td>${esc(o.cliente_nome)||'—'}</td><td>${esc(o.servico)||carrierLogo(o.transportadora)}</td><td>${esc(o.destino)||'—'}</td><td>${fmtD(o.criado_em)}</td>
       <td><button class="btn" onclick="__entregar(${o.id})">Entregue</button></td></tr>`).join('')||'<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">Nenhuma entrega local pendente.</td></tr>'}
     </tbody></table>`;
 }
