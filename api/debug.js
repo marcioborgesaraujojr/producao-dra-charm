@@ -28,7 +28,7 @@ export default async function handler(req, res) {
                   headers: { "Authorization": "Bearer " + token }
           });
           const listD = await listR.json();
-          const firstId = listD.data && listD.data[0] && listD.data[0].id;
+          const firstId = (req.query && req.query.id) || (listD.data && listD.data[0] && listD.data[0].id);
           if (!firstId) return res.json({ lista_sample: listD.data && listD.data[0], erro: "sem pedidos hoje" });
           const detR = await fetch("https://www.bling.com.br/Api/v3/pedidos/vendas/" + firstId, {
                   headers: { "Authorization": "Bearer " + token }
