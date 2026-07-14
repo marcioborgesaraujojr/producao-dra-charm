@@ -3101,6 +3101,34 @@ window.cepExport=function(){
     if(isOpen('app')){ if(typeof showHub==='function') showHub(); return; }
   });
 })();
+/* === Sync Personalizacao via API (substitui extensao) === */
+window.syncBordadoApi = async function(){
+  var st=document.getElementById('syncApiStatus'), btn=document.getElementById('syncApiBtn');
+  if(btn) btn.disabled=true;
+  if(st){ st.className='text-sm text-slate-500 mt-2'; st.textContent='Sincronizando... buscando pedidos na Loja Integrada (pode levar alguns segundos).'; }
+  try{
+    var s=await sb.auth.getSession();
+    var token=s && s.data && s.data.session && s.data.session.access_token;
+    var r=await fetch('/api/personalizacao-sync?commit=1&limit=100',{method:'POST',headers:{Authorization:'Bearer '+(token||'')}});
+    var j=await r.json();
+    if(!r.ok) throw new Error(j.error||('HTTP '+r.status));
+    if(st){ st.className='text-sm text-emerald-600 mt-2 font-medium'; st.textContent=j.inserted+' novo(s) pedido(s) importado(s). '+j.jaExistem+' ja tinham card. (varreu '+j.varridos+' pedidos)'; }
+    if(typeof toast==='function') toast(j.inserted+' pedido(s) de bordado importado(s)');
+  }catch(e){ if(st){ st.className='text-sm text-red-600 mt-2'; st.textContent='Erro: '+e.message; } }
+  if(btn) btn.disabled=false;
+};
+window.openSyncBordado = function(){
+  var modal=document.getElementById('syncBordadoModal'); if(!modal) return;
+  var body=modal.querySelector('.overflow-y-auto');
+  if(body){
+    var y=new Date(Date.now()-86400000); var dstr=y.toLocaleDateString('pt-BR');
+    body.innerHTML='<div class="text-sm text-slate-600 dark:text-slate-300">Importa os pedidos com bordado direto da API da Loja Integrada e cria os cards aqui no board. Sem extensao e sem abrir o painel do LI.</div>'
+      +'<div class="text-xs text-slate-400 mt-2">Traz os pedidos recentes que ainda nao tem card (inclui os de ontem, '+dstr+'). Os ja criados sao ignorados.</div>'
+      +'<button id="syncApiBtn" onclick="syncBordadoApi()" class="w-full py-3 mt-4 rounded-lg bg-pink-600 text-white font-medium hover:bg-pink-700">Sincronizar agora</button>'
+      +'<div id="syncApiStatus" class="text-sm"></div>';
+  }
+  modal.classList.remove('hidden'); modal.classList.add('flex');
+};
 initAuth();
 </script>
 <div id="painelModal" class="hidden fixed inset-0 z-40 modal-bg items-center justify-center p-4">
