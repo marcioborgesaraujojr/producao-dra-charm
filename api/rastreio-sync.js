@@ -122,43 +122,59 @@ async function matchWaybill(w) {
   if (ord) return { ord, via: 'nf' };
   return { ord: null, via: null };
 }
-async function jtSync(paginas = 3, dias = 30) {
+// Aplica um waybill do J&T a um pedido já casado (retorna a promise do update).
+function applyWaybill(ord, w, out) {
+  const patch = { transportadora: 'jt', updated_at: new Date().toISOString() };
+  if (w.waybillNo) patch.tracking_code = w.waybillNo;
+  if (w.invoiceNo && !ord.nota_fiscal) patch.nota_fiscal = String(w.invoiceNo);
+  patch.raw = { ...(ord.raw || {}), chave_danfe: w.invoiceAccessKey || ord.raw?.chave_danfe, jt_status: w.waybillStatusCode };
+  let novo = null;
+  if (w.signTime) novo = 'entregue'; else if (w.collectTime) novo = 'enviado';
+  if (novo && ord.status !== novo && !['cancelado', 'devolvido'].includes(ord.status)) {
+    patch.status = novo;
+    if (novo === 'enviado' && !ord.data_envio) patch.data_envio = w.collectTime;
+    if (novo === 'enviado') out.marcadosEnviado++;
+    if (novo === 'entregue') { if (!ord.data_entrega) patch.data_entrega = w.signTime; if (ord.acareacao_aberta) patch.acareacao_aberta = false; out.entregues++; }
+  }
+  out.atualizados++;
+  return sb.update('cmp_orders', `id=eq.${ord.id}`, patch);
+}
+// Sync do J&T VIP em LOTE: 2 queries por página (NF + chave) em vez de 1 por waybill.
+async function jtSync(paginas = 3, dias = 29) {
   const s = await jtLoad();
   if (!s?.token) return { erro: 'J&T VIP sem token — refazer login no painel VIP' };
   const t0 = `${ymd(new Date(Date.now() - dias * 86400000))} 00:00:00`;
   const t1 = `${ymd(new Date())} 23:59:59`;
+  const cols = 'id,numero,status,nota_fiscal,data_envio,data_entrega,acareacao_aberta,raw';
   const out = { paginas: 0, waybills: 0, atualizados: 0, viaChave: 0, viaNF: 0, marcadosEnviado: 0, entregues: 0, semMatch: 0 };
   for (let current = 1; current <= paginas; current++) {
     const { status, j } = await jtPost('/ccm-vip/waybillOrder/page', { current, size: 50, time: [t0, t1], billType: 2, inputTimeStart: t0, inputTimeEnd: t1 });
-    if (status !== 200 || j?.code !== 1) { out.erro = `status ${status} code ${j?.code || '?'} (token do J&T pode ter expirado)`; break; }
+    if (status !== 200 || j?.code !== 1) { out.erro = `status ${status} code ${j?.code || '?'} (janela max ~30 dias; ou token expirado)`; break; }
     const list = j.data?.records || j.data?.list || [];
     if (!list.length) break;
     out.paginas++; out.waybills += list.length;
+    // 1) coleta chaves de casamento e busca em lote
+    const nfSet = new Set(), chaveSet = new Set();
+    for (const w of list) { nfCandidates(w.invoiceNo).forEach((c) => { if (/^\d+$/.test(c)) nfSet.add(c); }); if (w.invoiceAccessKey) chaveSet.add(w.invoiceAccessKey); }
+    const byNF = {}, byChave = {};
+    if (nfSet.size) { const rows = await sb.select('cmp_orders', { columns: cols, where: `nota_fiscal=in.(${[...nfSet].join(',')})`, limit: 300 }); for (const r of rows) if (r.nota_fiscal) byNF[r.nota_fiscal] = r; }
+    if (chaveSet.size) { const rows = await sb.select('cmp_orders', { columns: cols, where: `raw->>chave_danfe=in.(${[...chaveSet].join(',')})`, limit: 300 }); for (const r of rows) if (r.raw?.chave_danfe) byChave[r.raw.chave_danfe] = r; }
+    // 2) casa em memória e atualiza em paralelo (lotes de 10)
+    const updates = [];
     for (const w of list) {
-      const { ord, via } = await matchWaybill(w);
+      let ord = w.invoiceAccessKey ? byChave[w.invoiceAccessKey] : null, via = 'chave';
+      if (!ord) { for (const c of nfCandidates(w.invoiceNo)) { if (byNF[c]) { ord = byNF[c]; via = 'nf'; break; } } }
       if (!ord) { out.semMatch++; continue; }
-      if (via === 'chave') out.viaChave++; else out.viaNF++;
-      const patch = { transportadora: 'jt' };
-      if (w.waybillNo) patch.tracking_code = w.waybillNo;
-      if (w.invoiceNo && !ord.nota_fiscal) patch.nota_fiscal = String(w.invoiceNo);
-      patch.raw = { ...(ord.raw || {}), chave_danfe: w.invoiceAccessKey || ord.raw?.chave_danfe, jt_status: w.waybillStatusCode };
-      let novo = null;
-      if (w.signTime) novo = 'entregue'; else if (w.collectTime) novo = 'enviado';
-      if (novo && ord.status !== novo && !['cancelado', 'devolvido'].includes(ord.status)) {
-        patch.status = novo;
-        if (novo === 'enviado' && !ord.data_envio) patch.data_envio = w.collectTime;
-        if (novo === 'enviado') out.marcadosEnviado++;
-        if (novo === 'entregue') { if (!ord.data_entrega) patch.data_entrega = w.signTime; if (ord.acareacao_aberta) patch.acareacao_aberta = false; out.entregues++; }
-      }
-      await sb.update('cmp_orders', `id=eq.${ord.id}`, patch);
-      out.atualizados++;
+      via === 'chave' ? out.viaChave++ : out.viaNF++;
+      updates.push(applyWaybill(ord, w, out));
     }
+    for (let i = 0; i < updates.length; i += 10) await Promise.all(updates.slice(i, i + 10));
     if (list.length < 50) break;
   }
   return out;
 }
 // Diagnóstico do casamento J&T: mostra os valores reais e se casam.
-async function jtDiag(dias = 30) {
+async function jtDiag(dias = 29) {
   const t0 = `${ymd(new Date(Date.now() - dias * 86400000))} 00:00:00`;
   const t1 = `${ymd(new Date())} 23:59:59`;
   const { status, j } = await jtPost('/ccm-vip/waybillOrder/page', { current: 1, size: 10, time: [t0, t1], billType: 2, inputTimeStart: t0, inputTimeEnd: t1 });
@@ -297,36 +313,75 @@ async function disableTimeRules() {
   return { desligadas: off };
 }
 // ================= Bordado: puxa personalização direto da Loja Integrada =================
-// Sonda profunda de um pedido para localizar onde a LI guarda a personalização.
-async function bordadoProbe(numero) {
-  const out = { numero };
-  const host = 'https://api.awsli.com.br';
-  async function get(path) {
-    const u = new URL(path.startsWith('http') ? path : host + path);
-    u.searchParams.set('chave_api', process.env.LI_CHAVE_API || '');
-    u.searchParams.set('chave_aplicacao', process.env.LI_CHAVE_APLICACAO || '');
-    const r = await fetch(u.toString(), { headers: { Accept: 'application/json' } });
-    let j = null; try { j = await r.json(); } catch {}
-    return { status: r.status, j };
+const LI_HOST = 'https://api.awsli.com.br';
+async function liDetGet(path) {
+  const u = new URL(path.startsWith('http') ? path : LI_HOST + path);
+  u.searchParams.set('chave_api', process.env.LI_CHAVE_API || '');
+  u.searchParams.set('chave_aplicacao', process.env.LI_CHAVE_APLICACAO || '');
+  const r = await fetch(u.toString(), { headers: { Accept: 'application/json' } });
+  let j = null; try { j = await r.json(); } catch {}
+  return { status: r.status, j };
+}
+// Extrai a personalização (bordado) de um pedido detalhado da LI.
+function extractBordado(d) {
+  const linhas = [];
+  for (const it of (d.itens || [])) {
+    const campos = ['personalizacao', 'personalizacoes', 'customizacao', 'customizacoes', 'opcoes', 'brinde', 'observacao', 'obs', 'personalizacao_texto'];
+    let pers = null;
+    for (const c of campos) if (it[c] != null && it[c] !== '' && !(Array.isArray(it[c]) && !it[c].length)) { pers = it[c]; break; }
+    if (pers) linhas.push({ sku: it.sku, nome: it.nome, personalizacao: pers });
   }
-  // acha o pedido pelo número (ou o mais recente)
-  const base = '/v1/pedido/';
-  let ped = null;
-  if (numero) { const f = await get(`${base}?numero=${numero}&limit=1`); ped = (f.j?.objects || [])[0]; }
-  if (!ped) { const f = await get(`${base}?limit=1&order_by=-data_criacao`); ped = (f.j?.objects || [])[0]; }
-  if (!ped) return { ...out, erro: 'nenhum pedido' };
-  out.numero = ped.numero; out.pedido_id = ped.id;
-  out.integration_data = ped.integration_data || null;
-  // detalhe correto via resource_uri (host + uri)
-  if (ped.resource_uri) { const d = await get(ped.resource_uri); out.detalhe_status = d.status; out.detalhe_campos = Object.keys(d.j || {}); out.detalhe_itens = (d.j?.itens || d.j?.items || []).length; if (d.j?.itens?.[0]) out.detalhe_item0 = d.j.itens[0]; }
-  // itens do pedido (endpoints possíveis)
-  for (const p of [`/v1/pedido_item/?pedido=${ped.id}&limit=50`, `/v1/pedido/${ped.id}/itens`, `/v1/pedido/${ped.id}/item`]) {
-    const it = await get(p);
-    const arr = it.j?.objects || it.j?.itens || (Array.isArray(it.j) ? it.j : []);
-    if (it.status === 200 && arr.length) {
-      out.itens_endpoint = p; out.itens_qtd = arr.length;
-      out.itens = arr.slice(0, 4).map((i) => ({ campos: Object.keys(i), sku: i.sku, nome: i.nome || i.produto, personalizacao: i.personalizacao ?? i.personalizacoes ?? i.customizacao ?? i.customizacoes ?? i.opcoes ?? i.brinde ?? null, observacao: i.observacao ?? i.obs ?? null }));
-      break;
+  const obs = (d.cliente_obs || '').trim();
+  if (!linhas.length && !obs) return null;
+  return { itens: linhas, cliente_obs: obs || null };
+}
+// Sonda: varre pedidos recentes procurando onde a LI guarda a personalização.
+async function bordadoProbe(numero) {
+  const out = { achados: [], varridos: 0 };
+  const lst = await liDetGet(`/v1/pedido/?limit=40&order_by=-data_criacao`);
+  const objs = lst.j?.objects || [];
+  for (const o of objs) {
+    if (!o.resource_uri) continue;
+    const det = await liDetGet(o.resource_uri); const d = det.j || {};
+    out.varridos++;
+    const b = extractBordado(d);
+    const camposComValor = (d.itens || []).flatMap((it) => Object.entries(it).filter(([k, v]) => v && !['produto', 'produto_pai', 'pedido'].includes(k) && typeof v === 'object').map(([k]) => k));
+    if (b || (d.cliente_obs || '').trim()) out.achados.push({ numero: d.numero, cliente_obs: d.cliente_obs, bordado: b, item_campos_objeto: [...new Set(camposComValor)], item0: (d.itens || [])[0] });
+    if (out.achados.length >= 4) break;
+  }
+  if (!out.achados.length) { const det = await liDetGet(objs[0].resource_uri); out.amostra_item = (det.j?.itens || [])[0]; out.amostra_cliente_obs = det.j?.cliente_obs; }
+  return out;
+}
+// Enriquecimento via LI: puxa endereço de entrega (p/ motoboy), rastreio (envios),
+// obs e personalização (bordado) dos pedidos recentes -> grava no cmp_orders.raw.
+async function liEnrich(paginas = 3) {
+  const out = { pedidos: 0, atualizados: 0, comEndereco: 0, comBordado: 0, comRastreio: 0, erros: 0 };
+  for (let p = 0; p < paginas; p++) {
+    const lst = await liDetGet(`/v1/pedido/?limit=20&offset=${p * 20}&order_by=-data_criacao`);
+    const objs = lst.j?.objects || [];
+    if (!objs.length) break;
+    for (const o of objs) {
+      out.pedidos++;
+      try {
+        const det = await liDetGet(o.resource_uri); const d = det.j || {};
+        const numero = String(d.numero || o.numero);
+        const ord = await sb.selectOne('cmp_orders', { columns: 'id,raw,tracking_code,transportadora', where: `numero=eq.${numero}` });
+        if (!ord) continue;
+        const end = d.endereco_entrega || null;
+        const envio = (d.envios || [])[0] || {};
+        const codigo = envio.objeto || envio.codigo_rastreio || envio.rastreio || null;
+        const bordado = extractBordado(d);
+        const raw = { ...(ord.raw || {}) };
+        if (end) { raw.endereco_entrega = end; out.comEndereco++; }
+        if (d.cliente_obs) raw.cliente_obs = d.cliente_obs;
+        if (bordado) { raw.bordado = bordado; out.comBordado++; }
+        const patch = { raw };
+        if (codigo && !ord.tracking_code) { patch.tracking_code = codigo; out.comRastreio++; }
+        const forma = envio.forma_envio_nome || envio.nome;
+        if (forma && (!ord.transportadora || ord.transportadora === 'correios')) { patch.transportadora = carrierKey(forma); patch.servico = forma; }
+        await sb.update('cmp_orders', `id=eq.${ord.id}`, patch);
+        out.atualizados++;
+      } catch (e) { out.erros++; }
     }
   }
   return out;
@@ -499,8 +554,9 @@ export default async function handler(req, res) {
     if (req.query.me === 'probe') return res.status(200).json(await meProbe());
     if (req.query.jt === 'status') { const s = await jtLoad(); return res.status(200).json({ temToken: !!s?.token, salvo_em: s?.saved_at || null }); }
     if (req.query.jt === 'sync') return res.status(200).json(await jtSync(Number(req.query.paginas) || 3, Number(req.query.dias) || 30));
-    if (req.query.jt === 'diag') return res.status(200).json(await jtDiag(Number(req.query.dias) || 30));
+    if (req.query.jt === 'diag') return res.status(200).json(await jtDiag(Number(req.query.dias) || 29));
     if (req.query.bordado === 'probe') return res.status(200).json(await bordadoProbe(req.query.numero));
+    if (req.query.enrich === 'li') return res.status(200).json(await liEnrich(Number(req.query.paginas) || 3));
     if (req.query.admin === 'disableTimeRules') return res.status(200).json(await disableTimeRules());
     if (req.query.motoboy_key === 'get') return res.status(200).json({ key: await motoboyKey() });
     if (req.query.process === 'batch') return res.status(200).json(await processActiveBatch(Number(req.query.limit) || 40));
@@ -508,7 +564,7 @@ export default async function handler(req, res) {
     // ===== Ciclo automático (cron diário): pipeline REAL, sem dados mock =====
     const out = { ranAt: new Date().toISOString() };
     try { out.bling = await blingSync(100, 1); } catch (e) { out.bling = { error: e.message }; }
-    try { out.jt = await jtSync(3, 30); } catch (e) { out.jt = { error: e.message }; }
+    try { out.jt = await jtSync(3, 29); } catch (e) { out.jt = { error: e.message }; }
     try { out.cycle = await processActiveBatch(40); } catch (e) { out.cycle = { error: e.message }; }
     return res.status(200).json({ ok: true, ...out });
   } catch (e) {
