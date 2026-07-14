@@ -1,11 +1,10 @@
 export default async function handler(req, res){
   res.setHeader('Access-Control-Allow-Origin','*');
   const app = process.env.LI_CHAVE_APLICACAO, api = process.env.LI_CHAVE_API;
-  if(!app || !api) return res.status(500).json({error:'sem credenciais LI', hasApp:!!app, hasApi:!!api});
+  if(!app || !api) return res.status(500).json({error:'sem credenciais LI'});
   const path = (req.query && req.query.path) || 'pedido/search';
   const qs = (req.query && req.query.qs) || '';
-  const base = 'https://api.awsli.com.br/v1/';
-  const url = base + path + (qs ? ('?'+qs) : '');
+  const url = 'https://api.awsli.com.br/v1/' + path + (qs ? ('?'+qs) : '');
   try{
     const r = await fetch(url, { headers: { 'Authorization': 'chave_api ' + api + ' chave_aplicacao ' + app, 'Content-Type':'application/json' } });
     const text = await r.text();
