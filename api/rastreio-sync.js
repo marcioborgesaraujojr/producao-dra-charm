@@ -424,7 +424,9 @@ const LI_CDN = 'https://cdn.awsli.com.br/';
 async function imagemPorId(uri) {
   const id = String(uri || '').split('/').filter(Boolean).pop();
   if (!id) return null;
-  const r = await liDetGet(`/v1/produto_imagem/?produto=${id}&limit=20`);
+  let r = await liDetGet(`/v1/produto_imagem/?produto=${id}&limit=20`);
+  // retry se a LI respondeu com limite de requisições (429) ou erro do servidor
+  for (let t = 0; t < 3 && (r.status === 429 || r.status >= 500); t++) { await new Promise((s) => setTimeout(s, 700)); r = await liDetGet(`/v1/produto_imagem/?produto=${id}&limit=20`); }
   const objs = r.j?.objects || [];
   if (!objs.length) return null;
   // SEMPRE a de MENOR posição (a loja seta a foto cinza como 1ª). Ignora "principal".
@@ -578,7 +580,12 @@ async function liEnrich(paginas = 3, importar = true, comImagem = true, desde = 
         const raw = { ...(ord.raw || {}) };
         if (end) { raw.endereco_entrega = end; out.comEndereco++; }
         if (d.cliente_obs) raw.cliente_obs = d.cliente_obs;
-        if (produtos.length) { raw.produtos = produtos; out.comProdutos++; }
+        if (produtos.length) {
+          // se o lookup de imagem falhou (rate-limit), preserva a imagem que já existia
+          const oldImg = {}; for (const it of (ord.raw?.produtos || [])) if (it.sku && it.imagem) oldImg[it.sku] = it.imagem;
+          for (const it of produtos) if (!it.imagem && it.sku && oldImg[it.sku]) it.imagem = oldImg[it.sku];
+          raw.produtos = produtos; out.comProdutos++;
+        }
         raw.cliente_contato = contato;
         const patch = { raw };
         if (codigo && !ord.tracking_code) { patch.tracking_code = codigo; out.comRastreio++; }
