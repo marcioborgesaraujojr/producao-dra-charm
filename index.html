@@ -19,7 +19,10 @@ tailwind.config = {
 </script>
 <style>
   html,body{height:100%}
-  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background-size:cover;background-position:center;background-attachment:fixed;background-repeat:no-repeat}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  #appBg{position:fixed;inset:0;z-index:-2;background-size:cover;background-position:center;background-repeat:no-repeat;pointer-events:none;transform:translateZ(0);will-change:transform}
+  body.has-bg #appBg::after{content:'';position:absolute;inset:0;background:rgba(15,23,42,.35);pointer-events:none}
+  .dark body.has-bg #appBg::after{background:rgba(0,0,0,.5)}
   body.has-bg::before{content:'';position:fixed;inset:0;background:rgba(15,23,42,.35);pointer-events:none;z-index:0}
   body.has-bg #app,body.has-bg #loginScreen{position:relative;z-index:1}
   body.has-bg header{background:rgba(255,255,255,.85)!important;backdrop-filter:blur(12px)}
@@ -161,6 +164,7 @@ tailwind.config = {
 </style>
 </head>
 <body class="bg-slate-100 dark:bg-ink-900 text-slate-900 dark:text-slate-100 transition-colors">
+<div id="appBg"></div>
 
 <div id="loginScreen" class="hidden min-h-screen flex items-center justify-center p-4">
   <div class="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-md p-8">
@@ -1066,7 +1070,7 @@ async function initAuth(){
   });
 }
 
-function showLogin(){ document.getElementById('loginScreen').classList.remove('hidden'); document.getElementById('app').classList.add('hidden'); document.getElementById('hubScreen').classList.add('hidden'); document.body.style.backgroundImage=''; document.body.classList.remove('has-bg'); }
+function showLogin(){ document.getElementById('loginScreen').classList.remove('hidden'); document.getElementById('app').classList.add('hidden'); document.getElementById('hubScreen').classList.add('hidden'); (document.getElementById('appBg')||document.body).style.backgroundImage=''; document.body.classList.remove('has-bg'); }
 function showApp(){ document.getElementById('loginScreen').classList.add('hidden'); document.getElementById('app').classList.remove('hidden'); }
 
 window.doLogin = async () => {
@@ -2234,10 +2238,10 @@ function applyLogo(url){
 
 function applyBoardBackground(url){
   if (url){
-    document.body.style.backgroundImage = `url('${url}')`;
+    (document.getElementById('appBg')||document.body).style.backgroundImage = `url('${url}')`;
     document.body.classList.add('has-bg');
   } else {
-    document.body.style.backgroundImage = '';
+    (document.getElementById('appBg')||document.body).style.backgroundImage = '';
     document.body.classList.remove('has-bg');
   }
 }
@@ -2665,7 +2669,7 @@ function showHub(){
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('app').classList.add('hidden');
   document.getElementById('hubScreen').classList.remove('hidden');
-  document.body.style.backgroundImage = '';
+  (document.getElementById('appBg')||document.body).style.backgroundImage = '';
   document.body.classList.remove('has-bg');
   applySuiteBg();
   const em = document.getElementById('hubUserEmail');
@@ -2765,7 +2769,7 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('click', e => {
   if (e.target.closest('#hubLogoutBtn')){
-    document.body.style.backgroundImage=''; document.body.classList.remove('has-bg');
+    (document.getElementById('appBg')||document.body).style.backgroundImage=''; document.body.classList.remove('has-bg');
     if (typeof sb !== 'undefined') sb.auth.signOut().then(() => window.location.reload());
   }
   if (e.target.closest('#hubThemeBtn')){
@@ -2978,7 +2982,7 @@ window.enterCep=function(){
   var app=document.getElementById('app'); if(app) app.classList.add('hidden');
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('cepScreen').classList.remove('hidden');
-  document.body.style.backgroundImage=''; document.body.classList.remove('has-bg');
+  (document.getElementById('appBg')||document.body).style.backgroundImage=''; document.body.classList.remove('has-bg');
   if(!cepLoaded){ cepCarregarSituacoes(); cepLoaded=true; }
   try{
     var f=JSON.parse(localStorage.getItem('dc_cep_filter')||'{}');
