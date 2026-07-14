@@ -306,18 +306,27 @@ function stepperH(o,history,ocorrencias){
 }
 // esconde "serviço" quando é nome de empresa (ex.: "TAM LINHAS AEREAS S.A.") em vez de serviço real
 function servicoLimpo(s){ s=(s||'').trim(); if(!s) return ''; if(/(s\.?\s*a\.?$|ltda\b|linhas a[eé]reas|transportes?\b|log[íi]stica|telegrafos)/i.test(s)) return ''; return s; }
+// item de personalização/embalagem (imagem 70x70) vs produto (70x88) — igual ao Trello de produção
+function ehPersonalizacao(p){ return /personaliz|bordado|acr[eé]scimo|embalagem/i.test((p&&p.nome)||''); }
 function produtosBlock(prod){
   if(!prod||!Array.isArray(prod)||!prod.length) return '<p class="muted">Produtos não carregados ainda.</p>';
-  return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">`+prod.map(p=>`
-    <div style="display:flex;gap:12px;align-items:center;border:1px solid #eef0f3;border-radius:10px;padding:9px">
-      <div style="position:relative;width:50px;height:50px;flex:none">
-        <div style="width:50px;height:50px;border-radius:8px;border:1px solid #eee;background:#f3f3f5 center/cover no-repeat${p.imagem?` url('${esc(p.imagem)}')`:''}"></div>
+  return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">`+prod.map(p=>{
+    const perso=ehPersonalizacao(p); const w=70, h=perso?70:88;
+    // efeito branquinho com borda (igual sidecart do site)
+    const box=`width:${w}px;height:${h}px;border-radius:8px;border:1px solid #ececf1;background:#fff;object-fit:cover;display:block`;
+    const img=p.imagem
+      ? `<img src="${esc(p.imagem)}" style="${box}" loading="lazy" onerror="this.style.visibility='hidden'">`
+      : `<div style="${box}"></div>`;
+    return `<div style="display:flex;gap:12px;align-items:center;border:1px solid #eef0f3;border-radius:10px;padding:9px">
+      <div style="position:relative;flex:none">
+        ${img}
         <span style="position:absolute;bottom:-6px;left:-6px;background:var(--brand);color:#fff;font-size:11px;font-weight:800;border-radius:20px;min-width:18px;height:18px;line-height:18px;text-align:center;padding:0 4px">${p.qtd||1}</span>
       </div>
       <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13px">${esc(p.nome)||esc(p.sku)}</div>
         <div class="muted" style="font-size:12px">${p.tamanho?('Tam '+esc(p.tamanho)+' · '):''}${esc(p.sku)||''}</div>
         <div style="font-weight:700;font-size:13px;margin-top:2px">${money(p.preco)}</div></div>
-    </div>`).join('')+`</div>`;
+    </div>`;
+  }).join('')+`</div>`;
 }
 function contatoLinha(o){
   const c=(o.raw&&o.raw.cliente_contato)||{};
