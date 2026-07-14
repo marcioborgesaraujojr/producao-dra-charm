@@ -33,15 +33,12 @@ tailwind.config = {
   body.has-bg.dark header{background:rgba(17,24,39,.85)!important}
   /* v82: hubScreen tem bg-gradient inline do Tailwind que cobre o #appBg fixed. Zera quando has-bg */
   body.has-bg #hubScreen,body.has-bg #loginScreen{background:transparent !important;background-image:none !important}
-  /* v83: mobile rotaciona wallpaper 90° pra mostrar landscape esq→dir no portrait */
+  /* v84: mobile mostra wallpaper inteiro horizontalmente sem rotacionar (contain) */
   @media (max-width: 767px) {
     #appBg {
-      width: 100vh !important;
-      height: 100vw !important;
-      top: 50% !important;
-      left: 50% !important;
-      transform: translate(-50%, -50%) rotate(90deg);
-      transform-origin: center center;
+      background-size: contain !important;
+      background-position: center top !important;
+      background-color: #0f172a;
     }
   }
   .board-scroll{scrollbar-width:thin}
