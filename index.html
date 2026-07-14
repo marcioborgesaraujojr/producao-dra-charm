@@ -33,12 +33,11 @@ tailwind.config = {
   body.has-bg.dark header{background:rgba(17,24,39,.85)!important}
   /* v82: hubScreen tem bg-gradient inline do Tailwind que cobre o #appBg fixed. Zera quando has-bg */
   body.has-bg #hubScreen,body.has-bg #loginScreen{background:transparent !important;background-image:none !important}
-  /* v84: mobile mostra wallpaper inteiro horizontalmente sem rotacionar (contain) */
+  /* v85: mobile mantém cover (preenche cortando) */
   @media (max-width: 767px) {
     #appBg {
-      background-size: contain !important;
-      background-position: center top !important;
-      background-color: #0f172a;
+      background-size: cover !important;
+      background-position: center !important;
     }
   }
   .board-scroll{scrollbar-width:thin}
@@ -3208,5 +3207,5 @@ initAuth();
   </div>
 </div>
 </body>
-<!-- deploy_marker 1784057279643 -->
+<!-- deploy_marker 1784057494190 -->
 </html>
