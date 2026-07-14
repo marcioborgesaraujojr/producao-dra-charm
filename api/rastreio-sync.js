@@ -425,9 +425,10 @@ async function imagemPorId(uri) {
   const id = String(uri || '').split('/').filter(Boolean).pop();
   if (!id) return null;
   const r = await liDetGet(`/v1/produto_imagem/?produto=${id}&limit=20`);
-  // SEMPRE a 1ª imagem (menor posição = foto de catálogo, fundo cinza/limpo)
-  const objs = (r.j?.objects || []).slice().sort((a, b) => (a.posicao ?? 999) - (b.posicao ?? 999));
-  const o = objs[0];
+  const objs = r.j?.objects || [];
+  if (!objs.length) return null;
+  // prioridade: imagem PRINCIPAL (foto de catálogo definida pela loja) -> senão a de menor posição
+  const o = objs.find((x) => x.principal) || objs.slice().sort((a, b) => (a.posicao ?? 999) - (b.posicao ?? 999))[0];
   if (o?.caminho) return LI_CDN + String(o.caminho).replace(/^\/+/, '');
   return null;
 }
