@@ -1,7 +1,8 @@
 // Cron da Vercel: roda o ciclo de monitoramento (importa + rastreia + regras).
 // Protegido por CMP_CRON_SECRET. A Vercel Cron chama com header Authorization.
-import { runCycle } from '../lib/engine.js';
+import { runCycle, processOrder } from '../lib/engine.js';
 import * as sb from '../lib/supabase.js';
+import * as li from '../lib/li.js';
 import { carrierKey } from '../lib/statusmap.js';
 
 export const config = { maxDuration: 60 };
@@ -97,22 +98,49 @@ async function jtPost(path, body) {
   return { status: r.status, j };
 }
 function ymd(d) { return d.toISOString().slice(0, 10); }
-async function jtSync(paginas = 2, dias = 20) {
+// Gera variações do número da NF (com/sem zeros à esquerda) para casar com o nosso banco.
+function nfCandidates(nf) {
+  const digits = String(nf == null ? '' : nf).replace(/\D/g, '');
+  if (!digits) return [];
+  const noZeros = String(Number(digits));
+  return [...new Set([String(nf), digits, noZeros, noZeros.padStart(6, '0'), noZeros.padStart(9, '0')])].filter(Boolean);
+}
+async function findOrderByChave(chave) {
+  if (!chave) return null;
+  return sb.selectOne('cmp_orders', { where: `raw->>chave_danfe=eq.${encodeURIComponent(chave)}` });
+}
+async function findOrderByNF(nf) {
+  const cands = nfCandidates(nf).filter((c) => /^\d+$/.test(c));
+  if (!cands.length) return null;
+  return sb.selectOne('cmp_orders', { where: `nota_fiscal=in.(${cands.join(',')})` });
+}
+// Casa o waybill do J&T com o nosso pedido: 1º pela chave DANFE (única), depois pela NF.
+async function matchWaybill(w) {
+  let ord = await findOrderByChave(w.invoiceAccessKey);
+  if (ord) return { ord, via: 'chave' };
+  ord = await findOrderByNF(w.invoiceNo);
+  if (ord) return { ord, via: 'nf' };
+  return { ord: null, via: null };
+}
+async function jtSync(paginas = 3, dias = 30) {
+  const s = await jtLoad();
+  if (!s?.token) return { erro: 'J&T VIP sem token — refazer login no painel VIP' };
   const t0 = `${ymd(new Date(Date.now() - dias * 86400000))} 00:00:00`;
   const t1 = `${ymd(new Date())} 23:59:59`;
-  const out = { paginas: 0, waybills: 0, atualizados: 0, marcadosEnviado: 0, entregues: 0, semMatch: 0 };
+  const out = { paginas: 0, waybills: 0, atualizados: 0, viaChave: 0, viaNF: 0, marcadosEnviado: 0, entregues: 0, semMatch: 0 };
   for (let current = 1; current <= paginas; current++) {
     const { status, j } = await jtPost('/ccm-vip/waybillOrder/page', { current, size: 50, time: [t0, t1], billType: 2, inputTimeStart: t0, inputTimeEnd: t1 });
-    if (status !== 200 || j?.code !== 1) { out.erro = `status ${status} code ${j?.code || '?'} (token pode ter expirado)`; break; }
+    if (status !== 200 || j?.code !== 1) { out.erro = `status ${status} code ${j?.code || '?'} (token do J&T pode ter expirado)`; break; }
     const list = j.data?.records || j.data?.list || [];
     if (!list.length) break;
     out.paginas++; out.waybills += list.length;
     for (const w of list) {
-      const nf = w.invoiceNo; if (!nf) continue;
-      const ord = await sb.selectOne('cmp_orders', { where: `nota_fiscal=eq.${encodeURIComponent(String(nf))}` });
+      const { ord, via } = await matchWaybill(w);
       if (!ord) { out.semMatch++; continue; }
+      if (via === 'chave') out.viaChave++; else out.viaNF++;
       const patch = { transportadora: 'jt' };
       if (w.waybillNo) patch.tracking_code = w.waybillNo;
+      if (w.invoiceNo && !ord.nota_fiscal) patch.nota_fiscal = String(w.invoiceNo);
       patch.raw = { ...(ord.raw || {}), chave_danfe: w.invoiceAccessKey || ord.raw?.chave_danfe, jt_status: w.waybillStatusCode };
       let novo = null;
       if (w.signTime) novo = 'entregue'; else if (w.collectTime) novo = 'enviado';
@@ -128,6 +156,22 @@ async function jtSync(paginas = 2, dias = 20) {
     if (list.length < 50) break;
   }
   return out;
+}
+// Diagnóstico do casamento J&T: mostra os valores reais e se casam.
+async function jtDiag(dias = 30) {
+  const t0 = `${ymd(new Date(Date.now() - dias * 86400000))} 00:00:00`;
+  const t1 = `${ymd(new Date())} 23:59:59`;
+  const { status, j } = await jtPost('/ccm-vip/waybillOrder/page', { current: 1, size: 10, time: [t0, t1], billType: 2, inputTimeStart: t0, inputTimeEnd: t1 });
+  if (status !== 200 || j?.code !== 1) return { erro: `status ${status} code ${j?.code}` };
+  const list = j.data?.records || j.data?.list || [];
+  const rows = [];
+  for (const w of list) {
+    const byChave = await findOrderByChave(w.invoiceAccessKey);
+    const byNF = await findOrderByNF(w.invoiceNo);
+    rows.push({ waybillNo: w.waybillNo, invoiceNo: w.invoiceNo, chaveFim: (w.invoiceAccessKey || '').slice(-8), nfCands: nfCandidates(w.invoiceNo), casouChave: byChave?.numero || null, casouNF: byNF?.numero || null, entregue: !!w.signTime });
+  }
+  const amostraNossa = await sb.select('cmp_orders', { columns: 'numero,nota_fiscal', where: 'nota_fiscal=not.is.null', limit: 10 });
+  return { totalWaybills: list.length, rows, amostraNossosPedidosComNF: amostraNossa };
 }
 // ==================================================================================
 // ================= Melhor Envio (rastreio grátis do que passa por lá) =================
@@ -169,37 +213,124 @@ async function meProbe() {
 // SYNC do Bling Taymah: puxa NFs recentes, extrai código de rastreio +
 // transportadora + chave DANFE, casa com nosso pedido (numeroPedidoLoja) e
 // marca Enviado. NÃO escreve status na LI (parallel run — evita WhatsApp duplo).
-async function blingSync(limite = 50) {
-  const nf = await blingGet(`/nfe?limite=${limite}`);
-  const list = nf.j?.data || [];
-  const out = { nfes: list.length, atualizados: 0, comCodigo: 0, semMatch: 0, marcadosEnviado: 0, amostra: [] };
-  for (const n of list) {
-    let d;
-    try { const det = await blingGet(`/nfe/${n.id}`); d = det.j?.data || {}; } catch { continue; }
-    const numeroLoja = d.numeroPedidoLoja || n.numeroPedidoLoja;
-    if (!numeroLoja) continue;
-    const tr = d.transporte || {};
-    const vol = (tr.volumes || [])[0] || {};
-    const codigo = vol.codigoRastreamento || null;
-    const servico = vol.servico || tr.transportador?.nome || '';
-    const chave = d.chaveAcesso || null;
-    const cpf = (d.contato && (d.contato.numeroDocumento || d.contato.cpfCnpj)) || null;
-    const ordr = await sb.selectOne('cmp_orders', { where: `numero=eq.${encodeURIComponent(String(numeroLoja))}` });
-    if (!ordr) { out.semMatch++; continue; }
-    const patch = {};
-    if (d.numero && !ordr.nota_fiscal) patch.nota_fiscal = String(d.numero);
-    if (codigo) { patch.tracking_code = codigo; out.comCodigo++; }
-    if (servico) { patch.transportadora = carrierKey(servico); patch.servico = servico; }
-    patch.raw = { ...(ordr.raw || {}), chave_danfe: chave, cpf_cliente: cpf, bling_nfe_id: n.id };
-    const naoFinal = !['enviado', 'entregue', 'atrasado', 'devolvido', 'cancelado'].includes(ordr.status);
-    if (codigo && naoFinal) { patch.status = 'enviado'; if (!ordr.data_envio) patch.data_envio = new Date().toISOString(); out.marcadosEnviado++; }
-    await sb.update('cmp_orders', `id=eq.${ordr.id}`, patch);
-    out.atualizados++;
-    if (out.amostra.length < 6) out.amostra.push({ pedido: numeroLoja, transportadora: patch.transportadora, temCodigo: !!codigo });
+async function blingSyncOne(n, out) {
+  let d;
+  try { const det = await blingGet(`/nfe/${n.id}`); d = det.j?.data || {}; } catch { return; }
+  const numeroLoja = d.numeroPedidoLoja || n.numeroPedidoLoja;
+  if (!numeroLoja) return;
+  const tr = d.transporte || {};
+  const vol = (tr.volumes || [])[0] || {};
+  const codigo = vol.codigoRastreamento || null;
+  const servico = vol.servico || tr.transportador?.nome || tr.etiqueta?.nome || '';
+  const chave = d.chaveAcesso || null;
+  const cpf = (d.contato && (d.contato.numeroDocumento || d.contato.cpfCnpj)) || null;
+  const ordr = await sb.selectOne('cmp_orders', { where: `numero=eq.${encodeURIComponent(String(numeroLoja))}` });
+  if (!ordr) { out.semMatch++; return; }
+  const patch = {};
+  if (d.numero) patch.nota_fiscal = String(d.numero);          // alinha NF com o J&T (mesmo numero da NFe)
+  if (codigo) { patch.tracking_code = codigo; out.comCodigo++; }
+  if (servico) { patch.transportadora = carrierKey(servico); patch.servico = servico; }
+  patch.raw = { ...(ordr.raw || {}), chave_danfe: chave, cpf_cliente: cpf, bling_nfe_id: n.id };
+  const naoFinal = !['enviado', 'entregue', 'atrasado', 'devolvido', 'cancelado'].includes(ordr.status);
+  if (codigo && naoFinal) { patch.status = 'enviado'; if (!ordr.data_envio) patch.data_envio = new Date().toISOString(); out.marcadosEnviado++; }
+  await sb.update('cmp_orders', `id=eq.${ordr.id}`, patch);
+  out.atualizados++;
+  if (out.amostra.length < 6) out.amostra.push({ pedido: numeroLoja, nf: patch.nota_fiscal, transportadora: patch.transportadora, temCodigo: !!codigo, temChave: !!chave });
+}
+async function blingSync(limite = 100, paginas = 1) {
+  const out = { nfes: 0, atualizados: 0, comCodigo: 0, semMatch: 0, marcadosEnviado: 0, amostra: [] };
+  for (let pagina = 1; pagina <= paginas; pagina++) {
+    const nf = await blingGet(`/nfe?limite=${Math.min(limite, 100)}&pagina=${pagina}`);
+    const list = nf.j?.data || [];
+    if (!list.length) break;
+    out.nfes += list.length;
+    const chunk = 3;                                            // respeita rate-limit do Bling (3 req/s)
+    for (let i = 0; i < list.length; i += chunk) {
+      await Promise.all(list.slice(i, i + chunk).map((n) => blingSyncOne(n, out)));
+      await new Promise((r) => setTimeout(r, 350));
+    }
+    if (list.length < Math.min(limite, 100)) break;
   }
   return out;
 }
 // ================================================================================
+
+// ================= Entrega local: página do motoboy + Retirada =================
+// Chave do entregador guardada num sentinel (não é env var — gera aqui).
+async function motoboyKey() { const r = await sb.selectOne('cmp_rules', { where: 'name=eq.__motoboy_key__' }); return r?.then_json?.key || null; }
+async function motoboySetup() {
+  const key = 'mb-' + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6);
+  const ex = await sb.selectOne('cmp_rules', { where: 'name=eq.__motoboy_key__', columns: 'id' });
+  if (ex) await sb.update('cmp_rules', `id=eq.${ex.id}`, { then_json: { key } });
+  else await sb.insert('cmp_rules', { name: '__motoboy_key__', enabled: false, priority: 99999, when_json: {}, then_json: { key } }, { returning: false });
+  return key;
+}
+async function motoboyList() {
+  const where = 'and=(transportadora.in.(local,motoboy),status.in.(faturado,em_separacao,enviado,aguardando_retirada,atrasado))';
+  const rows = await sb.select('cmp_orders', { columns: 'id,numero,cliente_nome,destino,uf,servico,status,data_envio,skus,raw', where, order: 'criado_em.desc', limit: 300 });
+  return rows.map((o) => ({
+    id: o.id, numero: o.numero, cliente: o.cliente_nome, destino: o.destino, uf: o.uf,
+    servico: o.servico, status: o.status,
+    endereco: o.raw?.endereco_entrega || o.raw?.endereco || o.raw?.shipping_address || null,
+    telefone: o.raw?.telefone || o.raw?.cliente_telefone || null,
+    bordado: o.raw?.bordado || null,
+  }));
+}
+async function motoboyEntregar(id, source = 'motoboy') {
+  const o = await sb.selectOne('cmp_orders', { where: `id=eq.${id}` });
+  if (!o) return { ok: false, error: 'pedido não encontrado' };
+  if (o.status === 'entregue') return { ok: true, already: true, numero: o.numero };
+  const now = new Date().toISOString();
+  await sb.update('cmp_orders', `id=eq.${id}`, { status: 'entregue', data_entrega: now, acareacao_aberta: false, updated_at: now });
+  await sb.insert('cmp_status_history', { order_id: id, from_status: o.status, to_status: 'entregue', source }, { returning: false });
+  await sb.insert('cmp_events', { order_id: id, data: now, status: 'entregue', descricao: source === 'retirada' ? 'Retirada confirmada na loja' : 'Entrega confirmada pelo entregador', local: o.destino || '', hash: source + '|' + Date.now() }, { returning: false });
+  try { await li.updateOrderStatus(o.li_id, 'entregue'); } catch {}
+  return { ok: true, numero: o.numero };
+}
+// Desliga as regras de auto-entrega por tempo (substituídas pela confirmação manual).
+async function disableTimeRules() {
+  const rules = await sb.select('cmp_rules', { columns: 'id,name,then_json,enabled', where: 'enabled=eq.true' });
+  let off = 0;
+  for (const r of rules) {
+    if (r.then_json?.setStatus === 'entregue') { await sb.update('cmp_rules', `id=eq.${r.id}`, { enabled: false }); off++; }
+  }
+  return { desligadas: off };
+}
+// ================= Bordado: puxa personalização direto da Loja Integrada =================
+// Sonda profunda de um pedido para localizar onde a LI guarda a personalização.
+async function bordadoProbe(numero) {
+  const out = { numero };
+  const host = 'https://api.awsli.com.br';
+  async function get(path) {
+    const u = new URL(path.startsWith('http') ? path : host + path);
+    u.searchParams.set('chave_api', process.env.LI_CHAVE_API || '');
+    u.searchParams.set('chave_aplicacao', process.env.LI_CHAVE_APLICACAO || '');
+    const r = await fetch(u.toString(), { headers: { Accept: 'application/json' } });
+    let j = null; try { j = await r.json(); } catch {}
+    return { status: r.status, j };
+  }
+  // acha o pedido pelo número (ou o mais recente)
+  const base = '/v1/pedido/';
+  let ped = null;
+  if (numero) { const f = await get(`${base}?numero=${numero}&limit=1`); ped = (f.j?.objects || [])[0]; }
+  if (!ped) { const f = await get(`${base}?limit=1&order_by=-data_criacao`); ped = (f.j?.objects || [])[0]; }
+  if (!ped) return { ...out, erro: 'nenhum pedido' };
+  out.numero = ped.numero; out.pedido_id = ped.id;
+  out.integration_data = ped.integration_data || null;
+  // detalhe correto via resource_uri (host + uri)
+  if (ped.resource_uri) { const d = await get(ped.resource_uri); out.detalhe_status = d.status; out.detalhe_campos = Object.keys(d.j || {}); out.detalhe_itens = (d.j?.itens || d.j?.items || []).length; if (d.j?.itens?.[0]) out.detalhe_item0 = d.j.itens[0]; }
+  // itens do pedido (endpoints possíveis)
+  for (const p of [`/v1/pedido_item/?pedido=${ped.id}&limit=50`, `/v1/pedido/${ped.id}/itens`, `/v1/pedido/${ped.id}/item`]) {
+    const it = await get(p);
+    const arr = it.j?.objects || it.j?.itens || (Array.isArray(it.j) ? it.j : []);
+    if (it.status === 200 && arr.length) {
+      out.itens_endpoint = p; out.itens_qtd = arr.length;
+      out.itens = arr.slice(0, 4).map((i) => ({ campos: Object.keys(i), sku: i.sku, nome: i.nome || i.produto, personalizacao: i.personalizacao ?? i.personalizacoes ?? i.customizacao ?? i.customizacoes ?? i.opcoes ?? i.brinde ?? null, observacao: i.observacao ?? i.obs ?? null }));
+      break;
+    }
+  }
+  return out;
+}
 
 // Teste READ-ONLY da Loja Integrada (?probe=li) — valida chaves e revela
 // os códigos de situação reais da conta. Não escreve nada.
@@ -324,6 +455,28 @@ export default async function handler(req, res) {
     await jtSave({ token: b.token, routeName: b.routeName || 'waybill', saved_at: new Date().toISOString() });
     return res.status(200).json({ ok: true });
   }
+  // Rotas do ENTREGADOR/RETIRADA (públicas + CORS, protegidas por chave própria).
+  if (req.query.motoboy) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    if (req.method === 'OPTIONS') return res.status(200).end();
+    const act = req.query.motoboy;
+    if (act === 'setup') { // gera a chave (protegido pelo secret do sistema)
+      const prov = (req.headers.authorization || '').replace('Bearer ', '') || req.query.secret;
+      if (prov !== process.env.CMP_CRON_SECRET) return res.status(401).json({ error: 'não autorizado' });
+      const key = await motoboySetup();
+      return res.status(200).json({ ok: true, key, link: `/entrega.html?k=${key}` });
+    }
+    const key = req.query.k || req.body?.k;
+    const real = await motoboyKey();
+    if (!real || key !== real) return res.status(401).json({ error: 'chave inválida' });
+    try {
+      if (act === 'list') return res.status(200).json({ ok: true, orders: await motoboyList() });
+      if (act === 'entregar') return res.status(200).json(await motoboyEntregar(req.query.id || req.body?.id, req.body?.source || 'motoboy'));
+    } catch (e) { return res.status(200).json({ ok: false, error: e.message }); }
+    return res.status(400).json({ error: 'ação inválida' });
+  }
   const secret = process.env.CMP_CRON_SECRET;
   const provided = (req.headers.authorization || '').replace('Bearer ', '') || req.query.secret;
   const isVercelCron = !!req.headers['x-vercel-cron'];
@@ -345,10 +498,34 @@ export default async function handler(req, res) {
     if (req.query.me === 'save') { await meSave({ token: req.query.token || req.body?.token }); return res.status(200).json({ ok: true }); }
     if (req.query.me === 'probe') return res.status(200).json(await meProbe());
     if (req.query.jt === 'status') { const s = await jtLoad(); return res.status(200).json({ temToken: !!s?.token, salvo_em: s?.saved_at || null }); }
-    if (req.query.jt === 'sync') return res.status(200).json(await jtSync(Number(req.query.paginas) || 2));
-    const result = await runCycle();
-    return res.status(200).json({ ok: true, ...result });
+    if (req.query.jt === 'sync') return res.status(200).json(await jtSync(Number(req.query.paginas) || 3, Number(req.query.dias) || 30));
+    if (req.query.jt === 'diag') return res.status(200).json(await jtDiag(Number(req.query.dias) || 30));
+    if (req.query.bordado === 'probe') return res.status(200).json(await bordadoProbe(req.query.numero));
+    if (req.query.admin === 'disableTimeRules') return res.status(200).json(await disableTimeRules());
+    if (req.query.motoboy_key === 'get') return res.status(200).json({ key: await motoboyKey() });
+    if (req.query.process === 'batch') return res.status(200).json(await processActiveBatch(Number(req.query.limit) || 40));
+
+    // ===== Ciclo automático (cron diário): pipeline REAL, sem dados mock =====
+    const out = { ranAt: new Date().toISOString() };
+    try { out.bling = await blingSync(100, 1); } catch (e) { out.bling = { error: e.message }; }
+    try { out.jt = await jtSync(3, 30); } catch (e) { out.jt = { error: e.message }; }
+    try { out.cycle = await processActiveBatch(40); } catch (e) { out.cycle = { error: e.message }; }
+    return res.status(200).json({ ok: true, ...out });
   } catch (e) {
     return res.status(500).json({ ok: false, error: e.message });
   }
+}
+
+// Processa um lote de pedidos ativos (rastreio Correios/ME + SLA + regras).
+async function processActiveBatch(limit = 40) {
+  const active = await sb.select('cmp_orders', {
+    columns: 'id',
+    where: 'and=(status.not.in.(entregue,cancelado,devolvido),tracking_code.not.is.null)',
+    order: 'last_tracked_at.asc.nullsfirst', limit,
+  });
+  const results = [];
+  for (const { id } of active) {
+    try { results.push(await processOrder(id)); } catch (e) { results.push({ id, error: e.message }); }
+  }
+  return { processados: active.length, comAcao: results.filter((r) => r.actions && r.actions.length).length };
 }
