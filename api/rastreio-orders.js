@@ -17,8 +17,40 @@ export default async function handler(req, res) {
 
   // ------- GET: lista ou detalhe -------
   if (req.method === 'GET') {
-    const { id, status, q, transportadora, nf, rastreio, acareacao, ocorrencia, meta, arquivados } = req.query;
+    const { id, status, q, transportadora, nf, rastreio, acareacao, ocorrencia, meta, arquivados, analytics, desde } = req.query;
     if (meta === 'tipos') return res.status(200).json({ tipos: oc.TIPOS, emailConfigurado: oc.isConfigured() });
+    if (analytics) {
+      const from = desde || new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+      const rows = await sb.select('cmp_orders', {
+        columns: 'transportadora,status,criado_em,data_envio,data_entrega,prazo_entrega',
+        where: `criado_em=gte.${from}`, order: 'criado_em.desc', limit: 8000,
+      });
+      const DAY = 86400000;
+      const CARRIER_NAME = { correios: 'Correios', jt: 'J&T Express', melhorenvio: 'Melhor Envio', total: 'Total Express', motoboy: 'Motoboy', retirada: 'Retirada', local: 'Local', sem: 'Sem Transportadora', '': 'Não identificada' };
+      const groups = {}; const G = (k) => (groups[k] ||= { entregues: 0, noPrazo: 0, somaEntrega: 0, nEntrega: 0, somaPostagem: 0, nPostagem: 0 });
+      const glob = G('__global__');
+      for (const r of rows) {
+        const key = r.transportadora || '';
+        const g = G(key);
+        if (r.data_entrega) {
+          g.entregues++; glob.entregues++;
+          if (r.prazo_entrega && new Date(r.data_entrega) <= new Date(r.prazo_entrega)) { g.noPrazo++; glob.noPrazo++; }
+          if (r.data_envio) { const d = (new Date(r.data_entrega) - new Date(r.data_envio)) / DAY; if (d >= 0 && d < 120) { g.somaEntrega += d; g.nEntrega++; glob.somaEntrega += d; glob.nEntrega++; } }
+        }
+        if (r.data_envio && r.criado_em) { const d = (new Date(r.data_envio) - new Date(r.criado_em)) / DAY; if (d >= 0 && d < 120) { g.somaPostagem += d; g.nPostagem++; glob.somaPostagem += d; glob.nPostagem++; } }
+      }
+      const fmt = (g) => ({
+        entregues: g.entregues,
+        sla: g.entregues ? Math.round((g.noPrazo / g.entregues) * 10000) / 100 : null,
+        tempoEntrega: g.nEntrega ? Math.round((g.somaEntrega / g.nEntrega) * 10) / 10 : null,
+        tempoPostagem: g.nPostagem ? Math.round((g.somaPostagem / g.nPostagem) * 10) / 10 : null,
+      });
+      const porTransportadora = Object.keys(groups).filter((k) => k !== '__global__')
+        .map((k) => ({ key: k, nome: CARRIER_NAME[k] || k, ...fmt(groups[k]) }))
+        .filter((x) => x.entregues > 0)
+        .sort((a, b) => (b.sla ?? -1) - (a.sla ?? -1));
+      return res.status(200).json({ desde: from, total: rows.length, global: fmt(glob), porTransportadora });
+    }
     if (id) {
       const order = await sb.selectOne('cmp_orders', { where: `id=eq.${id}` });
       if (!order) return res.status(404).json({ error: 'não encontrado' });
@@ -74,7 +106,11 @@ export default async function handler(req, res) {
     }
 
     if (action === 'setStatus') {
-      await sb.update('cmp_orders', `id=eq.${id}`, { status, updated_at: new Date().toISOString() });
+      const patch = { status, updated_at: new Date().toISOString() };
+      if (status === 'entregue') patch.data_entrega = new Date().toISOString();
+      else if (order.status === 'entregue') patch.data_entrega = null; // saindo de entregue
+      if (status === 'enviado' && !order.data_envio) patch.data_envio = new Date().toISOString();
+      await sb.update('cmp_orders', `id=eq.${id}`, patch);
       await sb.insert('cmp_status_history', { order_id: id, from_status: order.status, to_status: status, source: 'manual' }, { returning: false });
       try { await li.updateOrderStatus(order.li_id, status); } catch {}
       return res.status(200).json({ ok: true });
@@ -91,6 +127,16 @@ export default async function handler(req, res) {
       await sb.insert('cmp_status_history', { order_id: id, from_status: order.status, to_status: prev, source: 'voltar' }, { returning: false });
       try { await li.updateOrderStatus(order.li_id, prev); } catch {}
       return res.status(200).json({ ok: true, status: prev });
+    }
+    if (action === 'alterarRastreio') {
+      const patch = { tracking_code: (req.body.tracking_code || '').trim() || null, updated_at: new Date().toISOString() };
+      if (req.body.transportadora) patch.transportadora = req.body.transportadora;
+      await sb.update('cmp_orders', `id=eq.${id}`, patch);
+      return res.status(200).json({ ok: true });
+    }
+    if (action === 'alterarEmail') {
+      await sb.update('cmp_orders', `id=eq.${id}`, { cliente_email: (req.body.email || '').trim() || null, updated_at: new Date().toISOString() });
+      return res.status(200).json({ ok: true });
     }
     if (action === 'arquivar') {
       await sb.update('cmp_orders', `id=eq.${id}`, { raw: { ...(order.raw || {}), arquivado: true }, updated_at: new Date().toISOString() });
