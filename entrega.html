@@ -3,9 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Confirmar Entregas · Dra. Charm</title>
+<title>Confirmar Entregas · RASTREIOPEDIDO</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <style>
-  :root{ --brand:#c2185b; }
+  :root{ --brand:#3E7CB8; --orange:#FB9D3E; }
   *{box-sizing:border-box}
   body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#f4f5f7;color:#222}
   header{background:var(--brand);color:#fff;padding:16px;position:sticky;top:0;z-index:5}
@@ -20,7 +22,7 @@
   .card .end{color:#777;font-size:14px}
   .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;color:#fff}
   .row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
-  .btn{background:var(--brand);color:#fff;border:none;padding:12px 18px;border-radius:10px;font-weight:800;font-size:15px;cursor:pointer;width:100%;margin-top:10px}
+  .btn{background:var(--orange);color:#fff;border:none;padding:12px 18px;border-radius:10px;font-weight:800;font-size:15px;cursor:pointer;width:100%;margin-top:10px}
   .btn.done{background:#43a047}
   .btn:disabled{opacity:.5}
   .empty{text-align:center;color:#999;padding:40px 10px}
@@ -63,7 +65,7 @@ function bordadoLine(b){
   return b.map(x=>{
     const nome=[x.linha1,x.linha2].filter(Boolean).join(' · ');
     const det=[x.cor,x.fonte].filter(Boolean).join(' · ');
-    return `<div class="end" style="color:#c2185b">✒️ ${esc(nome)||'Bordado'}${det?' · '+esc(det):''}</div>`;
+    return `<div class="end" style="color:var(--brand)">✒️ ${esc(nome)||'Bordado'}${det?' · '+esc(det):''}</div>`;
   }).join('');
 }
 let KEY=new URLSearchParams(location.search).get('k')||localStorage.getItem('mb_key')||'';

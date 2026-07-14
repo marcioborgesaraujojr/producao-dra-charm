@@ -3,9 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Cadê Meu Pedido · Painel</title>
+<title>RASTREIOPEDIDO · Painel</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <style>
-  :root{ --brand:#c2185b; --orange:#f97316; }
+  :root{ --brand:#3E7CB8; --orange:#FB9D3E; --blue-l:#DDEBF6; }
   *{box-sizing:border-box}
   body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#f4f5f7;color:#222}
   a{color:inherit}
@@ -17,7 +19,7 @@
   .nav a{display:flex;align-items:center;gap:11px;justify-content:space-between;padding:11px 14px;margin:2px 6px;border-radius:10px;color:#555;font-weight:600;font-size:14px;cursor:pointer;text-decoration:none}
   .nav a .lbl{display:flex;align-items:center;gap:11px}
   .nav a .ic{color:#9aa2ae;display:flex}
-  .nav a.active{background:#fff0f6;color:var(--brand)}
+  .nav a.active{background:var(--blue-l);color:var(--brand)}
   .nav a.active .ic{color:var(--brand)}
   .nav a:hover{background:#f7f7fa}
   .nav a .cnt{font-size:12px;background:#eef0f4;color:#666;border-radius:20px;padding:1px 8px;font-weight:700}
@@ -40,7 +42,7 @@
   th{background:#fafbfc;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#8a8f99}
   tr:hover td{background:#fbfbfd}
   .pill{display:inline-block;padding:6px 16px;border-radius:20px;font-size:13px;font-weight:700}
-  .btn{display:inline-flex;align-items:center;gap:7px;background:var(--brand);color:#fff;border:none;padding:9px 15px;border-radius:9px;font-weight:600;cursor:pointer;font-size:13px;text-decoration:none}
+  .btn{display:inline-flex;align-items:center;gap:7px;background:var(--orange);color:#fff;border:none;padding:9px 15px;border-radius:9px;font-weight:600;cursor:pointer;font-size:13px;text-decoration:none}
   .btn.ghost{background:#fff;color:#444;border:1px solid #dcdde1}
   .btn.orange{background:var(--orange)}
   .btn.wa{background:#25d366}
@@ -56,7 +58,7 @@
   .rule.off{opacity:.6}
   .rule .rname{font-weight:700;font-size:15px}
   .rule .cond{display:inline-flex;align-items:center;gap:6px;background:#f2f4f7;border-radius:8px;padding:3px 9px;font-size:12.5px;color:#444;margin:3px 5px 0 0}
-  .rule .act{display:inline-flex;align-items:center;gap:6px;background:#fdeef4;color:var(--brand);border-radius:8px;padding:3px 9px;font-size:12.5px;font-weight:600;margin:3px 5px 0 0}
+  .rule .act{display:inline-flex;align-items:center;gap:6px;background:#eaf3fb;color:var(--brand);border-radius:8px;padding:3px 9px;font-size:12.5px;font-weight:600;margin:3px 5px 0 0}
   .sw{position:relative;width:42px;height:24px;flex:none;cursor:pointer}
   .sw input{opacity:0;width:0;height:0}
   .sw .tk{position:absolute;inset:0;background:#cfd3da;border-radius:20px;transition:.2s}
@@ -79,7 +81,7 @@
 
 <div id="app" class="shell" style="display:none">
   <aside class="side">
-    <div class="logo"><span id="logoIc"></span> CADÊ MEU PEDIDO</div>
+    <div class="logo"><img src="/favicon.png" alt="" width="27" height="27" style="border-radius:6px"> <span><span style="color:var(--orange)">RASTREIO</span><span style="color:var(--brand)">PEDIDO</span></span></div>
     <nav class="nav" id="nav"></nav>
     <div class="me"><b id="meNome">—</b><span id="meEmail"></span><br><a class="link" href="/" style="font-size:12px">Sair</a></div>
   </aside>
@@ -168,7 +170,6 @@ async function boot(){
   if(!s||!s.tok){ document.getElementById('login').style.display='block'; return; }
   TOKEN=s.tok; USER=s.user;
   document.getElementById('app').style.display='flex';
-  document.getElementById('logoIc').innerHTML=IC.box;
   document.getElementById('icAtu').innerHTML=IC.refresh;
   document.getElementById('meNome').textContent=(USER&&(USER.user_metadata?.name||USER.email))||'Equipe Dra. Charm';
   document.getElementById('meEmail').textContent=(USER&&USER.email)||'';

@@ -3,7 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Central de Rastreamento · Dra. Charm</title>
+<title>Rastreamento de Pedidos · Dra. Charm</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <script>
 // Callback OAuth do Bling: se voltar com ?code=, troca por token NO ATO
 // (o code do Bling expira em segundos, por isso a troca é feita aqui).
@@ -22,9 +24,9 @@
 })();
 </script>
 <style>
-  :root{ --brand:#c2185b; }
+  :root{ --brand:#3E7CB8; --orange:#FB9D3E; --blue-l:#DDEBF6; }
   *{box-sizing:border-box}
-  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:linear-gradient(160deg,#c2185b12,#f7f7fa);min-height:100vh;color:#222}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:linear-gradient(160deg,#3E7CB812,#f7f9fc);min-height:100vh;color:#222}
   .box{max-width:560px;margin:0 auto;padding:40px 18px}
   .head{text-align:center;margin-bottom:22px}
   .head img{max-height:52px}
@@ -34,7 +36,7 @@
   p.sub{color:#777;font-size:14px;margin:0 0 18px}
   label{display:block;font-size:13px;color:#555;margin:12px 0 4px;font-weight:600}
   input{width:100%;padding:12px;border:1px solid #ddd;border-radius:10px;font-size:15px}
-  button{width:100%;margin-top:18px;background:var(--brand);color:#fff;border:none;padding:13px;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer}
+  button{width:100%;margin-top:18px;background:var(--orange);color:#fff;border:none;padding:13px;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer}
   .badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;color:#fff}
   .result{margin-top:20px}
   .err{background:#fff3f3;border:1px solid #ffcdd2;color:#c62828;padding:14px;border-radius:10px;margin-top:18px}
@@ -49,7 +51,7 @@
 <body>
 <div class="box">
   <div class="head">
-    <!-- Troque pela sua logo (BRAND_LOGO_URL). -->
+    <img src="/favicon.png" alt="" width="48" height="48" style="max-height:48px">
     <div class="name">Dra. Charm</div>
   </div>
   <div class="card">
@@ -64,7 +66,7 @@
     </form>
     <div id="result" class="result"></div>
   </div>
-  <div class="foot">Dra. Charm · contato@dracharm.com.br</div>
+  <div class="foot">Dra. Charm · contato@dracharm.com.br<br><span style="color:#c3c8d0">Rastreamento por <b style="color:var(--orange)">RASTREIO</b><b style="color:var(--brand)">PEDIDO</b></span></div>
 </div>
 
 <script>
