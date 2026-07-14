@@ -389,9 +389,10 @@ async function bordadoProbe(numero) {
 const LI_SIT_TO_INTERNAL = { pedido_pago: 'pago', pedido_enviado: 'enviado', pedido_entregue: 'entregue', pedido_cancelado: 'cancelado', pedido_devolvido: 'devolvido', aguardando_pagamento: 'criado', pedido_em_separacao: 'em_separacao', pedido_faturado: 'faturado' };
 // DIAGNÓSTICO: mostra a estrutura crua do produto na LI p/ descobrir onde está a imagem.
 async function prodImgProbe(numero) {
-  const lst = await liDetGet(`/v1/pedido/?numero=${encodeURIComponent(numero || '')}&limit=1`);
-  const o = (lst.j?.objects || [])[0];
-  if (!o) return { erro: 'pedido não encontrado', numero };
+  let lst = numero ? await liDetGet(`/v1/pedido/?numero=${encodeURIComponent(numero)}&limit=1`) : { j: {} };
+  let o = (lst.j?.objects || [])[0];
+  if (!o) { lst = await liDetGet(`/v1/pedido/?limit=1&order_by=-data_criacao`); o = (lst.j?.objects || [])[0]; }
+  if (!o) return { erro: 'nenhum pedido na LI', numero };
   const det = await liDetGet(o.resource_uri); const d = det.j || {};
   const it = (d.itens || [])[0] || {};
   const out = { numero: d.numero, item0_campos: Object.keys(it), produto_uri: it.produto || null, sku: it.sku };
