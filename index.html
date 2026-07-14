@@ -113,11 +113,18 @@ tailwind.config = {
     header button{padding:5px}
     header button svg{width:18px;height:18px}
     #bellBadge{font-size:9px;min-width:16px;height:16px}
-    #boardSelect{max-width:none;width:100%;font-size:14px;padding:6px 8px;font-weight:600}
-    /* Header vira 2 linhas: primeira = logo + board full width; segunda = filtros e botoes */
+    #boardSelect{max-width:none;width:auto;flex:1 1 auto;min-width:0;font-size:14px;padding:6px 8px;font-weight:600}
+    /* 1 linha compacta: logo grid + logo pink + board (respira) + sino + avatar */
     header > div{flex-wrap:wrap}
-    header > div > div.flex.items-center.gap-2:first-child{flex:1 1 100%;order:1;margin-bottom:6px}
-    header .flex-1.flex.items-center.gap-2{flex-basis:100%;order:10}
+    /* Esconde theme + tema escuro no mobile */
+    #themeBtn{display:none !important}
+    /* Sino + avatar bem juntinhos ao lado do board */
+    #bellBtn{padding:6px}
+    #userMenuBtn{padding:0}
+    /* Search + filtros na 2a linha */
+    header .flex-1.flex.items-center.gap-2{flex-basis:100%;order:10;margin-top:6px}
+    /* Density e Etiqueta iguais */
+    #filterFaccaoBtn, #density{padding:6px 10px;font-size:12px;height:34px;border-radius:8px}
     #statsLine{display:none}
     header label.flex.items-center.gap-2{display:none} /* Ocultar finalizados label */
     #density{font-size:12px;padding:6px 8px}
