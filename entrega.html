@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Confirmar Entregas · Dra. Charm</title>
+<style>
+  :root{ --brand:#c2185b; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#f4f5f7;color:#222}
+  header{background:var(--brand);color:#fff;padding:16px;position:sticky;top:0;z-index:5}
+  header .t{font-weight:800;font-size:18px}
+  header .s{font-size:13px;opacity:.9}
+  .wrap{max-width:640px;margin:0 auto;padding:14px}
+  .search{display:flex;gap:8px;margin-bottom:12px}
+  .search input{flex:1;padding:12px;border:1px solid #ddd;border-radius:10px;font-size:16px}
+  .card{background:#fff;border-radius:14px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+  .card .num{font-weight:800;font-size:17px}
+  .card .cli{color:#333;margin:2px 0}
+  .card .end{color:#777;font-size:14px}
+  .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;color:#fff}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .btn{background:var(--brand);color:#fff;border:none;padding:12px 18px;border-radius:10px;font-weight:800;font-size:15px;cursor:pointer;width:100%;margin-top:10px}
+  .btn.done{background:#43a047}
+  .btn:disabled{opacity:.5}
+  .empty{text-align:center;color:#999;padding:40px 10px}
+  .tabs{display:flex;gap:8px;margin-bottom:12px}
+  .tab{flex:1;padding:10px;border-radius:10px;border:1px solid #e0e0e0;background:#fff;font-weight:700;color:#666;cursor:pointer;text-align:center}
+  .tab.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+  #keybox{max-width:420px;margin:60px auto;background:#fff;padding:24px;border-radius:14px;text-align:center;box-shadow:0 6px 26px rgba(0,0,0,.08)}
+  #keybox input{width:100%;padding:12px;border:1px solid #ddd;border-radius:10px;font-size:16px;margin:12px 0}
+</style>
+</head>
+<body>
+<div id="keybox" style="display:none">
+  <h2 style="color:var(--brand);margin-top:0">Confirmar Entregas</h2>
+  <p style="color:#777">Cole a chave de acesso do entregador para continuar.</p>
+  <input id="keyin" placeholder="chave (mb-...)">
+  <button class="btn" onclick="saveKey()">Entrar</button>
+</div>
+
+<div id="app" style="display:none">
+  <header>
+    <div class="t">Confirmar Entregas</div>
+    <div class="s">Dra. Charm · toque em <b>Entregue</b> ao concluir</div>
+  </header>
+  <div class="wrap">
+    <div class="tabs">
+      <div class="tab active" data-f="motoboy" onclick="setF('motoboy')">🛵 Motoboy</div>
+      <div class="tab" data-f="retirada" onclick="setF('retirada')">🏬 Retirada</div>
+      <div class="tab" data-f="todos" onclick="setF('todos')">Todos</div>
+    </div>
+    <div class="search"><input id="q" placeholder="Buscar pedido ou cliente…" oninput="render()"><button class="tab" style="flex:none;padding:10px 14px" onclick="load()">↻</button></div>
+    <div id="list"></div>
+  </div>
+</div>
+
+<script>
+const STATUS={faturado:['Faturado','#00897b'],em_separacao:['Em Separação','#7e57c2'],enviado:['Saiu p/ Entrega','#1e88e5'],aguardando_retirada:['Aguard. Retirada','#f9a825'],atrasado:['Atrasado','#e53935'],entregue:['Entregue','#43a047']};
+const esc=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+let KEY=new URLSearchParams(location.search).get('k')||localStorage.getItem('mb_key')||'';
+let ORDERS=[], FILTER='motoboy';
+
+function api(qs,opts){ return fetch('/api/rastreio-sync?'+qs,opts).then(r=>r.json()); }
+
+function boot(){
+  if(!KEY){ document.getElementById('keybox').style.display='block'; return; }
+  document.getElementById('app').style.display='block';
+  load();
+}
+function saveKey(){ KEY=document.getElementById('keyin').value.trim(); if(!KEY)return; localStorage.setItem('mb_key',KEY); location.href='/entrega.html?k='+encodeURIComponent(KEY); }
+function setF(f){ FILTER=f; document.querySelectorAll('.tab[data-f]').forEach(t=>t.classList.toggle('active',t.dataset.f===f)); render(); }
+
+async function load(){
+  document.getElementById('list').innerHTML='<div class="empty">Carregando…</div>';
+  const r=await api('motoboy=list&k='+encodeURIComponent(KEY));
+  if(r.error){ localStorage.removeItem('mb_key'); document.getElementById('app').style.display='none'; document.getElementById('keybox').style.display='block'; return; }
+  ORDERS=r.orders||[]; render();
+}
+function render(){
+  const q=(document.getElementById('q')?.value||'').toLowerCase();
+  let list=ORDERS.filter(o=>o.status!=='entregue');
+  if(FILTER==='retirada') list=list.filter(o=>o.status==='aguardando_retirada'||/retirada|loja/i.test(o.servico||''));
+  else if(FILTER==='motoboy') list=list.filter(o=>!(o.status==='aguardando_retirada'||/retirada|loja/i.test(o.servico||'')));
+  if(q) list=list.filter(o=>(o.numero+' '+o.cliente+' '+(o.destino||'')).toLowerCase().includes(q));
+  const el=document.getElementById('list');
+  if(!list.length){ el.innerHTML='<div class="empty">Nenhuma entrega pendente aqui. 🎉</div>'; return; }
+  el.innerHTML=list.map(o=>{
+    const st=STATUS[o.status]||[o.status,'#9e9e9e'];
+    const endereco = o.endereco ? (typeof o.endereco==='string'?o.endereco:[o.endereco.logradouro||o.endereco.endereco,o.endereco.numero,o.endereco.bairro,o.endereco.cidade].filter(Boolean).join(', ')) : (o.destino||'');
+    return `<div class="card" id="c${o.id}">
+      <div class="row"><span class="num">#${esc(o.numero)}</span><span class="badge" style="background:${st[1]}">${st[0]}</span></div>
+      <div class="cli">${esc(o.cliente)||'—'}</div>
+      <div class="end">📍 ${esc(endereco)||'—'}${o.telefone?' · 📞 '+esc(o.telefone):''}</div>
+      ${o.servico?`<div class="end">🚚 ${esc(o.servico)}</div>`:''}
+      <button class="btn" onclick="entregar(${o.id})">✓ Marcar Entregue</button>
+    </div>`;
+  }).join('');
+}
+async function entregar(id){
+  const btn=document.querySelector('#c'+id+' .btn'); if(!btn)return;
+  if(!confirm('Confirmar que o pedido foi ENTREGUE?')) return;
+  btn.disabled=true; btn.textContent='Confirmando…';
+  const r=await api('motoboy=entregar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({k:KEY,id})});
+  if(r.ok){ btn.classList.add('done'); btn.textContent='✓ Entregue!'; setTimeout(()=>{ ORDERS=ORDERS.filter(o=>o.id!==id); render(); },900); }
+  else { btn.disabled=false; btn.textContent='✓ Marcar Entregue'; alert('Erro: '+(r.error||'tente de novo')); }
+}
+boot();
+</script>
+</body>
+</html>

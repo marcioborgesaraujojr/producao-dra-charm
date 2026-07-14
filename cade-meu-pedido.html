@@ -47,8 +47,10 @@
     <span class="brand">Cadê Meu Pedido</span>
     <button class="tab active" data-tab="orders">Pedidos</button>
     <button class="tab" data-tab="late">Atrasados &amp; Acareação</button>
+    <button class="tab" data-tab="retirada">Retirada &amp; Entrega</button>
     <button class="tab" data-tab="rules">Regras</button>
     <span style="flex:1"></span>
+    <a class="btn ghost" style="text-decoration:none" target="_blank" href="/entrega.html">Página do entregador ↗</a>
     <button class="btn ghost" id="runBtn">Rodar ciclo agora</button>
   </header>
   <div class="wrap" id="view"></div>
@@ -101,6 +103,7 @@ async function boot(){
 async function render(tab){
   const v = document.getElementById('view');
   if(tab==='rules') return renderRules(v);
+  if(tab==='retirada') return renderRetirada(v);
   const data = await api('rastreio-orders'+(state.filterStatus?`?status=${state.filterStatus}`:'')+(state.q?`${state.filterStatus?'&':'?'}q=${encodeURIComponent(state.q)}`:''));
   let orders = data.orders||[], counts = data.counts||{};
   if(tab==='late') orders = orders.filter(o=>o.status==='atrasado'||o.acareacao_aberta);
@@ -169,6 +172,28 @@ window.__close = () => document.getElementById('modalBg').style.display='none';
 window.__st = async (id,s) => { await api('rastreio-orders',{method:'POST',body:JSON.stringify({action:'setStatus',id,status:s})}); __open(id); render('orders'); };
 window.__trk = async (id) => { await api('rastreio-orders',{method:'POST',body:JSON.stringify({action:'track',id})}); __open(id); render('orders'); };
 window.__ac = async (id) => { await api('rastreio-orders',{method:'POST',body:JSON.stringify({action:'closeAcareacao',id})}); __open(id); render('orders'); };
+
+async function renderRetirada(v){
+  v.innerHTML='<p class="muted">Carregando…</p>';
+  const data = await api('rastreio-orders');
+  const local = (data.orders||[]).filter(o=>['local','motoboy'].includes(o.transportadora) && !['entregue','cancelado','devolvido'].includes(o.status));
+  v.innerHTML = `<h3>Retirada na loja &amp; Entrega local (motoboy)</h3>
+    <p class="muted">As meninas confirmam a <b>retirada</b> aqui; o motoboy confirma pela <a href="/entrega.html" target="_blank">página do entregador</a>. Ao confirmar, o pedido vira <b>Entregue</b> e aparece assim para o cliente.</p>
+    <table><thead><tr><th>Situação</th><th>Pedido</th><th>Cliente</th><th>Serviço</th><th>Destino</th><th>Criação</th><th></th></tr></thead><tbody>
+    ${local.map(o=>`<tr id="lr${o.id}">
+      <td>${badge(o.status)}</td>
+      <td><span class="link" onclick="__open(${o.id})">#${esc(o.numero)}</span></td>
+      <td>${esc(o.cliente_nome)||'—'}</td><td>${esc(o.servico)||esc(o.transportadora)}</td>
+      <td>${esc(o.destino)||'—'}</td><td>${fmtD(o.criado_em)}</td>
+      <td><button class="btn" onclick="__entregar(${o.id})">✓ Entregue</button></td>
+    </tr>`).join('') || '<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">Nenhuma entrega local pendente.</td></tr>'}
+    </tbody></table>`;
+}
+window.__entregar = async (id) => {
+  if(!confirm('Confirmar entrega/retirada deste pedido?')) return;
+  await api('rastreio-orders',{method:'POST',body:JSON.stringify({action:'setStatus',id,status:'entregue'})});
+  const row=document.getElementById('lr'+id); if(row) row.remove();
+};
 
 async function renderRules(v){
   const { rules } = await api('rastreio-rules');
