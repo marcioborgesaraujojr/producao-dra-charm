@@ -1,8 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/sync-bordados",
-      "schedule": "*/30 * * * *"
+      "path": "/api/personalizacao-sync?commit=1",
+      "schedule": "0 11 * * *"
     }
   ]
 }
