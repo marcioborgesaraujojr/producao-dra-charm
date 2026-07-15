@@ -2894,7 +2894,12 @@ window.editUserRow = (uid) => {
       <section>
         <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">Senha</h3>
         <div class="flex flex-wrap items-center gap-2 mb-3">
-          <input id="euNewPass" type="text" placeholder="Nova senha (mín. 6 caracteres)" class="p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm flex-1 min-w-[180px]">
+          <div class="relative w-52">
+            <input id="euNewPass" type="password" placeholder="Nova senha (mín. 6)" class="w-full p-2.5 pr-9 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm">
+            <button type="button" onclick="togglePassView('euNewPass', this)" title="Mostrar/ocultar" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
           <button onclick="adminSetPassword('${uid}', this)" class="px-4 py-2 rounded-lg bg-slate-800 text-white text-sm hover:bg-slate-900">Definir senha</button>
           <span id="euPassStatus" class="text-xs text-slate-500"></span>
         </div>
@@ -2939,6 +2944,10 @@ window.resetUserPassword = async (email, btn) => {
   try { const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin }); if (error) throw error; btn.textContent = 'Link enviado ✔'; }
   catch(e){ alert('Erro: '+e.message); btn.textContent = old; }
   finally { btn.disabled = false; }
+};
+window.togglePassView = (id) => {
+  const el = document.getElementById(id);
+  if (el) el.type = (el.type === 'password') ? 'text' : 'password';
 };
 window.adminSetPassword = async (uid, btn) => {
   const inp = document.getElementById('euNewPass');
