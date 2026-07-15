@@ -56,6 +56,9 @@ tailwind.config = {
   .board-scroll::-webkit-scrollbar-thumb{background:#94a3b8;border-radius:8px}
   .dark .board-scroll::-webkit-scrollbar-thumb{background:#475569}
   .card-drag{cursor:grab}
+  /* Logo do sistema (A) clicável pra voltar pra home do suíte (no hub e no quadro) */
+  #hubScreen .system-logo, #app .system-logo{cursor:pointer;transition:transform .12s ease, box-shadow .12s ease}
+  #hubScreen .system-logo:hover, #app .system-logo:hover{transform:scale(1.06);box-shadow:0 3px 10px rgba(0,0,0,.15)}
   .login-with-bg{background-size:cover;background-position:center;background-repeat:no-repeat;position:relative}
   .login-with-bg::before{content:'';position:absolute;inset:0;background:rgba(255,255,255,.65);backdrop-filter:blur(4px);z-index:0}
   .dark .login-with-bg::before{background:rgba(15,23,42,.75)}
@@ -275,13 +278,13 @@ tailwind.config = {
         </div>
       </div>
       <div class="flex items-center gap-2">
-        <button id="hubThemeBtn" title="Tema" class="p-2 rounded-lg hover:bg-white dark:hover:bg-ink-700">
+        <button id="hubThemeBtn" title="Tema" class="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:text-pink-500 transition-colors">
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
-        <button id="hubLogoutBtn" title="Sair" class="p-2 rounded-lg hover:bg-white dark:hover:bg-ink-700">
+        <button id="hubLogoutBtn" title="Sair" class="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:text-pink-500 transition-colors">
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </button>
-        <button id="hubUserMenuBtn" title="Conta" class="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-ink-700">
+        <button id="hubUserMenuBtn" title="Conta" class="p-1 rounded-full ring-2 ring-transparent hover:ring-pink-400 transition">
           <div id="hubUserAvatar" class="w-8 h-8 rounded-full bg-pink-500 text-white flex items-center justify-center font-bold text-sm">?</div>
         </button>
       </div>
@@ -527,20 +530,20 @@ tailwind.config = {
 
       <div class="flex items-center gap-2">
         <div id="boardMembers" class="flex items-center -space-x-1.5 mr-1"></div>
-        <button onclick="backToHub()" title="Voltar à Suíte" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 text-slate-600 dark:text-slate-300">
+        <button onclick="backToHub()" title="Voltar à Suíte" class="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:text-pink-500 transition-colors">
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
         </button>
-        <button id="bellBtn" class="relative p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700">
+        <button id="bellBtn" class="relative p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:text-pink-500 transition-colors">
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           <span id="bellBadge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">0</span>
         </button>
-        <button id="estoqueBtn" title="Estoque" class="hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700">
+        <button id="estoqueBtn" title="Estoque" class="hidden p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:text-pink-500 transition-colors">
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
         </button>
-        <button id="themeBtn" title="Tema" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700">
+        <button id="themeBtn" title="Tema" class="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:text-pink-500 transition-colors">
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
-        <button id="userMenuBtn" class="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-ink-700">
+        <button id="userMenuBtn" class="p-1 rounded-full ring-2 ring-transparent hover:ring-pink-400 transition">
           <div id="userAvatar" class="w-8 h-8 rounded-full bg-pink-500 text-white flex items-center justify-center font-bold text-sm">?</div>
         </button>
       </div>
@@ -563,7 +566,7 @@ tailwind.config = {
   <div class="p-3 border-b border-slate-200 dark:border-ink-700">
     <div id="userMenuName" class="font-semibold text-sm truncate"></div>
   </div>
-  <div class="px-3 py-2 border-b border-slate-200 dark:border-ink-700">
+  <div class="px-3 py-2">
     <div class="text-xs text-slate-500 mb-1.5">Minha cor</div>
     <div id="colorPalette" class="flex flex-wrap gap-1.5"></div>
   </div>
@@ -1190,6 +1193,12 @@ window.doMagicLink = async () => {
   else toast('Link enviado! Confere seu email.');
 };
 window.doLogout = async () => { await sb.auth.signOut(); location.reload(); };
+// Clicar no logo do sistema (A) volta pra home do suíte (só se logado)
+document.addEventListener('click', (e) => {
+  const lg = e.target.closest('.system-logo');
+  if (!lg) return;
+  if (typeof user !== 'undefined' && user && typeof showHub === 'function') showHub();
+});
 
 // Auto-scroll ao arrastar card: leva o card pra beirada e a coluna (vertical), a tela e o
 // board (horizontal) rolam sozinhos, pra alcançar colunas/posições fora da vista.
