@@ -1344,6 +1344,7 @@ function renderBoard(){
       .sort((a,b) => (a.position||0) - (b.position||0));
     const col = document.createElement('div');
     col.className = 'shrink-0 w-72 bg-slate-200/70 dark:bg-ink-800 rounded-xl p-2 flex flex-col max-h-full';
+    col.dataset.listId = list.id;
     col.innerHTML = `
       <div class="flex items-center gap-2 px-2 py-1">
         <div class="font-semibold text-sm flex-1 truncate">${escapeHtml(list.name)}</div>
@@ -1381,7 +1382,7 @@ function renderBoard(){
   const addCol = document.createElement('div');
   addCol.className = 'shrink-0 w-72';
   addCol.innerHTML = `
-    <button class="add-list-btn w-full text-left px-3 py-2.5 rounded-xl bg-white/50 hover:bg-white/80 dark:bg-ink-800/50 dark:hover:bg-ink-800 text-sm font-medium text-slate-600 dark:text-slate-200 transition flex items-center gap-2">
+    <button class="add-list-btn w-full text-left px-3 py-2.5 rounded-xl bg-slate-200/70 hover:bg-slate-300/70 dark:bg-ink-800 dark:hover:bg-ink-700 text-sm font-medium text-slate-600 dark:text-slate-200 transition flex items-center gap-2">
       <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       Adicionar outra lista
     </button>
@@ -1418,7 +1419,7 @@ function renderCard(c, compact){
   const el = document.createElement('div');
   const clbls = cardLabels[c.id] || [];
   const cmembs = cardMembers[c.id] || [];
-  el.className = `card card-drag bg-white dark:bg-ink-700 rounded-lg shadow-sm border border-transparent hover:border-pink-500 p-2 ${compact?'text-xs':'text-sm'}`;
+  el.className = `card card-drag bg-white dark:bg-ink-700 rounded-lg overflow-hidden shadow-sm border border-transparent hover:border-pink-500 p-2 ${compact?'text-xs':'text-sm'}`;
   el.draggable = true;
   const labelChips = clbls.slice(0,3).map(l=>`<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style="background:${l.color}22;color:${l.color}"><span class="w-1.5 h-1.5 rounded-full" style="background:${l.color}"></span>${escapeHtml(l.name)}</span>`).join('');
   const memAvatars = cmembs.slice(0,3).map(m=>`<div class="w-5 h-5 rounded-full bg-pink-500 text-white text-[10px] font-bold flex items-center justify-center" title="${escapeHtml(m.full_name)}">${(m.full_name||'?').charAt(0).toUpperCase()}</div>`).join('');
@@ -1478,7 +1479,7 @@ function renderCard(c, compact){
   if (c.due_date) icons.push(`<span class="inline-flex items-center gap-0.5 text-[11px] text-slate-500" title="Data prevista"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>${escapeHtml(c.due_date.slice(5))}</span>`);
   const bodyInner = `
     ${labelChips ? `<div class="flex flex-wrap gap-1 mb-1">${labelChips}</div>` : ''}
-    <div class="font-semibold leading-tight">${escapeHtml(c.title)}</div>
+    <div class="font-semibold leading-tight break-words">${escapeHtml(c.title)}</div>
     ${compact && compactChips.length ? `<div class="flex flex-wrap gap-1 mt-1">${compactChips.join('')}</div>`:''}
     ${!compact && gradeItems ? `<div class="flex flex-wrap gap-1 mt-1.5">${gradeItems}</div>`:''}
     ${!compact && totalsChips.length ? `<div class="flex flex-wrap gap-1 mt-1">${totalsChips.join('')}</div>`:''}
@@ -1494,7 +1495,61 @@ function renderCard(c, compact){
     }
   });
   el.addEventListener('dragend', () => { draggingCardId = null; el.classList.remove('opacity-50'); });
-  el.addEventListener('click', () => openCard(c.id));
+  el.addEventListener('click', (e) => { if (el._justDragged){ el._justDragged = false; e.preventDefault(); e.stopPropagation(); return; } openCard(c.id); });
+
+  // ===== Drag por toque (mobile): segura ~0,35s pra pegar o card e arrasta pra outra coluna =====
+  let tTimer = null, tDrag = false, ghost = null, sX = 0, sY = 0, lastCol = null;
+  el.addEventListener('touchstart', (ev) => {
+    if (ev.touches.length !== 1) return;
+    const t = ev.touches[0]; sX = t.clientX; sY = t.clientY;
+    tTimer = setTimeout(() => {
+      tDrag = true; draggingCardId = c.id; el.classList.add('opacity-40');
+      const r = el.getBoundingClientRect();
+      ghost = el.cloneNode(true);
+      ghost.style.cssText = `position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;margin:0;pointer-events:none;z-index:9999;opacity:.92;transform:rotate(2deg);box-shadow:0 10px 28px rgba(0,0,0,.28)`;
+      document.body.appendChild(ghost);
+      if (navigator.vibrate){ try{ navigator.vibrate(15); }catch(_){} }
+    }, 350);
+  }, { passive: true });
+  el.addEventListener('touchmove', (ev) => {
+    const t = ev.touches[0];
+    if (!tDrag){
+      if (Math.abs(t.clientX - sX) > 12 || Math.abs(t.clientY - sY) > 12) clearTimeout(tTimer);
+      return;
+    }
+    ev.preventDefault();
+    if (ghost){ ghost.style.left = (t.clientX - 40) + 'px'; ghost.style.top = (t.clientY - 20) + 'px'; ghost.style.display = 'none'; }
+    const under = document.elementFromPoint(t.clientX, t.clientY);
+    if (ghost) ghost.style.display = '';
+    const col = under ? under.closest('[data-list-id]') : null;
+    if (lastCol && lastCol !== col) lastCol.classList.remove('drop-hint');
+    if (col){ col.classList.add('drop-hint'); lastCol = col; }
+    const EDGE = 70, SP = 14, vh = window.innerHeight, vw = window.innerWidth;
+    if (t.clientY < EDGE) window.scrollBy(0, -SP); else if (t.clientY > vh - EDGE) window.scrollBy(0, SP);
+    const bd = document.getElementById('board');
+    if (bd){ if (t.clientX < EDGE) bd.scrollLeft -= SP; else if (t.clientX > vw - EDGE) bd.scrollLeft += SP; }
+    const cel = under ? under.closest('.cards') : null;
+    if (cel){ const rr = cel.getBoundingClientRect(); if (t.clientY < rr.top + EDGE) cel.scrollTop -= SP; else if (t.clientY > rr.bottom - EDGE) cel.scrollTop += SP; }
+  }, { passive: false });
+  const endTouch = async () => {
+    clearTimeout(tTimer);
+    if (!tDrag) return;
+    tDrag = false; el._justDragged = true; el.classList.remove('opacity-40');
+    if (ghost){ ghost.remove(); ghost = null; }
+    const col = lastCol; if (lastCol){ lastCol.classList.remove('drop-hint'); lastCol = null; }
+    draggingCardId = null;
+    if (col){
+      const listId = col.getAttribute('data-list-id');
+      const card = cards.find(x => x.id === c.id);
+      if (card && listId && card.list_id !== listId){
+        await sb.from('cards').update({ list_id: listId }).eq('id', card.id);
+        card.list_id = listId; renderBoard(); toast('Card movido');
+      }
+    }
+    setTimeout(() => { el._justDragged = false; }, 400);
+  };
+  el.addEventListener('touchend', endTouch);
+  el.addEventListener('touchcancel', endTouch);
   return el;
 }
 
