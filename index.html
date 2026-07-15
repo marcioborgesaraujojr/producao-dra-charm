@@ -1212,6 +1212,9 @@ window.doLogout = async () => { await sb.auth.signOut(); location.reload(); };
 })();
 
 async function afterLogin(){
+  // Guarda a última tela/quadro ANTES do showHub sobrescrever (pra refresh continuar onde estava)
+  let _restore = {};
+  try { _restore = { v: localStorage.getItem('dc_last_view'), b: localStorage.getItem('dc_last_board') }; } catch(e){}
   const { data: p } = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle();
   profile = p;
   if (!profile){
@@ -1234,9 +1237,13 @@ async function afterLogin(){
     }
   }
   renderBoardSelect();
-  await switchBoard(boards[0].id);
+  const _tb = (_restore.b && boards.find(b => b.id === _restore.b)) ? _restore.b : boards[0].id;
+  await switchBoard(_tb);
   await loadNotifications();
   subscribeRealtime();
+  // Restaura a tela onde o usuário estava antes do refresh
+  if (_restore.v === 'quadros') enterQuadros();
+  else if (_restore.v === 'cep' && typeof enterCep === 'function') enterCep();
 }
 
 async function bootstrapBoards(){
@@ -1279,6 +1286,7 @@ function renderBoardSelect(){
 
 async function switchBoard(boardId){
   currentBoardId = boardId;
+  try { localStorage.setItem('dc_last_board', boardId); } catch(e){}
   filters.faccao.clear();
   document.getElementById('board').innerHTML = '<div class="text-center p-8 text-slate-500">Carregando...</div>';
   const b = boards.find(x => x.id === boardId);
@@ -2909,6 +2917,7 @@ document.addEventListener('change', async e => {
 });
 
 function showHub(){
+  try { localStorage.setItem('dc_last_view', 'hub'); } catch(e){}
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('app').classList.add('hidden');
   document.getElementById('hubScreen').classList.remove('hidden');
@@ -2940,6 +2949,7 @@ window.enterQuadros = function(){
   document.getElementById('app').classList.remove('hidden');
   const _b = boards.find(x => x.id === currentBoardId);
   if (_b) applyBoardBackground(_b.background_url);
+  try { localStorage.setItem('dc_last_view', 'quadros'); } catch(e){}
 };
 window.openUsers = async () => {
   document.getElementById('usersModal').classList.remove('hidden');
@@ -3334,6 +3344,7 @@ window.enterCep=function(){
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('cepScreen').classList.remove('hidden');
   (document.getElementById('appBg')||document.body).style.backgroundImage=''; document.body.classList.remove('has-bg');
+  try { localStorage.setItem('dc_last_view', 'cep'); } catch(e){}
   if(!cepLoaded){ cepCarregarSituacoes(); cepLoaded=true; }
   try{
     var f=JSON.parse(localStorage.getItem('dc_cep_filter')||'{}');
