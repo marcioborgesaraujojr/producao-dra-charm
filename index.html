@@ -1041,17 +1041,17 @@ function bordadoBackgroundFromCard(c){
 // Mapeia fonte do LI para a fonte native carregada (mesma do site dracharm.com.br)
 function bordadoFontFamily(fonteName){
   const n = (fonteName || '').toLowerCase();
-  if (n.includes('ballantines')) return "'BallantinesScript', cursive";
-  if (n.includes('monotype') || n.includes('corsiva')) return "'MonotypeCorsiva', cursive";
+  if (n.includes('ballantines')) return "'Ballantines Script', cursive";
+  if (n.includes('monotype') || n.includes('corsiva')) return "'Monotype Corsiva', cursive";
   if (n.includes('arial')) return "Arial, Helvetica, sans-serif";
   if (n.includes('helvetica')) return "Helvetica, Arial, sans-serif";
   if (n.includes('times')) return "'Times New Roman', Times, serif";
   if (n.includes('verdana')) return "Verdana, Geneva, sans-serif";
   if (n.includes('courier')) return "'Courier New', Courier, monospace";
-  if (n.includes('script') || n.includes('cursiv')) return "'BallantinesScript', cursive";
+  if (n.includes('script') || n.includes('cursiv')) return "'Ballantines Script', cursive";
   if (n) return "'"+String(fonteName).replace(/[\"']/g,'')+"', Arial, Helvetica, sans-serif";
   // sem fonte informada: cursiva bonita padrao
-  return "'MonotypeCorsiva', cursive";
+  return "'Monotype Corsiva', cursive";
 }
 // Detecta se a cor é muito clara (precisa fundo escuro pra ficar visível)
 function isLightColor(hex){
