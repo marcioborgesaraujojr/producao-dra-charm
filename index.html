@@ -1242,7 +1242,7 @@ function renderBoard(){
   lists.forEach(list => {
     if (filters.hideFinalizado && list.id === finalizadoId) return;
     const listCards = cards.filter(c => c.list_id === list.id)
-      .filter(c => !q || (c.title||'').toLowerCase().includes(q) || (c.description||'').toLowerCase().includes(q))
+      .filter(c => !q || (c.title||'').toLowerCase().includes(q) || (c.description||'').toLowerCase().includes(q) || String(c.pedido_numero||'').toLowerCase().includes(q) || (c.pedido_cliente||'').toLowerCase().includes(q))
       .filter(c => filters.faccao.size===0 || cardLabels[c.id].some(l => filters.faccao.has(l.name)))
       .sort((a,b) => (a.position||0) - (b.position||0));
     const col = document.createElement('div');
