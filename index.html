@@ -811,7 +811,7 @@ tailwind.config = {
             <label class="text-xs font-medium uppercase text-slate-500">Descrição</label>
             <textarea id="cardDesc" rows="3" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 outline-none focus:border-pink-500"></textarea>
           </div>
-          <div>
+          <div id="cardChecklistBox">
             <label class="text-xs font-medium uppercase text-slate-500">Checklist</label>
             <div id="cardChecklist" class="mt-2 space-y-1"></div>
             <button onclick="addChecklistItem()" class="mt-2 text-xs text-pink-600 hover:underline">+ item</button>
@@ -1395,7 +1395,8 @@ async function openCard(id){
   document.getElementById('tecidoField').classList.toggle('hidden', bType !== 'producao');
   document.getElementById('faccaoField').classList.toggle('hidden', labels.length === 0);
   // Descrição: hide no board bordado (produtos ja tem info visual)
-  document.getElementById('cardDescBox').classList.toggle('hidden', bType === 'bordado');
+  document.getElementById('cardDescBox').classList.toggle('hidden', bType === 'bordado' || bType === 'producao');
+  document.getElementById('cardChecklistBox').classList.toggle('hidden', bType === 'producao');
   document.getElementById('cardTitle').value = c.title || '';
   document.getElementById('cardDesc').value = c.description || '';
   // Prazo automático pra bordado: 5 dias úteis (nome/prof) ou 10 dias úteis (logo/ambos)
@@ -1948,7 +1949,8 @@ function renderFeed(){
             <span class="font-semibold text-slate-700 dark:text-slate-200">${escapeHtml(author.full_name)}</span>
             <span>${timeAgo(c.created_at)}</span>
           </div>
-          <div class="text-xs whitespace-pre-wrap">${renderMentions(c.body)}</div>
+          <div class="text-xs whitespace-pre-wrap" id="cbody-${c.id}">${renderMentions(c.body)}</div>
+          <button onclick="startEditComment('${c.id}')" class="text-[10px] text-slate-400 hover:text-pink-600 mt-1">editar</button>
         </div>
       </div>`;
     } else {
@@ -2015,6 +2017,18 @@ window.postComment = async () => {
   await loadComments(activeCardId);
 };
 
+window.startEditComment = (id) => {
+  const c = comments.find(x=>x.id===id); if(!c) return;
+  const el = document.getElementById('cbody-'+id); if(!el) return;
+  el.innerHTML = `<textarea id="cedit-${id}" rows="2" class="w-full p-1 rounded border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-700 text-xs"></textarea><div class="flex gap-2 mt-1"><button onclick="saveEditComment('${id}')" class="text-[10px] text-white bg-pink-500 px-2 py-0.5 rounded">Salvar</button><button onclick="loadComments(activeCardId)" class="text-[10px] text-slate-500">Cancelar</button></div>`;
+  document.getElementById('cedit-'+id).value = c.body || '';
+};
+window.saveEditComment = async (id) => {
+  const v = document.getElementById('cedit-'+id).value;
+  await sb.from('comments').update({body: v, edited_at: new Date().toISOString()}).eq('id', id);
+  await loadComments(activeCardId);
+};
+
 document.getElementById('commentInput').addEventListener('input', e => {
   const ta = e.target;
   const val = ta.value;
@@ -2029,9 +2043,8 @@ document.getElementById('commentInput').addEventListener('input', e => {
       menu.innerHTML = matches.map(p => `<button class="w-full text-left flex items-center gap-2 p-2 hover:bg-slate-100 dark:hover:bg-ink-700 text-sm" data-slug="${(p.full_name||'').toLowerCase().replace(/\s+/g,'.')}">
         <div class="w-6 h-6 rounded-full bg-pink-500 text-white text-xs flex items-center justify-center">${(p.full_name||'?').charAt(0).toUpperCase()}</div>
         ${escapeHtml(p.full_name)}</button>`).join('');
-      const rect = ta.getBoundingClientRect();
-      menu.style.top = (rect.bottom + 4) + 'px';
-      menu.style.left = rect.left + 'px';
+      menu.style.top = (ta.offsetTop + ta.offsetHeight + 4) + 'px';
+      menu.style.left = ta.offsetLeft + 'px';
       menu.classList.remove('hidden');
       menu.querySelectorAll('button').forEach(b => {
         b.onclick = () => {
