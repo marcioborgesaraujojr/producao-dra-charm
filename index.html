@@ -1179,6 +1179,43 @@ window.doMagicLink = async () => {
 };
 window.doLogout = async () => { await sb.auth.signOut(); location.reload(); };
 
+// Auto-scroll ao arrastar card: leva o card pra beirada e a coluna (vertical), a tela e o
+// board (horizontal) rolam sozinhos, pra alcançar colunas/posições fora da vista.
+(function(){
+  let ptr = { x:0, y:0, on:false }, raf = null;
+  const EDGE = 90, SPEED = 16;
+  function tick(){
+    if (!ptr.on || !draggingCardId){ raf = null; return; }
+    const vh = window.innerHeight, vw = window.innerWidth;
+    let vScrolled = false;
+    const under = document.elementFromPoint(ptr.x, ptr.y);
+    const cardsEl = under ? under.closest('.cards') : null;
+    if (cardsEl){
+      const r = cardsEl.getBoundingClientRect();
+      if (ptr.y < r.top + EDGE && cardsEl.scrollTop > 0){ cardsEl.scrollTop -= SPEED; vScrolled = true; }
+      else if (ptr.y > r.bottom - EDGE && cardsEl.scrollTop + cardsEl.clientHeight < cardsEl.scrollHeight){ cardsEl.scrollTop += SPEED; vScrolled = true; }
+    }
+    if (!vScrolled){
+      if (ptr.y < EDGE) window.scrollBy(0, -SPEED);
+      else if (ptr.y > vh - EDGE) window.scrollBy(0, SPEED);
+    }
+    const board = document.getElementById('board');
+    if (board){
+      if (ptr.x < EDGE) board.scrollLeft -= SPEED;
+      else if (ptr.x > vw - EDGE) board.scrollLeft += SPEED;
+    }
+    raf = requestAnimationFrame(tick);
+  }
+  document.addEventListener('dragover', (e) => {
+    if (!draggingCardId) return;
+    ptr.x = e.clientX; ptr.y = e.clientY; ptr.on = true;
+    if (!raf) raf = requestAnimationFrame(tick);
+  }, true);
+  const stop = () => { ptr.on = false; };
+  document.addEventListener('dragend', stop, true);
+  document.addEventListener('drop', stop, true);
+})();
+
 async function afterLogin(){
   const { data: p } = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle();
   profile = p;
