@@ -74,6 +74,9 @@ tailwind.config = {
   .card-drag .card-drag-handle{-webkit-user-drag:element}
   .card-drag:active{cursor:grabbing}
   .drop-hint{outline:2px dashed #ec4899;outline-offset:-4px;background:rgba(236,72,153,.06)}
+  /* Participantes do quadro: hover levanta e traz a bolinha pra frente (estilo Trello) */
+  .board-mem{transition:transform .12s ease, box-shadow .12s ease; cursor:default; position:relative}
+  .board-mem:hover{transform:translateY(-3px) scale(1.14); z-index:20; box-shadow:0 5px 14px rgba(0,0,0,.28)}
   .modal-bg{background:rgba(0,0,0,.5);backdrop-filter:blur(2px)}
   kbd{background:#eef2ff;border:1px solid #c7d2fe;padding:0 6px;border-radius:4px;font-size:11px;font-family:ui-monospace,monospace}
   .dark kbd{background:#312e81;border-color:#4338ca;color:#e0e7ff}
@@ -1314,11 +1317,12 @@ async function renderBoardMembers(boardId){
   try {
     const { data } = await sb.from('board_members').select('user_id').eq('board_id', boardId);
     const members = (data || []).map(m => profiles.find(p => p.id === m.user_id)).filter(Boolean);
-    const max = 6, shown = members.slice(0, max);
+    const max = 6, shown = members.slice(0, max), rest = members.slice(max);
+    const restNames = rest.map(p => p.full_name || p.email || '?').join(', ');
     box.innerHTML = shown.map(p => {
       const init = (p.full_name || p.email || '?').charAt(0).toUpperCase();
-      return `<div class="w-7 h-7 rounded-full text-white text-[11px] font-bold flex items-center justify-center ring-2 ring-white dark:ring-ink-800" style="background:${userColor(p)}" title="${escapeHtml(p.full_name || p.email || '')}">${init}</div>`;
-    }).join('') + (members.length > max ? `<div class="w-7 h-7 rounded-full bg-slate-400 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white dark:ring-ink-800" title="+${members.length - max}">+${members.length - max}</div>` : '');
+      return `<div class="board-mem w-7 h-7 rounded-full text-white text-[11px] font-bold flex items-center justify-center ring-2 ring-white dark:ring-ink-800" style="background:${userColor(p)}" title="${escapeHtml(p.full_name || p.email || '')}">${init}</div>`;
+    }).join('') + (rest.length ? `<div class="board-mem w-7 h-7 rounded-full bg-slate-400 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white dark:ring-ink-800" title="${escapeHtml(restNames)}">+${rest.length}</div>` : '');
   } catch(e){ box.innerHTML = ''; }
 }
 function updateUserAvatar(){
