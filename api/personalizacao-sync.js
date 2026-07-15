@@ -117,6 +117,7 @@ export default async function handler(req,res){
   res.setHeader('Access-Control-Allow-Origin','*');
   const q=req.query||{};
   const commit = q.commit==='1';
+  const backfill = q.backfill==='1';
   const bearer=(req.headers.authorization||'').replace('Bearer ','');
   let userId = null;
   let auth = (q.key && q.key===process.env.CMP_CRON_SECRET);
@@ -151,16 +152,18 @@ export default async function handler(req,res){
     const nums=[...new Set(candidatos.map(c=>c.numero))];
     let existSet=new Set();
     if(nums.length){ const ex=await sbREST('GET','cards?select=pedido_numero&pedido_numero=in.('+nums.join(',')+')'); (ex.j||[]).forEach(x=>existSet.add(String(x.pedido_numero))); }
-    const seen={}; const toCreate=[]; const toDelete=[];
+    const seen={}; const toCreate=[]; const toDelete=[]; const toUpdate=[];
     for(const c of candidatos){
       if(seen[c.numero]) continue; seen[c.numero]=1;
       const deveTer = !semCard(c.situacao);
       const temCard = existSet.has(c.numero);
       if(deveTer && !temCard) toCreate.push(c);
       else if(!deveTer && temCard) toDelete.push(c.numero);
+      else if(deveTer && temCard && backfill) toUpdate.push(c);
     }
     const imgCache={};
     for(const c of toCreate){ const r=await buildProdutos(c.itens, imgCache); c.produtos=r.produtos; c._dbg=r.dbg; }
+    for(const c of toUpdate){ const r=await buildProdutos(c.itens, imgCache); c.produtos=r.produtos; c._dbg=r.dbg; }
     const rows=toCreate.map(c=>({
       list_id:PERSO_LIST, title:(c.cliente||('Pedido '+c.numero)), position:Date.now(), created_by:userId,
       pedido_numero:c.numero, pedido_cliente:c.cliente,
@@ -170,11 +173,23 @@ export default async function handler(req,res){
       pedido_produtos: (c.produtos && c.produtos.length) ? c.produtos : null,
       pedido_url: c.id_li?('https://app.lojaintegrada.com.br/painel/pedido/'+c.id_li+'/detalhar'):null
     }));
-    let inserted=0, insErr=null, deleted=0, delErr=null;
+    let inserted=0, insErr=null, deleted=0, delErr=null, updated=0, updErr=null;
     if(commit && rows.length){ const ins=await sbREST('POST','cards',rows); if(ins.status>=200&&ins.status<300){ inserted=(ins.j||[]).length; } else { insErr=ins.j; } }
     if(commit && toDelete.length){ for(const num of toDelete){ const dl=await sbREST('DELETE','cards?pedido_numero=eq.'+num); if(dl.status>=200&&dl.status<300){ deleted++; } else { delErr=dl.j; } } }
+    if(commit && backfill && toUpdate.length){
+      for(const c of toUpdate){
+        const patch={
+          bordado_tipo:c.b.tipo, bordado_linha1:c.b.linha1, bordado_linha2:c.b.linha2,
+          bordado_cor_hex:c.b.corHex, bordado_cor_nome:c.b.corNome, bordado_fonte:c.b.fonte, bordado_lado:c.b.lado,
+          bordado_imagem_url:c.b.imagem, bordado_detalhes:c.b.detalhes,
+          pedido_produtos:(c.produtos&&c.produtos.length)?c.produtos:null
+        };
+        const up=await sbREST('PATCH','cards?pedido_numero=eq.'+c.numero, patch);
+        if(up.status>=200&&up.status<300){ updated++; } else { updErr=up.j; }
+      }
+    }
     res.status(200).json({
-      dryrun:!commit, varridos:scanned, comBordado:candidatos.length, criaria:toCreate.length, apagaria:toDelete.length, inserted, deleted, insErr, delErr,
+      dryrun:!commit, varridos:scanned, comBordado:candidatos.length, criaria:toCreate.length, apagaria:toDelete.length, atualizaria:toUpdate.length, inserted, deleted, updated, insErr, delErr, updErr,
       amostraCriar: toCreate.slice(0,5).map(c=>({numero:c.numero, situacao:c.situacao, tipo:c.b.tipo, fonte:c.b.fonte, produtosCount:(c.produtos||[]).length, produtoSample:(c.produtos||[])[0], imgDbg:c._dbg})),
       amostraApagar: toDelete.slice(0,10)
     });
