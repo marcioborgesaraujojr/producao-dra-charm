@@ -141,6 +141,13 @@ export default async function handler(req,res){
   if(commit && !auth){ userId = await validUser(bearer); auth = !!userId; }
   if(commit && !auth) return res.status(401).json({error:'precisa estar logado pra sincronizar'});
   const limit=Math.min(parseInt(q.limit||'120',10),300);
+  // Janela de datas (igual à extensão). O UI manda data_inicio/data_fim.
+  let de=q.data_inicio||q.de||null, ate=q.data_fim||q.ate||null;
+  // Em execução automática (cron/commit) sem datas, usa janela dos últimos 4 dias por segurança.
+  if(commit && !de && !ate){ const now=new Date(); de=new Date(now.getTime()-4*86400000).toISOString().slice(0,10); ate=now.toISOString().slice(0,10); }
+  const deT = de ? Date.parse(de+'T00:00:00') : null;
+  const ateT = ate ? Date.parse(ate+'T23:59:59') : null;
+  const usaData = (deT!==null || ateT!==null);
 
   // Backfill completo: percorre os cards de personalização que ainda estão SEM produtos,
   // busca o pedido na LI pelo número e preenche pedido_produtos (cobre pedidos antigos).
@@ -177,11 +184,21 @@ export default async function handler(req,res){
 
   try{
     const candidatos=[]; let pagina=0; let scanned=0; const perPage=50;
-    while(scanned<limit){
+    const maxScan = usaData ? 3000 : limit;   // com janela de datas, varre tudo no período
+    let paraLoop=false;
+    while(scanned<maxScan && !paraLoop){
       const off=pagina*perPage;
       const lst=await liGet('/v1/pedido/?limit='+perPage+'&offset='+off+'&order_by=-data_criacao');
       const objs=(lst.j&&lst.j.objects)||[]; if(!objs.length) break;
-      for(const o of objs){ scanned++; if(!o.resource_uri) continue;
+      for(const o of objs){ scanned++;
+        if(usaData){
+          const dc = o.data_criacao ? Date.parse(o.data_criacao) : null;
+          if(dc!==null){
+            if(deT!==null && dc<deT){ paraLoop=true; break; }   // ordenado desc: passou do início => para
+            if(ateT!==null && dc>ateT) continue;                // mais novo que o fim => pula
+          }
+        }
+        if(!o.resource_uri) continue;
         const det=await liGet(o.resource_uri); const d=det.j||{};
         // Detecta pedido de personalização pelo SKU dos itens (igual à extensão)
         const skus=(d.itens||[]).map(it=>String(it.sku||'').toUpperCase());
