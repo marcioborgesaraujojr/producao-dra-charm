@@ -75,7 +75,7 @@ tailwind.config = {
   kbd{background:#eef2ff;border:1px solid #c7d2fe;padding:0 6px;border-radius:4px;font-size:11px;font-family:ui-monospace,monospace}
   .dark kbd{background:#312e81;border-color:#4338ca;color:#e0e7ff}
   @keyframes slideIn{from{transform:translateY(6px);opacity:0}to{transform:translateY(0);opacity:1}}
-  .card{animation:slideIn .12s ease-out}
+  /* animação de entrada removida do .card pra não "piscar" ao re-renderizar o board */
   input[type=number]::-webkit-inner-spin-button,
   input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
   input[type=number]{-moz-appearance:textfield}
@@ -470,9 +470,6 @@ tailwind.config = {
   <header class="sticky top-0 z-30 bg-white/90 dark:bg-ink-800/90 backdrop-blur border-b border-slate-200 dark:border-ink-700">
     <div class="px-4 py-2 flex flex-wrap items-center gap-3">
       <div class="flex items-center gap-2">
-        <button onclick="backToHub()" title="Voltar à Suíte Dra Charm" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700">
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-        </button>
         <div class="system-logo w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-white">
         <img src="https://cdn.awsli.com.br/1930/1930166/arquivos/logo.png" class="w-full h-full object-contain">
       </div>
@@ -1023,6 +1020,7 @@ let lists = [], labels = [], tecidos = [], cards = [];
 let cardLabels = {}, cardMembers = {}, checklistsByCard = {};
 let comments = [], activity = [], notifications = [];
 let activeCardId = null, draggingCardId = null;
+let _localMoveAt = 0;
 let filters = { faccao: new Set(), search: '', hideFinalizado: true, density: (window.matchMedia('(max-width: 767px)').matches ? 'compact' : 'cozy') };
 let commentCounts = {};
 let attachmentCounts = {};
@@ -1373,7 +1371,7 @@ function renderBoard(){
         const card = cards.find(c=>c.id===draggingCardId);
         if (card && card.list_id !== list.id){
           await sb.from('cards').update({list_id: list.id}).eq('id', card.id);
-          card.list_id = list.id; renderBoard();
+          card.list_id = list.id; _localMoveAt = Date.now(); renderBoard();
           toast(`Movido para "${list.name}"`);
         }
       }
@@ -1554,7 +1552,7 @@ function renderCard(c, compact){
       const card = cards.find(x => x.id === c.id);
       if (card && listId && card.list_id !== listId){
         await sb.from('cards').update({ list_id: listId }).eq('id', card.id);
-        card.list_id = listId; renderBoard(); toast('Card movido');
+        card.list_id = listId; _localMoveAt = Date.now(); renderBoard(); toast('Card movido');
       }
     }
     setTimeout(() => { el._justDragged = false; }, 400);
@@ -2588,6 +2586,7 @@ function subscribeRealtime(){
     }).subscribe();
   sb.channel('board-changes')
     .on('postgres_changes', {event:'*', schema:'public', table:'cards'}, async () => {
+      if (Date.now() - _localMoveAt < 1500) return; // mudança feita aqui mesmo, já aplicada localmente (evita render duplo/piscada)
       if (currentBoardId) await switchBoard(currentBoardId);
     })
     .on('postgres_changes', {event:'*', schema:'public', table:'comments'}, () => {
