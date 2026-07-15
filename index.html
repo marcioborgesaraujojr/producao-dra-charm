@@ -41,6 +41,9 @@ tailwind.config = {
   #hubScreen .hub-sub{color:#64748b}
   body.has-bg #hubScreen .hub-title{color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.45)}
   body.has-bg #hubScreen .hub-sub{color:rgba(255,255,255,.92);text-shadow:0 1px 3px rgba(0,0,0,.4)}
+  #hubScreen .hub-foot{color:#64748b;background:rgba(148,163,184,.18)}
+  .dark #hubScreen .hub-foot{color:#cbd5e1;background:rgba(148,163,184,.15)}
+  body.has-bg #hubScreen .hub-foot{color:#fff;background:rgba(0,0,0,.30);text-shadow:0 1px 2px rgba(0,0,0,.45)}
   /* v85: mobile mantém cover (preenche cortando) */
   @media (max-width: 767px) {
     #appBg {
@@ -367,7 +370,7 @@ tailwind.config = {
       </button>
     </div>
 
-    <p class="text-center text-xs text-slate-400 mt-10">v2 · Suíte Dra Charm · <span id="hubUserEmail"></span></p>
+    <p class="text-center mt-10"><span class="hub-foot inline-block text-xs px-3 py-1 rounded-full">v2 · Suíte Dra Charm · <span id="hubUserEmail"></span></span></p>
   </div>
 </div>
 
