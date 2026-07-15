@@ -82,7 +82,7 @@
 <div id="app" class="shell" style="display:none">
   <aside class="side">
     <div class="logo"><img src="/favicon.png" alt="" width="27" height="27" style="border-radius:6px"> <span><span style="color:var(--orange)">RASTREIO</span><span style="color:var(--brand)">PEDIDO</span></span></div>
-    <a href="/" style="display:flex;align-items:center;gap:8px;margin:0 12px 6px;padding:9px 12px;border-radius:10px;background:#f1f5f9;color:#334155;text-decoration:none;font-size:13px;font-weight:600"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg> Voltar ao Suite</a>
+    <a href="/" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg> Voltar ao Suite</a>
     <nav class="nav" id="nav"></nav>
     <div class="me"><b id="meNome">—</b><span id="meEmail"></span><br><a class="link" href="/" style="font-size:12px">Sair</a></div>
   </aside>
@@ -95,7 +95,7 @@
         <div class="fld"><label>Transportadora</label><select id="fTrans" onchange="applyFilters()"><option value="">Selecione</option></select></div>
         <div class="fld"><label>Código de Rastreio</label><input id="fRastreio" placeholder="AA123..." oninput="__deb()"></div>
         <button class="btn ghost" onclick="load()"><span id="icAtu"></span> Atualizar</button>
-        <button class="btn orange" id="runBtn" onclick="__runCycle()">Rodar ciclo</button>
+        <button class="btn orange" id="runBtn" onclick="__runCycle()">Rodar ciclo</button><a href="/" title="Voltar a Suite" class="btn ghost" style="padding:9px 11px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></a>
       </div>
     </div>
     <div class="content" id="view"></div>
