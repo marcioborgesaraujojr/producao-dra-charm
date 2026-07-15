@@ -1,5 +1,10 @@
 const LI = 'https://api.awsli.com.br';
 const PERSO_LIST = '7c4cd407-c2b0-4a16-b802-acd29f996ca8';
+// SKUs dos "acréscimos" de personalização (igual à extensão)
+const SKU_LOGOMARCA = 'U4UDXDTVP';
+const SKU_PERSONALIZACAO = 'QGH2F6NFR';
+const SKIP_SKUS = new Set([SKU_LOGOMARCA, SKU_PERSONALIZACAO]);
+
 async function liGet(path){
   const app=process.env.LI_CHAVE_APLICACAO, api=process.env.LI_CHAVE_API;
   const u=new URL(path.startsWith('http')?path:LI+path);
@@ -8,61 +13,93 @@ async function liGet(path){
   let j=null; try{ j=await r.json(); }catch(e){}
   return {status:r.status, j};
 }
-function parseBordado(obs){
-  if(!obs) return [];
-  const lines=obs.split(/\r?\n/); const blocks=[]; let cur=null;
-  for(const raw of lines){
+
+// Extrai todos os campos "-- Label: valor" do cliente_obs num objeto plano (first-wins), igual à extensão
+function parseFields(obs){
+  const fields={};
+  if(!obs) return fields;
+  for(const raw of String(obs).split(/\r?\n/)){
     const m=raw.trim().match(/^--\s*([^:]+):\s*(.*)$/);
-    if(m){ const label=m[1].trim().toLowerCase().replace(/\*/g,'').trim(); const val=m[2].trim();
-      if(cur && cur[label]!==undefined){ blocks.push(cur); cur=null; }
-      if(!cur) cur={}; cur[label]=val; }
+    if(m){
+      const k=m[1].trim().toLowerCase().replace(/\*/g,'').replace(/\.$/,'').trim();
+      const v=m[2].trim();
+      if(k && fields[k]===undefined) fields[k]=v;
+    }
   }
-  if(cur) blocks.push(cur);
-  return blocks.map(f=>{
-    const l1=f['linha 1']||f['linha1']||'', l2=f['linha 2']||'', l3=f['linha 3']||'';
-    const hasPerso=!!(l1||l2||l3);
-    const tipo=hasPerso?'nome_profissao':(/logo/i.test(JSON.stringify(f))?'logomarca':null);
-    const corRaw=f['cores']||f['cor']||'';
-    let corHex=null, corNome=corRaw;
-    const cm=corRaw.match(/^(#?[0-9a-fA-F]{6})\s*-\s*(.+)$/);
-    if(cm){ corHex=cm[1].startsWith('#')?cm[1]:('#'+cm[1]); corNome=cm[2].trim(); }
-    return { tipo, linha1:l1, linha2:l2||l3, fonte:f['tipo de letra']||null, corHex, corNome:corNome||null, lado:f['lados']||f['lado']||null };
-  }).filter(b=>b.linha1||b.linha2||b.tipo);
+  return fields;
 }
+
+function buildBordado(tipoOrder, obs){
+  const f=parseFields(obs);
+  let corHex=null, corNome=null;
+  if(f['cores']){
+    const cm=f['cores'].match(/^(#?[0-9a-fA-F]{3,8})\s*-\s*(.+)$/);
+    if(cm){ corHex=cm[1].startsWith('#')?cm[1]:('#'+cm[1]); corNome=cm[2].trim(); }
+    else corNome=f['cores'];
+  }
+  let imgUrl = f['fazer upload da imagem'] || null;
+  if(!imgUrl){ const m=String(obs||'').match(/https?:\/\/[^\s\n]+\.(?:jpg|jpeg|png|pdf|svg|gif)/i); if(m) imgUrl=m[0]; }
+  return {
+    tipo: tipoOrder,
+    linha1: f['linha 1'] || null,
+    linha2: f['linha 2'] || f['linha 3'] || null,
+    corHex, corNome,
+    fonte: f['tipo de letra'] || null,
+    lado: f['lados'] || f['lado'] || null,
+    imagem: imgUrl,
+    detalhes: f['detalhes do bordado (opcional)'] || f['detalhes do bordado'] || null
+  };
+}
+
 function tamanhoOf(variacao){
   if(!variacao || typeof variacao!=='object') return null;
   for(const k of Object.keys(variacao)){ if(/tamanho/i.test(k)){ const v=variacao[k]; if(v && v.nome) return String(v.nome).trim(); } }
   const first=Object.values(variacao)[0];
   return (first && first.nome) ? String(first.nome).trim() : null;
 }
-async function buildProdutos(itens){
-  const out=[]; const cache={};
+
+function isSkipItem(it){
+  const sku=String(it.sku||'').toUpperCase();
+  const nome=String(it.nome||'');
+  return SKIP_SKUS.has(sku) || /acr[eé]scimo|embalagem|personaliza/i.test(nome);
+}
+
+function pickImg(pj){
+  const imgs = pj.imagens || pj.imagem || [];
+  const f = (Array.isArray(imgs)?imgs[0]:imgs) || null;
+  if(!f) return { url: pj.imagem_principal||null, keys:null };
+  if(typeof f==='string') return { url:f, keys:'string' };
+  const url = f.thumbnail || f['64x64'] || f.pequena || f.media || f.grande || f.url || f.imagem || f.src || f.caminho || null;
+  return { url, keys:Object.keys(f) };
+}
+
+// Monta produtos com foto (excluindo os itens de acréscimo). Imagem vem do produto_pai (variação não tem imagem).
+async function buildProdutos(itens, cache){
+  const out=[]; let dbg=null;
   for(const it of (itens||[])){
-    if(!it) continue;
-    let imagem_url=null;
-    if(it.produto){
-      if(it.produto in cache){ imagem_url=cache[it.produto]; }
+    if(!it || isSkipItem(it)) continue;
+    const ref = it.produto_pai || it.produto;
+    let imagem_url=null, keys=null;
+    if(ref){
+      if(cache[ref]!==undefined){ imagem_url=cache[ref].url; keys=cache[ref].keys; }
       else {
-        try{
-          const p=await liGet(it.produto); const pj=p.j||{};
-          const imgs=pj.imagens||pj.imagem||[]; const f=(Array.isArray(imgs)?imgs[0]:imgs)||null;
-          imagem_url = f ? (f.thumbnail || f.pequena || f.media || f.grande || f.url || (typeof f==='string'?f:null)) : (pj.imagem_principal||null);
-        }catch(e){}
-        cache[it.produto]=imagem_url;
+        try{ const p=await liGet(ref); const r=pickImg(p.j||{}); imagem_url=r.url; keys=r.keys; }catch(e){}
+        cache[ref]={url:imagem_url, keys};
       }
     }
-    const nome=it.nome||'';
+    if(!dbg) dbg={ ref: ref||null, keys };
     out.push({
       qtd: Math.round(parseFloat(it.quantidade||'1'))||1,
       sku: it.sku||null,
-      nome,
-      bordado: !/acr[eé]scimo/i.test(nome),
+      nome: it.nome||'',
+      bordado: true,
       tamanho: tamanhoOf(it.variacao),
       imagem_url
     });
   }
-  return out;
+  return { produtos: out, dbg };
 }
+
 async function sbREST(method, path, body){
   const url=process.env.SUPABASE_URL+'/rest/v1/'+path;
   const h={'apikey':process.env.SUPABASE_SERVICE_ROLE_KEY,'Authorization':'Bearer '+process.env.SUPABASE_SERVICE_ROLE_KEY,'Content-Type':'application/json'};
@@ -75,6 +112,7 @@ async function validUser(token){
   if(!token) return null;
   try{ const r=await fetch(process.env.SUPABASE_URL+'/auth/v1/user',{headers:{apikey:process.env.SUPABASE_SERVICE_ROLE_KEY, Authorization:'Bearer '+token}}); const j=await r.json(); return (j && j.id) ? j.id : null; }catch(e){ return null; }
 }
+
 export default async function handler(req,res){
   res.setHeader('Access-Control-Allow-Origin','*');
   const q=req.query||{};
@@ -84,7 +122,7 @@ export default async function handler(req,res){
   let auth = (q.key && q.key===process.env.CMP_CRON_SECRET);
   if(commit && !auth){ userId = await validUser(bearer); auth = !!userId; }
   if(commit && !auth) return res.status(401).json({error:'precisa estar logado pra sincronizar'});
-  const limit=Math.min(parseInt(q.limit||'120',10),200);
+  const limit=Math.min(parseInt(q.limit||'120',10),300);
   try{
     const candidatos=[]; let pagina=0; let scanned=0; const perPage=50;
     while(scanned<limit){
@@ -93,16 +131,23 @@ export default async function handler(req,res){
       const objs=(lst.j&&lst.j.objects)||[]; if(!objs.length) break;
       for(const o of objs){ scanned++; if(!o.resource_uri) continue;
         const det=await liGet(o.resource_uri); const d=det.j||{};
+        // Detecta pedido de personalização pelo SKU dos itens (igual à extensão)
+        const skus=(d.itens||[]).map(it=>String(it.sku||'').toUpperCase());
+        const hasLogo=skus.includes(SKU_LOGOMARCA);
+        const hasPerso=skus.includes(SKU_PERSONALIZACAO);
+        if(!hasLogo && !hasPerso) continue;
+        const tipoOrder = (hasLogo&&hasPerso)?'ambos':(hasLogo?'logomarca':'nome_profissao');
+        // Situação
         let sitTxt='';
         const sit=d.situacao;
         if(sit){ if(typeof sit==='string'){ try{ const sd=await liGet(sit); sitTxt=((sd.j&&(sd.j.codigo||sd.j.nome))||''); }catch(e){} } else { sitTxt=(sit.codigo||sit.nome||sit.situacao||''); } }
-        const blocks=parseBordado(d.cliente_obs); if(!blocks.length) continue;
-        const b=blocks[0];
-        candidatos.push({ numero:String(d.numero), id_li:d.id, cliente:(d.cliente&&(d.cliente.nome||d.cliente.email))||null, b, qtd:blocks.length, situacao:String(sitTxt||'?'), itens:d.itens });
+        const b=buildBordado(tipoOrder, d.cliente_obs);
+        candidatos.push({ numero:String(d.numero), id_li:d.id, cliente:(d.cliente&&(d.cliente.nome||d.cliente.email))||null, b, situacao:String(sitTxt||'?'), itens:d.itens });
       }
       if(objs.length<perPage) break; pagina++;
     }
-    const semCard = s => { const t=String(s||'').toLowerCase(); return /cancel|devolv|efetuad/.test(t) || (/aguardando/.test(t)&&/pag/.test(t)) || /pagamento\s*pendente|pendente\s*pagamento/.test(t) || /novo\s*pedido/.test(t); };
+    // Regra de status: pago (ou além) => card. efetuado/aguardando pagamento/cancelado/devolvido => sem card (e apaga se existir)
+    const semCard = s => { const t=String(s||'').toLowerCase(); return /cancel|devolv|efetuad|estorn|charge|disputa|an[aá]lise|reembols/.test(t) || (/aguardando/.test(t)&&/pag/.test(t)) || /pagamento\s*pendente|pendente\s*pagamento/.test(t) || /novo\s*pedido/.test(t); };
     const nums=[...new Set(candidatos.map(c=>c.numero))];
     let existSet=new Set();
     if(nums.length){ const ex=await sbREST('GET','cards?select=pedido_numero&pedido_numero=in.('+nums.join(',')+')'); (ex.j||[]).forEach(x=>existSet.add(String(x.pedido_numero))); }
@@ -114,18 +159,24 @@ export default async function handler(req,res){
       if(deveTer && !temCard) toCreate.push(c);
       else if(!deveTer && temCard) toDelete.push(c.numero);
     }
-    for(const c of toCreate){ c.produtos = await buildProdutos(c.itens); }
+    const imgCache={};
+    for(const c of toCreate){ const r=await buildProdutos(c.itens, imgCache); c.produtos=r.produtos; c._dbg=r.dbg; }
     const rows=toCreate.map(c=>({
       list_id:PERSO_LIST, title:(c.cliente||('Pedido '+c.numero)), position:Date.now(), created_by:userId,
       pedido_numero:c.numero, pedido_cliente:c.cliente,
-      bordado_tipo:c.b.tipo, bordado_linha1:c.b.linha1||null, bordado_linha2:c.b.linha2||null,
+      bordado_tipo:c.b.tipo, bordado_linha1:c.b.linha1, bordado_linha2:c.b.linha2,
       bordado_cor_hex:c.b.corHex, bordado_cor_nome:c.b.corNome, bordado_fonte:c.b.fonte, bordado_lado:c.b.lado,
+      bordado_imagem_url:c.b.imagem, bordado_detalhes:c.b.detalhes,
       pedido_produtos: (c.produtos && c.produtos.length) ? c.produtos : null,
       pedido_url: c.id_li?('https://app.lojaintegrada.com.br/painel/pedido/'+c.id_li+'/detalhar'):null
     }));
     let inserted=0, insErr=null, deleted=0, delErr=null;
     if(commit && rows.length){ const ins=await sbREST('POST','cards',rows); if(ins.status>=200&&ins.status<300){ inserted=(ins.j||[]).length; } else { insErr=ins.j; } }
     if(commit && toDelete.length){ for(const num of toDelete){ const dl=await sbREST('DELETE','cards?pedido_numero=eq.'+num); if(dl.status>=200&&dl.status<300){ deleted++; } else { delErr=dl.j; } } }
-    res.status(200).json({ dryrun:!commit, varridos:scanned, comBordado:candidatos.length, criaria:toCreate.length, apagaria:toDelete.length, inserted, deleted, insErr, delErr, amostraCriar: toCreate.slice(0,4).map(c=>({numero:c.numero, situacao:c.situacao, tipo:c.b.tipo, produtosCount:(c.produtos||[]).length, produtoSample:(c.produtos||[])[0]})), amostraApagar: toDelete.slice(0,8) });
-  }catch(e){ res.status(500).json({error:e.message}); }
+    res.status(200).json({
+      dryrun:!commit, varridos:scanned, comBordado:candidatos.length, criaria:toCreate.length, apagaria:toDelete.length, inserted, deleted, insErr, delErr,
+      amostraCriar: toCreate.slice(0,5).map(c=>({numero:c.numero, situacao:c.situacao, tipo:c.b.tipo, fonte:c.b.fonte, produtosCount:(c.produtos||[]).length, produtoSample:(c.produtos||[])[0], imgDbg:c._dbg})),
+      amostraApagar: toDelete.slice(0,10)
+    });
+  }catch(e){ res.status(500).json({error:e.message, stack:String(e.stack||'').slice(0,300)}); }
 }
