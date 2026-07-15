@@ -41,9 +41,9 @@ tailwind.config = {
   #hubScreen .hub-sub{color:#64748b}
   body.has-bg #hubScreen .hub-title{color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.45)}
   body.has-bg #hubScreen .hub-sub{color:rgba(255,255,255,.92);text-shadow:0 1px 3px rgba(0,0,0,.4)}
-  #hubScreen .hub-foot{color:#64748b;background:rgba(148,163,184,.18)}
-  .dark #hubScreen .hub-foot{color:#cbd5e1;background:rgba(148,163,184,.15)}
-  body.has-bg #hubScreen .hub-foot{color:#fff;background:rgba(0,0,0,.30);text-shadow:0 1px 2px rgba(0,0,0,.45)}
+  #hubScreen .hub-foot{color:#64748b}
+  .dark #hubScreen .hub-foot{color:#cbd5e1}
+  body.has-bg #hubScreen .hub-foot{color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.45)}
   /* v85: mobile mantém cover (preenche cortando) */
   @media (max-width: 767px) {
     #appBg {
@@ -370,7 +370,7 @@ tailwind.config = {
       </button>
     </div>
 
-    <p class="text-center mt-10"><span class="hub-foot inline-block text-xs px-3 py-1 rounded-full">v2 · Suíte Dra Charm · <span id="hubUserEmail"></span></span></p>
+    <p class="text-center mt-10"><span class="hub-foot text-xs">v2 · Suíte Dra Charm · <span id="hubUserEmail"></span></span></p>
   </div>
 </div>
 
@@ -1432,7 +1432,7 @@ function renderCard(c, compact){
   const clbls = cardLabels[c.id] || [];
   const cmembs = cardMembers[c.id] || [];
   el.className = `card card-drag bg-white dark:bg-ink-700 rounded-lg overflow-hidden shadow-sm border border-transparent hover:border-pink-500 p-2 ${compact?'text-xs':'text-sm'}`;
-  el.draggable = true;
+  el.draggable = false; // desktop usa drag customizado (mouse) com card inclinado; ver handlers mousedown abaixo
   const labelChips = clbls.slice(0,3).map(l=>`<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style="background:${l.color}22;color:${l.color}"><span class="w-1.5 h-1.5 rounded-full" style="background:${l.color}"></span>${escapeHtml(l.name)}</span>`).join('');
   const memAvatars = cmembs.slice(0,3).map(m=>`<div class="w-5 h-5 rounded-full bg-pink-500 text-white text-[10px] font-bold flex items-center justify-center" title="${escapeHtml(m.full_name)}">${(m.full_name||'?').charAt(0).toUpperCase()}</div>`).join('');
   const bType = boardType(currentBoardId);
@@ -1562,6 +1562,60 @@ function renderCard(c, compact){
   };
   el.addEventListener('touchend', endTouch);
   el.addEventListener('touchcancel', endTouch);
+
+  // ===== Drag com mouse (desktop): card inclina e "levanta" estilo Trello =====
+  el.addEventListener('mousedown', (ev) => {
+    if (ev.button !== 0) return;
+    if (ev.target.closest('a,button,input,select,textarea,label')) return;
+    const startX = ev.clientX, startY = ev.clientY;
+    let started = false, offx = 0, offy = 0, mCol = null;
+    const onMove = (e) => {
+      if (!started){
+        if (Math.abs(e.clientX - startX) < 5 && Math.abs(e.clientY - startY) < 5) return;
+        started = true; draggingCardId = c.id; el.classList.add('opacity-40');
+        const r = el.getBoundingClientRect();
+        offx = e.clientX - r.left; offy = e.clientY - r.top;
+        ghost = el.cloneNode(true);
+        ghost.style.cssText = `position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;margin:0;pointer-events:none;z-index:9999;opacity:.95;transform:rotate(3deg) scale(1.02);box-shadow:0 14px 34px rgba(0,0,0,.30)`;
+        document.body.appendChild(ghost);
+        document.body.style.userSelect = 'none';
+      }
+      e.preventDefault();
+      if (ghost){ ghost.style.left = (e.clientX - offx) + 'px'; ghost.style.top = (e.clientY - offy) + 'px'; ghost.style.display = 'none'; }
+      const under = document.elementFromPoint(e.clientX, e.clientY);
+      if (ghost) ghost.style.display = '';
+      const col = under ? under.closest('[data-list-id]') : null;
+      if (mCol && mCol !== col) mCol.classList.remove('drop-hint');
+      if (col){ col.classList.add('drop-hint'); mCol = col; }
+      const EDGE = 70, SP = 14, vh = window.innerHeight, vw = window.innerWidth;
+      if (e.clientY < EDGE) window.scrollBy(0, -SP); else if (e.clientY > vh - EDGE) window.scrollBy(0, SP);
+      const bd = document.getElementById('board');
+      if (bd){ if (e.clientX < EDGE) bd.scrollLeft -= SP; else if (e.clientX > vw - EDGE) bd.scrollLeft += SP; }
+      const cel = under ? under.closest('.cards') : null;
+      if (cel){ const rr = cel.getBoundingClientRect(); if (e.clientY < rr.top + EDGE) cel.scrollTop -= SP; else if (e.clientY > rr.bottom - EDGE) cel.scrollTop += SP; }
+    };
+    const onUp = async () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.userSelect = '';
+      if (!started) return;
+      el._justDragged = true; el.classList.remove('opacity-40');
+      if (ghost){ ghost.remove(); ghost = null; }
+      const col = mCol; if (mCol){ mCol.classList.remove('drop-hint'); mCol = null; }
+      draggingCardId = null;
+      if (col){
+        const listId = col.getAttribute('data-list-id');
+        const card = cards.find(x => x.id === c.id);
+        if (card && listId && card.list_id !== listId){
+          await sb.from('cards').update({ list_id: listId }).eq('id', card.id);
+          card.list_id = listId; _localMoveAt = Date.now(); renderBoard(); toast('Card movido');
+        }
+      }
+      setTimeout(() => { el._justDragged = false; }, 300);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
   return el;
 }
 
