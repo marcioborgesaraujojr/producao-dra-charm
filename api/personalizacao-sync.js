@@ -59,9 +59,14 @@ export default async function handler(req,res){
       const objs=(lst.j&&lst.j.objects)||[]; if(!objs.length) break;
       for(const o of objs){ scanned++; if(!o.resource_uri) continue;
         const det=await liGet(o.resource_uri); const d=det.j||{};
+        // pula pedidos cancelados/devolvidos (situacao pode vir como objeto ou resource_uri)
+        let sitTxt='';
+        const sit=d.situacao;
+        if(sit){ if(typeof sit==='string'){ try{ const sd=await liGet(sit); sitTxt=((sd.j&&(sd.j.codigo||sd.j.nome))||''); }catch(e){} } else { sitTxt=(sit.codigo||sit.nome||sit.situacao||''); } }
+        if(/cancel|devolv/i.test(String(sitTxt))) continue;
         const blocks=parseBordado(d.cliente_obs); if(!blocks.length) continue;
         const b=blocks[0];
-        candidatos.push({ numero:String(d.numero), id_li:d.id, cliente:(d.cliente&&(d.cliente.nome||d.cliente.email))||null, b, qtd:blocks.length });
+        candidatos.push({ numero:String(d.numero), id_li:d.id, cliente:(d.cliente&&(d.cliente.nome||d.cliente.email))||null, b, qtd:blocks.length, situacao:String(sitTxt||'?') });
       }
       if(objs.length<perPage) break; pagina++;
     }
@@ -78,6 +83,6 @@ export default async function handler(req,res){
     }));
     let inserted=0, insErr=null;
     if(commit && rows.length){ const ins=await sbREST('POST','cards',rows); if(ins.status>=200&&ins.status<300){ inserted=(ins.j||[]).length; } else { insErr=ins.j; } }
-    res.status(200).json({ dryrun:!commit, varridos:scanned, comBordado:candidatos.length, jaExistem:candidatos.length-novos.length, criaria:novos.length, inserted, insErr, amostra: novos.slice(0,4).map(c=>({numero:c.numero, cliente:c.cliente?'ok':null, tipo:c.b.tipo, cor:c.b.corNome, fonte:c.b.fonte, lado:c.b.lado})) });
+    res.status(200).json({ dryrun:!commit, varridos:scanned, comBordado:candidatos.length, jaExistem:candidatos.length-novos.length, criaria:novos.length, inserted, insErr, amostra: novos.slice(0,6).map(c=>({numero:c.numero, situacao:c.situacao, cliente:c.cliente?'ok':null, tipo:c.b.tipo, cor:c.b.corNome, fonte:c.b.fonte, lado:c.b.lado})) });
   }catch(e){ res.status(500).json({error:e.message}); }
 }
