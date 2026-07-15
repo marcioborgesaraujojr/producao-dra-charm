@@ -59,30 +59,39 @@ export default async function handler(req,res){
       const objs=(lst.j&&lst.j.objects)||[]; if(!objs.length) break;
       for(const o of objs){ scanned++; if(!o.resource_uri) continue;
         const det=await liGet(o.resource_uri); const d=det.j||{};
-        // pula pedidos cancelados/devolvidos (situacao pode vir como objeto ou resource_uri)
+        // status do pedido (situacao pode vir como objeto ou resource_uri)
         let sitTxt='';
         const sit=d.situacao;
         if(sit){ if(typeof sit==='string'){ try{ const sd=await liGet(sit); sitTxt=((sd.j&&(sd.j.codigo||sd.j.nome))||''); }catch(e){} } else { sitTxt=(sit.codigo||sit.nome||sit.situacao||''); } }
-        if(/cancel|devolv/i.test(String(sitTxt))) continue;
         const blocks=parseBordado(d.cliente_obs); if(!blocks.length) continue;
         const b=blocks[0];
         candidatos.push({ numero:String(d.numero), id_li:d.id, cliente:(d.cliente&&(d.cliente.nome||d.cliente.email))||null, b, qtd:blocks.length, situacao:String(sitTxt||'?') });
       }
       if(objs.length<perPage) break; pagina++;
     }
+    // Regra de status: pago (ou adiante) = deve ter card. efetuado/aguardando pagamento/cancelado/devolvido = NAO deve ter card (apaga se existir).
+    const semCard = s => { const t=String(s||'').toLowerCase(); return /cancel|devolv|efetuad/.test(t) || (/aguardando/.test(t)&&/pag/.test(t)) || /pagamento\s*pendente|pendente\s*pagamento/.test(t) || /novo\s*pedido/.test(t); };
     const nums=[...new Set(candidatos.map(c=>c.numero))];
-    let existentes=[];
-    if(nums.length){ const ex=await sbREST('GET','cards?select=pedido_numero&pedido_numero=in.('+nums.join(',')+')'); existentes=(ex.j||[]).map(x=>String(x.pedido_numero)); }
-    const seen={}; const novos=candidatos.filter(c=>{ if(existentes.includes(c.numero)||seen[c.numero]) return false; seen[c.numero]=1; return true; });
-    const rows=novos.map(c=>({
+    let existSet=new Set();
+    if(nums.length){ const ex=await sbREST('GET','cards?select=pedido_numero&pedido_numero=in.('+nums.join(',')+')'); (ex.j||[]).forEach(x=>existSet.add(String(x.pedido_numero))); }
+    const seen={}; const toCreate=[]; const toDelete=[];
+    for(const c of candidatos){
+      if(seen[c.numero]) continue; seen[c.numero]=1;
+      const deveTer = !semCard(c.situacao);
+      const temCard = existSet.has(c.numero);
+      if(deveTer && !temCard) toCreate.push(c);
+      else if(!deveTer && temCard) toDelete.push(c.numero);
+    }
+    const rows=toCreate.map(c=>({
       list_id:PERSO_LIST, title:(c.cliente||('Pedido '+c.numero)), position:Date.now(), created_by:userId,
       pedido_numero:c.numero, pedido_cliente:c.cliente,
       bordado_tipo:c.b.tipo, bordado_linha1:c.b.linha1||null, bordado_linha2:c.b.linha2||null,
       bordado_cor_hex:c.b.corHex, bordado_cor_nome:c.b.corNome, bordado_fonte:c.b.fonte, bordado_lado:c.b.lado,
       pedido_url: c.id_li?('https://app.lojaintegrada.com.br/painel/pedido/'+c.id_li+'/detalhar'):null
     }));
-    let inserted=0, insErr=null;
+    let inserted=0, insErr=null, deleted=0, delErr=null;
     if(commit && rows.length){ const ins=await sbREST('POST','cards',rows); if(ins.status>=200&&ins.status<300){ inserted=(ins.j||[]).length; } else { insErr=ins.j; } }
-    res.status(200).json({ dryrun:!commit, varridos:scanned, comBordado:candidatos.length, jaExistem:candidatos.length-novos.length, criaria:novos.length, inserted, insErr, amostra: novos.slice(0,6).map(c=>({numero:c.numero, situacao:c.situacao, cliente:c.cliente?'ok':null, tipo:c.b.tipo, cor:c.b.corNome, fonte:c.b.fonte, lado:c.b.lado})) });
+    if(commit && toDelete.length){ for(const num of toDelete){ const dl=await sbREST('DELETE','cards?pedido_numero=eq.'+num); if(dl.status>=200&&dl.status<300){ deleted++; } else { delErr=dl.j; } } }
+    res.status(200).json({ dryrun:!commit, varridos:scanned, comBordado:candidatos.length, criaria:toCreate.length, apagaria:toDelete.length, inserted, deleted, insErr, delErr, amostraCriar: toCreate.slice(0,6).map(c=>({numero:c.numero, situacao:c.situacao, tipo:c.b.tipo, cor:c.b.corNome, fonte:c.b.fonte})), amostraApagar: toDelete.slice(0,8) });
   }catch(e){ res.status(500).json({error:e.message}); }
 }
