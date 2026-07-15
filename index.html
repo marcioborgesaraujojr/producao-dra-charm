@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes,interactive-widget=resizes-content">
-<title>Produção Dra. Charm</title>
+<title>ProduÃ§Ã£o Dra. Charm</title>
 <link id="faviconLink" rel="icon" type="image/png" href="https://cdn.awsli.com.br/1930/1930166/arquivos/logo.png">
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
@@ -21,7 +21,7 @@ tailwind.config = {
   html,body{height:100%}
   body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
   #appBg{position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;z-index:-1;background-size:cover;background-position:center;background-repeat:no-repeat;pointer-events:none}
-  /* v80: body transparente pra deixar #appBg (fixed) aparecer atrás dos cards sem ser coberto pela cor bg-slate-100 do Tailwind */
+  /* v80: body transparente pra deixar #appBg (fixed) aparecer atrÃ¡s dos cards sem ser coberto pela cor bg-slate-100 do Tailwind */
   body{background-color:transparent !important}
   html{background-color:#f1f5f9}
   html.dark{background-color:#0b1220}
@@ -33,7 +33,7 @@ tailwind.config = {
   body.has-bg.dark header{background:rgba(17,24,39,.85)!important}
   /* v82: hubScreen tem bg-gradient inline do Tailwind que cobre o #appBg fixed. Zera quando has-bg */
   body.has-bg #hubScreen,body.has-bg #loginScreen{background:transparent !important;background-image:none !important}
-  /* v85: mobile mantém cover (preenche cortando) */
+  /* v85: mobile mantÃ©m cover (preenche cortando) */
   @media (max-width: 767px) {
     #appBg {
       background-size: cover !important;
@@ -71,7 +71,7 @@ tailwind.config = {
   input[type=number]::-webkit-inner-spin-button,
   input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
   input[type=number]{-moz-appearance:textfield}
-  /* Cover unificada: imagem mantém proporção original, escalada dentro de bounding box */
+  /* Cover unificada: imagem mantÃ©m proporÃ§Ã£o original, escalada dentro de bounding box */
   .product-cover{background:#eaeaea;border:3px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.08);border-radius:8px;flex-shrink:0;align-self:flex-start;display:block;height:auto;width:auto;object-fit:contain}
   .product-cover-compact{max-width:88px;max-height:88px}
   .produto-thumb{width:70px;height:88px;object-fit:cover;border-radius:8px;border:3px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.08);background:#eaeaea;flex-shrink:0}
@@ -87,7 +87,7 @@ tailwind.config = {
   .fabric-weave{
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='6' height='6'><path d='M6,0 L0,6 M9,3 L3,9 M3,-3 L-3,3' stroke='rgba(0,0,0,0.2)' stroke-width='0.7' stroke-dasharray='1,1.4' fill='none'/></svg>");
   }
-  /* Texto com efeito de fio bordado — repeating gradient clipado no texto (exato do site) */
+  /* Texto com efeito de fio bordado â repeating gradient clipado no texto (exato do site) */
   .bordado-text > div, .bordado-text{
     --thread-color: #b8860b;
   }
@@ -118,7 +118,7 @@ tailwind.config = {
 
   /* ============ MOBILE (<768px) ============ */
   @media (max-width: 767px){
-    /* Header — reorganiza em 2 linhas, esconde textos e força controles a caber */
+    /* Header â reorganiza em 2 linhas, esconde textos e forÃ§a controles a caber */
     header .px-4{padding-left:6px;padding-right:6px}
     header .py-2{padding-top:5px;padding-bottom:5px}
     header .flex.items-center.gap-3{gap:4px}
@@ -143,10 +143,10 @@ tailwind.config = {
     #density{font-size:12px;padding:6px 8px}
     #filterFaccaoBtn{padding:6px 8px;font-size:12px}
     #search{font-size:14px}
-    /* Search vira linha própria abaixo */
+    /* Search vira linha prÃ³pria abaixo */
     header .flex-1.flex.items-center.gap-2{flex-basis:100%;order:10;margin-top:6px}
 
-    /* Kanban list — reduz um pouco pra caber melhor */
+    /* Kanban list â reduz um pouco pra caber melhor */
     #board{gap:8px;padding:12px 8px}
     #board > div{width:280px !important;max-width:85vw}
 
@@ -155,7 +155,7 @@ tailwind.config = {
     #cardModal > div{max-height:100vh;height:100vh;border-radius:0;max-width:100vw}
     /* Hero menor no mobile */
     #cardHeroCover{height:150px !important}
-    /* Details grid: uma coluna só no mobile */
+    /* Details grid: uma coluna sÃ³ no mobile */
     #tab-details{grid-template-columns:1fr !important;padding:12px !important;gap:16px !important}
     #cardTitle{font-size:16px !important}
     #feedList{max-height:280px !important}
@@ -171,14 +171,14 @@ tailwind.config = {
     #userMenu, #bellDropdown{right:8px !important;left:8px !important;width:auto !important;top:52px !important}
     #filterFaccaoDropdown{right:0 !important;left:auto;width:calc(100vw - 24px);max-width:280px}
 
-    /* Grade cortada/oficina — grid mais compacto */
+    /* Grade cortada/oficina â grid mais compacto */
     #tab-details .grid.grid-cols-6{gap:3px}
     #tab-details .grid.grid-cols-6 input{padding:6px 3px !important;font-size:12px}
 
     /* Log geral filters row */
     #logGeralPessoa, #logGeralAcao, #logGeralBoard, #logGeralPeriodo{font-size:12px;padding:4px 8px}
 
-    /* Atalhos widget — some no mobile */
+    /* Atalhos widget â some no mobile */
     .fixed.bottom-4.right-4{display:none}
   }
 </style>
@@ -193,7 +193,7 @@ tailwind.config = {
         <img src="https://cdn.awsli.com.br/1930/1930166/arquivos/logo.png" class="w-full h-full object-contain">
       </div>
       <div>
-        <div class="text-lg font-bold">Produção Dra. Charm</div>
+        <div class="text-lg font-bold">ProduÃ§Ã£o Dra. Charm</div>
         <div class="text-xs text-slate-500">Substituto do Trello</div>
       </div>
     </div>
@@ -210,7 +210,7 @@ tailwind.config = {
       <button onclick="doLogin()" class="w-full p-3 rounded-lg bg-pink-500 text-white font-semibold hover:bg-pink-600">Entrar</button>
       <button onclick="doMagicLink()" class="w-full p-3 rounded-lg bg-slate-100 dark:bg-ink-700 text-sm hover:bg-slate-200">Ou receba um link por email</button>
     </div>
-    <div class="text-xs text-slate-500 mt-4 text-center">Primeira vez? Peça pro Marcio te enviar um convite.</div>
+    <div class="text-xs text-slate-500 mt-4 text-center">Primeira vez? PeÃ§a pro Marcio te enviar um convite.</div>
   </div>
 </div>
 
@@ -223,8 +223,8 @@ tailwind.config = {
           <img src="https://cdn.awsli.com.br/2500/2500989/logo/dra-charm-favicon-72kfpktecx.png" class="w-full h-full object-contain" onerror="this.style.display='none'"/>
         </div>
         <div>
-          <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Sistema Grupo Aragão</h1>
-          <p class="text-xs text-slate-500 dark:text-slate-400">Escolha um sistema pra começar</p>
+          <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Sistema Grupo AragÃ£o</h1>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Escolha um sistema pra comeÃ§ar</p>
         </div>
       </div>
       <div class="flex items-center gap-2">
@@ -238,14 +238,14 @@ tailwind.config = {
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <!-- Quadros de Produção -->
+      <!-- Quadros de ProduÃ§Ã£o -->
       <button class="hub-card group text-left" data-hub-open="quadros">
         <div class="hub-card-icon bg-gradient-to-br from-pink-500 to-rose-500 text-white">
           <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="10" rx="1"/></svg>
         </div>
         <div class="hub-card-body">
-          <div class="hub-card-title">Quadros de Produção</div>
-          <div class="hub-card-desc">Kanban de Produção, Personalização, Corte e Marketing</div>
+          <div class="hub-card-title">Quadros de ProduÃ§Ã£o</div>
+          <div class="hub-card-desc">Kanban de ProduÃ§Ã£o, PersonalizaÃ§Ã£o, Corte e Marketing</div>
         </div>
         <span class="hub-card-badge bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">Ativo</span>
       </button>
@@ -257,7 +257,7 @@ tailwind.config = {
         </div>
         <div class="hub-card-body">
           <div class="hub-card-title">Validador de CEP</div>
-          <div class="hub-card-desc">Confere endereços em massa e valida entregas</div>
+          <div class="hub-card-desc">Confere endereÃ§os em massa e valida entregas</div>
         </div>
         <span class="hub-card-badge bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">Ativo</span>
       </button>
@@ -269,7 +269,7 @@ tailwind.config = {
         </div>
         <div class="hub-card-body">
           <div class="hub-card-title">Atendimento ao Cliente</div>
-          <div class="hub-card-desc">Central de mensagens e notificações inteligentes</div>
+          <div class="hub-card-desc">Central de mensagens e notificaÃ§Ãµes inteligentes</div>
         </div>
         <span class="hub-card-badge bg-slate-100 text-slate-500 dark:bg-ink-600 dark:text-slate-400">Em breve</span>
       </button>
@@ -281,12 +281,12 @@ tailwind.config = {
         </div>
         <div class="hub-card-body">
           <div class="hub-card-title">Marketing / Campanhas</div>
-          <div class="hub-card-desc">Gestão de conteúdo, calendário e criativos</div>
+          <div class="hub-card-desc">GestÃ£o de conteÃºdo, calendÃ¡rio e criativos</div>
         </div>
         <span class="hub-card-badge bg-slate-100 text-slate-500 dark:bg-ink-600 dark:text-slate-400">Em breve</span>
       </button>
 
-      <!-- Cadê Meu Pedido -->
+      <!-- CadÃª Meu Pedido -->
       <button type="button" onclick="window.open('/cade-meu-pedido.html','_blank')" class="hub-card group text-left">
         <div class="hub-card-icon bg-gradient-to-br from-[#FDB25E] to-[#FB9D3E] text-white">
           <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
@@ -305,7 +305,7 @@ tailwind.config = {
         </div>
         <div class="hub-card-body">
           <div class="hub-card-title">Painel de Controle</div>
-          <div class="hub-card-desc">Visão geral com KPIs de estoque e produção</div>
+          <div class="hub-card-desc">VisÃ£o geral com KPIs de estoque e produÃ§Ã£o</div>
         </div>
         <span class="hub-card-badge bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300">Admin</span>
       </button>
@@ -316,14 +316,14 @@ tailwind.config = {
           <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
         </div>
         <div class="hub-card-body">
-          <div class="hub-card-title">Configurações da Suíte</div>
-          <div class="hub-card-desc">Aparência, permissões, usuários e sistema</div>
+          <div class="hub-card-title">ConfiguraÃ§Ãµes da SuÃ­te</div>
+          <div class="hub-card-desc">AparÃªncia, permissÃµes, usuÃ¡rios e sistema</div>
         </div>
         <span class="hub-card-badge bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300">Admin</span>
       </button>
     </div>
 
-    <p class="text-center text-xs text-slate-400 mt-10">v2 · Suíte Dra Charm · <span id="hubUserEmail"></span></p>
+    <p class="text-center text-xs text-slate-400 mt-10">v2 Â· SuÃ­te Dra Charm Â· <span id="hubUserEmail"></span></p>
   </div>
 </div>
 
@@ -337,10 +337,10 @@ tailwind.config = {
         </div>
         <div>
           <h1 class="text-xl font-bold text-slate-900 dark:text-slate-100">Validador de CEP</h1>
-          <p class="text-xs text-slate-500 dark:text-slate-400">Confere endereços dos pedidos e aponta divergências</p>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Confere endereÃ§os dos pedidos e aponta divergÃªncias</p>
         </div>
       </div>
-      <button onclick="backToHub()" title="Voltar pra Suíte" class="p-2 rounded-lg hover:bg-white dark:hover:bg-ink-700 text-slate-600 dark:text-slate-300">
+      <button onclick="backToHub()" title="Voltar pra SuÃ­te" class="p-2 rounded-lg hover:bg-white dark:hover:bg-ink-700 text-slate-600 dark:text-slate-300">
         <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
       </button>
     </div>
@@ -355,16 +355,16 @@ tailwind.config = {
         <input id="cepDtF" type="date" class="p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm">
       </div>
       <div>
-        <label class="block text-xs font-medium text-slate-500 mb-1">Situação</label>
-        <select id="cepSit" class="p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm min-w-[170px]"><option value="">Todas as situações</option></select>
+        <label class="block text-xs font-medium text-slate-500 mb-1">SituaÃ§Ã£o</label>
+        <select id="cepSit" class="p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm min-w-[170px]"><option value="">Todas as situaÃ§Ãµes</option></select>
       </div>
       <button id="cepBuscar" onclick="cepBuscar()" class="px-5 py-2.5 rounded-lg bg-pink-600 text-white text-sm font-medium hover:bg-pink-700 inline-flex items-center gap-2">
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
         Buscar pedidos
       </button>
-      <button onclick="cepHoje()" class="px-4 py-2.5 rounded-lg border border-slate-300 dark:border-ink-600 text-sm hover:bg-slate-50 dark:hover:bg-ink-700">Só hoje</button>
+      <button onclick="cepHoje()" class="px-4 py-2.5 rounded-lg border border-slate-300 dark:border-ink-600 text-sm hover:bg-slate-50 dark:hover:bg-ink-700">SÃ³ hoje</button>
       <label class="ml-auto flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 cursor-pointer select-none">
-        <input type="checkbox" id="cepSoDiv" checked class="w-4 h-4 rounded accent-pink-600"> Só divergências
+        <input type="checkbox" id="cepSoDiv" checked class="w-4 h-4 rounded accent-pink-600"> SÃ³ divergÃªncias
       </label>
       <button onclick="cepExport()" class="px-4 py-2.5 rounded-lg border border-slate-300 dark:border-ink-600 text-sm hover:bg-slate-50 dark:hover:bg-ink-700 inline-flex items-center gap-2">
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -375,9 +375,9 @@ tailwind.config = {
     <div id="cepKpis" class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
       <button data-kpi="all" class="cep-kpi rounded-2xl border border-slate-200 dark:border-ink-700 bg-white dark:bg-ink-800 p-4 text-left transition"><div class="text-2xl font-bold text-slate-800 dark:text-slate-100" id="kpi-all">0</div><div class="text-xs text-slate-500 mt-0.5">Total</div></button>
       <button data-kpi="ok" class="cep-kpi rounded-2xl border border-slate-200 dark:border-ink-700 bg-white dark:bg-ink-800 p-4 text-left transition"><div class="text-2xl font-bold text-emerald-600" id="kpi-ok">0</div><div class="text-xs text-slate-500 mt-0.5">OK</div></button>
-      <button data-kpi="divergencia" class="cep-kpi rounded-2xl border border-slate-200 dark:border-ink-700 bg-white dark:bg-ink-800 p-4 text-left transition"><div class="text-2xl font-bold text-amber-600" id="kpi-divergencia">0</div><div class="text-xs text-slate-500 mt-0.5">Divergência cidade</div></button>
-      <button data-kpi="atencao_rua" class="cep-kpi rounded-2xl border border-slate-200 dark:border-ink-700 bg-white dark:bg-ink-800 p-4 text-left transition"><div class="text-2xl font-bold text-orange-500" id="kpi-atencao_rua">0</div><div class="text-xs text-slate-500 mt-0.5">Atenção rua</div></button>
-      <button data-kpi="invalido" class="cep-kpi rounded-2xl border border-slate-200 dark:border-ink-700 bg-white dark:bg-ink-800 p-4 text-left transition"><div class="text-2xl font-bold text-red-600" id="kpi-invalido">0</div><div class="text-xs text-slate-500 mt-0.5">Inválido</div></button>
+      <button data-kpi="divergencia" class="cep-kpi rounded-2xl border border-slate-200 dark:border-ink-700 bg-white dark:bg-ink-800 p-4 text-left transition"><div class="text-2xl font-bold text-amber-600" id="kpi-divergencia">0</div><div class="text-xs text-slate-500 mt-0.5">DivergÃªncia cidade</div></button>
+      <button data-kpi="atencao_rua" class="cep-kpi rounded-2xl border border-slate-200 dark:border-ink-700 bg-white dark:bg-ink-800 p-4 text-left transition"><div class="text-2xl font-bold text-orange-500" id="kpi-atencao_rua">0</div><div class="text-xs text-slate-500 mt-0.5">AtenÃ§Ã£o rua</div></button>
+      <button data-kpi="invalido" class="cep-kpi rounded-2xl border border-slate-200 dark:border-ink-700 bg-white dark:bg-ink-800 p-4 text-left transition"><div class="text-2xl font-bold text-red-600" id="kpi-invalido">0</div><div class="text-xs text-slate-500 mt-0.5">InvÃ¡lido</div></button>
     </div>
 
     <div id="cepProg" class="hidden mb-4">
@@ -385,7 +385,7 @@ tailwind.config = {
       <div class="h-2 rounded-full bg-slate-200 dark:bg-ink-700 overflow-hidden"><div id="cepProgBar" class="h-full bg-pink-600 transition-all" style="width:0%"></div></div>
     </div>
 
-    <div id="cepMsg" class="text-sm text-slate-500 dark:text-slate-400 mb-3">Selecione o período e clique em Buscar pedidos.</div>
+    <div id="cepMsg" class="text-sm text-slate-500 dark:text-slate-400 mb-3">Selecione o perÃ­odo e clique em Buscar pedidos.</div>
 
     <div class="bg-white dark:bg-ink-800 rounded-2xl border border-slate-200 dark:border-ink-700 overflow-hidden">
       <div class="overflow-x-auto">
@@ -396,9 +396,9 @@ tailwind.config = {
               <th class="px-4 py-3 font-semibold">Cliente</th>
               <th class="px-4 py-3 font-semibold">CEP</th>
               <th class="px-4 py-3 font-semibold">Cidade / UF</th>
-              <th class="px-4 py-3 font-semibold">Situação</th>
+              <th class="px-4 py-3 font-semibold">SituaÃ§Ã£o</th>
               <th class="px-4 py-3 font-semibold">Status</th>
-              <th class="px-4 py-3 font-semibold text-right">Ações</th>
+              <th class="px-4 py-3 font-semibold text-right">AÃ§Ãµes</th>
             </tr>
           </thead>
           <tbody id="cepTb"></tbody>
@@ -413,8 +413,8 @@ tailwind.config = {
   <div class="relative bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
     <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-ink-700 sticky top-0 bg-white dark:bg-ink-800 z-10">
       <div>
-        <h2 class="text-lg font-bold text-slate-900 dark:text-slate-100">Usuários & Permissões</h2>
-        <p class="text-xs text-slate-500 dark:text-slate-400">Marque os sistemas que cada usuário pode acessar. Salva automático ao clicar.</p>
+        <h2 class="text-lg font-bold text-slate-900 dark:text-slate-100">UsuÃ¡rios & PermissÃµes</h2>
+        <p class="text-xs text-slate-500 dark:text-slate-400">Marque os sistemas que cada usuÃ¡rio pode acessar. Salva automÃ¡tico ao clicar.</p>
       </div>
       <button onclick="closeUsers()" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-2xl leading-none">&times;</button>
     </div>
@@ -426,7 +426,7 @@ tailwind.config = {
   <header class="sticky top-0 z-30 bg-white/90 dark:bg-ink-800/90 backdrop-blur border-b border-slate-200 dark:border-ink-700">
     <div class="px-4 py-2 flex flex-wrap items-center gap-3">
       <div class="flex items-center gap-2">
-        <button onclick="backToHub()" title="Voltar à Suíte Dra Charm" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700">
+        <button onclick="backToHub()" title="Voltar Ã  SuÃ­te Dra Charm" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700">
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
         </button>
         <div class="system-logo w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-white">
@@ -460,7 +460,7 @@ tailwind.config = {
           </button>
           <div id="filterFaccaoDropdown" class="hidden absolute right-0 mt-1 w-64 bg-white dark:bg-ink-800 rounded-xl shadow-2xl border border-slate-200 dark:border-ink-700 z-40">
             <div class="p-2 border-b border-slate-200 dark:border-ink-700">
-              <input id="filterFaccaoSearch" type="text" placeholder="Buscar facção..." class="w-full px-2 py-1 rounded bg-slate-100 dark:bg-ink-700 text-sm outline-none focus:ring-2 focus:ring-pink-500"/>
+              <input id="filterFaccaoSearch" type="text" placeholder="Buscar facÃ§Ã£o..." class="w-full px-2 py-1 rounded bg-slate-100 dark:bg-ink-700 text-sm outline-none focus:ring-2 focus:ring-pink-500"/>
             </div>
             <div id="filterFaccaoList" class="max-h-72 overflow-y-auto p-1"></div>
             <div class="border-t border-slate-200 dark:border-ink-700 p-2 flex gap-2">
@@ -473,7 +473,7 @@ tailwind.config = {
           <input id="hideFinalizado" type="checkbox" checked class="accent-pink-500">Ocultar finalizados
         </label>
         <select id="density" class="px-2 py-2 rounded-lg bg-slate-100 dark:bg-ink-700 text-sm">
-          <option value="cozy">Confortável</option>
+          <option value="cozy">ConfortÃ¡vel</option>
           <option value="compact">Compacto</option>
         </select>
       </div>
@@ -502,10 +502,10 @@ tailwind.config = {
 
 <div id="bellDropdown" class="hidden fixed right-4 top-14 z-40 bg-white dark:bg-ink-800 rounded-xl shadow-2xl border border-slate-200 dark:border-ink-700 w-80 max-h-96 overflow-y-auto">
   <div class="p-3 border-b border-slate-200 dark:border-ink-700 flex items-center">
-    <div class="font-semibold flex-1">Notificações</div>
+    <div class="font-semibold flex-1">NotificaÃ§Ãµes</div>
     <button onclick="markAllRead()" class="text-xs text-pink-600 hover:underline">Marcar tudo como lido</button>
   </div>
-  <div id="notifList" class="divide-y divide-slate-200 dark:divide-ink-700"><div class="p-4 text-sm text-slate-500 text-center">Sem notificações</div></div>
+  <div id="notifList" class="divide-y divide-slate-200 dark:divide-ink-700"><div class="p-4 text-sm text-slate-500 text-center">Sem notificaÃ§Ãµes</div></div>
 </div>
 
 <div id="userMenu" class="hidden fixed right-4 top-14 z-40 bg-white dark:bg-ink-800 rounded-xl shadow-2xl border border-slate-200 dark:border-ink-700 w-56">
@@ -517,7 +517,7 @@ tailwind.config = {
   <div class="p-1">
     <button onclick="openLogGeral()" class="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-slate-100 dark:hover:bg-ink-700 flex items-center gap-2">
       <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0"/></svg>
-      Log geral (histórico)
+      Log geral (histÃ³rico)
     </button>
     <button onclick="openLogoUpload()" class="hidden w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-slate-100 dark:hover:bg-ink-700 flex items-center gap-2">
       <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>
@@ -550,7 +550,7 @@ tailwind.config = {
       <div class="flex items-center gap-3 mb-3">
         <svg class="w-5 h-5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0"/></svg>
         <h2 class="text-lg font-semibold flex-1">Log geral</h2>
-        <input id="logGeralSearch" type="search" placeholder="Buscar texto…" class="p-1.5 rounded-lg bg-slate-100 dark:bg-ink-700 text-sm outline-none w-48"/>
+        <input id="logGeralSearch" type="search" placeholder="Buscar textoâ¦" class="p-1.5 rounded-lg bg-slate-100 dark:bg-ink-700 text-sm outline-none w-48"/>
         <button onclick="closeLogGeral()" class="text-slate-400 hover:text-slate-700"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
       </div>
       <div class="flex flex-wrap items-center gap-2">
@@ -558,7 +558,7 @@ tailwind.config = {
           <option value="">Todas as pessoas</option>
         </select>
         <select id="logGeralAcao" class="p-1.5 rounded-lg bg-slate-100 dark:bg-ink-700 text-sm outline-none">
-          <option value="">Todas as ações</option>
+          <option value="">Todas as aÃ§Ãµes</option>
           <option value="created">Criou</option>
           <option value="edited">Editou</option>
           <option value="moved">Moveu</option>
@@ -569,10 +569,10 @@ tailwind.config = {
           <option value="">Todos os quadros</option>
         </select>
         <select id="logGeralPeriodo" class="p-1.5 rounded-lg bg-slate-100 dark:bg-ink-700 text-sm outline-none">
-          <option value="1">Últimas 24h</option>
-          <option value="7" selected>Últimos 7 dias</option>
-          <option value="30">Últimos 30 dias</option>
-          <option value="90">Últimos 90 dias</option>
+          <option value="1">Ãltimas 24h</option>
+          <option value="7" selected>Ãltimos 7 dias</option>
+          <option value="30">Ãltimos 30 dias</option>
+          <option value="90">Ãltimos 90 dias</option>
           <option value="9999">Tudo</option>
         </select>
         <button onclick="clearLogFilters()" class="text-xs text-slate-500 hover:underline ml-auto">Limpar filtros</button>
@@ -653,29 +653,29 @@ tailwind.config = {
           <div class="grid grid-cols-2 gap-2">
             <div class="p-3 rounded-lg bg-slate-50 dark:bg-ink-700 border-l-4 border-emerald-500">
               <div class="text-[11px] uppercase tracking-wide text-slate-500">Total cortada</div>
-              <div class="text-xl font-bold text-emerald-600 dark:text-emerald-400"><span id="cardTotalCortada">0</span> <span class="text-xs font-normal text-slate-500">peças</span></div>
+              <div class="text-xl font-bold text-emerald-600 dark:text-emerald-400"><span id="cardTotalCortada">0</span> <span class="text-xs font-normal text-slate-500">peÃ§as</span></div>
             </div>
             <div class="p-3 rounded-lg bg-slate-50 dark:bg-ink-700 border-l-4 border-amber-500">
               <div class="text-[11px] uppercase tracking-wide text-slate-500">Total oficina</div>
-              <div class="text-xl font-bold text-amber-600 dark:text-amber-400"><span id="cardTotalOficina">0</span> <span class="text-xs font-normal text-slate-500">peças</span></div>
+              <div class="text-xl font-bold text-amber-600 dark:text-amber-400"><span id="cardTotalOficina">0</span> <span class="text-xs font-normal text-slate-500">peÃ§as</span></div>
             </div>
           </div>
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="text-xs font-medium uppercase text-emerald-700 dark:text-emerald-400">Boas</label>
-              <input id="cardPcsBoas" type="number" min="0" placeholder="—" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-emerald-500 text-sm"/>
+              <input id="cardPcsBoas" type="number" min="0" placeholder="â" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-emerald-500 text-sm"/>
             </div>
             <div>
               <label class="text-xs font-medium uppercase text-red-700 dark:text-red-400">Falhas</label>
-              <input id="cardPcsFalhas" type="number" min="0" placeholder="—" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-red-500 text-sm"/>
+              <input id="cardPcsFalhas" type="number" min="0" placeholder="â" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-red-500 text-sm"/>
             </div>
           </div>
           <div id="cardOficinaAlerta" class="hidden text-xs p-2 rounded bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200"></div>
           <div class="grid grid-cols-3 gap-2 items-end">
             <div>
-              <label class="text-xs font-medium uppercase text-slate-500">Situação</label>
+              <label class="text-xs font-medium uppercase text-slate-500">SituaÃ§Ã£o</label>
               <select id="cardSituacao" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm">
-                <option value="">—</option>
+                <option value="">â</option>
                 <option>Aguardando corte</option>
                 <option>Cortada</option>
                 <option>Em costura</option>
@@ -713,13 +713,13 @@ tailwind.config = {
           <div id="marketingFields" class="hidden space-y-4">
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="text-xs font-medium uppercase text-purple-600 inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Aprovação</label>
+                <label class="text-xs font-medium uppercase text-purple-600 inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>AprovaÃ§Ã£o</label>
                 <select id="cardAprovacao" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm">
-                  <option value="">—</option>
+                  <option value="">â</option>
                   <option>Pendente</option>
                   <option>Aprovado</option>
                   <option>Reprovado</option>
-                  <option>Em revisão</option>
+                  <option>Em revisÃ£o</option>
                 </select>
               </div>
               <div>
@@ -734,7 +734,7 @@ tailwind.config = {
           <div id="bordadoFields" class="hidden space-y-4">
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="text-xs font-medium uppercase text-amber-600 flex items-center gap-1"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Nº do pedido</label>
+                <label class="text-xs font-medium uppercase text-amber-600 flex items-center gap-1"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>NÂº do pedido</label>
                 <div class="flex gap-1 mt-1 items-center">
                   <input id="cardPedidoNumero" type="text" placeholder="236708" class="flex-1 p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-amber-500 text-sm"/>
                   <a id="cardPedidoLink" href="#" target="_blank" class="hidden p-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white" title="Abrir na Loja Integrada">
@@ -750,9 +750,9 @@ tailwind.config = {
             <div>
               <label class="text-xs font-medium uppercase text-amber-600 flex items-center gap-1"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>Tipo do bordado</label>
               <select id="cardBordadoTipo" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm">
-                <option value="">—</option>
+                <option value="">â</option>
                 <option value="logomarca">Logomarca (externo)</option>
-                <option value="nome_profissao">Nome/Profissão (interno)</option>
+                <option value="nome_profissao">Nome/ProfissÃ£o (interno)</option>
                 <option value="ambos">Ambos</option>
               </select>
             </div>
@@ -762,8 +762,8 @@ tailwind.config = {
                 <input id="cardBordadoLinha1" type="text" placeholder="Nome" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"/>
               </div>
               <div>
-                <label class="text-xs font-medium uppercase text-slate-500">Linha 2 (Profissão)</label>
-                <input id="cardBordadoLinha2" type="text" placeholder="Profissão" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"/>
+                <label class="text-xs font-medium uppercase text-slate-500">Linha 2 (ProfissÃ£o)</label>
+                <input id="cardBordadoLinha2" type="text" placeholder="ProfissÃ£o" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"/>
               </div>
             </div>
             <div class="grid grid-cols-3 gap-3">
@@ -771,17 +771,17 @@ tailwind.config = {
                 <label class="text-xs font-medium uppercase text-slate-500">Cor</label>
                 <div class="flex gap-1 mt-1 items-center">
                   <div id="cardBordadoCorSwatch" class="w-9 h-9 rounded border border-slate-300 flex-shrink-0" style="background:#94a3b8"></div>
-                  <input id="cardBordadoCorNome" type="text" readonly placeholder="—" class="flex-1 min-w-0 p-2 rounded-lg bg-slate-100 dark:bg-ink-600 border border-slate-200 dark:border-ink-600 text-sm text-slate-600"/>
+                  <input id="cardBordadoCorNome" type="text" readonly placeholder="â" class="flex-1 min-w-0 p-2 rounded-lg bg-slate-100 dark:bg-ink-600 border border-slate-200 dark:border-ink-600 text-sm text-slate-600"/>
                   <input id="cardBordadoCorHex" type="hidden"/>
                 </div>
               </div>
               <div>
                 <label class="text-xs font-medium uppercase text-slate-500">Fonte</label>
-                <input id="cardBordadoFonte" type="text" readonly placeholder="—" class="mt-1 w-full p-2 rounded-lg bg-slate-100 dark:bg-ink-600 border border-slate-200 dark:border-ink-600 text-sm text-slate-600"/>
+                <input id="cardBordadoFonte" type="text" readonly placeholder="â" class="mt-1 w-full p-2 rounded-lg bg-slate-100 dark:bg-ink-600 border border-slate-200 dark:border-ink-600 text-sm text-slate-600"/>
               </div>
               <div>
                 <label class="text-xs font-medium uppercase text-slate-500">Lado</label>
-                <input id="cardBordadoLado" type="text" readonly placeholder="—" class="mt-1 w-full p-2 rounded-lg bg-slate-100 dark:bg-ink-600 border border-slate-200 dark:border-ink-600 text-sm text-slate-600"/>
+                <input id="cardBordadoLado" type="text" readonly placeholder="â" class="mt-1 w-full p-2 rounded-lg bg-slate-100 dark:bg-ink-600 border border-slate-200 dark:border-ink-600 text-sm text-slate-600"/>
               </div>
             </div>
             <div id="cardBordadoImagemBox">
@@ -795,7 +795,7 @@ tailwind.config = {
             </div>
             <div>
               <label class="text-xs font-medium uppercase text-slate-500 flex items-center gap-1"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Detalhes do bordado (cliente)</label>
-              <textarea id="cardBordadoDetalhes" rows="2" placeholder="—" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"></textarea>
+              <textarea id="cardBordadoDetalhes" rows="2" placeholder="â" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"></textarea>
             </div>
             <div id="cardProdutosBox" class="hidden">
               <button type="button" id="cardProdutosToggle" class="w-full flex items-center gap-2 text-xs font-medium uppercase text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors">
@@ -808,7 +808,7 @@ tailwind.config = {
             </div>
           </div>
           <div id="cardDescBox">
-            <label class="text-xs font-medium uppercase text-slate-500">Descrição</label>
+            <label class="text-xs font-medium uppercase text-slate-500">DescriÃ§Ã£o</label>
             <textarea id="cardDesc" rows="3" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 outline-none focus:border-pink-500"></textarea>
           </div>
           <div id="cardChecklistBox">
@@ -819,7 +819,7 @@ tailwind.config = {
           <div>
             <label class="text-xs font-medium uppercase text-slate-500">Membros do card</label>
             <div id="cardMembers" class="flex flex-wrap gap-1 mt-2"></div>
-            <button onclick="openMemberPicker()" class="mt-2 text-xs text-pink-600 hover:underline">+ atribuir alguém</button>
+            <button onclick="openMemberPicker()" class="mt-2 text-xs text-pink-600 hover:underline">+ atribuir alguÃ©m</button>
           </div>
         </div>
         <div class="space-y-3 min-w-0">
@@ -832,7 +832,7 @@ tailwind.config = {
             <div class="relative mt-1">
               <button id="cardFaccaoBtn" type="button" class="w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm text-left flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-ink-600">
                 <span id="cardFaccaoDot" class="w-3 h-3 rounded-full flex-shrink-0" style="background:#94a3b8"></span>
-                <span id="cardFaccaoLabel" class="flex-1 truncate">— nenhuma —</span>
+                <span id="cardFaccaoLabel" class="flex-1 truncate">â nenhuma â</span>
                 <svg class="w-3 h-3 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
               </button>
               <div id="cardFaccaoMenu" class="hidden absolute right-0 left-0 mt-1 max-h-64 overflow-y-auto bg-white dark:bg-ink-800 rounded-lg shadow-2xl border border-slate-200 dark:border-ink-700 z-50"></div>
@@ -842,7 +842,7 @@ tailwind.config = {
           <div id="tecidoField">
             <label class="text-xs font-medium uppercase text-slate-500">Tecido consumido</label>
             <div class="flex gap-1 mt-1 items-center">
-              <select id="cardTecido" class="flex-1 min-w-0 p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"><option value="">—</option></select>
+              <select id="cardTecido" class="flex-1 min-w-0 p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"><option value="">â</option></select>
               <input id="cardTecidoQtd" type="number" step="0.1" placeholder="0" class="w-14 p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm text-right"/>
               <span class="text-xs text-slate-500">m</span>
             </div>
@@ -851,17 +851,17 @@ tailwind.config = {
             <label class="text-xs font-medium uppercase text-slate-500">Data prevista</label>
             <input id="cardDue" type="date" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"/>
           </div>
-          <!-- FEED: COMENTÁRIOS + ATIVIDADES -->
+          <!-- FEED: COMENTÃRIOS + ATIVIDADES -->
           <div class="pt-3 border-t border-slate-200 dark:border-ink-700">
             <div class="flex items-center justify-between mb-2">
               <label class="text-xs font-medium uppercase text-slate-500 flex items-center gap-2">
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                Comentários e atividade
+                ComentÃ¡rios e atividade
               </label>
               <button id="toggleDetalhes" class="text-[11px] px-2 py-1 rounded border border-amber-400 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20">Mostrar detalhes</button>
             </div>
             <div class="relative">
-              <textarea id="commentInput" rows="2" placeholder="Escreva um comentário... use @ pra mencionar" class="w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 outline-none focus:border-pink-500 text-sm resize-y"></textarea>
+              <textarea id="commentInput" rows="2" placeholder="Escreva um comentÃ¡rio... use @ pra mencionar" class="w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 outline-none focus:border-pink-500 text-sm resize-y"></textarea>
               <div id="mentionMenu" class="mention-menu hidden"></div>
               <button onclick="postComment()" class="mt-1 px-3 py-1.5 rounded-lg bg-pink-500 text-white text-xs font-medium hover:bg-pink-600">Comentar</button>
             </div>
@@ -874,7 +874,7 @@ tailwind.config = {
               <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="5" rx="2"/><path d="M4 9v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9M10 14h4"/></svg>
               Arquivar card
             </button>
-            <div class="text-[10px] text-slate-400 mt-1 text-center">Pra excluir definitivamente vá em Perfil → Cards arquivados</div>
+            <div class="text-[10px] text-slate-400 mt-1 text-center">Pra excluir definitivamente vÃ¡ em Perfil â Cards arquivados</div>
           </div>
         </div>
       </div>
@@ -911,15 +911,15 @@ tailwind.config = {
       <button onclick="closeSyncBordado()" class="text-slate-400 hover:text-slate-700"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
     </div>
     <div class="p-5 overflow-y-auto space-y-5">
-      <!-- STATUS DA EXTENSÃO -->
+      <!-- STATUS DA EXTENSÃO -->
       <div id="extStatusBox" class="border rounded-lg p-3 text-xs">
-        <div id="extStatusLine" class="font-semibold flex items-center gap-2"><span id="extStatusIcon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span> <span id="extStatusText">Verificando extensão...</span></div>
+        <div id="extStatusLine" class="font-semibold flex items-center gap-2"><span id="extStatusIcon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span> <span id="extStatusText">Verificando extensÃ£o...</span></div>
         <div id="extInstallInstructions" class="hidden mt-3 space-y-2 text-slate-700 dark:text-slate-300">
-          <div><b>1.</b> Baixa a extensão: <a href="https://github.com/marcioborgesaraujojr/producao-dra-charm/raw/main/dra-charm-sync-extension.zip" class="text-blue-600 underline font-semibold inline-flex items-center gap-1" target="_blank"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>dra-charm-sync-extension.zip</a></div>
-          <div><b>2.</b> Descompacta o zip numa pasta qualquer (Downloads mesmo tá bom)</div>
-          <div><b>3.</b> Abre no Chrome: <b>chrome://extensions</b> (cola na barra de endereço)</div>
+          <div><b>1.</b> Baixa a extensÃ£o: <a href="https://github.com/marcioborgesaraujojr/producao-dra-charm/raw/main/dra-charm-sync-extension.zip" class="text-blue-600 underline font-semibold inline-flex items-center gap-1" target="_blank"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>dra-charm-sync-extension.zip</a></div>
+          <div><b>2.</b> Descompacta o zip numa pasta qualquer (Downloads mesmo tÃ¡ bom)</div>
+          <div><b>3.</b> Abre no Chrome: <b>chrome://extensions</b> (cola na barra de endereÃ§o)</div>
           <div><b>4.</b> Liga o toggle "Modo do desenvolvedor" no canto superior direito</div>
-          <div><b>5.</b> Clica "Carregar sem compactação" → seleciona a pasta descompactada</div>
+          <div><b>5.</b> Clica "Carregar sem compactaÃ§Ã£o" â seleciona a pasta descompactada</div>
           <div><b>6.</b> Pronto! Volta aqui e clica em Sincronizar de novo.</div>
         </div>
       </div>
@@ -929,7 +929,7 @@ tailwind.config = {
         <div>
           <label class="text-xs font-medium uppercase text-slate-500">Data dos pedidos</label>
           <input id="syncDateInput" type="date" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"/>
-          <div class="text-[10px] text-slate-400 mt-0.5">Padrão: ontem. Você pode escolher qualquer data.</div>
+          <div class="text-[10px] text-slate-400 mt-0.5">PadrÃ£o: ontem. VocÃª pode escolher qualquer data.</div>
         </div>
         <button onclick="startSyncBordado()" class="w-full p-3 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold flex items-center justify-center gap-2">
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
@@ -938,12 +938,12 @@ tailwind.config = {
         <div id="syncStatus" class="text-xs text-slate-500 text-center min-h-[16px]"></div>
       </div>
 
-      <!-- INSTRUÇÕES -->
+      <!-- INSTRUÃÃES -->
       <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-xs text-slate-700 dark:text-slate-300 space-y-1">
         <div class="font-semibold text-blue-800 dark:text-blue-300">Como funciona:</div>
-        <div>1. Clica em "Abrir Loja Integrada" — abre a lista dos pedidos daquela data</div>
+        <div>1. Clica em "Abrir Loja Integrada" â abre a lista dos pedidos daquela data</div>
         <div>2. Na aba aberta, clica no favorito <b>"Sincronizar Bordados Dra Charm"</b></div>
-        <div>3. O script varre os pedidos, filtra os que têm SKU de bordado e cria os cards</div>
+        <div>3. O script varre os pedidos, filtra os que tÃªm SKU de bordado e cria os cards</div>
         <div>4. Volta aqui: os cards aparecem sozinhos na coluna "Novo Pedido"</div>
       </div>
     </div>
@@ -985,45 +985,45 @@ let filters = { faccao: new Set(), search: '', hideFinalizado: true, density: (w
 let commentCounts = {};
 let attachmentCounts = {};
 
-// Mapa das cores das peças (mesmo do site dracharm.com.br /painel/configuracao/html/1454026)
+// Mapa das cores das peÃ§as (mesmo do site dracharm.com.br /painel/configuracao/html/1454026)
 // Ordenado por nome mais longo primeiro pra evitar match parcial ("Vermelho Cardinal" antes de "Vermelho")
 const PRODUCT_COLORS = [
   {name:"Vermelho Cardinal", hex:"#C25863"},{name:"Amarelo Limonada", hex:"#FFFCB7"},{name:"Marrom Chocolate", hex:"#592F28"},
-  {name:"Lilás Blueberry", hex:"#954CAC"},{name:"Vermelho Cereja", hex:"#9C2230"},{name:"Rosa Milkshake", hex:"#D890A4"},
-  {name:"Rosé Sapatilha", hex:"#F2CCCA"},{name:"Lilas Daybreak", hex:"#B198B2"},{name:"Lilás Harmonia", hex:"#BC9BBA"},
-  {name:"Lilás Orquidea", hex:"#903DA8"},{name:"Lilás Mulberry", hex:"#AB6075"},{name:"Verde Pistache", hex:"#BFEDC8"},
-  {name:"Verde Bandeira", hex:"#0DAF66"},{name:"Verde Petróleo", hex:"#2E5053"},{name:"Azul Petróleo", hex:"#1289B2"},
+  {name:"LilÃ¡s Blueberry", hex:"#954CAC"},{name:"Vermelho Cereja", hex:"#9C2230"},{name:"Rosa Milkshake", hex:"#D890A4"},
+  {name:"RosÃ© Sapatilha", hex:"#F2CCCA"},{name:"Lilas Daybreak", hex:"#B198B2"},{name:"LilÃ¡s Harmonia", hex:"#BC9BBA"},
+  {name:"LilÃ¡s Orquidea", hex:"#903DA8"},{name:"LilÃ¡s Mulberry", hex:"#AB6075"},{name:"Verde Pistache", hex:"#BFEDC8"},
+  {name:"Verde Bandeira", hex:"#0DAF66"},{name:"Verde PetrÃ³leo", hex:"#2E5053"},{name:"Azul PetrÃ³leo", hex:"#1289B2"},
   {name:"Rosa Chiclete", hex:"#F69DBB"},{name:"Pink Chiclete", hex:"#F85EC5"},{name:"Pink Lemonade", hex:"#FF9EA9"},
-  {name:"Verde Tiffany", hex:"#A6E1D8"},{name:"Cinza Minério", hex:"#9F99A9"},{name:"Roxo Púrpura", hex:"#9B54B8"},
+  {name:"Verde Tiffany", hex:"#A6E1D8"},{name:"Cinza MinÃ©rio", hex:"#9F99A9"},{name:"Roxo PÃºrpura", hex:"#9B54B8"},
   {name:"Mocha Mousse", hex:"#DFA17C"},{name:"Azul Frozen", hex:"#AEC2DF"},{name:"Azul Bertie", hex:"#98E1E6"},
   {name:"Rosa Punch", hex:"#F95988"},{name:"Rosa Coral", hex:"#F86375"},{name:"Rosa Fancy", hex:"#FFE2E3"},
   {name:"Verde Sage", hex:"#D6DDD3"},{name:"Verde Mint", hex:"#E2FFEB"},{name:"Cinza Dark", hex:"#7C7372"},
   {name:"Verde Baby", hex:"#CFEDCD"},{name:"New Mickey", hex:"#F8F8F8"},{name:"Azul Acqua", hex:"#B4E8F4"},
   {name:"Rosa Baby", hex:"#F4D8DD"},{name:"Rosa Hera", hex:"#FFA5C5"},{name:"Rosa Seco", hex:"#E7CAC6"},
-  {name:"Rosa Nude", hex:"#F0B4A9"},{name:"Rosa Fumê", hex:"#D6969D"},{name:"Blueberry", hex:"#9682C7"},
-  {name:"Roxo Açai", hex:"#683186"},{name:"Verde Mar", hex:"#D2F6E8"},{name:"Terracota", hex:"#D45D46"},
-  {name:"Capuccino", hex:"#F1B483"},{name:"Azul New", hex:"#83C2EF"},{name:"Rosé Tan", hex:"#DE8D81"},
-  {name:"Orquídea", hex:"#A960C4"},{name:"Deep Sea", hex:"#7FAAA8"},{name:"Azul Mid", hex:"#0279CB"},
+  {name:"Rosa Nude", hex:"#F0B4A9"},{name:"Rosa FumÃª", hex:"#D6969D"},{name:"Blueberry", hex:"#9682C7"},
+  {name:"Roxo AÃ§ai", hex:"#683186"},{name:"Verde Mar", hex:"#D2F6E8"},{name:"Terracota", hex:"#D45D46"},
+  {name:"Capuccino", hex:"#F1B483"},{name:"Azul New", hex:"#83C2EF"},{name:"RosÃ© Tan", hex:"#DE8D81"},
+  {name:"OrquÃ­dea", hex:"#A960C4"},{name:"Deep Sea", hex:"#7FAAA8"},{name:"Azul Mid", hex:"#0279CB"},
   {name:"Marinho", hex:"#11114E"},{name:"Amarelo", hex:"#FFF3CE"},{name:"Marsala", hex:"#6F1926"},
   {name:"Violeta", hex:"#B13ACB"},{name:"Estampa", hex:"#FDFAF5"},{name:"Branco", hex:"#FFFFFF"},
-  {name:"Malbec", hex:"#871127"},{name:"Netuno", hex:"#7675B7"},{name:"Fúcsia", hex:"#C64C8E"},
-  {name:"Chumbo", hex:"#454659"},{name:"Preto", hex:"#1e1f28"},{name:"Avelã", hex:"#D4BEA5"},
-  {name:"Vinho", hex:"#861F29"},{name:"Bordô", hex:"#A81920"},{name:"Lilás", hex:"#B7AAD4"},
-  {name:"Rosé", hex:"#EEA3A3"},{name:"Pink", hex:"#F15788"},{name:"Azul Royal", hex:"#3853B9"},
+  {name:"Malbec", hex:"#871127"},{name:"Netuno", hex:"#7675B7"},{name:"FÃºcsia", hex:"#C64C8E"},
+  {name:"Chumbo", hex:"#454659"},{name:"Preto", hex:"#1e1f28"},{name:"AvelÃ£", hex:"#D4BEA5"},
+  {name:"Vinho", hex:"#861F29"},{name:"BordÃ´", hex:"#A81920"},{name:"LilÃ¡s", hex:"#B7AAD4"},
+  {name:"RosÃ©", hex:"#EEA3A3"},{name:"Pink", hex:"#F15788"},{name:"Azul Royal", hex:"#3853B9"},
   {name:"Azul Indigo", hex:"#4C79BB"},{name:"Azul Claro", hex:"#AEC6F1"},{name:"Branco off", hex:"#FDFAF5"}
 ];
-// Match: encontra a cor da peça pelo nome do produto (ex: "Scrub Feminino Ava Branco" -> Branco -> #FFFFFF)
+// Match: encontra a cor da peÃ§a pelo nome do produto (ex: "Scrub Feminino Ava Branco" -> Branco -> #FFFFFF)
 function matchProductColor(productName){
   if (!productName) return null;
-  const n = productName.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const n = productName.toLowerCase().normalize('NFD').replace(/[Ì-Í¯]/g,'');
   for (const c of PRODUCT_COLORS){
-    const cn = c.name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+    const cn = c.name.toLowerCase().normalize('NFD').replace(/[Ì-Í¯]/g,'');
     if (n.includes(cn)) return c;
   }
   return null;
 }
 // Pega a cor de fundo do bordado a partir dos produtos do pedido
-// Prioriza produtos marcados com bordado=true (peça que vai ser bordada)
+// Prioriza produtos marcados com bordado=true (peÃ§a que vai ser bordada)
 function bordadoBackgroundFromCard(c){
   if (!c.pedido_produtos) return null;
   const bordados = c.pedido_produtos.filter(p => p.bordado);
@@ -1043,18 +1043,18 @@ function bordadoFontFamily(fonteName){
   // Fallback pra fonte cursiva bonita
   return "'MonotypeCorsiva', cursive";
 }
-// Detecta se a cor é muito clara (precisa fundo escuro pra ficar visível)
+// Detecta se a cor Ã© muito clara (precisa fundo escuro pra ficar visÃ­vel)
 function isLightColor(hex){
   if (!hex) return false;
   const h = hex.replace('#','');
   if (h.length !== 3 && h.length !== 6) return false;
   const hh = h.length === 3 ? h.split('').map(c=>c+c).join('') : h;
   const r = parseInt(hh.slice(0,2),16), g = parseInt(hh.slice(2,4),16), b = parseInt(hh.slice(4,6),16);
-  // Luminância percebida
+  // LuminÃ¢ncia percebida
   const lum = (0.299*r + 0.587*g + 0.114*b);
   return lum > 200;
 }
-// Calcula data prevista automática (5 dias úteis pra nome/prof, 10 pra logo/ambos)
+// Calcula data prevista automÃ¡tica (5 dias Ãºteis pra nome/prof, 10 pra logo/ambos)
 function calcPrazoBordado(tipo){
   const dias = (tipo === 'logomarca' || tipo === 'ambos') ? 10 : 5;
   const d = new Date();
@@ -1125,10 +1125,10 @@ async function afterLogin(){
   const { data: bs } = await sb.from('boards').select('*, board_members!inner(*)').eq('board_members.user_id', user.id).order('created_at');
   boards = bs || [];
   if (boards.length === 0){
-    if (profile.role === 'admin' || confirm('Você não tem quadros. Criar os quadros iniciais?')){
+    if (profile.role === 'admin' || confirm('VocÃª nÃ£o tem quadros. Criar os quadros iniciais?')){
       await bootstrapBoards();
     } else {
-      document.getElementById('board').innerHTML = '<div class="text-center p-8 text-slate-500">Você ainda não foi adicionado a nenhum quadro.</div>';
+      document.getElementById('board').innerHTML = '<div class="text-center p-8 text-slate-500">VocÃª ainda nÃ£o foi adicionado a nenhum quadro.</div>';
       return;
     }
   }
@@ -1140,12 +1140,12 @@ async function afterLogin(){
 
 async function bootstrapBoards(){
   const boardsData = [
-    {name: 'Produção', color:'#e91e63', lists:['Cortadas','Costurando','Caseado/Botão','Lavanderia','Entrada do Acabamento','Em Acabamento','Faltando Finalizar (consertos)','Fechada/Estoque','FINALIZADO'], labels:[
-      {name:'DAYANE',color:'#fca5a5'},{name:'ECILIA',color:'#7dd3fc'},{name:'MARY',color:'#d8b4fe'},{name:'ESTEICY',color:'#6b7280'},{name:'RAQUEL',color:'#86efac'},{name:'ANGELA',color:'#a855f7'},{name:'ELIETE',color:'#eab308'},{name:'ANA ARACOIABA',color:'#fb923c'},{name:'MAIARA',color:'#ef4444'},{name:'ERINEUDA',color:'#ec4899'},{name:'SOCORRO',color:'#a3e635'},{name:'LENILCE',color:'#4ade80'},{name:'ELANE',color:'#f472b6'},{name:'VASTE',color:'#7c3aed'},{name:'DANNY',color:'#fde047'},{name:'RAQUEL COSTA',color:'#93c5fd'},{name:'ANA CLEA',color:'#3b82f6'},{name:'NEILIANE',color:'#0284c7'},{name:'FRANCISCO',color:'#facc15'},{name:'REJANE',color:'#f9a8d4'},{name:'ANDERSON',color:'#c2410c'},{name:'ISA',color:'#166534'},{name:'LEIDIANE',color:'#111827'},{name:'SEM FACÇÃO',color:'#991b1b'}
-    ], tecidos:[{name:'Alfaiataria',qtd:100},{name:'Malha Tecnológica',qtd:80},{name:'Two Way',qtd:40},{name:'Scuba',qtd:60}]},
+    {name: 'ProduÃ§Ã£o', color:'#e91e63', lists:['Cortadas','Costurando','Caseado/BotÃ£o','Lavanderia','Entrada do Acabamento','Em Acabamento','Faltando Finalizar (consertos)','Fechada/Estoque','FINALIZADO'], labels:[
+      {name:'DAYANE',color:'#fca5a5'},{name:'ECILIA',color:'#7dd3fc'},{name:'MARY',color:'#d8b4fe'},{name:'ESTEICY',color:'#6b7280'},{name:'RAQUEL',color:'#86efac'},{name:'ANGELA',color:'#a855f7'},{name:'ELIETE',color:'#eab308'},{name:'ANA ARACOIABA',color:'#fb923c'},{name:'MAIARA',color:'#ef4444'},{name:'ERINEUDA',color:'#ec4899'},{name:'SOCORRO',color:'#a3e635'},{name:'LENILCE',color:'#4ade80'},{name:'ELANE',color:'#f472b6'},{name:'VASTE',color:'#7c3aed'},{name:'DANNY',color:'#fde047'},{name:'RAQUEL COSTA',color:'#93c5fd'},{name:'ANA CLEA',color:'#3b82f6'},{name:'NEILIANE',color:'#0284c7'},{name:'FRANCISCO',color:'#facc15'},{name:'REJANE',color:'#f9a8d4'},{name:'ANDERSON',color:'#c2410c'},{name:'ISA',color:'#166534'},{name:'LEIDIANE',color:'#111827'},{name:'SEM FACÃÃO',color:'#991b1b'}
+    ], tecidos:[{name:'Alfaiataria',qtd:100},{name:'Malha TecnolÃ³gica',qtd:80},{name:'Two Way',qtd:40},{name:'Scuba',qtd:60}]},
     {name: 'Corte e Tecidos', color:'#3b82f6', lists:['ESTOQUE ALFAIATARIA','ESTOQUE MALHA TECNOLOGICA','TWO WAY','ESTOQUE SCUBA','PARA CORTAR','CORTADA/CONCLUIDO'], labels:[], tecidos:[]},
     {name: 'Marketing', color:'#a855f7', lists:['Ideias','Escrevendo','Editando','Agendado','Publicado'], labels:[{name:'COMERCIAL',color:'#a855f7'},{name:'ENDOMKT',color:'#ec4899'}], tecidos:[]},
-    {name: 'Atendimento', color:'#eab308', lists:['CORREIOS','J & T','TOTAL EXPRESS','EXTRAVIO','CHARGEBACK','DEVOLUÇÃO','PENDENCIAS FINALIZADAS'], labels:[{name:'TALITA',color:'#ef4444'},{name:'TAYANA',color:'#86efac'},{name:'ALÊ',color:'#eab308'},{name:'CAMILA',color:'#d8b4fe'},{name:'ELAINE',color:'#0284c7'}], tecidos:[]},
+    {name: 'Atendimento', color:'#eab308', lists:['CORREIOS','J & T','TOTAL EXPRESS','EXTRAVIO','CHARGEBACK','DEVOLUÃÃO','PENDENCIAS FINALIZADAS'], labels:[{name:'TALITA',color:'#ef4444'},{name:'TAYANA',color:'#86efac'},{name:'ALÃ',color:'#eab308'},{name:'CAMILA',color:'#d8b4fe'},{name:'ELAINE',color:'#0284c7'}], tecidos:[]},
   ];
   for (const b of boardsData){
     const { data: newBoard } = await sb.from('boards').insert({name: b.name, color: b.color, created_by: user.id}).select().single();
@@ -1181,7 +1181,7 @@ async function switchBoard(boardId){
   document.getElementById('board').innerHTML = '<div class="text-center p-8 text-slate-500">Carregando...</div>';
   const b = boards.find(x => x.id === boardId);
   applyBoardBackground(b?.background_url);
-  const isProducao = b && /produ[cç][aã]o/i.test(b.name);
+  const isProducao = b && /produ[cÃ§][aÃ£]o/i.test(b.name);
   const isBordado = boardType(b) === 'bordado';
   const facBtn = document.getElementById('filterFaccaoBtn');
   const facBar = document.getElementById('faccaoFilterBar');
@@ -1194,7 +1194,7 @@ async function switchBoard(boardId){
   lists = listsData || [];
   // v78: se hideFinalizado ativo, exclui a lista FINALIZADO da query inicial (grande win mobile: 771->120 cards)
   let listIdsArr = lists.map(l=>l.id);
-  const finalizadoIdInit = lists.find(l => /finalizado|conclu/i.test(l.name))?.id;
+  const finalizadoIdInit = lists.find(l => /finalizado/i.test(l.name))?.id;
   const skipFinalizado = filters.hideFinalizado && finalizadoIdInit;
   if (skipFinalizado) listIdsArr = listIdsArr.filter(id => id !== finalizadoIdInit);
   const [laR, tR, cR] = await Promise.all([
@@ -1209,7 +1209,7 @@ async function switchBoard(boardId){
     cardLabels[c.id] = (c.card_labels||[]).map(cl => labels.find(l=>l.id===cl.label_id)).filter(Boolean);
     cardMembers[c.id] = (c.card_members||[]).map(cm => profiles.find(p=>p.id===cm.user_id)).filter(Boolean);
   });
-  // Puxa contagens de comentários e anexos por card
+  // Puxa contagens de comentÃ¡rios e anexos por card
   const cardIds = cards.map(c=>c.id);
   commentCounts = {}; attachmentCounts = {};
   if (cardIds.length){
@@ -1227,7 +1227,7 @@ function renderBoard(){
   const board = document.getElementById('board');
   board.innerHTML = '';
   const q = filters.search.trim().toLowerCase();
-  const finalizadoId = lists.find(l => /finalizado|conclu/i.test(l.name))?.id;
+  const finalizadoId = lists.find(l => /finalizado/i.test(l.name))?.id;
   const compact = filters.density === 'compact';
   lists.forEach(list => {
     if (filters.hideFinalizado && list.id === finalizadoId) return;
@@ -1288,7 +1288,7 @@ function renderCard(c, compact){
       // Logomarca: thumb da imagem
       cover = `<img src="${escapeHtml(c.bordado_imagem_url)}" class="product-cover ${compact?'product-cover-compact':'product-cover-normal'}" loading="lazy" onerror="this.style.display='none'" title="Logo do cliente"/>`;
     } else if (c.bordado_linha1 || c.bordado_linha2){
-      // Nome/profissão: preview texto na fonte + cor do pedido. Fundo = cor da peça
+      // Nome/profissÃ£o: preview texto na fonte + cor do pedido. Fundo = cor da peÃ§a
       const fontFam = bordadoFontFamily(c.bordado_fonte);
       const cor = c.bordado_cor_hex || '#333';
       const pecaCor = bordadoBackgroundFromCard(c);
@@ -1320,9 +1320,9 @@ function renderCard(c, compact){
     if (c.valor) totalsChips.push(`<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>R$ ${c.valor}</span>`);
   } else if (bType === 'bordado'){
     if (c.pedido_numero) totalsChips.push(`<span class="inline-flex items-center gap-1 text-[11px] font-extrabold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8H8"/><path d="M16 12H8"/><path d="M13 16H8"/></svg>#${escapeHtml(c.pedido_numero)}</span>`);
-    if (c.bordado_imagem_url) totalsChips.push(`<a href="${escapeHtml(c.bordado_imagem_url)}" target="_blank" onclick="event.stopPropagation()" class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-500 hover:bg-blue-600 text-white">⬇️ Baixar logo</a>`);
+    if (c.bordado_imagem_url) totalsChips.push(`<a href="${escapeHtml(c.bordado_imagem_url)}" target="_blank" onclick="event.stopPropagation()" class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-500 hover:bg-blue-600 text-white">â¬ï¸ Baixar logo</a>`);
   }
-  // Chips que aparecem TAMBÉM no compacto (só bordado por ora)
+  // Chips que aparecem TAMBÃM no compacto (sÃ³ bordado por ora)
   const compactChips = [];
   if (bType === 'bordado'){
     if (c.pedido_numero) compactChips.push(`<span class="inline-flex items-center gap-1 text-[11px] font-extrabold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">#${escapeHtml(c.pedido_numero)}</span>`);
@@ -1331,7 +1331,7 @@ function renderCard(c, compact){
   const cCount = commentCounts[c.id] || 0;
   const aCount = attachmentCounts[c.id] || 0;
   const icons = [];
-  if (cCount) icons.push(`<span class="inline-flex items-center gap-0.5 text-[11px] text-slate-500" title="Comentários"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>${cCount}</span>`);
+  if (cCount) icons.push(`<span class="inline-flex items-center gap-0.5 text-[11px] text-slate-500" title="ComentÃ¡rios"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>${cCount}</span>`);
   if (aCount) icons.push(`<span class="inline-flex items-center gap-0.5 text-[11px] text-slate-500" title="Anexos"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>${cCount ? '' : ''}${aCount}</span>`);
   if (c.due_date) icons.push(`<span class="inline-flex items-center gap-0.5 text-[11px] text-slate-500" title="Data prevista"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>${escapeHtml(c.due_date.slice(5))}</span>`);
   const bodyInner = `
@@ -1357,10 +1357,10 @@ function renderCard(c, compact){
 }
 
 function updateStats(){
-  const finalizadoId = lists.find(l => /finalizado|conclu/i.test(l.name))?.id;
+  const finalizadoId = lists.find(l => /finalizado/i.test(l.name))?.id;
   const ativos = cards.filter(c=>c.list_id!==finalizadoId).length;
   const finalizados = cards.length - ativos;
-  document.getElementById('statsLine').textContent = `${ativos} em produção · ${finalizados} finalizados · ${labels.length} facções`;
+  document.getElementById('statsLine').textContent = `${ativos} em produÃ§Ã£o Â· ${finalizados} finalizados Â· ${labels.length} facÃ§Ãµes`;
 }
 
 function renderFilterBar(){
@@ -1394,16 +1394,16 @@ async function openCard(id){
   document.getElementById('bordadoFields').classList.toggle('hidden', bType !== 'bordado');
   document.getElementById('tecidoField').classList.toggle('hidden', bType !== 'producao');
   document.getElementById('faccaoField').classList.toggle('hidden', labels.length === 0);
-  // Descrição: hide no board bordado (produtos ja tem info visual)
+  // DescriÃ§Ã£o: hide no board bordado (produtos ja tem info visual)
   document.getElementById('cardDescBox').classList.toggle('hidden', bType === 'bordado' || bType === 'producao');
   document.getElementById('cardChecklistBox').classList.toggle('hidden', bType === 'producao');
   document.getElementById('cardTitle').value = c.title || '';
   document.getElementById('cardDesc').value = c.description || '';
-  // Prazo automático pra bordado: 5 dias úteis (nome/prof) ou 10 dias úteis (logo/ambos)
+  // Prazo automÃ¡tico pra bordado: 5 dias Ãºteis (nome/prof) ou 10 dias Ãºteis (logo/ambos)
   let dueVal = c.due_date || '';
   if (bType === 'bordado' && !dueVal && c.bordado_tipo){
     dueVal = calcPrazoBordado(c.bordado_tipo);
-    // Salva no banco pra não recalcular
+    // Salva no banco pra nÃ£o recalcular
     sb.from('cards').update({due_date: dueVal}).eq('id', c.id).then(() => { c.due_date = dueVal; });
   }
   document.getElementById('cardDue').value = dueVal;
@@ -1434,7 +1434,7 @@ async function openCard(id){
   // Campos de Marketing
   const aEl = document.getElementById('cardAprovacao'); if (aEl) aEl.value = c.aprovacao || '';
   const vEl = document.getElementById('cardValor'); if (vEl) vEl.value = c.valor ?? '';
-  // Campos de Bordado (Personalização)
+  // Campos de Bordado (PersonalizaÃ§Ã£o)
   const pnEl = document.getElementById('cardPedidoNumero'); if (pnEl) pnEl.value = c.pedido_numero || '';
   const pcEl = document.getElementById('cardPedidoCliente'); if (pcEl) pcEl.value = c.pedido_cliente || '';
   const btEl = document.getElementById('cardBordadoTipo'); if (btEl) btEl.value = c.bordado_tipo || '';
@@ -1442,7 +1442,7 @@ async function openCard(id){
   const bl2El = document.getElementById('cardBordadoLinha2');
   if (bl1El) bl1El.value = c.bordado_linha1 || '';
   if (bl2El) bl2El.value = c.bordado_linha2 || '';
-  // Box de URL só pra logomarca/ambos
+  // Box de URL sÃ³ pra logomarca/ambos
   const imgBox = document.getElementById('cardBordadoImagemBox');
   if (imgBox) imgBox.style.display = (c.bordado_tipo === 'logomarca' || c.bordado_tipo === 'ambos') ? '' : 'none';
   // Renderiza produtos
@@ -1454,14 +1454,14 @@ async function openCard(id){
     if (countEl) countEl.textContent = produtos.length;
     if (produtos.length){
       prodBox.classList.remove('hidden');
-      // Estado de colapso: padrão OCULTO (menos rolagem); usuário pode expandir
+      // Estado de colapso: padrÃ£o OCULTO (menos rolagem); usuÃ¡rio pode expandir
       const isOpen = localStorage.getItem('dc_produtos_open') === '1';
       prodList.classList.toggle('hidden', !isOpen);
       const chev = document.getElementById('cardProdutosChevron');
       if (chev) chev.style.transform = isOpen ? 'rotate(180deg)' : '';
       prodList.innerHTML = produtos.map(p => `
         <div class="produto-item p-2 rounded-lg ${p.bordado ? 'produto-bordado' : 'bg-slate-50 dark:bg-ink-700 border-slate-200 dark:border-ink-600'} border flex gap-3 items-center relative">
-          ${p.bordado ? `<div class="produto-badge-bordar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19 7-7 3 3-7 7-3-3z"/><path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="m2 2 7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg><span>Personalização</span></div>` : ''}
+          ${p.bordado ? `<div class="produto-badge-bordar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19 7-7 3 3-7 7-3-3z"/><path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="m2 2 7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg><span>PersonalizaÃ§Ã£o</span></div>` : ''}
           ${p.imagem_url
             ? `<img src="${escapeHtml((p.imagem_url||'').replace(/\/64x64\//,'/500x500/'))}" class="produto-thumb ${p.bordado ? 'produto-thumb-bordado' : ''}" onerror="this.style.display='none'"/>`
             : `<div class="produto-thumb flex items-center justify-center text-slate-400"><svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg></div>`}
@@ -1484,7 +1484,7 @@ async function openCard(id){
   const bfEl = document.getElementById('cardBordadoFonte');
   if (bfEl){
     bfEl.value = c.bordado_fonte || '';
-    // Renderiza o nome da fonte na própria fonte (Ballantines Script aparece em Ballantines cursivo)
+    // Renderiza o nome da fonte na prÃ³pria fonte (Ballantines Script aparece em Ballantines cursivo)
     bfEl.style.fontFamily = c.bordado_fonte ? bordadoFontFamily(c.bordado_fonte) : '';
     bfEl.style.fontSize = c.bordado_fonte ? '18px' : '';
   }
@@ -1515,7 +1515,7 @@ async function openCard(id){
   document.getElementById('cardFaccao').value = currentLabel?.id || '';
   renderFaccaoDropdownButton(currentLabel);
   const tecSel = document.getElementById('cardTecido');
-  tecSel.innerHTML = '<option value="">—</option>' + tecidos.map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+  tecSel.innerHTML = '<option value="">â</option>' + tecidos.map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
   tecSel.value = c.tecido_id || '';
   renderCardMembers();
   renderCardCover(c);
@@ -1537,7 +1537,7 @@ function renderFaccaoDropdownButton(label){
     lbl.style.fontWeight = '600';
   } else {
     dot.style.background = '#94a3b8';
-    lbl.textContent = '— nenhuma —';
+    lbl.textContent = 'â nenhuma â';
     lbl.style.color = '';
     lbl.style.fontWeight = '';
   }
@@ -1548,7 +1548,7 @@ function renderFaccaoDropdownMenu(){
   const none = document.createElement('button');
   none.type = 'button';
   none.className = 'w-full text-left flex items-center gap-2 p-2 hover:bg-slate-100 dark:hover:bg-ink-700 text-sm';
-  none.innerHTML = '<span class="w-3 h-3 rounded-full flex-shrink-0" style="background:#94a3b8"></span><span class="text-slate-500">— nenhuma —</span>';
+  none.innerHTML = '<span class="w-3 h-3 rounded-full flex-shrink-0" style="background:#94a3b8"></span><span class="text-slate-500">â nenhuma â</span>';
   none.onclick = () => selectFaccao(null);
   menu.appendChild(none);
   labels.slice().sort((a,b) => a.name.localeCompare(b.name)).forEach(l => {
@@ -1599,7 +1599,7 @@ function updateOficinaAlerta(){
     const diff = oficina - cortada;
     msgs.push(`<span class="inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Oficina entregou ${oficina} de ${cortada} cortadas (${diff>0?'+':''}${diff})</span>`);
   }
-  if ((boas+falhas) && oficina && (boas+falhas) !== oficina) msgs.push(`<span class="inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Boas+Falhas (${boas+falhas}) ≠ Total Oficina (${oficina})</span>`);
+  if ((boas+falhas) && oficina && (boas+falhas) !== oficina) msgs.push(`<span class="inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Boas+Falhas (${boas+falhas}) â  Total Oficina (${oficina})</span>`);
   if (msgs.length){ alerta.innerHTML = msgs.join('<br>'); alerta.classList.remove('hidden'); }
   else alerta.classList.add('hidden');
 }
@@ -1628,7 +1628,7 @@ function renderCardCover(c){
   hero.style.backgroundImage = '';
   hero.classList.remove('fabric-weave');
   if (useTextPreview){
-    // Preview de texto com fonte + cor real. Fundo = cor da peça (via nome do produto)
+    // Preview de texto com fonte + cor real. Fundo = cor da peÃ§a (via nome do produto)
     const fam = bordadoFontFamily(c.bordado_fonte);
     const cor = c.bordado_cor_hex || '#333';
     const pecaCor = bordadoBackgroundFromCard(c);
@@ -1659,7 +1659,7 @@ document.addEventListener('click', e => {
 document.addEventListener('change', async e => {
   if (e.target.id === 'cardCoverInputHeader' && e.target.files[0] && activeCardId){
     const file = e.target.files[0];
-    if (file.size > 5*1024*1024){ toast('Foto muito grande — máx 5MB'); return; }
+    if (file.size > 5*1024*1024){ toast('Foto muito grande â mÃ¡x 5MB'); return; }
     toast('Enviando foto...');
     const ext = file.name.split('.').pop().toLowerCase();
     const path = `covers/${activeCardId}-${Date.now()}.${ext}`;
@@ -1809,7 +1809,7 @@ document.addEventListener('change', e => {
 });
 
 window.archiveCard = async () => {
-  if (!confirm('Arquivar este card? Ele some da tela mas fica salvo. Pra excluir de vez vá em Configurações → Arquivados.')) return;
+  if (!confirm('Arquivar este card? Ele some da tela mas fica salvo. Pra excluir de vez vÃ¡ em ConfiguraÃ§Ãµes â Arquivados.')) return;
   await sb.from('cards').update({archived: true}).eq('id', activeCardId);
   cards = cards.filter(c=>c.id!==activeCardId);
   renderBoard(); closeCard();
@@ -1870,8 +1870,8 @@ window.saveCard = async (silent = false) => {
     updates.bordado_imagem_url = document.getElementById('cardBordadoImagemUrl').value || null;
     updates.bordado_detalhes = document.getElementById('cardBordadoDetalhes').value || null;
   }
-  // Só envia campos que realmente mudaram vs snapshot do card atual
-  // Normaliza "" e null como equivalentes (evita diff falso tipo "— → —")
+  // SÃ³ envia campos que realmente mudaram vs snapshot do card atual
+  // Normaliza "" e null como equivalentes (evita diff falso tipo "â â â")
   const norm = v => (v === '' || v === undefined) ? null : v;
   const diff = {};
   for (const k in updates){
@@ -1924,13 +1924,13 @@ function renderComments(){ renderFeed(); }
 function renderFeed(){
   const box = document.getElementById('feedList');
   if (!box) return;
-  const fieldLabels = { list_id:'Lista', title:'Título', description:'Descrição', archived:'Arquivado', situacao:'Situação', qtd_oficina:'QTD Oficina', qtd_pcs_boas:'Boas', qtd_pcs_falhas:'Falhas', pago_costura:'Pago costura', cover_url:'Foto', tam_pp:'PP',tam_p:'P',tam_m:'M',tam_g:'G',tam_gg:'GG',tam_xg:'XG',tam_pp_of:'PP of',tam_p_of:'P of',tam_m_of:'M of',tam_g_of:'G of',tam_gg_of:'GG of',tam_xg_of:'XG of',data_coleta_oficina:'Data coleta' };
+  const fieldLabels = { list_id:'Lista', title:'TÃ­tulo', description:'DescriÃ§Ã£o', archived:'Arquivado', situacao:'SituaÃ§Ã£o', qtd_oficina:'QTD Oficina', qtd_pcs_boas:'Boas', qtd_pcs_falhas:'Falhas', pago_costura:'Pago costura', cover_url:'Foto', tam_pp:'PP',tam_p:'P',tam_m:'M',tam_g:'G',tam_gg:'GG',tam_xg:'XG',tam_pp_of:'PP of',tam_p_of:'P of',tam_m_of:'M of',tam_g_of:'G of',tam_gg_of:'GG of',tam_xg_of:'XG of',data_coleta_oficina:'Data coleta' };
   const listName = id => lists.find(l=>l.id===id)?.name || '?';
   const items = [];
   comments.forEach(c => items.push({kind:'comment', at:c.created_at, data:c}));
   activity.forEach(a => items.push({kind:'activity', at:a.created_at, data:a}));
   items.sort((a,b) => new Date(b.at) - new Date(a.at));
-  // v79: ocultar=comments + últimas 5 atividades; mostrar=tudo
+  // v79: ocultar=comments + Ãºltimas 5 atividades; mostrar=tudo
   const acts = items.filter(i=>i.kind==='activity');
   const cs = items.filter(i=>i.kind==='comment');
   const ACT_LIMIT = 5;
@@ -1966,12 +1966,12 @@ function renderFeed(){
           const lbl = fieldLabels[k] || k;
           let from = v?.from, to = v?.to;
           if (k === 'list_id'){ from = listName(from); to = listName(to); }
-          if (from === null || from === '') from = '—';
-          if (to === null || to === '') to = '—';
-          return `${lbl}: <span class="text-slate-400 line-through">${escapeHtml(String(from).slice(0,20))}</span> → <span class="text-emerald-600 font-medium">${escapeHtml(String(to).slice(0,20))}</span>`;
-        }).join(' · ');
+          if (from === null || from === '') from = 'â';
+          if (to === null || to === '') to = 'â';
+          return `${lbl}: <span class="text-slate-400 line-through">${escapeHtml(String(from).slice(0,20))}</span> â <span class="text-emerald-600 font-medium">${escapeHtml(String(to).slice(0,20))}</span>`;
+        }).join(' Â· ');
         msg = 'editou';
-        detail = ' — ' + changes;
+        detail = ' â ' + changes;
       }
       return `<div class="flex gap-2 text-[11px]">
         <div class="w-7 h-7 rounded-full bg-slate-300 dark:bg-ink-600 text-slate-700 dark:text-slate-200 text-xs flex items-center justify-center flex-shrink-0">${(actorName||'?').charAt(0).toUpperCase()}</div>
@@ -2064,7 +2064,7 @@ async function loadActivity(cardId){
   activity = data || [];
   renderFeed();
   const box = document.getElementById('activityList');
-  const fieldLabels = { list_id:'Lista', title:'Título', description:'Descrição', archived:'Arquivado', situacao:'Situação', qtd_oficina:'QTD Oficina', qtd_pcs_boas:'Boas', qtd_pcs_falhas:'Falhas', pago_costura:'Pago costura', cover_url:'Foto', tam_pp:'PP',tam_p:'P',tam_m:'M',tam_g:'G',tam_gg:'GG',tam_xg:'XG',tam_pp_of:'PP oficina',tam_p_of:'P oficina',tam_m_of:'M oficina',tam_g_of:'G oficina',tam_gg_of:'GG oficina',tam_xg_of:'XG oficina',data_coleta_oficina:'Data coleta' };
+  const fieldLabels = { list_id:'Lista', title:'TÃ­tulo', description:'DescriÃ§Ã£o', archived:'Arquivado', situacao:'SituaÃ§Ã£o', qtd_oficina:'QTD Oficina', qtd_pcs_boas:'Boas', qtd_pcs_falhas:'Falhas', pago_costura:'Pago costura', cover_url:'Foto', tam_pp:'PP',tam_p:'P',tam_m:'M',tam_g:'G',tam_gg:'GG',tam_xg:'XG',tam_pp_of:'PP oficina',tam_p_of:'P oficina',tam_m_of:'M oficina',tam_g_of:'G oficina',tam_gg_of:'GG oficina',tam_xg_of:'XG oficina',data_coleta_oficina:'Data coleta' };
   const listName = id => lists.find(l=>l.id===id)?.name || '?';
   box.innerHTML = activity.map(a => {
     const actor = profiles.find(p=>p.id===a.actor_id);
@@ -2078,14 +2078,14 @@ async function loadActivity(cardId){
         const lbl = fieldLabels[k] || k;
         let from = v?.from, to = v?.to;
         if (k === 'list_id'){ from = listName(from); to = listName(to); }
-        if (from === null || from === '') from = '—';
-        if (to === null || to === '') to = '—';
-        return `${lbl}: <span class="text-red-500 line-through">${escapeHtml(String(from).slice(0,30))}</span> → <span class="text-emerald-600">${escapeHtml(String(to).slice(0,30))}</span>`;
-      }).join(' · ');
+        if (from === null || from === '') from = 'â';
+        if (to === null || to === '') to = 'â';
+        return `${lbl}: <span class="text-red-500 line-through">${escapeHtml(String(from).slice(0,30))}</span> â <span class="text-emerald-600">${escapeHtml(String(to).slice(0,30))}</span>`;
+      }).join(' Â· ');
       msg = 'editou';
-      detail = ' — ' + changes;
+      detail = ' â ' + changes;
     }
-    return `<div class="text-slate-600 dark:text-slate-300 text-xs p-2 rounded bg-slate-50 dark:bg-ink-700"><span class="font-medium">${escapeHtml(actorName)}</span> ${msg}${detail} <span class="text-slate-400">· ${timeAgo(a.created_at)}</span></div>`;
+    return `<div class="text-slate-600 dark:text-slate-300 text-xs p-2 rounded bg-slate-50 dark:bg-ink-700"><span class="font-medium">${escapeHtml(actorName)}</span> ${msg}${detail} <span class="text-slate-400">Â· ${timeAgo(a.created_at)}</span></div>`;
   }).join('') || '<div class="text-slate-400 text-xs">Sem atividade ainda</div>';
 }
 
@@ -2101,10 +2101,10 @@ function renderNotifications(){
   if (unread > 0){ badge.textContent = unread; badge.classList.remove('hidden'); }
   else badge.classList.add('hidden');
   const list = document.getElementById('notifList');
-  if (notifications.length === 0){ list.innerHTML = '<div class="p-4 text-sm text-slate-500 text-center">Sem notificações</div>'; return; }
+  if (notifications.length === 0){ list.innerHTML = '<div class="p-4 text-sm text-slate-500 text-center">Sem notificaÃ§Ãµes</div>'; return; }
   list.innerHTML = notifications.map(n => {
     const actor = profiles.find(p=>p.id===n.actor_id);
-    const actorName = actor?.full_name || 'Alguém';
+    const actorName = actor?.full_name || 'AlguÃ©m';
     const cardTitle = n.cards?.title || 'um card';
     let msg = '';
     if (n.type==='mention') msg = `${actorName} te mencionou em "${cardTitle}"`;
@@ -2175,7 +2175,7 @@ async function renderLogGeral(){
   let q = sb.from('activity_log').select('*, cards(title, list_id, lists(name, board_id, boards(name)))').gte('created_at', since).order('created_at', {ascending: false}).limit(500);
   if (pessoa) q = q.eq('actor_id', pessoa);
   if (acao === 'archived'){
-    // arquivar é um edit no campo archived
+    // arquivar Ã© um edit no campo archived
     q = q.eq('action', 'edited');
   } else if (acao) q = q.eq('action', acao);
   const { data: raw, error } = await q;
@@ -2192,11 +2192,11 @@ async function renderLogGeral(){
   });
   document.getElementById('logGeralCount').textContent = data.length + ' eventos';
   if (data.length === 0){ box.innerHTML = '<div class="text-center text-slate-500 p-8">Sem eventos com esses filtros.</div>'; return; }
-  const fieldLabels = { list_id:'Lista', title:'Título', description:'Descrição', archived:'Arquivado', situacao:'Situação', qtd_oficina:'QTD Oficina', qtd_pcs_boas:'Boas', qtd_pcs_falhas:'Falhas', pago_costura:'Pago costura', cover_url:'Foto', tam_pp:'PP',tam_p:'P',tam_m:'M',tam_g:'G',tam_gg:'GG',tam_xg:'XG',tam_pp_of:'PP of',tam_p_of:'P of',tam_m_of:'M of',tam_g_of:'G of',tam_gg_of:'GG of',tam_xg_of:'XG of',data_coleta_oficina:'Data coleta' };
+  const fieldLabels = { list_id:'Lista', title:'TÃ­tulo', description:'DescriÃ§Ã£o', archived:'Arquivado', situacao:'SituaÃ§Ã£o', qtd_oficina:'QTD Oficina', qtd_pcs_boas:'Boas', qtd_pcs_falhas:'Falhas', pago_costura:'Pago costura', cover_url:'Foto', tam_pp:'PP',tam_p:'P',tam_m:'M',tam_g:'G',tam_gg:'GG',tam_xg:'XG',tam_pp_of:'PP of',tam_p_of:'P of',tam_m_of:'M of',tam_g_of:'G of',tam_gg_of:'GG of',tam_xg_of:'XG of',data_coleta_oficina:'Data coleta' };
   box.innerHTML = data.map(a => {
     const actor = profiles.find(p=>p.id===a.actor_id);
     const actorName = actor?.full_name || 'Sistema';
-    const cardTitle = a.cards?.title || '(card excluído)';
+    const cardTitle = a.cards?.title || '(card excluÃ­do)';
     const listName = a.cards?.lists?.name || '';
     const boardName = a.cards?.lists?.boards?.name || '';
     let msg = a.action, detail = '';
@@ -2210,18 +2210,18 @@ async function renderLogGeral(){
       const changes = Object.entries(a.meta).map(([k,v])=>{
         const lbl = fieldLabels[k] || k;
         let from = v?.from, to = v?.to;
-        if (from === null || from === '') from = '—';
-        if (to === null || to === '') to = '—';
-        return `${lbl}: <span class="text-slate-400 line-through">${escapeHtml(String(from).slice(0,20))}</span> → <span class="text-emerald-600 font-medium">${escapeHtml(String(to).slice(0,20))}</span>`;
-      }).join(' · ');
-      msg = 'editou'; detail = ' — ' + changes;
+        if (from === null || from === '') from = 'â';
+        if (to === null || to === '') to = 'â';
+        return `${lbl}: <span class="text-slate-400 line-through">${escapeHtml(String(from).slice(0,20))}</span> â <span class="text-emerald-600 font-medium">${escapeHtml(String(to).slice(0,20))}</span>`;
+      }).join(' Â· ');
+      msg = 'editou'; detail = ' â ' + changes;
     }
     const cardId = a.card_id;
     return `<div class="p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-xs flex gap-2 items-start hover:bg-slate-100 dark:hover:bg-ink-600 cursor-pointer" data-card="${cardId||''}">
       <div class="w-7 h-7 rounded-full bg-pink-500 text-white text-xs flex items-center justify-center flex-shrink-0">${(actorName||'?').charAt(0).toUpperCase()}</div>
       <div class="flex-1 min-w-0">
         <div><b>${escapeHtml(actorName)}</b> ${msg}${detail} em <b class="text-pink-600">${escapeHtml(cardTitle)}</b></div>
-        <div class="text-[10px] text-slate-400 mt-0.5">${escapeHtml(boardName)}${listName?' · '+escapeHtml(listName):''} · ${timeAgo(a.created_at)}</div>
+        <div class="text-[10px] text-slate-400 mt-0.5">${escapeHtml(boardName)}${listName?' Â· '+escapeHtml(listName):''} Â· ${timeAgo(a.created_at)}</div>
       </div>
     </div>`;
   }).join('');
@@ -2251,7 +2251,7 @@ window.openLogoUpload = () => {
 document.addEventListener('change', async e => {
   if (e.target.id === 'logoInput' && e.target.files[0]){
     const file = e.target.files[0];
-    if (file.size > 2*1024*1024){ toast('Logo muito grande — max 2MB'); return; }
+    if (file.size > 2*1024*1024){ toast('Logo muito grande â max 2MB'); return; }
     toast('Enviando logo...');
     const ext = file.name.split('.').pop().toLowerCase();
     const path = 'system/logo-' + Date.now() + '.' + ext;
@@ -2292,7 +2292,7 @@ document.addEventListener('click', e => {
 document.addEventListener('change', async e => {
   if (e.target.id === 'boardBgInput' && e.target.files[0]){
     const file = e.target.files[0];
-    if (file.size > 5*1024*1024){ toast('Imagem muito grande — máx 5MB'); return; }
+    if (file.size > 5*1024*1024){ toast('Imagem muito grande â mÃ¡x 5MB'); return; }
     toast('Enviando fundo...');
     const ext = file.name.split('.').pop().toLowerCase();
     const path = `backgrounds/${currentBoardId}-${Date.now()}.${ext}`;
@@ -2303,7 +2303,7 @@ document.addEventListener('change', async e => {
     const b = boards.find(x=>x.id===currentBoardId);
     if (b) b.background_url = publicUrl;
     applyBoardBackground(publicUrl);
-    toast('Fundo aplicado! Todos da equipe vão ver.');
+    toast('Fundo aplicado! Todos da equipe vÃ£o ver.');
   }
 });
 
@@ -2330,7 +2330,7 @@ window.openArchived = async () => {
     row.innerHTML = `
       <div class="flex-1 min-w-0">
         <div class="font-medium text-sm truncate">${escapeHtml(a.title)}</div>
-        <div class="text-xs text-slate-500">${escapeHtml(a.lists?.boards?.name||'')} · ${escapeHtml(a.lists?.name||'')}</div>
+        <div class="text-xs text-slate-500">${escapeHtml(a.lists?.boards?.name||'')} Â· ${escapeHtml(a.lists?.name||'')}</div>
       </div>
       <button class="restore text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-medium">Restaurar</button>
       <button class="delete text-xs px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-red-50 hover:border-red-200 hover:text-red-600 font-medium transition-colors">Excluir</button>
@@ -2342,11 +2342,11 @@ window.openArchived = async () => {
       if (currentBoardId) switchBoard(currentBoardId);
     };
     row.querySelector('.delete').onclick = async () => {
-      if (!confirm(`Excluir DEFINITIVAMENTE "${a.title}"? Esta ação não pode ser desfeita.`)) return;
+      if (!confirm(`Excluir DEFINITIVAMENTE "${a.title}"? Esta aÃ§Ã£o nÃ£o pode ser desfeita.`)) return;
       if (!prompt('Digite EXCLUIR pra confirmar').match(/^EXCLUIR$/i)) { toast('Cancelado'); return; }
       await sb.from('cards').delete().eq('id', a.id);
       row.remove();
-      toast('Excluído definitivamente');
+      toast('ExcluÃ­do definitivamente');
     };
     box.appendChild(row);
   });
@@ -2367,7 +2367,7 @@ function subscribeRealtime(){
     .on('postgres_changes', {event:'INSERT', schema:'public', table:'notifications', filter:`user_id=eq.${user.id}`}, payload => {
       notifications.unshift({...payload.new, cards: null});
       loadNotifications();
-      toast('Nova notificação');
+      toast('Nova notificaÃ§Ã£o');
     }).subscribe();
   sb.channel('board-changes')
     .on('postgres_changes', {event:'*', schema:'public', table:'cards'}, async () => {
@@ -2505,9 +2505,9 @@ window.toast = function(msg){
 function escapeHtml(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]); }
 function timeAgo(t){
   const d = new Date(t); const s = (Date.now()-d.getTime())/1000;
-  if (s<60) return 'agora'; if (s<3600) return Math.floor(s/60)+'m atrás';
-  if (s<86400) return Math.floor(s/3600)+'h atrás';
-  if (s<604800) return Math.floor(s/86400)+'d atrás';
+  if (s<60) return 'agora'; if (s<3600) return Math.floor(s/60)+'m atrÃ¡s';
+  if (s<86400) return Math.floor(s/3600)+'h atrÃ¡s';
+  if (s<604800) return Math.floor(s/86400)+'d atrÃ¡s';
   return d.toLocaleDateString('pt-BR');
 }
 
@@ -2525,7 +2525,7 @@ window.openSyncBordado = async function(){
   var today=new Date();
   var yest=new Date(Date.now()-86400000);
   var iso=function(d){var y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+dd;};
-  body.innerHTML='<div class="space-y-5"><div class="grid grid-cols-2 gap-3"><div><label class="text-xs uppercase text-slate-500 font-medium">De</label><input id="_syncDe" type="date" value="'+iso(yest)+'" class="mt-1 w-full p-2.5 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"></div><div><label class="text-xs uppercase text-slate-500 font-medium">Até</label><input id="_syncAte" type="date" value="'+iso(today)+'" class="mt-1 w-full p-2.5 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"></div></div><button id="_syncGo" class="w-full py-3 rounded-lg bg-pink-500 hover:bg-pink-600 text-white font-semibold flex items-center justify-center gap-2 transition-colors"><svg id="_syncIcon" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg><span id="_syncLabel">Sincronizar agora</span></button><div id="_syncStatus" class="text-sm text-center min-h-[24px]"></div></div><style>@keyframes _syncSpin{to{transform:rotate(360deg)}}.spin{animation:_syncSpin 1s linear infinite}</style>';
+  body.innerHTML='<div class="space-y-5"><div class="grid grid-cols-2 gap-3"><div><label class="text-xs uppercase text-slate-500 font-medium">De</label><input id="_syncDe" type="date" value="'+iso(yest)+'" class="mt-1 w-full p-2.5 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"></div><div><label class="text-xs uppercase text-slate-500 font-medium">AtÃ©</label><input id="_syncAte" type="date" value="'+iso(today)+'" class="mt-1 w-full p-2.5 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"></div></div><button id="_syncGo" class="w-full py-3 rounded-lg bg-pink-500 hover:bg-pink-600 text-white font-semibold flex items-center justify-center gap-2 transition-colors"><svg id="_syncIcon" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg><span id="_syncLabel">Sincronizar agora</span></button><div id="_syncStatus" class="text-sm text-center min-h-[24px]"></div></div><style>@keyframes _syncSpin{to{transform:rotate(360deg)}}.spin{animation:_syncSpin 1s linear infinite}</style>';
   var goBtn=document.getElementById('_syncGo');
   var stat=document.getElementById('_syncStatus');
   var icon=document.getElementById('_syncIcon');
@@ -2542,7 +2542,7 @@ window.openSyncBordado = async function(){
       var j=await r.json();
       if(!r.ok){ throw new Error(j.error||'HTTP '+r.status); }
       var novos=j.inserted||0, existentes=j.jaExistem||0;
-      stat.innerHTML='<div class="mt-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 text-emerald-700 dark:text-emerald-300 text-sm"><div class="font-semibold inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Sincronização concluída</div><div class="mt-1 text-xs">'+j.varridos+' pedidos analisados · '+j.comBordado+' com bordado</div><div class="mt-1 flex gap-3 text-xs"><span><b>'+novos+'</b> criados</span><span><b>'+existentes+'</b> já existiam</span></div></div>';
+      stat.innerHTML='<div class="mt-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 text-emerald-700 dark:text-emerald-300 text-sm"><div class="font-semibold inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>SincronizaÃ§Ã£o concluÃ­da</div><div class="mt-1 text-xs">'+j.varridos+' pedidos analisados Â· '+j.comBordado+' com bordado</div><div class="mt-1 flex gap-3 text-xs"><span><b>'+novos+'</b> criados</span><span><b>'+existentes+'</b> jÃ¡ existiam</span></div></div>';
       lbl.textContent='Sincronizar novamente';
       if(typeof loadCards==='function') loadCards();
       else if(typeof switchBoard==='function' && typeof currentBoardId!=='undefined') switchBoard(currentBoardId);
@@ -2560,12 +2560,12 @@ function updateExtStatus(){
   const inst = document.getElementById('extInstallInstructions');
   if (extensionInstalled){
     icon.innerHTML = '<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"20 6 9 17 4 12\"/></svg>';
-    text.textContent = 'Extensão instalada — sync automático 1-clique';
+    text.textContent = 'ExtensÃ£o instalada â sync automÃ¡tico 1-clique';
     box.className = 'border-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-3 text-xs border';
     inst.classList.add('hidden');
   } else {
     icon.innerHTML = '<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z\"/><line x1=\"12\" y1=\"9\" x2=\"12\" y2=\"13\"/><line x1=\"12\" y1=\"17\" x2=\"12.01\" y2=\"17\"/></svg>';
-    text.textContent = 'Extensão não instalada — instala 1 vez pra ficar 1-clique';
+    text.textContent = 'ExtensÃ£o nÃ£o instalada â instala 1 vez pra ficar 1-clique';
     box.className = 'border-amber-300 bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3 text-xs border';
     inst.classList.remove('hidden');
   }
@@ -2579,18 +2579,18 @@ window.startSyncBordado = () => {
   if (!dateVal){ toast('Escolha uma data'); return; }
   const [yyyy, mm, dd] = dateVal.split('-');
   const brDate = encodeURIComponent(`${dd}/${mm}/${yyyy}`);
-  // Se extensão instalada: query param dc_sync=1 dispara auto-run. Se não: só abre a página.
+  // Se extensÃ£o instalada: query param dc_sync=1 dispara auto-run. Se nÃ£o: sÃ³ abre a pÃ¡gina.
   const syncFlag = extensionInstalled ? '&dc_sync=1' : '';
   const liUrl = `https://app.lojaintegrada.com.br/painel/pedido/listar?data_inicio=${brDate}&data_fim=${brDate}${syncFlag}`;
   const win = window.open(liUrl, 'liSyncWindow');
   if (!win){ toast('Popup bloqueado. Libera pop-ups pra este site.'); return; }
   if (extensionInstalled){
-    document.getElementById('syncStatus').innerHTML = `<span class="text-amber-600 inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>Extensão rodando na aba do LI... acompanhe o painel laranja lá.</span>`;
+    document.getElementById('syncStatus').innerHTML = `<span class="text-amber-600 inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>ExtensÃ£o rodando na aba do LI... acompanhe o painel laranja lÃ¡.</span>`;
   } else {
-    document.getElementById('syncStatus').innerHTML = `<span class="text-amber-600">Instale a extensão pra sync automático (veja acima), ou fecha a aba do LI que abriu.</span>`;
+    document.getElementById('syncStatus').innerHTML = `<span class="text-amber-600">Instale a extensÃ£o pra sync automÃ¡tico (veja acima), ou fecha a aba do LI que abriu.</span>`;
   }
 };
-// Listener global de mensagens (extensão OR bookmarklet)
+// Listener global de mensagens (extensÃ£o OR bookmarklet)
 window.addEventListener('message', async (e) => {
   if (e.data?.type === 'draCharmSyncExtensionReady'){
     extensionInstalled = true;
@@ -2601,11 +2601,11 @@ window.addEventListener('message', async (e) => {
   const orders = e.data.orders || [];
   document.getElementById('syncStatus').innerHTML = `<span class="text-amber-600">Recebi ${orders.length} pedidos. Salvando...</span>`;
   console.log('[SYNC] Recebi orders:', orders);
-  // Busca o board Personalização direto no banco (evita cache local defasado)
+  // Busca o board PersonalizaÃ§Ã£o direto no banco (evita cache local defasado)
   const { data: persoBoardRows, error: pbErr } = await sb.from('boards').select('id, name').ilike('name', '%personaliza%').limit(1);
   if (pbErr || !persoBoardRows?.length){
-    document.getElementById('syncStatus').innerHTML = `<span class="text-red-600 inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>Board Personalização não encontrado no banco</span>`;
-    toast('Board Personalização não encontrado');
+    document.getElementById('syncStatus').innerHTML = `<span class="text-red-600 inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>Board PersonalizaÃ§Ã£o nÃ£o encontrado no banco</span>`;
+    toast('Board PersonalizaÃ§Ã£o nÃ£o encontrado');
     return;
   }
   const persoBoard = persoBoardRows[0];
@@ -2615,7 +2615,7 @@ window.addEventListener('message', async (e) => {
     return;
   }
   const novoList = persoLists.find(l => /novo/i.test(l.name)) || persoLists[0];
-  if (!novoList){ toast('Lista "Novo Pedido" não encontrada'); return; }
+  if (!novoList){ toast('Lista "Novo Pedido" nÃ£o encontrada'); return; }
   // Pega labels do board
   const { data: bLabels } = await sb.from('labels').select('id, name').eq('board_id', persoBoard.id);
   const labelByType = {
@@ -2645,7 +2645,7 @@ window.addEventListener('message', async (e) => {
       if (!error) updated++;
       continue;
     }
-    const title = `#${o.pedido_numero} · ${o.pedido_cliente || 'Sem nome'}`;
+    const title = `#${o.pedido_numero} Â· ${o.pedido_cliente || 'Sem nome'}`;
     const { data: newCard, error } = await sb.from('cards').insert({
       list_id: novoList.id,
       title,
@@ -2660,8 +2660,8 @@ window.addEventListener('message', async (e) => {
     if (labelId) await sb.from('card_labels').insert({card_id: newCard.id, label_id: labelId});
     created++;
   }
-  document.getElementById('syncStatus').innerHTML = `<span class="text-emerald-600 font-semibold inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>${created} criado${created===1?'':'s'}${updated?` · ${updated} atualizado${updated===1?'':'s'}`:''}</span>`;
-  toast(`${created} novos · ${updated} atualizados`);
+  document.getElementById('syncStatus').innerHTML = `<span class="text-emerald-600 font-semibold inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>${created} criado${created===1?'':'s'}${updated?` Â· ${updated} atualizado${updated===1?'':'s'}`:''}</span>`;
+  toast(`${created} novos Â· ${updated} atualizados`);
   if (currentBoardId === persoBoard.id) await switchBoard(persoBoard.id);
 });
 document.addEventListener('click', e => {
@@ -2736,7 +2736,7 @@ window.openUsers = async () => {
   document.getElementById('usersModal').classList.remove('hidden');
   document.getElementById('usersModal').classList.add('flex');
   const body = document.getElementById('usersBody');
-  body.innerHTML = '<div class="text-center text-slate-400 py-12">Carregando usuários...</div>';
+  body.innerHTML = '<div class="text-center text-slate-400 py-12">Carregando usuÃ¡rios...</div>';
   try {
     const { data: users, error } = await sb.from('profiles').select('id, email, full_name, access').order('email');
     if (error) throw error;
@@ -2745,7 +2745,7 @@ window.openUsers = async () => {
       {key:'cep', label:'CEP', color:'bg-blue-100 text-blue-700'},
       {key:'atendimento', label:'Atendimento', color:'bg-amber-100 text-amber-700'},
       {key:'marketing', label:'Marketing', color:'bg-purple-100 text-purple-700'},
-      {key:'cade_pedido', label:'Cadê Pedido', color:'bg-teal-100 text-teal-700'},
+      {key:'cade_pedido', label:'CadÃª Pedido', color:'bg-teal-100 text-teal-700'},
       {key:'painel', label:'Painel', color:'bg-slate-200 text-slate-700'},
     ];
     body.innerHTML = `
@@ -2753,7 +2753,7 @@ window.openUsers = async () => {
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b border-slate-200 dark:border-ink-700 text-left">
-              <th class="pb-3 pr-4 font-semibold text-slate-700 dark:text-slate-300">Usuário</th>
+              <th class="pb-3 pr-4 font-semibold text-slate-700 dark:text-slate-300">UsuÃ¡rio</th>
               ${systems.map(s => `<th class="pb-3 px-2 text-center font-semibold text-xs text-slate-600 dark:text-slate-400"><span class="${s.color} px-2 py-1 rounded-md">${s.label}</span></th>`).join('')}
             </tr>
           </thead>
@@ -2772,7 +2772,7 @@ window.openUsers = async () => {
           </tbody>
         </table>
       </div>
-      <div class="mt-4 text-xs text-slate-500 text-center">Alterações são salvas automaticamente ao clicar</div>
+      <div class="mt-4 text-xs text-slate-500 text-center">AlteraÃ§Ãµes sÃ£o salvas automaticamente ao clicar</div>
     `;
     body.querySelectorAll('input[type=checkbox]').forEach(cb => {
       cb.onchange = async () => {
@@ -2820,18 +2820,18 @@ document.addEventListener('click', e => {
 function applySuiteBg(){try{var b=sb.storage.from('system-assets').getPublicUrl('suite-bg.jpg').data.publicUrl;var u=b+'?t='+Date.now();var im=new Image();im.onload=function(){var el=document.getElementById('appBg');if(el){el.style.backgroundImage="url('"+u+"')";}document.body.classList.add('has-bg');};im.src=u;}catch(e){}}function ensSuiteModal(){if(document.getElementById('suiteSettingsModal'))return;var d=document.createElement('div');d.id='suiteSettingsModal';d.className='hidden fixed inset-0 z-50 items-center justify-center p-4';var h=[];
 h.push('<div class="absolute inset-0 bg-black/50" onclick="closeSuiteSettings()"></div>');
 h.push('<div class="relative bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">');
-h.push('<div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-ink-700"><h2 class="text-lg font-bold text-slate-900 dark:text-slate-100">Configurações da Suíte</h2><button onclick="closeSuiteSettings()" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-2xl leading-none">&times;</button></div>');
+h.push('<div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-ink-700"><h2 class="text-lg font-bold text-slate-900 dark:text-slate-100">ConfiguraÃ§Ãµes da SuÃ­te</h2><button onclick="closeSuiteSettings()" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-2xl leading-none">&times;</button></div>');
 h.push('<div class="p-6 space-y-6">');
-h.push('<section><h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">Aparência</h3><button id="suiteBgBtn" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-ink-600 text-sm hover:bg-slate-50 dark:hover:bg-ink-700">Trocar wallpaper da Suíte</button><input type="file" id="suiteBgInput" accept="image/*" class="hidden"><p class="text-xs text-slate-400 mt-2">Aparece na tela da Suíte e no login. Máximo 5MB.</p><div id="suiteBgStatus" class="text-xs mt-1"></div></section>');
-h.push('<section><h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">Permissões de acesso</h3><p class="text-xs text-slate-500 mb-3">Controle quais sistemas cada usuário pode acessar.</p><button onclick="closeSuiteSettings(); openUsers();" class="px-4 py-2 rounded-lg bg-pink-600 text-white text-sm hover:bg-pink-700">Gerenciar permissões</button></section>');
-h.push('<section><h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">Convidar usuário</h3><div class="flex flex-wrap items-end gap-3"><div class="flex-1 min-w-[180px]"><label class="text-xs text-slate-500">Email</label><input id="inviteEmail" type="email" placeholder="pessoa@dracharm.com.br" class="mt-1 w-full p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm"></div><div class="min-w-[150px]"><label class="text-xs text-slate-500">Senha provisória</label><input id="invitePass" type="text" placeholder="mínimo 6 caracteres" class="mt-1 w-full p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm"></div><button id="inviteBtn" class="px-4 py-2.5 rounded-lg bg-slate-800 text-white text-sm hover:bg-slate-900">Criar acesso</button></div><div id="inviteStatus" class="text-xs mt-2"></div></section>');
+h.push('<section><h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">AparÃªncia</h3><button id="suiteBgBtn" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-ink-600 text-sm hover:bg-slate-50 dark:hover:bg-ink-700">Trocar wallpaper da SuÃ­te</button><input type="file" id="suiteBgInput" accept="image/*" class="hidden"><p class="text-xs text-slate-400 mt-2">Aparece na tela da SuÃ­te e no login. MÃ¡ximo 5MB.</p><div id="suiteBgStatus" class="text-xs mt-1"></div></section>');
+h.push('<section><h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">PermissÃµes de acesso</h3><p class="text-xs text-slate-500 mb-3">Controle quais sistemas cada usuÃ¡rio pode acessar.</p><button onclick="closeSuiteSettings(); openUsers();" class="px-4 py-2 rounded-lg bg-pink-600 text-white text-sm hover:bg-pink-700">Gerenciar permissÃµes</button></section>');
+h.push('<section><h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">Convidar usuÃ¡rio</h3><div class="flex flex-wrap items-end gap-3"><div class="flex-1 min-w-[180px]"><label class="text-xs text-slate-500">Email</label><input id="inviteEmail" type="email" placeholder="pessoa@dracharm.com.br" class="mt-1 w-full p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm"></div><div class="min-w-[150px]"><label class="text-xs text-slate-500">Senha provisÃ³ria</label><input id="invitePass" type="text" placeholder="mÃ­nimo 6 caracteres" class="mt-1 w-full p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm"></div><button id="inviteBtn" class="px-4 py-2.5 rounded-lg bg-slate-800 text-white text-sm hover:bg-slate-900">Criar acesso</button></div><div id="inviteStatus" class="text-xs mt-2"></div></section>');
 h.push('</div></div>');
 d.innerHTML=h.join('');document.body.appendChild(d);}
 window.openSuiteSettings=function(){ensSuiteModal();var m=document.getElementById('suiteSettingsModal');m.classList.remove('hidden');m.classList.add('flex');};
 window.closeSuiteSettings=function(){var m=document.getElementById('suiteSettingsModal');if(m){m.classList.add('hidden');m.classList.remove('flex');}};
 document.addEventListener('click',function(e){if(e.target.closest('#suiteBgBtn'))document.getElementById('suiteBgInput').click();});
-document.addEventListener('change',async function(e){if(e.target&&e.target.id==='suiteBgInput'&&e.target.files[0]){var file=e.target.files[0];var st=document.getElementById('suiteBgStatus');if(file.size>5*1024*1024){st.className='text-xs mt-1 text-red-600';st.textContent='Imagem muito grande (máximo 5MB)';return;}st.className='text-xs mt-1 text-slate-500';st.textContent='Enviando wallpaper...';try{var r=await sb.storage.from('system-assets').upload('suite-bg.jpg',file,{upsert:true,contentType:file.type});if(r.error)throw r.error;applySuiteBg();st.className='text-xs mt-1 text-emerald-600';st.textContent='Wallpaper atualizado!';}catch(err){st.className='text-xs mt-1 text-red-600';st.textContent='Erro: '+err.message;}}});
-document.addEventListener('click',async function(e){if(e.target.closest('#inviteBtn')){var email=(document.getElementById('inviteEmail').value||'').trim();var pass=(document.getElementById('invitePass').value||'').trim();var st=document.getElementById('inviteStatus');if(!email||pass.length<6){st.className='text-xs mt-2 text-red-600';st.textContent='Informe email e senha (mínimo 6 caracteres).';return;}st.className='text-xs mt-2 text-slate-500';st.textContent='Criando acesso...';try{var c2=createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:false,storageKey:'dc_invite_tmp'}});var r=await c2.auth.signUp({email:email,password:pass});if(r.error)throw r.error;st.className='text-xs mt-2 text-emerald-600';st.textContent='Acesso criado para '+email+'. Passe email e senha provisória pra pessoa e libere os sistemas em Permissões. (Se a confirmação de email estiver ligada no Supabase, a pessoa precisa confirmar antes.)';document.getElementById('inviteEmail').value='';document.getElementById('invitePass').value='';}catch(err){st.className='text-xs mt-2 text-red-600';st.textContent='Erro: '+err.message;}}});
+document.addEventListener('change',async function(e){if(e.target&&e.target.id==='suiteBgInput'&&e.target.files[0]){var file=e.target.files[0];var st=document.getElementById('suiteBgStatus');if(file.size>5*1024*1024){st.className='text-xs mt-1 text-red-600';st.textContent='Imagem muito grande (mÃ¡ximo 5MB)';return;}st.className='text-xs mt-1 text-slate-500';st.textContent='Enviando wallpaper...';try{var r=await sb.storage.from('system-assets').upload('suite-bg.jpg',file,{upsert:true,contentType:file.type});if(r.error)throw r.error;applySuiteBg();st.className='text-xs mt-1 text-emerald-600';st.textContent='Wallpaper atualizado!';}catch(err){st.className='text-xs mt-1 text-red-600';st.textContent='Erro: '+err.message;}}});
+document.addEventListener('click',async function(e){if(e.target.closest('#inviteBtn')){var email=(document.getElementById('inviteEmail').value||'').trim();var pass=(document.getElementById('invitePass').value||'').trim();var st=document.getElementById('inviteStatus');if(!email||pass.length<6){st.className='text-xs mt-2 text-red-600';st.textContent='Informe email e senha (mÃ­nimo 6 caracteres).';return;}st.className='text-xs mt-2 text-slate-500';st.textContent='Criando acesso...';try{var c2=createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:false,storageKey:'dc_invite_tmp'}});var r=await c2.auth.signUp({email:email,password:pass});if(r.error)throw r.error;st.className='text-xs mt-2 text-emerald-600';st.textContent='Acesso criado para '+email+'. Passe email e senha provisÃ³ria pra pessoa e libere os sistemas em PermissÃµes. (Se a confirmaÃ§Ã£o de email estiver ligada no Supabase, a pessoa precisa confirmar antes.)';document.getElementById('inviteEmail').value='';document.getElementById('invitePass').value='';}catch(err){st.className='text-xs mt-2 text-red-600';st.textContent='Erro: '+err.message;}}});
 applySuiteBg();
 
 // ============ PAINEL DE CONTROLE (admin only) ============
@@ -2841,7 +2841,7 @@ function showPainelBtnIfAdmin(){
   const btn = document.getElementById('painelBtn');
   if (btn && isAdmin()) btn.classList.remove('hidden');
 }
-// Chama após auth
+// Chama apÃ³s auth
 setTimeout(showPainelBtnIfAdmin, 800);
 setTimeout(showPainelBtnIfAdmin, 2500);
 setTimeout(showPainelBtnIfAdmin, 5000);
@@ -2931,7 +2931,7 @@ async function openPainel(){
       <div>
         <div class="text-xs font-semibold uppercase text-slate-500 mb-3 tracking-wide">Estoque de tecidos</div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-          ${kpiCard('Malha Tecnológica', k.rolosMalha,'<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7L12 3 4 7l8 4z"/><path d="M4 7v10l8 4 8-4V7"/></svg>', 'bg-gradient-to-br from-blue-50 to-blue-100/40 dark:from-blue-900/20 dark:to-blue-800/10 border-blue-200')}
+          ${kpiCard('Malha TecnolÃ³gica', k.rolosMalha,'<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7L12 3 4 7l8 4z"/><path d="M4 7v10l8 4 8-4V7"/></svg>', 'bg-gradient-to-br from-blue-50 to-blue-100/40 dark:from-blue-900/20 dark:to-blue-800/10 border-blue-200')}
           ${kpiCard('Alfaiataria', k.rolosAlf,'<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3L4 8l3 12h10l3-12-2-5"/><path d="M6 3l6 6 6-6"/></svg>', 'bg-gradient-to-br from-emerald-50 to-emerald-100/40 dark:from-emerald-900/20 dark:to-emerald-800/10 border-emerald-200')}
         </div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -2942,7 +2942,7 @@ async function openPainel(){
       </div>
 
       <div>
-        <div class="text-xs font-semibold uppercase text-slate-500 mb-3 tracking-wide">Produção</div>
+        <div class="text-xs font-semibold uppercase text-slate-500 mb-3 tracking-wide">ProduÃ§Ã£o</div>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           ${kpiCard('Costurando', k.nCostura,'<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>')}
           ${kpiCard('Aguardando acabamento', k.nAguard,'<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>')}
@@ -2956,11 +2956,11 @@ async function openPainel(){
         <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
           ${kpiCard('Para cortar (metros)', Math.round(k.mCortar),'<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l4 4 8-8"/></svg>')}
           ${kpiCard('Finalizados', k.nFinal,'')}
-          ${kpiCard('Pedidos personalização', k.nPerso,'')}
+          ${kpiCard('Pedidos personalizaÃ§Ã£o', k.nPerso,'')}
         </div>
       </div>
 
-      <div class="text-xs text-slate-400 text-center pt-2">Atualizado agora · dados em tempo real do banco</div>
+      <div class="text-xs text-slate-400 text-center pt-2">Atualizado agora Â· dados em tempo real do banco</div>
     `;
   } catch(e){
     body.innerHTML = '<div class="text-center text-red-500 py-12">Erro: '+e.message+'</div>';
@@ -2984,7 +2984,7 @@ function cepClean(s){ s=((s==null?'':s)+''); var o=''; for(var i=0;i<s.length;i+
 function cepNorm(s){ s=((s==null?'':s)+'').toLowerCase().normalize('NFD'); var o=''; for(var i=0;i<s.length;i++){ var c=s[i], k=s.charCodeAt(i); if(k>=768&&k<=879) continue; if((c>='a'&&c<='z')||(c>='0'&&c<='9')||c===' ') o+=c; } return o.trim(); }
 function cepWords(s){ return cepNorm(s).split(' ').filter(function(w){ return w; }); }
 function cepSim(a,b){ var wa=cepWords(a), wb=cepWords(b); if(!wa.length||!wb.length) return 0; var common=wa.filter(function(w){ return wb.indexOf(w)>=0; }).length; return common/Math.max(wa.length,wb.length); }
-function cepFmt(c){ c=cepClean(c); return c.length===8 ? c.slice(0,5)+'-'+c.slice(5) : (c||'—'); }
+function cepFmt(c){ c=cepClean(c); return c.length===8 ? c.slice(0,5)+'-'+c.slice(5) : (c||'â'); }
 function cepEsc(s){ return ((s==null?'':s)+'').split('&').join('&amp;').split('<').join('&lt;').split('>').join('&gt;'); }
 function cepValLocal(cep){ cep=cepClean(cep); if(cep.length!==8) return {s:'invalido', m:'CEP ausente ou incompleto'}; var same=true; for(var i=1;i<8;i++){ if(cep[i]!==cep[0]) same=false; } if(same) return {s:'invalido', m:'CEP invalido (sequencia invalida)'}; return {s:'ok', m:''}; }
 async function cepValViaCep(cep, cidadeEsp, estadoEsp, ruaEsp){
@@ -3102,7 +3102,7 @@ function cepRenderRow(p){
   if(!row){ row=document.createElement('tr'); row.id=id; row.className='border-b border-slate-100 dark:border-ink-700/50 align-top'; document.getElementById('cepTb').appendChild(row); }
   row.setAttribute('data-status', p.cep_s||'carregando');
   var num='<b>'+cepEsc(p.numero||'')+'</b>'+(p.numeroLI?'<br><span class='+Q+'text-[10px] text-slate-400'+Q+'>LI '+cepEsc(p.numeroLI)+'</span>':'');
-  var cuf=p.cidade?cepEsc(p.cidade+(p.estado?' / '+p.estado:'')):'—';
+  var cuf=p.cidade?cepEsc(p.cidade+(p.estado?' / '+p.estado:'')):'â';
   var sit=(p.situacao_id&&cepSitMap[p.situacao_id])?cepEsc(cepSitMap[p.situacao_id]):'';
   var corr='';
   if((p.cep_s==='divergencia'||p.cep_s==='atencao_rua') && p.vc){
@@ -3207,12 +3207,12 @@ initAuth();
       </div>
       <div class="flex-1">
         <h2 class="text-lg font-semibold">Painel de Controle</h2>
-        <p class="text-xs text-slate-500">Visão geral da produção Dra Charm</p>
+        <p class="text-xs text-slate-500">VisÃ£o geral da produÃ§Ã£o Dra Charm</p>
       </div>
       <button id="painelRefresh" title="Atualizar" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700">
         <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
       </button>
-      <button onclick="closePainel()" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 text-xl">×</button>
+      <button onclick="closePainel()" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 text-xl">Ã</button>
     </div>
     <div class="flex-1 overflow-y-auto p-6 space-y-6" id="painelBody">
       <div class="text-center text-slate-400 py-12">Carregando...</div>
