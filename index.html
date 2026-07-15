@@ -196,8 +196,8 @@ tailwind.config = {
         <img src="/logo_500x500.svg" alt="Aragão" class="w-full h-full object-contain p-0.5">
       </div>
       <div>
-        <div class="text-lg font-bold">Produção Dra. Charm</div>
-        <div class="text-xs text-slate-500">Substituto do Trello</div>
+        <div class="text-lg font-bold">Sistema Grupo Aragão</div>
+        <div class="text-xs text-slate-500">conjunto de aplicativos</div>
       </div>
     </div>
     <div id="authError" class="hidden mb-4 text-sm text-red-600 bg-red-50 dark:bg-red-900/30 p-2 rounded"></div>
@@ -260,7 +260,7 @@ tailwind.config = {
         </div>
         <div>
           <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Sistema Grupo Aragão</h1>
-          <p class="text-xs text-slate-500 dark:text-slate-400">Escolha um sistema pra começar</p>
+          <p class="text-xs text-slate-500 dark:text-slate-400">conjunto de aplicativos</p>
         </div>
       </div>
       <div class="flex items-center gap-2">
@@ -278,7 +278,7 @@ tailwind.config = {
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       <!-- Quadros de Produção -->
-      <button class="hub-card group text-left" data-hub-open="quadros">
+      <button class="hub-card group text-left" data-hub-open="quadros" data-access="quadros">
         <div class="hub-card-icon bg-gradient-to-br from-pink-500 to-rose-500 text-white">
           <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="10" rx="1"/></svg>
         </div>
@@ -290,7 +290,7 @@ tailwind.config = {
       </button>
 
       <!-- Validador de CEP -->
-      <button data-hub-open="cep" class="hub-card group text-left">
+      <button data-hub-open="cep" data-access="cep" class="hub-card group text-left">
         <div class="hub-card-icon bg-gradient-to-br from-blue-500 to-cyan-500 text-white">
           <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
         </div>
@@ -302,7 +302,7 @@ tailwind.config = {
       </button>
 
       <!-- Atendimento -->
-      <button class="hub-card group text-left opacity-70 cursor-not-allowed" disabled>
+      <button class="hub-card group text-left opacity-70 cursor-not-allowed" disabled data-access="atendimento">
         <div class="hub-card-icon bg-gradient-to-br from-amber-500 to-orange-500 text-white">
           <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         </div>
@@ -314,7 +314,7 @@ tailwind.config = {
       </button>
 
       <!-- Marketing -->
-      <button class="hub-card group text-left opacity-70 cursor-not-allowed" disabled>
+      <button class="hub-card group text-left opacity-70 cursor-not-allowed" disabled data-access="marketing">
         <div class="hub-card-icon bg-gradient-to-br from-purple-500 to-fuchsia-500 text-white">
           <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
         </div>
@@ -326,7 +326,7 @@ tailwind.config = {
       </button>
 
       <!-- Cadê Meu Pedido -->
-      <button type="button" onclick="window.open('/cade-meu-pedido.html','_blank')" class="hub-card group text-left">
+      <button type="button" onclick="window.open('/cade-meu-pedido.html','_blank')" data-access="cade_pedido" class="hub-card group text-left">
         <div class="hub-card-icon bg-gradient-to-br from-[#FDB25E] to-[#FB9D3E] text-white">
           <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
         </div>
@@ -2807,6 +2807,14 @@ function showHub(){
   if (loginBgBtn && typeof user !== 'undefined' && user && (user.email||'').toLowerCase() === 'marcioborgesaraujojr@gmail.com'){
     loginBgBtn.classList.remove('hidden');
   }
+  // Permissões: quem não é admin vê só os sistemas liberados em profile.access.
+  const _isAdm = (typeof user !== 'undefined' && user && (user.email||'').toLowerCase() === 'marcioborgesaraujojr@gmail.com');
+  const _acc = (typeof profile !== 'undefined' && profile && profile.access) || {};
+  document.querySelectorAll('#hubScreen [data-access]').forEach(card => {
+    const key = card.getAttribute('data-access');
+    const allowed = _isAdm || _acc[key] === true;
+    card.classList.toggle('hidden', !allowed);
+  });
 }
 window.enterQuadros = function(){
   document.getElementById('hubScreen').classList.add('hidden');
