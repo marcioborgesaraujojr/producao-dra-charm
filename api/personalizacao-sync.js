@@ -220,11 +220,12 @@ export default async function handler(req,res){
     const nums=[...new Set(candidatos.map(c=>c.numero))];
     let existSet=new Set();
     if(nums.length){ const ex=await sbREST('GET','cards?select=pedido_numero&pedido_numero=in.('+nums.join(',')+')'); (ex.j||[]).forEach(x=>existSet.add(String(x.pedido_numero))); }
-    const seen={}; const toCreate=[]; const toDelete=[]; const toUpdate=[];
+    const seen={}; const toCreate=[]; const toDelete=[]; const toUpdate=[]; let comBordadoValidos=0;
     for(const c of candidatos){
       if(seen[c.numero]) continue; seen[c.numero]=1;
       const deveTer = !semCard(c.situacao);
       const temCard = existSet.has(c.numero);
+      if(deveTer) comBordadoValidos++;
       if(deveTer && !temCard) toCreate.push(c);
       else if(!deveTer && temCard) toDelete.push(c.numero);
       else if(deveTer && temCard && backfill) toUpdate.push(c);
@@ -258,7 +259,7 @@ export default async function handler(req,res){
     }
     const jaExistem=[...new Set(candidatos.filter(c=>existSet.has(c.numero)).map(c=>c.numero))].length;
     res.status(200).json({
-      dryrun:!commit, varridos:scanned, comBordado:candidatos.length, criaria:toCreate.length, apagaria:toDelete.length, atualizaria:toUpdate.length, jaExistem, inserted, deleted, updated, insErr, delErr, updErr,
+      dryrun:!commit, varridos:scanned, comBordado:candidatos.length, comBordadoValidos, criaria:toCreate.length, apagaria:toDelete.length, atualizaria:toUpdate.length, jaExistem, inserted, deleted, updated, insErr, delErr, updErr,
       amostraCriar: toCreate.slice(0,5).map(c=>({numero:c.numero, situacao:c.situacao, tipo:c.b.tipo, fonte:c.b.fonte, produtosCount:(c.produtos||[]).length, produtoSample:(c.produtos||[])[0], imgDbg:c._dbg})),
       amostraApagar: toDelete.slice(0,10)
     });
