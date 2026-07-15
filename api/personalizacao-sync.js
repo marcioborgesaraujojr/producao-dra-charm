@@ -239,8 +239,9 @@ export default async function handler(req,res){
         if(up.status>=200&&up.status<300){ updated++; } else { updErr=up.j; }
       }
     }
+    const jaExistem=[...new Set(candidatos.filter(c=>existSet.has(c.numero)).map(c=>c.numero))].length;
     res.status(200).json({
-      dryrun:!commit, varridos:scanned, comBordado:candidatos.length, criaria:toCreate.length, apagaria:toDelete.length, atualizaria:toUpdate.length, inserted, deleted, updated, insErr, delErr, updErr,
+      dryrun:!commit, varridos:scanned, comBordado:candidatos.length, criaria:toCreate.length, apagaria:toDelete.length, atualizaria:toUpdate.length, jaExistem, inserted, deleted, updated, insErr, delErr, updErr,
       amostraCriar: toCreate.slice(0,5).map(c=>({numero:c.numero, situacao:c.situacao, tipo:c.b.tipo, fonte:c.b.fonte, produtosCount:(c.produtos||[]).length, produtoSample:(c.produtos||[])[0], imgDbg:c._dbg})),
       amostraApagar: toDelete.slice(0,10)
     });
