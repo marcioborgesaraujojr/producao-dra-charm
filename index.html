@@ -1376,6 +1376,41 @@ function renderBoard(){
     };
     board.appendChild(col);
   });
+
+  // Coluna "Adicionar outra lista" (estilo Trello) no fim do board
+  const addCol = document.createElement('div');
+  addCol.className = 'shrink-0 w-72';
+  addCol.innerHTML = `
+    <button class="add-list-btn w-full text-left px-3 py-2.5 rounded-xl bg-white/50 hover:bg-white/80 dark:bg-ink-800/50 dark:hover:bg-ink-800 text-sm font-medium text-slate-600 dark:text-slate-200 transition flex items-center gap-2">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Adicionar outra lista
+    </button>
+    <div class="add-list-form hidden bg-slate-200/70 dark:bg-ink-800 rounded-xl p-2">
+      <input class="add-list-input w-full p-2 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm outline-none focus:border-pink-500" placeholder="Digite o nome da lista..." />
+      <div class="flex items-center gap-2 mt-2">
+        <button class="add-list-save px-3 py-1.5 rounded-lg bg-pink-600 text-white text-sm font-medium hover:bg-pink-700">Adicionar Lista</button>
+        <button class="add-list-cancel text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" title="Cancelar"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+    </div>`;
+  const alBtn = addCol.querySelector('.add-list-btn');
+  const alForm = addCol.querySelector('.add-list-form');
+  const alInput = addCol.querySelector('.add-list-input');
+  const openAddList = () => { alBtn.classList.add('hidden'); alForm.classList.remove('hidden'); alInput.focus(); };
+  const closeAddList = () => { alForm.classList.add('hidden'); alBtn.classList.remove('hidden'); alInput.value = ''; };
+  const saveAddList = async () => {
+    const name = (alInput.value || '').trim();
+    if (!name){ alInput.focus(); return; }
+    const maxPos = Math.max(0, ...lists.map(l => l.position || 0));
+    const { data: nl, error } = await sb.from('lists').insert({ board_id: currentBoardId, name, position: maxPos + 16384 }).select().single();
+    if (error){ toast('Erro ao criar lista: ' + error.message); return; }
+    if (nl){ lists.push(nl); renderBoard(); toast(`Lista "${name}" criada`); }
+  };
+  alBtn.onclick = openAddList;
+  addCol.querySelector('.add-list-cancel').onclick = closeAddList;
+  addCol.querySelector('.add-list-save').onclick = saveAddList;
+  alInput.addEventListener('keydown', (e) => { if (e.key === 'Enter'){ e.preventDefault(); saveAddList(); } else if (e.key === 'Escape'){ closeAddList(); } });
+  board.appendChild(addCol);
+
   updateStats(); renderFilterBar();
 }
 
