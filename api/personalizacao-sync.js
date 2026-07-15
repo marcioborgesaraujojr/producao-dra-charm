@@ -58,6 +58,22 @@ function tamanhoOf(variacao){
   return (first && first.nome) ? String(first.nome).trim() : null;
 }
 
+// Descobre quais SKUs têm bordado de verdade: no cliente_obs, o SKU aparece como "** sku [..] **"
+// e só é bordado se tiver ao menos 1 campo "-- Campo:" logo abaixo dele (igual à extensão).
+function computeBordadoSkus(obs){
+  const set=new Set();
+  const block=String(obs||'');
+  const skuMatches=[...block.matchAll(/\*\*\s*([^\s\[*]+)[^*]*\*\*/g)];
+  for(let i=0;i<skuMatches.length;i++){
+    const sku=skuMatches[i][1].trim().toLowerCase();
+    const start=skuMatches[i].index+skuMatches[i][0].length;
+    const end=(i+1<skuMatches.length)?skuMatches[i+1].index:block.length;
+    const content=block.slice(start,end);
+    if(/--\s+\S[^:]*:/.test(content)) set.add(sku);
+  }
+  return set;
+}
+
 function isSkipItem(it){
   const sku=String(it.sku||'').toUpperCase();
   const nome=String(it.nome||'');
@@ -74,8 +90,9 @@ function pickImg(pj){
 }
 
 // Monta produtos com foto (excluindo os itens de acréscimo). Imagem vem do produto_pai (variação não tem imagem).
-async function buildProdutos(itens, cache){
+async function buildProdutos(itens, cache, obs){
   const out=[]; let dbg=null;
+  const bset=computeBordadoSkus(obs);
   for(const it of (itens||[])){
     if(!it || isSkipItem(it)) continue;
     const ref = it.produto_pai || it.produto;
@@ -92,7 +109,7 @@ async function buildProdutos(itens, cache){
       qtd: Math.round(parseFloat(it.quantidade||'1'))||1,
       sku: it.sku||null,
       nome: it.nome||'',
-      bordado: true,
+      bordado: bset.has(String(it.sku||'').toLowerCase()),
       tamanho: tamanhoOf(it.variacao),
       imagem_url
     });
@@ -129,11 +146,15 @@ export default async function handler(req,res){
   // busca o pedido na LI pelo número e preenche pedido_produtos (cobre pedidos antigos).
   if(q.fullbackfill==='1'){
     try{
+      const force=q.force==='1';
       const fbLimit=Math.min(parseInt(q.fbLimit||'12',10),25);
-      const sel=await sbREST('GET','cards?select=id,pedido_numero&bordado_tipo=not.is.null&pedido_numero=not.is.null&pedido_produtos=is.null&order=pedido_numero.desc&limit='+fbLimit);
+      const fbOffset=parseInt(q.fbOffset||'0',10);
+      const filtro = force ? 'bordado_tipo=not.is.null&pedido_numero=not.is.null'
+                           : 'bordado_tipo=not.is.null&pedido_numero=not.is.null&pedido_produtos=is.null';
+      const sel=await sbREST('GET','cards?select=id,pedido_numero&'+filtro+'&order=pedido_numero.desc&limit='+fbLimit+'&offset='+fbOffset);
       const cards=sel.j||[];
-      const restResp=await sbREST('GET','cards?select=pedido_numero&bordado_tipo=not.is.null&pedido_numero=not.is.null&pedido_produtos=is.null');
-      const totalRestante=(restResp.j||[]).length;
+      const totResp=await sbREST('GET','cards?select=pedido_numero&'+filtro);
+      const total=(totResp.j||[]).length;
       const imgCache={}; const results=[]; let updated=0, updErr=null;
       for(const cd of cards){
         const num=String(cd.pedido_numero); let d=null;
@@ -144,12 +165,13 @@ export default async function handler(req,res){
           else { const dr=await liGet('/v1/pedido/'+num+'/'); if(dr.status>=200&&dr.status<300) d=dr.j; }
         }catch(e){}
         if(!d || !d.itens){ results.push({num, found:false}); continue; }
-        const rb=await buildProdutos(d.itens, imgCache);
+        const rb=await buildProdutos(d.itens, imgCache, d.cliente_obs);
         const prod=(rb.produtos&&rb.produtos.length)?rb.produtos:null;
-        if(commit && prod){ const up=await sbREST('PATCH','cards?id=eq.'+cd.id, {pedido_produtos:prod}); if(up.status>=200&&up.status<300) updated++; else updErr=up.j; }
-        results.push({num, found:true, nProd:(rb.produtos||[]).length, temImg:!!(rb.produtos[0]&&rb.produtos[0].imagem_url)});
+        if(commit && (force || prod)){ const up=await sbREST('PATCH','cards?id=eq.'+cd.id, {pedido_produtos:prod}); if(up.status>=200&&up.status<300) updated++; else updErr=up.j; }
+        results.push({num, found:true, nProd:(rb.produtos||[]).length, comBordado:(rb.produtos||[]).filter(p=>p.bordado).length});
       }
-      return res.status(200).json({fullbackfill:true, commit, processados:cards.length, updated, totalRestante, updErr, results});
+      const nextOffset = force ? (fbOffset+cards.length) : 0;
+      return res.status(200).json({fullbackfill:true, force, commit, processados:cards.length, updated, total, fbOffset, nextOffset, restam:(force? Math.max(0,total-nextOffset) : (total-cards.length)), updErr, results});
     }catch(e){ return res.status(500).json({error:e.message, stack:String(e.stack||'').slice(0,300)}); }
   }
 
@@ -172,7 +194,7 @@ export default async function handler(req,res){
         const sit=d.situacao;
         if(sit){ if(typeof sit==='string'){ try{ const sd=await liGet(sit); sitTxt=((sd.j&&(sd.j.codigo||sd.j.nome))||''); }catch(e){} } else { sitTxt=(sit.codigo||sit.nome||sit.situacao||''); } }
         const b=buildBordado(tipoOrder, d.cliente_obs);
-        candidatos.push({ numero:String(d.numero), id_li:d.id, cliente:(d.cliente&&(d.cliente.nome||d.cliente.email))||null, b, situacao:String(sitTxt||'?'), itens:d.itens });
+        candidatos.push({ numero:String(d.numero), id_li:d.id, cliente:(d.cliente&&(d.cliente.nome||d.cliente.email))||null, b, situacao:String(sitTxt||'?'), itens:d.itens, obs:d.cliente_obs });
       }
       if(objs.length<perPage) break; pagina++;
     }
@@ -191,8 +213,8 @@ export default async function handler(req,res){
       else if(deveTer && temCard && backfill) toUpdate.push(c);
     }
     const imgCache={};
-    for(const c of toCreate){ const r=await buildProdutos(c.itens, imgCache); c.produtos=r.produtos; c._dbg=r.dbg; }
-    for(const c of toUpdate){ const r=await buildProdutos(c.itens, imgCache); c.produtos=r.produtos; c._dbg=r.dbg; }
+    for(const c of toCreate){ const r=await buildProdutos(c.itens, imgCache, c.obs); c.produtos=r.produtos; c._dbg=r.dbg; }
+    for(const c of toUpdate){ const r=await buildProdutos(c.itens, imgCache, c.obs); c.produtos=r.produtos; c._dbg=r.dbg; }
     const rows=toCreate.map(c=>({
       list_id:PERSO_LIST, title:(c.cliente||('Pedido '+c.numero)), position:Date.now(), created_by:userId,
       pedido_numero:c.numero, pedido_cliente:c.cliente,
