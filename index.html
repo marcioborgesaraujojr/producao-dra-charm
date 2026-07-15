@@ -27,7 +27,7 @@ tailwind.config = {
   html.dark{background-color:#0b1220}
   body.has-bg #appBg::after{content:'';position:absolute;inset:0;background:rgba(15,23,42,.35);pointer-events:none}
   .dark body.has-bg #appBg::after{background:rgba(0,0,0,.5)}
-  body.has-bg::before{content:'';position:fixed;inset:0;background:rgba(15,23,42,.35);pointer-events:none;z-index:0}
+  body.has-bg::before{content:'';position:fixed;inset:0;background:rgba(255,255,255,.30);pointer-events:none;z-index:0}
   body.has-bg #app,body.has-bg #loginScreen{position:relative;z-index:1}
   body.has-bg header{background:rgba(255,255,255,.85)!important;backdrop-filter:blur(12px)}
   body.has-bg.dark header{background:rgba(17,24,39,.85)!important}
@@ -519,7 +519,7 @@ tailwind.config = {
       <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0"/></svg>
       Log geral (histórico)
     </button>
-    <button onclick="openLogoUpload()" class="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-slate-100 dark:hover:bg-ink-700 flex items-center gap-2">
+    <button onclick="openLogoUpload()" class="hidden w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-slate-100 dark:hover:bg-ink-700 flex items-center gap-2">
       <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>
       Trocar logo do sistema
     </button>
