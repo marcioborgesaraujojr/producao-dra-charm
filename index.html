@@ -523,6 +523,7 @@ tailwind.config = {
       </div>
 
       <div class="flex items-center gap-2">
+        <div id="boardMembers" class="flex items-center -space-x-1.5 mr-1"></div>
         <button onclick="backToHub()" title="Voltar à Suíte" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 text-slate-600 dark:text-slate-300">
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
         </button>
@@ -558,6 +559,10 @@ tailwind.config = {
 <div id="userMenu" class="hidden fixed right-4 top-14 z-40 bg-white dark:bg-ink-800 rounded-xl shadow-2xl border border-slate-200 dark:border-ink-700 w-56">
   <div class="p-3 border-b border-slate-200 dark:border-ink-700">
     <div id="userMenuName" class="font-semibold text-sm truncate"></div>
+  </div>
+  <div class="px-3 py-2 border-b border-slate-200 dark:border-ink-700">
+    <div class="text-xs text-slate-500 mb-1.5">Minha cor</div>
+    <div id="colorPalette" class="flex flex-wrap gap-1.5"></div>
   </div>
   <div class="border-t border-slate-200 dark:border-ink-700 my-1"></div>
   <div class="p-1">
@@ -1279,12 +1284,51 @@ async function bootstrapBoards(){
   boards = bs || [];
 }
 
+// Paleta de cores por usuário (Trello-style). Se o usuário não escolheu cor, usa uma
+// cor determinística pelo id/nome (sempre a mesma pra cada pessoa).
+const AVATAR_COLORS = ['#ef4444','#f97316','#f59e0b','#16a34a','#14b8a6','#0ea5e9','#3b82f6','#6366f1','#a855f7','#ec4899','#84cc16','#f43f5e'];
+function userColor(p){
+  if (p && p.color) return p.color;
+  const s = (p && (p.id || p.full_name || p.email)) || '';
+  let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+function renderColorPalette(){
+  const box = document.getElementById('colorPalette');
+  if (!box) return;
+  box.innerHTML = AVATAR_COLORS.map(c => `<button onclick="setMyColor('${c}')" class="w-6 h-6 rounded-full ${profile && profile.color === c ? 'ring-2 ring-offset-1 ring-slate-800 dark:ring-white' : ''}" style="background:${c}" title="Usar esta cor"></button>`).join('');
+}
+window.setMyColor = async (hex) => {
+  if (!profile) return;
+  try { await sb.from('profiles').update({ color: hex }).eq('id', profile.id); } catch(e){ toast('Erro ao salvar cor'); return; }
+  profile.color = hex;
+  const gp = profiles.find(p => p.id === profile.id); if (gp) gp.color = hex;
+  updateUserAvatar(); renderColorPalette();
+  if (currentBoardId) renderBoardMembers(currentBoardId);
+  renderBoard();
+  toast('Cor atualizada');
+};
+async function renderBoardMembers(boardId){
+  const box = document.getElementById('boardMembers');
+  if (!box) return;
+  try {
+    const { data } = await sb.from('board_members').select('user_id').eq('board_id', boardId);
+    const members = (data || []).map(m => profiles.find(p => p.id === m.user_id)).filter(Boolean);
+    const max = 6, shown = members.slice(0, max);
+    box.innerHTML = shown.map(p => {
+      const init = (p.full_name || p.email || '?').charAt(0).toUpperCase();
+      return `<div class="w-7 h-7 rounded-full text-white text-[11px] font-bold flex items-center justify-center ring-2 ring-white dark:ring-ink-800" style="background:${userColor(p)}" title="${escapeHtml(p.full_name || p.email || '')}">${init}</div>`;
+    }).join('') + (members.length > max ? `<div class="w-7 h-7 rounded-full bg-slate-400 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white dark:ring-ink-800" title="+${members.length - max}">+${members.length - max}</div>` : '');
+  } catch(e){ box.innerHTML = ''; }
+}
 function updateUserAvatar(){
   const initial = (profile.full_name || profile.email || '?').charAt(0).toUpperCase();
-  document.getElementById('userAvatar').textContent = initial;
-  const hubAv = document.getElementById('hubUserAvatar'); if (hubAv) hubAv.textContent = initial;
+  const col = userColor(profile);
+  const ua = document.getElementById('userAvatar'); if (ua){ ua.textContent = initial; ua.style.backgroundColor = col; }
+  const hubAv = document.getElementById('hubUserAvatar'); if (hubAv){ hubAv.textContent = initial; hubAv.style.backgroundColor = col; }
   document.getElementById('userMenuName').textContent = profile.full_name;
   const _ume = document.getElementById('userMenuEmail'); if (_ume) _ume.textContent = profile.email;
+  renderColorPalette();
 }
 
 function renderBoardSelect(){
@@ -1296,6 +1340,7 @@ function renderBoardSelect(){
 async function switchBoard(boardId){
   currentBoardId = boardId;
   try { localStorage.setItem('dc_last_board', boardId); } catch(e){}
+  renderBoardMembers(boardId);
   filters.faccao.clear();
   document.getElementById('board').innerHTML = '<div class="text-center p-8 text-slate-500">Carregando...</div>';
   const b = boards.find(x => x.id === boardId);
@@ -1434,7 +1479,7 @@ function renderCard(c, compact){
   el.className = `card card-drag bg-white dark:bg-ink-700 rounded-lg overflow-hidden shadow-sm border border-transparent hover:border-pink-500 p-2 ${compact?'text-xs':'text-sm'}`;
   el.draggable = false; // desktop usa drag customizado (mouse) com card inclinado; ver handlers mousedown abaixo
   const labelChips = clbls.slice(0,3).map(l=>`<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style="background:${l.color}22;color:${l.color}"><span class="w-1.5 h-1.5 rounded-full" style="background:${l.color}"></span>${escapeHtml(l.name)}</span>`).join('');
-  const memAvatars = cmembs.slice(0,3).map(m=>`<div class="w-5 h-5 rounded-full bg-pink-500 text-white text-[10px] font-bold flex items-center justify-center" title="${escapeHtml(m.full_name)}">${(m.full_name||'?').charAt(0).toUpperCase()}</div>`).join('');
+  const memAvatars = cmembs.slice(0,3).map(m=>`<div class="w-5 h-5 rounded-full text-white text-[10px] font-bold flex items-center justify-center" style="background:${userColor(m)}" title="${escapeHtml(m.full_name)}">${(m.full_name||'?').charAt(0).toUpperCase()}</div>`).join('');
   const bType = boardType(currentBoardId);
   // Cover normal: foto do produto. Bordado: preview de texto ou thumb da logomarca.
   let cover = '';
