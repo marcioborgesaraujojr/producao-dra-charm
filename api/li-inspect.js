@@ -18,13 +18,14 @@ export default async function handler(req,res){
       const det=await liGet(o.resource_uri); const d=det.j||{};
       let produtoInfo=null;
       if(d.itens && d.itens.length){
-        const it = d.itens.find(x=>x && x.produto && !/acr[eé]scimo/i.test(x.nome||'')) || d.itens[0];
-        if(it && it.produto){
-          const p=await liGet(it.produto); const pj=p.j||{};
+        const it = d.itens.find(x=>x && (x.produto_pai||x.produto) && !/acr[eé]scimo/i.test(x.nome||'')) || d.itens[0];
+        const ref = it && (it.produto_pai || it.produto);
+        if(ref){
+          const p=await liGet(ref); const pj=p.j||{};
           const imgs = pj.imagens || null;
           produtoInfo = {
             itemNome: it.nome,
-            produtoKeys: Object.keys(pj),
+            usouPai: !!it.produto_pai,
             imagensType: Array.isArray(imgs)?('array['+imgs.length+']'):(typeof imgs),
             firstImagem: Array.isArray(imgs)? imgs[0] : imgs,
             imagem_principal: pj.imagem_principal || null
