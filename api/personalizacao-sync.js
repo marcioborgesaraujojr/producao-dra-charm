@@ -124,6 +124,35 @@ export default async function handler(req,res){
   if(commit && !auth){ userId = await validUser(bearer); auth = !!userId; }
   if(commit && !auth) return res.status(401).json({error:'precisa estar logado pra sincronizar'});
   const limit=Math.min(parseInt(q.limit||'120',10),300);
+
+  // Backfill completo: percorre os cards de personalização que ainda estão SEM produtos,
+  // busca o pedido na LI pelo número e preenche pedido_produtos (cobre pedidos antigos).
+  if(q.fullbackfill==='1'){
+    try{
+      const fbLimit=Math.min(parseInt(q.fbLimit||'12',10),25);
+      const sel=await sbREST('GET','cards?select=id,pedido_numero&bordado_tipo=not.is.null&pedido_numero=not.is.null&pedido_produtos=is.null&order=pedido_numero.desc&limit='+fbLimit);
+      const cards=sel.j||[];
+      const restResp=await sbREST('GET','cards?select=pedido_numero&bordado_tipo=not.is.null&pedido_numero=not.is.null&pedido_produtos=is.null');
+      const totalRestante=(restResp.j||[]).length;
+      const imgCache={}; const results=[]; let updated=0, updErr=null;
+      for(const cd of cards){
+        const num=String(cd.pedido_numero); let d=null;
+        try{
+          const r=await liGet('/v1/pedido/?numero='+encodeURIComponent(num)+'&limit=1');
+          const o=(r.j&&r.j.objects&&r.j.objects[0])||null;
+          if(o&&o.resource_uri){ const dd=await liGet(o.resource_uri); d=dd.j||o; }
+          else { const dr=await liGet('/v1/pedido/'+num+'/'); if(dr.status>=200&&dr.status<300) d=dr.j; }
+        }catch(e){}
+        if(!d || !d.itens){ results.push({num, found:false}); continue; }
+        const rb=await buildProdutos(d.itens, imgCache);
+        const prod=(rb.produtos&&rb.produtos.length)?rb.produtos:null;
+        if(commit && prod){ const up=await sbREST('PATCH','cards?id=eq.'+cd.id, {pedido_produtos:prod}); if(up.status>=200&&up.status<300) updated++; else updErr=up.j; }
+        results.push({num, found:true, nProd:(rb.produtos||[]).length, temImg:!!(rb.produtos[0]&&rb.produtos[0].imagem_url)});
+      }
+      return res.status(200).json({fullbackfill:true, commit, processados:cards.length, updated, totalRestante, updErr, results});
+    }catch(e){ return res.status(500).json({error:e.message, stack:String(e.stack||'').slice(0,300)}); }
+  }
+
   try{
     const candidatos=[]; let pagina=0; let scanned=0; const perPage=50;
     while(scanned<limit){
