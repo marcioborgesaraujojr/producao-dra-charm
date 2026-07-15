@@ -2738,73 +2738,124 @@ window.openUsers = async () => {
   const body = document.getElementById('usersBody');
   body.innerHTML = '<div class="text-center text-slate-400 py-12">Carregando usuários...</div>';
   try {
-    const { data: users, error } = await sb.from('profiles').select('id, email, full_name, access').order('email');
+    const { data: users, error } = await sb.from('profiles').select('id, email, full_name, access, role').order('email');
     if (error) throw error;
     const { data: boardsList } = await sb.from('boards').select('id, name').order('name');
     const { data: allMembers } = await sb.from('board_members').select('board_id, user_id');
     const memberSet = new Set((allMembers||[]).map(m => m.board_id+'|'+m.user_id));
     const systems = [
-      {key:'quadros', label:'Quadros', color:'bg-pink-100 text-pink-700'},
-      {key:'cep', label:'CEP', color:'bg-blue-100 text-blue-700'},
-      {key:'atendimento', label:'Atendimento', color:'bg-amber-100 text-amber-700'},
-      {key:'marketing', label:'Marketing', color:'bg-purple-100 text-purple-700'},
-      {key:'cade_pedido', label:'Cadê Pedido', color:'bg-teal-100 text-teal-700'},
-      {key:'painel', label:'Painel', color:'bg-slate-200 text-slate-700'},
+      {key:'quadros', label:'Quadros'},
+      {key:'cep', label:'CEP'},
+      {key:'atendimento', label:'Atendimento'},
+      {key:'marketing', label:'Marketing'},
+      {key:'cade_pedido', label:'Cadê Pedido'},
+      {key:'painel', label:'Painel'},
     ];
-    body.innerHTML = `
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="border-b border-slate-200 dark:border-ink-700 text-left">
-              <th class="pb-3 pr-4 font-semibold text-slate-700 dark:text-slate-300">Usuário</th>
-              ${systems.map(s => `<th class="pb-3 px-2 text-center font-semibold text-xs text-slate-600 dark:text-slate-400"><span class="${s.color} px-2 py-1 rounded-md">${s.label}</span></th>`).join('')}
-              ${(boardsList||[]).map(b => `<th class="pb-3 px-2 text-center font-semibold text-xs text-slate-600 dark:text-slate-400"><span class="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 px-2 py-1 rounded-md whitespace-nowrap">📋 ${escapeHtml(b.name)}</span></th>`).join('')}
-            </tr>
-          </thead>
-          <tbody>
-            ${users.map(u => `
-              <tr class="border-b border-slate-100 dark:border-ink-700/50">
-                <td class="py-3 pr-4">
-                  <div class="font-medium text-slate-800 dark:text-slate-100">${escapeHtml(u.full_name || u.email.split('@')[0])}</div>
-                  <div class="text-xs text-slate-500">${escapeHtml(u.email)}</div>
-                </td>
-                ${systems.map(s => {
-                  const on = (u.access||{})[s.key] === true;
-                  return `<td class="py-3 px-2 text-center"><input type="checkbox" ${on?'checked':''} class="w-5 h-5 rounded cursor-pointer" data-uid="${u.id}" data-sys="${s.key}"></td>`;
-                }).join('')}
-                ${(boardsList||[]).map(b => {
-                  const on = memberSet.has(b.id+'|'+u.id);
-                  return `<td class="py-3 px-2 text-center"><input type="checkbox" ${on?'checked':''} class="w-5 h-5 rounded cursor-pointer accent-emerald-500" data-uid="${u.id}" data-board="${b.id}"></td>`;
-                }).join('')}
-              </tr>`).join('')}
-          </tbody>
-        </table>
-      </div>
-      <div class="mt-4 text-xs text-slate-500 text-center">Alterações são salvas automaticamente ao clicar</div>
-    `;
-    body.querySelectorAll('input[type=checkbox]').forEach(cb => {
-      cb.onchange = async () => {
-        const uid = cb.dataset.uid;
-        cb.disabled = true;
-        let error;
-        if (cb.dataset.board){
-          const bid = cb.dataset.board;
-          if (cb.checked){ ({ error } = await sb.from('board_members').insert({board_id: bid, user_id: uid, can_edit: true})); }
-          else { ({ error } = await sb.from('board_members').delete().eq('board_id', bid).eq('user_id', uid)); }
-        } else {
-          const sys = cb.dataset.sys;
-          const u = users.find(x => x.id === uid);
-          u.access = u.access || {};
-          u.access[sys] = cb.checked;
-          ({ error } = await sb.from('profiles').update({access: u.access}).eq('id', uid));
-        }
-        cb.disabled = false;
-        if (error) { cb.checked = !cb.checked; alert('Erro: '+error.message); }
-      };
-    });
+    window.__uc = { users, boards: boardsList||[], memberSet, systems };
+    renderUsersList();
   } catch(e){
-    body.innerHTML = '<div class="text-center text-red-500 py-12">Erro: '+e.message+'</div>';
+    document.getElementById('usersBody').innerHTML = '<div class="text-center text-red-500 py-12">Erro: '+e.message+'</div>';
   }
+};
+window.renderUsersList = () => {
+  const { users } = window.__uc;
+  const roleBadge = r => r==='admin'
+    ? '<span class="bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300 px-2 py-0.5 rounded-md text-xs font-medium">Administrador</span>'
+    : '<span class="bg-slate-100 text-slate-600 dark:bg-ink-700 dark:text-slate-300 px-2 py-0.5 rounded-md text-xs font-medium">Membro</span>';
+  document.getElementById('usersBody').innerHTML = `
+    <div class="divide-y divide-slate-100 dark:divide-ink-700/50">
+      ${users.map(u => `
+        <div class="flex items-center gap-3 py-3">
+          <div class="w-9 h-9 rounded-full bg-pink-500 text-white flex items-center justify-center font-semibold flex-shrink-0">${escapeHtml((u.full_name||u.email||'?').charAt(0).toUpperCase())}</div>
+          <div class="flex-1 min-w-0">
+            <div class="font-medium text-slate-800 dark:text-slate-100 truncate">${escapeHtml(u.full_name || u.email.split('@')[0])}</div>
+            <div class="text-xs text-slate-500 truncate">${escapeHtml(u.email)}</div>
+          </div>
+          <div class="hidden sm:block">${roleBadge(u.role)}</div>
+          <button onclick="editUserRow('${u.id}')" class="p-2 rounded-lg text-slate-400 hover:text-pink-600 hover:bg-slate-100 dark:hover:bg-ink-700" title="Editar">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          </button>
+        </div>`).join('')}
+    </div>`;
+};
+window.editUserRow = (uid) => {
+  const c = window.__uc;
+  const u = c.users.find(x => x.id === uid);
+  if (!u) return;
+  const acc = u.access || {};
+  document.getElementById('usersBody').innerHTML = `
+    <button onclick="renderUsersList()" class="text-sm text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 flex items-center gap-1 mb-4">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg> Usuários
+    </button>
+    <div class="space-y-6">
+      <section>
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">Dados do usuário</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div><label class="text-xs text-slate-500">Nome</label><input id="euNome" class="mt-1 w-full p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm" value="${escapeHtml(u.full_name||'')}"></div>
+          <div><label class="text-xs text-slate-500">E-mail</label><input class="mt-1 w-full p-2.5 rounded-lg border border-slate-200 dark:border-ink-700 bg-slate-100 dark:bg-ink-800 text-sm text-slate-500" value="${escapeHtml(u.email||'')}" disabled></div>
+        </div>
+      </section>
+      <section>
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">Nível de permissão</h3>
+        <select id="euRole" class="w-full sm:w-64 p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm">
+          <option value="member" ${u.role!=='admin'?'selected':''}>Membro</option>
+          <option value="admin" ${u.role==='admin'?'selected':''}>Administrador</option>
+        </select>
+      </section>
+      <section>
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">Módulos que pode acessar</h3>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          ${c.systems.map(s => `<label class="flex items-center gap-2 p-2 rounded-lg border border-slate-200 dark:border-ink-700 cursor-pointer hover:bg-slate-50 dark:hover:bg-ink-700"><input type="checkbox" class="w-4 h-4" data-sys="${s.key}" ${acc[s.key]===true?'checked':''}><span class="text-sm">${s.label}</span></label>`).join('')}
+        </div>
+      </section>
+      <section>
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">Quadros que pode ver</h3>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          ${c.boards.map(b => `<label class="flex items-center gap-2 p-2 rounded-lg border border-slate-200 dark:border-ink-700 cursor-pointer hover:bg-slate-50 dark:hover:bg-ink-700"><input type="checkbox" class="w-4 h-4 accent-emerald-500" data-board="${b.id}" ${c.memberSet.has(b.id+'|'+uid)?'checked':''}><span class="text-sm">${escapeHtml(b.name)}</span></label>`).join('')}
+        </div>
+      </section>
+      <section>
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">Senha</h3>
+        <button onclick="resetUserPassword('${escapeHtml(u.email)}', this)" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-ink-600 text-sm hover:bg-slate-50 dark:hover:bg-ink-700">Enviar link de redefinição de senha por e-mail</button>
+      </section>
+      <div class="flex items-center justify-end gap-3 pt-2 border-t border-slate-200 dark:border-ink-700">
+        <span id="euStatus" class="text-xs text-slate-500 mr-auto"></span>
+        <button onclick="renderUsersList()" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-ink-600 text-sm">Cancelar</button>
+        <button onclick="saveUserRow('${uid}', this)" class="px-5 py-2 rounded-lg bg-pink-600 text-white text-sm font-medium hover:bg-pink-700">Salvar alterações</button>
+      </div>
+    </div>`;
+};
+window.saveUserRow = async (uid, btn) => {
+  const c = window.__uc;
+  const u = c.users.find(x => x.id === uid);
+  const st = document.getElementById('euStatus');
+  btn.disabled = true; st.textContent = 'Salvando...'; st.className = 'text-xs text-slate-500 mr-auto';
+  try {
+    const full_name = document.getElementById('euNome').value.trim();
+    const role = document.getElementById('euRole').value;
+    const access = {};
+    document.querySelectorAll('#usersBody input[data-sys]').forEach(cb => { if (cb.checked) access[cb.dataset.sys] = true; });
+    const { error: e1 } = await sb.from('profiles').update({ full_name, role, access }).eq('id', uid);
+    if (e1) throw e1;
+    for (const b of c.boards) {
+      const desired = document.querySelector('#usersBody input[data-board="'+b.id+'"]').checked;
+      const current = c.memberSet.has(b.id+'|'+uid);
+      if (desired && !current) { const { error } = await sb.from('board_members').insert({ board_id: b.id, user_id: uid, can_edit: true }); if (error) throw error; c.memberSet.add(b.id+'|'+uid); }
+      else if (!desired && current) { const { error } = await sb.from('board_members').delete().eq('board_id', b.id).eq('user_id', uid); if (error) throw error; c.memberSet.delete(b.id+'|'+uid); }
+    }
+    u.full_name = full_name; u.role = role; u.access = access;
+    st.textContent = 'Salvo!'; st.className = 'text-xs text-emerald-600 mr-auto';
+    setTimeout(() => renderUsersList(), 700);
+  } catch(e){
+    st.textContent = 'Erro: '+e.message; st.className = 'text-xs text-red-600 mr-auto';
+  } finally { btn.disabled = false; }
+};
+window.resetUserPassword = async (email, btn) => {
+  if (!confirm('Enviar link de redefinição de senha para '+email+'?')) return;
+  const old = btn.textContent; btn.disabled = true; btn.textContent = 'Enviando...';
+  try { const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin }); if (error) throw error; btn.textContent = 'Link enviado ✔'; }
+  catch(e){ alert('Erro: '+e.message); btn.textContent = old; }
+  finally { btn.disabled = false; }
 };
 window.closeUsers = () => {
   document.getElementById('usersModal').classList.add('hidden');
