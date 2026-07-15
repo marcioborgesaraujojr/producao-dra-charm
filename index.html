@@ -2893,6 +2893,12 @@ window.editUserRow = (uid) => {
       </section>
       <section>
         <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">Senha</h3>
+        <div class="flex flex-wrap items-center gap-2 mb-3">
+          <input id="euNewPass" type="text" placeholder="Nova senha (mín. 6 caracteres)" class="p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm flex-1 min-w-[180px]">
+          <button onclick="adminSetPassword('${uid}', this)" class="px-4 py-2 rounded-lg bg-slate-800 text-white text-sm hover:bg-slate-900">Definir senha</button>
+          <span id="euPassStatus" class="text-xs text-slate-500"></span>
+        </div>
+        <p class="text-xs text-slate-400 mb-3">Define a senha na hora (você escolhe e passa pra pessoa). Ou use o link por e-mail abaixo pra ela mesma criar.</p>
         <button onclick="resetUserPassword('${escapeHtml(u.email)}', this)" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-ink-600 text-sm hover:bg-slate-50 dark:hover:bg-ink-700">Enviar link de redefinição de senha por e-mail</button>
       </section>
       <div class="flex items-center justify-end gap-3 pt-2 border-t border-slate-200 dark:border-ink-700">
@@ -2932,6 +2938,27 @@ window.resetUserPassword = async (email, btn) => {
   const old = btn.textContent; btn.disabled = true; btn.textContent = 'Enviando...';
   try { const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin }); if (error) throw error; btn.textContent = 'Link enviado ✔'; }
   catch(e){ alert('Erro: '+e.message); btn.textContent = old; }
+  finally { btn.disabled = false; }
+};
+window.adminSetPassword = async (uid, btn) => {
+  const inp = document.getElementById('euNewPass');
+  const st = document.getElementById('euPassStatus');
+  const pass = ((inp && inp.value) || '').trim();
+  if (pass.length < 6){ if(st){ st.className='text-xs text-red-600'; st.textContent='Mínimo 6 caracteres.'; } return; }
+  if (!confirm('Definir a senha desse usuário para "'+pass+'"?')) return;
+  const old = btn.textContent; btn.disabled = true; btn.textContent = 'Salvando...';
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const r = await fetch('/api/admin-set-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (session && session.access_token) },
+      body: JSON.stringify({ userId: uid, password: pass })
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || 'erro');
+    if(st){ st.className='text-xs text-emerald-600'; st.textContent='Senha definida ✔'; }
+    btn.textContent = 'Definido ✔';
+  } catch(e){ if(st){ st.className='text-xs text-red-600'; st.textContent='Erro: '+e.message; } btn.textContent = old; }
   finally { btn.disabled = false; }
 };
 window.closeUsers = () => {
