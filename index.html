@@ -84,6 +84,10 @@ tailwind.config = {
   .board-mem{transition:transform .12s ease, box-shadow .12s ease; cursor:default; position:relative}
   .board-mem:hover{transform:translateY(-3px) scale(1.14); z-index:20; box-shadow:0 5px 14px rgba(0,0,0,.28)}
   .modal-bg{background:rgba(0,0,0,.5);backdrop-filter:blur(2px)}
+  /* Empilhado de bordados no card (vários bordados por pedido) */
+  .bord-stack{position:relative}
+  .bord-stack .bord-layer{position:absolute;top:0;left:0;transition:transform .18s ease}
+  .bord-stack:hover .bord-layer:last-child{z-index:60 !important;transform:translate(0,0) !important}
   /* Modo só leitura (usuário sem permissão de edição no quadro) */
   body.board-readonly #tab-details{pointer-events:none}
   body.board-readonly #cardTitle{pointer-events:none;background:transparent}
@@ -1094,6 +1098,32 @@ function bordadoBackgroundFromCard(c){
   return null;
 }
 
+// Cores pra identificar cada bordado do pedido (card + card aberto)
+const BORDADO_PALETTE = ['#f59e0b','#3b82f6','#10b981','#ec4899','#8b5cf6','#ef4444','#14b8a6','#f97316'];
+// Lista de bordados de um card (um por produto personalizado). Cai no bordado do card se não tiver por-produto.
+function bordadosDoCard(c){
+  const arr = Array.isArray(c.pedido_produtos) ? c.pedido_produtos.filter(p => p.bordado && p.bordadoInfo) : [];
+  if (arr.length) return arr.map((p,i)=>({ info:p.bordadoInfo, nome:p.nome, sku:p.sku, cor:BORDADO_PALETTE[i%BORDADO_PALETTE.length] }));
+  // fallback: bordado único do card (dados antigos)
+  if (c.bordado_tipo || c.bordado_linha1 || c.bordado_imagem_url){
+    return [{ info:{ tipo:c.bordado_tipo, linha1:c.bordado_linha1, linha2:c.bordado_linha2, corHex:c.bordado_cor_hex, corNome:c.bordado_cor_nome, fonte:c.bordado_fonte, lado:c.bordado_lado, imagem:c.bordado_imagem_url, detalhes:c.bordado_detalhes }, nome:null, sku:null, cor:BORDADO_PALETTE[0] }];
+  }
+  return [];
+}
+// Renderiza o preview de UM bordado (logo ou texto na fonte/cor, fundo = cor da peça)
+function bordadoPreviewFromInfo(info, prodNome, size){
+  const w=size, h=size;
+  if ((info.tipo==='logomarca' || info.tipo==='ambos') && info.imagem){
+    return `<img src="${escapeHtml(info.imagem)}" style="width:${w}px;height:${h}px;object-fit:contain;background:#fff" class="rounded-lg block" loading="lazy" onerror="this.style.display='none'" title="${escapeHtml(prodNome||'')}"/>`;
+  }
+  const fontFam=bordadoFontFamily(info.fonte);
+  const cor=info.corHex||'#333';
+  const peca=matchProductColor(prodNome||'');
+  const bg = peca ? peca.hex : (isLightColor(cor) ? '#0f172a' : '#e2e8f0');
+  const l1=escapeHtml((info.linha1||'').slice(0,28));
+  const l2=escapeHtml((info.linha2||'').slice(0,28));
+  return `<div class="bordado-preview fabric-weave rounded-lg block" style="width:${w}px;height:${h}px;background-color:${bg}" title="${escapeHtml(prodNome||'')}"><div style="font-family:${fontFam};line-height:1.25;text-align:center;padding:4px;overflow:hidden;--thread-color:${cor}"><div class="bordado-thread" style="font-size:${size>100?13:11}px">${l1}</div>${l2?`<div class="bordado-thread" style="font-size:${size>100?10:9}px;margin-top:2px">${l2}</div>`:''}</div></div>`;
+}
 // Mapeia fonte do LI para a fonte native carregada (mesma do site dracharm.com.br)
 function bordadoFontFamily(fonteName){
   const n = (fonteName || '').toLowerCase();
@@ -1560,19 +1590,15 @@ function renderCard(c, compact){
   // Cover normal: foto do produto. Bordado: preview de texto ou thumb da logomarca.
   let cover = '';
   if (bType === 'bordado'){
-    if ((c.bordado_tipo === 'logomarca' || c.bordado_tipo === 'ambos') && c.bordado_imagem_url){
-      // Logomarca: thumb da imagem
-      cover = `<img src="${escapeHtml(c.bordado_imagem_url)}" class="product-cover ${compact?'product-cover-compact':'product-cover-normal'}" loading="lazy" onerror="this.style.display='none'" title="Logo do cliente"/>`;
-    } else if (c.bordado_linha1 || c.bordado_linha2){
-      // Nome/profissão: preview texto na fonte + cor do pedido. Fundo = cor da peça
-      const fontFam = bordadoFontFamily(c.bordado_fonte);
-      const cor = c.bordado_cor_hex || '#333';
-      const pecaCor = bordadoBackgroundFromCard(c);
-      const bgStyle = pecaCor ? `background-color:${pecaCor.hex}` : (isLightColor(cor) ? 'background-color:#0f172a' : '');
-      const w = compact ? 88 : 120, h = compact ? 88 : 120;
-      const l1 = escapeHtml((c.bordado_linha1||'').slice(0,28));
-      const l2 = escapeHtml((c.bordado_linha2||'').slice(0,28));
-      cover = `<div class="bordado-preview fabric-weave" style="width:${w}px;height:${h}px;${bgStyle}" title="${l1} ${l2}"><div style="font-family:${fontFam};line-height:1.3;text-align:center;padding:4px;overflow:hidden;--thread-color:${cor}"><div class="bordado-thread" style="font-size:${compact?11:14}px">${l1}</div>${l2?`<div class="bordado-thread" style="font-size:${compact?9:11}px;margin-top:2px">${l2}</div>`:''}</div></div>`;
+    // Vários bordados por pedido: empilhado com contador + hover revela o de trás. Cada um com sua cor.
+    const bords = bordadosDoCard(c);
+    const size = compact ? 88 : 120;
+    if (bords.length){
+      const off = 6;
+      const layers = bords.map((b,i)=>`<div class="bord-layer" style="box-shadow:0 0 0 3px ${b.cor};border-radius:9px;transform:translate(${i*off}px,${i*off}px);z-index:${bords.length-i}">${bordadoPreviewFromInfo(b.info, b.nome, size)}</div>`).join('');
+      const dim = size + (bords.length-1)*off;
+      const badge = bords.length>1 ? `<div style="position:absolute;bottom:-3px;right:-3px;z-index:70;background:#0f172a;color:#fff;font-size:10px;font-weight:800;border-radius:999px;min-width:18px;height:18px;display:flex;align-items:center;justify-content:center;padding:0 4px" title="${bords.length} bordados neste pedido">${bords.length}</div>` : '';
+      cover = `<div class="bord-stack shrink-0" style="width:${dim}px;height:${dim}px" title="${bords.length>1?'Passe o mouse pra ver o outro bordado':''}">${layers}${badge}</div>`;
     }
   } else if (c.cover_url){
     cover = `<img src="${escapeHtml(c.cover_url)}" class="product-cover ${compact?'product-cover-compact':'product-cover-normal'}" loading="lazy" onerror="this.style.display='none'"/>`;
