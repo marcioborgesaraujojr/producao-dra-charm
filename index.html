@@ -84,10 +84,8 @@ tailwind.config = {
   .board-mem{transition:transform .12s ease, box-shadow .12s ease; cursor:default; position:relative}
   .board-mem:hover{transform:translateY(-3px) scale(1.14); z-index:20; box-shadow:0 5px 14px rgba(0,0,0,.28)}
   .modal-bg{background:rgba(0,0,0,.5);backdrop-filter:blur(2px)}
-  /* Empilhado de bordados no card (vários bordados por pedido) */
+  /* Empilhado de bordados no card (estilo checkout: card + card caidinho atrás) */
   .bord-stack{position:relative}
-  .bord-stack .bord-layer{position:absolute;top:0;left:0;transition:transform .18s ease}
-  .bord-stack:hover .bord-layer:last-child{z-index:60 !important;transform:translate(0,0) !important}
   /* Modo só leitura (usuário sem permissão de edição no quadro) */
   body.board-readonly #tab-details{pointer-events:none}
   body.board-readonly #cardTitle{pointer-events:none;background:transparent}
@@ -665,6 +663,7 @@ tailwind.config = {
         </div>
         <input id="cardCoverInputHeader" type="file" accept="image/*" class="hidden">
       </div>
+      <div id="cardHeroDots" class="hidden absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-20" style="top:132px"></div>
       <button id="cardHeaderCoverRemove" class="hidden absolute top-3 right-14 bg-white/95 hover:bg-white text-slate-700 rounded-lg w-9 h-9 flex items-center justify-center shadow-md" title="Remover foto">
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
       </button>
@@ -1594,11 +1593,15 @@ function renderCard(c, compact){
     const bords = bordadosDoCard(c);
     const size = compact ? 88 : 120;
     if (bords.length){
-      const off = 6;
-      const layers = bords.map((b,i)=>`<div class="bord-layer" style="box-shadow:0 0 0 3px ${b.cor};border-radius:9px;transform:translate(${i*off}px,${i*off}px);z-index:${bords.length-i}">${bordadoPreviewFromInfo(b.info, b.nome, size)}</div>`).join('');
-      const dim = size + (bords.length-1)*off;
-      const badge = bords.length>1 ? `<div style="position:absolute;bottom:-3px;right:-3px;z-index:70;background:#0f172a;color:#fff;font-size:10px;font-weight:800;border-radius:999px;min-width:18px;height:18px;display:flex;align-items:center;justify-content:center;padding:0 4px" title="${bords.length} bordados neste pedido">${bords.length}</div>` : '';
-      cover = `<div class="bord-stack shrink-0" style="width:${dim}px;height:${dim}px" title="${bords.length>1?'Passe o mouse pra ver o outro bordado':''}">${layers}${badge}</div>`;
+      // Estilo checkout: card da frente + (se tiver mais) um card caidinho atrás, mesma bordinha branca e sombra
+      const cardCss = 'position:absolute;top:7px;left:7px;border:3px solid #fff;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,.3);background:#fff;overflow:hidden';
+      const back = bords.length>1
+        ? `<div class="bord-layer" style="${cardCss};transform:rotate(-8deg) translate(-5px,4px);z-index:1">${bordadoPreviewFromInfo(bords[1].info, bords[1].nome, size)}</div>`
+        : '';
+      const front = `<div class="bord-layer" style="${cardCss};z-index:2">${bordadoPreviewFromInfo(bords[0].info, bords[0].nome, size)}</div>`;
+      const dim = size + 20;
+      const badge = bords.length>1 ? `<div style="position:absolute;bottom:0;right:0;z-index:10;background:#0f172a;color:#fff;font-size:10px;font-weight:800;border-radius:999px;min-width:19px;height:19px;display:flex;align-items:center;justify-content:center;padding:0 5px;box-shadow:0 1px 4px rgba(0,0,0,.4)" title="${bords.length} bordados neste pedido">${bords.length}</div>` : '';
+      cover = `<div class="bord-stack shrink-0" style="position:relative;width:${dim}px;height:${dim}px">${back}${front}${badge}</div>`;
     }
   } else if (c.cover_url){
     cover = `<img src="${escapeHtml(c.cover_url)}" class="product-cover ${compact?'product-cover-compact':'product-cover-normal'}" loading="lazy" onerror="this.style.display='none'"/>`;
@@ -1860,11 +1863,13 @@ async function openCard(id){
       prodList.classList.toggle('hidden', !isOpen);
       const chev = document.getElementById('cardProdutosChevron');
       if (chev) chev.style.transform = isOpen ? 'rotate(180deg)' : '';
-      prodList.innerHTML = produtos.map(p => `
+      const _bordsCor = bordadosDoCard(c);
+      const corPorSku = {}; _bordsCor.forEach(b => { if (b.sku) corPorSku[String(b.sku).toLowerCase()] = b.cor; });
+      prodList.innerHTML = produtos.map(p => { const _cor = p.bordado ? (corPorSku[String(p.sku||'').toLowerCase()] || BORDADO_PALETTE[0]) : null; return `
         <div class="produto-item p-2 rounded-lg ${p.bordado ? 'produto-bordado' : 'bg-slate-50 dark:bg-ink-700 border-slate-200 dark:border-ink-600'} border flex gap-3 items-center relative">
-          ${p.bordado ? `<div class="produto-badge-bordar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19 7-7 3 3-7 7-3-3z"/><path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="m2 2 7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg><span>Personalização</span></div>` : ''}
+          ${p.bordado ? `<div class="produto-badge-bordar" style="background:${_cor}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19 7-7 3 3-7 7-3-3z"/><path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="m2 2 7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg><span>Personalização</span></div>` : ''}
           ${p.imagem_url
-            ? `<img src="${escapeHtml((p.imagem_url||'').replace(/\/64x64\//,'/500x500/'))}" class="produto-thumb ${p.bordado ? 'produto-thumb-bordado' : ''}" onerror="this.style.display='none'"/>`
+            ? `<img src="${escapeHtml((p.imagem_url||'').replace(/\/64x64\//,'/500x500/'))}" class="produto-thumb ${p.bordado ? 'produto-thumb-bordado' : ''}" ${_cor?`style="box-shadow:0 0 0 3px ${_cor}"`:''} onerror="this.style.display='none'"/>`
             : `<div class="produto-thumb flex items-center justify-center text-slate-400"><svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg></div>`}
           <div class="flex-1 min-w-0 text-xs">
             <div class="font-semibold text-sm 'text-slate-800 dark:text-slate-100' leading-tight truncate">${escapeHtml(p.nome || '')}</div>
@@ -1874,7 +1879,7 @@ async function openCard(id){
               ${p.qtd ? `<span><b>Qtd:</b> ${p.qtd}</span>` : ''}
             </div>
           </div>
-        </div>`).join('');
+        </div>`; }).join('');
     } else {
       prodBox.classList.add('hidden');
     }
@@ -1919,6 +1924,7 @@ async function openCard(id){
   tecSel.innerHTML = '<option value="">—</option>' + tecidos.map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
   tecSel.value = c.tecido_id || '';
   renderCardMembers();
+  _heroIdx = 0;
   renderCardCover(c);
   await loadChecklists(id);
   await loadComments(id);
@@ -2010,16 +2016,15 @@ document.addEventListener('input', e => {
   }
 });
 
+let _heroIdx = 0;
 function renderCardCover(c){
   const img = document.getElementById('cardHeaderCoverImg');
   const plus = document.getElementById('cardHeaderCoverPlus');
   const textPreview = document.getElementById('cardHeaderTextPreview');
   const rm = document.getElementById('cardHeaderCoverRemove');
   const hero = document.getElementById('cardHeroCover');
+  const dots = document.getElementById('cardHeroDots');
   const bType = boardType(currentBoardId);
-  const useLogo = bType === 'bordado' && (c.bordado_tipo === 'logomarca' || c.bordado_tipo === 'ambos') && c.bordado_imagem_url;
-  const useTextPreview = bType === 'bordado' && c.bordado_tipo === 'nome_profissao' && (c.bordado_linha1 || c.bordado_linha2);
-  const src = useLogo ? c.bordado_imagem_url : c.cover_url;
   // Reset
   img.classList.add('hidden');
   plus.classList.add('hidden');
@@ -2028,28 +2033,51 @@ function renderCardCover(c){
   hero.style.backgroundColor = '#eaeaea';
   hero.style.backgroundImage = '';
   hero.classList.remove('fabric-weave');
-  if (useTextPreview){
-    // Preview de texto com fonte + cor real. Fundo = cor da peça (via nome do produto)
-    const fam = bordadoFontFamily(c.bordado_fonte);
-    const cor = c.bordado_cor_hex || '#333';
-    const pecaCor = bordadoBackgroundFromCard(c);
-    if (pecaCor) hero.style.backgroundColor = pecaCor.hex;
-    else if (isLightColor(cor)) hero.style.backgroundColor = '#0f172a';
-    // Adiciona a trama do tecido como overlay
-    hero.classList.add('fabric-weave');
-    textPreview.innerHTML = `<div style="font-family:${fam};line-height:1.3;--thread-color:${cor}">
-      <div class="bordado-thread" style="font-size:56px">${escapeHtml(c.bordado_linha1||'')}</div>
-      ${c.bordado_linha2 ? `<div class="bordado-thread" style="font-size:38px;margin-top:6px">${escapeHtml(c.bordado_linha2)}</div>` : ''}
-    </div>`;
-    textPreview.style.display = 'flex';
-  } else if (src){
-    img.src = src;
-    img.classList.remove('hidden');
-    if (!useLogo) rm.classList.remove('hidden');
-  } else {
-    plus.classList.remove('hidden');
+  if (dots){ dots.classList.add('hidden'); dots.innerHTML=''; }
+
+  // Bordado: carrossel (só leitura) dos bordados de cada produto do pedido
+  const bords = (bType === 'bordado') ? bordadosDoCard(c) : [];
+  if (bType === 'bordado' && bords.length){
+    if (_heroIdx >= bords.length) _heroIdx = 0;
+    const b = bords[_heroIdx]; const info = b.info;
+    if ((info.tipo === 'logomarca' || info.tipo === 'ambos') && info.imagem){
+      img.src = info.imagem; img.classList.remove('hidden');
+    } else if (info.linha1 || info.linha2){
+      const fam = bordadoFontFamily(info.fonte);
+      const cor = info.corHex || '#333';
+      const peca = matchProductColor(b.nome||'');
+      if (peca) hero.style.backgroundColor = peca.hex;
+      else if (isLightColor(cor)) hero.style.backgroundColor = '#0f172a';
+      hero.classList.add('fabric-weave');
+      textPreview.innerHTML = `<div style="font-family:${fam};line-height:1.3;--thread-color:${cor}">
+        <div class="bordado-thread" style="font-size:56px">${escapeHtml(info.linha1||'')}</div>
+        ${info.linha2 ? `<div class="bordado-thread" style="font-size:38px;margin-top:6px">${escapeHtml(info.linha2)}</div>` : ''}
+      </div>`;
+      textPreview.style.display = 'flex';
+    } else {
+      plus.classList.remove('hidden');
+    }
+    // Bolinhas: uma por bordado, na cor do bordado; a selecionada fica maior
+    if (bords.length > 1 && dots){
+      dots.classList.remove('hidden');
+      dots.innerHTML = bords.map((bb,i)=>`<button type="button" data-heroidx="${i}" title="${escapeHtml(bb.nome||('Bordado '+(i+1)))}" style="width:${i===_heroIdx?24:11}px;height:11px;border-radius:999px;background:${bb.cor};opacity:${i===_heroIdx?1:.6};border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);cursor:pointer;transition:all .15s"></button>`).join('');
+    }
+    return;
   }
+  // Outros boards: foto de capa normal
+  const src = c.cover_url;
+  if (src){ img.src = src; img.classList.remove('hidden'); rm.classList.remove('hidden'); }
+  else { plus.classList.remove('hidden'); }
 }
+// Clicar numa bolinha troca o bordado exibido (só leitura)
+document.addEventListener('click', e => {
+  const dot = e.target.closest('#cardHeroDots [data-heroidx]');
+  if (!dot) return;
+  e.stopPropagation();
+  _heroIdx = parseInt(dot.dataset.heroidx) || 0;
+  const c = cards.find(x => x.id === activeCardId);
+  if (c) renderCardCover(c);
+});
 document.addEventListener('click', e => {
   const cover = document.getElementById('cardHeroCover');
   if (cover && cover.contains(e.target) && !e.target.closest('#cardHeaderCoverRemove')){
