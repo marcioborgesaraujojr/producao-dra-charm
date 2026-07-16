@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Workflows — Sistema Grupo Aragão</title>
+<link rel="icon" type="image/png" href="https://cdn.awsli.com.br/1930/1930166/arquivos/logo.png">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
+  ink:{900:'#0b1220',800:'#111827',700:'#1f2937',600:'#374151'}, accent:{DEFAULT:'#e91e63',600:'#db2777'} }}}};
+</script>
+<style>
+  html{background:#f1f5f9}html.dark{background:#0b1220}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0}
+  .fld{width:100%;padding:8px 10px;font-size:14px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0;outline:none}
+  .fld:focus{border-color:#db2777}.dark .fld{background:#1f2937;border-color:#374151;color:#e5e7eb}
+  label{font-size:12px;color:#64748b;font-weight:600}
+  .bin{background:#fff;border:1px solid #eef2f7}.dark .bin{background:#1f2937;border-color:#334155}
+  .switch{width:38px;height:22px;border-radius:999px;background:#cbd5e1;position:relative;cursor:pointer;transition:.15s;flex-shrink:0}
+  .switch[data-on="1"]{background:#db2777}.switch::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.15s}
+  .switch[data-on="1"]::after{left:19px}.dark .switch{background:#374151}
+  .step{border-left:3px solid #db2777}
+  [data-fade]{animation:fade .18s ease}@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body class="text-slate-800 dark:text-slate-100">
+
+<div id="authGate" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-50 dark:bg-ink-900">
+  <div class="text-center">
+    <div class="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-pink-500 to-rose-500 text-white font-bold text-2xl flex items-center justify-center mb-4">A</div>
+    <div class="font-semibold mb-1">Workflows</div><div class="text-sm text-slate-500 mb-4">Faça login na Suíte para acessar.</div>
+    <a href="/" class="inline-block text-sm font-semibold text-white bg-pink-500 hover:bg-pink-600 px-4 py-2 rounded-lg">Ir para o login</a>
+  </div>
+</div>
+
+<div id="appWrap" class="hidden max-w-5xl mx-auto">
+<header class="h-14 flex items-center justify-between px-4 bg-white/95 dark:bg-ink-800/95 border-b border-slate-200 dark:border-ink-600 sticky top-0 z-30 backdrop-blur">
+  <div class="flex items-center gap-3">
+    <button onclick="location.href='/'" title="Voltar à Suíte" class="w-9 h-9 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 text-white font-bold flex items-center justify-center shadow hover:scale-105 transition">A</button>
+    <div class="leading-tight"><div class="text-sm font-semibold">Workflows</div><div class="text-[11px] text-slate-500 dark:text-slate-400">Fluxos de automação · Grupo Aragão</div></div>
+  </div>
+  <div class="flex items-center gap-1">
+    <button onclick="location.href='/'" class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 flex items-center justify-center text-slate-500" title="Voltar"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg></button>
+    <button onclick="document.documentElement.classList.toggle('dark')" class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 flex items-center justify-center text-slate-500" title="Tema"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+  </div>
+</header>
+
+<div class="p-4 grid md:grid-cols-3 gap-4">
+  <!-- Lista -->
+  <div>
+    <div class="flex items-center justify-between mb-2"><span class="text-sm font-semibold">Meus workflows</span>
+      <button onclick="novo()" class="text-xs font-semibold text-white bg-pink-500 hover:bg-pink-600 px-2.5 py-1.5 rounded-lg">+ Novo</button></div>
+    <div id="lista" class="space-y-2"></div>
+  </div>
+  <!-- Editor -->
+  <div class="md:col-span-2">
+    <div id="editorVazio" class="bin rounded-xl p-8 text-center text-sm text-slate-400">Selecione ou crie um workflow.</div>
+    <div id="editor" class="hidden space-y-3">
+      <div class="flex items-center gap-3">
+        <input id="wfNome" class="fld font-semibold" placeholder="Nome do workflow">
+        <div class="flex items-center gap-2 shrink-0"><span class="text-[11px] text-slate-400">Ativo</span><div id="wfAtivo" class="switch" data-on="0" onclick="this.dataset.on=this.dataset.on==='1'?'0':'1'"></div></div>
+      </div>
+      <input id="wfDesc" class="fld" placeholder="Descrição (opcional)">
+      <div><label>Gatilho de disparo</label>
+        <select id="wfGatilho" class="fld mt-1">
+          <optgroup label="Leads / listas"><option value="lead.created">Lead criado</option><option value="lead.list_added">Lead adicionado à lista</option><option value="lead.list_removed">Lead removido da lista</option></optgroup>
+          <optgroup label="Pedido (Loja Integrada)"><option value="order.paid">Pagamento aprovado</option><option value="order.delivered">Pedido entregue</option><option value="order.canceled">Pedido cancelado</option><option value="order.abandoned">Carrinho abandonado</option></optgroup>
+        </select>
+      </div>
+      <div>
+        <div class="flex items-center justify-between mb-1"><label>Passos do fluxo</label></div>
+        <div id="steps" class="space-y-2"></div>
+        <div class="flex flex-wrap gap-2 mt-2">
+          <button onclick="addStep('mensagem')" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-pink-50 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300">+ Enviar mensagem</button>
+          <button onclick="addStep('espera')" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">+ Esperar</button>
+          <button onclick="addStep('tag')" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">+ Aplicar tag</button>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 pt-2">
+        <button id="btnSalvar" onclick="salvar()" class="text-sm font-semibold px-4 py-2.5 rounded-lg bg-pink-500 hover:bg-pink-600 text-white">Salvar workflow</button>
+        <button onclick="excluir()" class="text-sm px-4 py-2.5 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">Excluir</button>
+      </div>
+      <div class="text-[11px] text-slate-400">A execução (com as esperas) roda quando o WhatsApp estiver conectado; as mensagens do fluxo entram na Fila de envios.</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+const SUPA = { url:'https://wwytzoyeibekhstinott.supabase.co', key:'sb_publishable_uMoCEK4Ed_u8ZIfjVZ7Jrg_tdR4b9bO' };
+let sb=null, WFS=[], SEL=null, STEPS=[];
+async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2'); sb=createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true}}); } return sb; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[x])); }
+
+async function bootstrap(){
+  const c=await getSb(); const { data:{ session } }=await c.auth.getSession();
+  if(!session){ document.getElementById('authGate').classList.remove('hidden'); return; }
+  document.getElementById('appWrap').classList.remove('hidden');
+  carregar();
+}
+async function carregar(){
+  const c=await getSb();
+  const { data }=await c.from('at_workflows').select('*').order('created_at',{ascending:false});
+  WFS=data||[]; renderLista();
+}
+function renderLista(){
+  const el=document.getElementById('lista');
+  if(!WFS.length){ el.innerHTML='<div class="bin rounded-xl p-6 text-center text-sm text-slate-400">Nenhum workflow.</div>'; return; }
+  el.innerHTML=WFS.map(w=>`
+    <div class="bin rounded-xl p-3 cursor-pointer ${SEL===w.id?'ring-2 ring-pink-400':''}" onclick="abrir('${w.id}')" data-fade>
+      <div class="flex items-center justify-between"><span class="font-semibold text-sm truncate">${esc(w.nome)}</span>
+        <span class="text-[10px] px-2 py-0.5 rounded-full ${w.ativo?'bg-emerald-100 text-emerald-700':'bg-slate-200 text-slate-600'}">${w.ativo?'ativo':'inativo'}</span></div>
+      <div class="text-[11px] text-slate-400 mt-0.5">${esc(w.gatilho)}</div>
+    </div>`).join('');
+}
+function novo(){ SEL='novo'; STEPS=[]; document.getElementById('editorVazio').classList.add('hidden'); document.getElementById('editor').classList.remove('hidden');
+  document.getElementById('wfNome').value='Novo workflow'; document.getElementById('wfDesc').value=''; document.getElementById('wfAtivo').dataset.on=0; document.getElementById('wfGatilho').value='lead.created'; renderSteps(); renderLista(); }
+async function abrir(id){
+  SEL=id; const c=await getSb(); const w=WFS.find(x=>x.id===id);
+  const { data:steps }=await c.from('at_workflow_steps').select('*').eq('workflow_id',id).order('ordem');
+  STEPS=(steps||[]).map(s=>({tipo:s.tipo, ...s.config}));
+  document.getElementById('editorVazio').classList.add('hidden'); document.getElementById('editor').classList.remove('hidden');
+  document.getElementById('wfNome').value=w.nome||''; document.getElementById('wfDesc').value=w.descricao||'';
+  document.getElementById('wfAtivo').dataset.on=w.ativo?1:0; document.getElementById('wfGatilho').value=w.gatilho||'lead.created';
+  renderSteps(); renderLista();
+}
+function addStep(tipo){ STEPS.push(tipo==='mensagem'?{tipo,texto:''}:tipo==='espera'?{tipo,horas:1}:{tipo,nome:''}); renderSteps(); }
+function delStep(i){ STEPS.splice(i,1); renderSteps(); }
+function moveStep(i,d){ const j=i+d; if(j<0||j>=STEPS.length) return; const t=STEPS[i]; STEPS[i]=STEPS[j]; STEPS[j]=t; renderSteps(); }
+function upd(i,campo,v){ STEPS[i][campo]=v; }
+function renderSteps(){
+  const el=document.getElementById('steps');
+  if(!STEPS.length){ el.innerHTML='<div class="text-xs text-slate-400 py-2">Nenhum passo ainda. Adicione abaixo.</div>'; return; }
+  el.innerHTML=STEPS.map((s,i)=>{
+    let corpo='';
+    if(s.tipo==='mensagem') corpo=`<textarea class="fld mt-1" rows="2" oninput="upd(${i},'texto',this.value)" placeholder="Mensagem… use {{nome}}">${esc(s.texto||'')}</textarea>`;
+    else if(s.tipo==='espera') corpo=`<div class="flex items-center gap-2 mt-1"><input type="number" min="0" class="fld w-24" value="${s.horas||1}" oninput="upd(${i},'horas',this.value)"><span class="text-sm text-slate-500">horas</span></div>`;
+    else corpo=`<input class="fld mt-1" value="${esc(s.nome||'')}" oninput="upd(${i},'nome',this.value)" placeholder="Nome da tag">`;
+    const nome={mensagem:'Enviar mensagem',espera:'Esperar',tag:'Aplicar tag'}[s.tipo];
+    return `<div class="bin step rounded-lg p-3" data-fade>
+      <div class="flex items-center justify-between">
+        <span class="text-[13px] font-semibold">${i+1}. ${nome}</span>
+        <div class="flex items-center gap-1 text-slate-400">
+          <button onclick="moveStep(${i},-1)" class="hover:text-pink-600">▲</button>
+          <button onclick="moveStep(${i},1)" class="hover:text-pink-600">▼</button>
+          <button onclick="delStep(${i})" class="hover:text-red-500">✕</button>
+        </div>
+      </div>${corpo}
+    </div>`;
+  }).join('');
+}
+async function salvar(){
+  const btn=document.getElementById('btnSalvar'); btn.textContent='Salvando…'; btn.disabled=true;
+  const payload={ nome:document.getElementById('wfNome').value||'Workflow', descricao:document.getElementById('wfDesc').value,
+    ativo:document.getElementById('wfAtivo').dataset.on==='1', gatilho:document.getElementById('wfGatilho').value, updated_at:new Date().toISOString() };
+  try{ const c=await getSb(); let id=SEL;
+    if(SEL==='novo'){ const { data, error }=await c.from('at_workflows').insert(payload).select().single(); if(error) throw error; id=data.id; SEL=id; }
+    else { const { error }=await c.from('at_workflows').update(payload).eq('id',id); if(error) throw error; }
+    await c.from('at_workflow_steps').delete().eq('workflow_id',id);
+    if(STEPS.length){ const rows=STEPS.map((s,i)=>{ const {tipo,...rest}=s; return {workflow_id:id, ordem:i, tipo, config:rest}; });
+      const { error:e2 }=await c.from('at_workflow_steps').insert(rows); if(e2) throw e2; }
+    btn.textContent='Salvo ✓'; await carregar();
+  }catch(e){ alert('Erro: '+e.message); btn.textContent='Salvar workflow'; }
+  finally{ btn.disabled=false; setTimeout(()=>btn.textContent='Salvar workflow',1500); }
+}
+async function excluir(){ if(SEL==='novo'){ document.getElementById('editor').classList.add('hidden'); document.getElementById('editorVazio').classList.remove('hidden'); return; }
+  if(!confirm('Excluir este workflow?')) return;
+  try{ await (await getSb()).from('at_workflows').delete().eq('id',SEL); SEL=null; document.getElementById('editor').classList.add('hidden'); document.getElementById('editorVazio').classList.remove('hidden'); carregar(); }
+  catch(e){ alert('Erro: '+e.message); } }
+bootstrap();
+</script>
+<script src="/nav.js"></script>
+</body>
+</html>
