@@ -72,9 +72,10 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
       <div class="flex items-center gap-2">
         <div class="relative flex-1">
           <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-          <input id="search" oninput="renderList()" placeholder="Busque por email, nome ou telefone"
+          <input id="search" oninput="renderList()" placeholder="Busque por nome, telefone ou pedido"
                  class="w-full pl-9 pr-3 py-2 text-sm rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-pink-500 outline-none">
         </div>
+        <button onclick="abrirNovaConversa()" title="Nova conversa" class="shrink-0 w-9 h-9 rounded-lg bg-pink-500 hover:bg-pink-600 text-white flex items-center justify-center"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
       </div>
     </div>
     <div id="convList" class="flex-1 overflow-y-auto list-scroll"></div>
@@ -126,6 +127,26 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
 </div>
 </div>
 
+<!-- Modal: Nova conversa -->
+<div id="novaConversaModal" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,.5);backdrop-filter:blur(2px)">
+  <div class="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-[92%] max-w-md p-5" data-fade>
+    <div class="flex items-center justify-between mb-4"><span class="font-semibold">Nova conversa</span>
+      <button onclick="fecharNovaConversa()" class="icon-btn"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="space-y-3">
+      <div><label class="text-[11px] text-slate-400">Nome do cliente *</label><input id="ncNome" class="w-full mt-0.5 p-2 text-sm rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-pink-500 outline-none"></div>
+      <div class="flex gap-3">
+        <div class="flex-1"><label class="text-[11px] text-slate-400">Telefone</label><input id="ncTel" placeholder="(85) 90000-0000" class="w-full mt-0.5 p-2 text-sm rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-pink-500 outline-none"></div>
+        <div class="flex-1"><label class="text-[11px] text-slate-400">Nº do pedido</label><input id="ncPedido" placeholder="opcional" class="w-full mt-0.5 p-2 text-sm rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-pink-500 outline-none"></div>
+      </div>
+      <div><label class="text-[11px] text-slate-400">Email</label><input id="ncEmail" placeholder="opcional" class="w-full mt-0.5 p-2 text-sm rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-pink-500 outline-none"></div>
+    </div>
+    <div class="flex justify-end gap-2 mt-5">
+      <button onclick="fecharNovaConversa()" class="text-sm px-4 py-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-ink-700">Cancelar</button>
+      <button id="ncSalvar" onclick="salvarNovaConversa()" class="text-sm font-semibold px-4 py-2 rounded-lg bg-pink-500 hover:bg-pink-600 text-white">Criar conversa</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ===== Config ===== */
 const SUPA = { url:'https://wwytzoyeibekhstinott.supabase.co', key:'sb_publishable_uMoCEK4Ed_u8ZIfjVZ7Jrg_tdR4b9bO' };
@@ -140,7 +161,7 @@ const QUICK_REPLIES = [
 ];
 const CORES = ['#ec4899','#f59e0b','#3b82f6','#14b8a6','#a855f7','#22c55e','#ef4444','#0ea5e9'];
 
-let sb=null, CONVERSAS=[], TAB='minhas', SEL=null, NOTA=false;
+let sb=null, CONVERSAS=[], TAB='minhas', SEL=null, NOTA=false, PROFILES=[];
 async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2'); sb=createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true}}); } return sb; }
 const cur=()=>CONVERSAS.find(x=>x.id===SEL);
 
@@ -148,7 +169,7 @@ const cur=()=>CONVERSAS.find(x=>x.id===SEL);
 async function loadConversas(){
   const c = await getSb();
   const { data, error } = await c.from('at_conversas')
-    .select('*, cliente:at_clientes(*), mensagens:at_mensagens(*), tags:at_conversa_tags(tag:at_tags(*))')
+    .select('*, cliente:at_clientes(*), atendente:profiles(full_name), mensagens:at_mensagens(*), tags:at_conversa_tags(tag:at_tags(*))')
     .order('ultima_msg_em',{ascending:false});
   if(error){ console.error(error); return []; }
   return (data||[]).map((cv,i)=>{
@@ -162,7 +183,8 @@ async function loadConversas(){
       janela:(cv.status==='encerrada'||j<=0)?'—':`${Math.floor(j/3600000)}h${String(Math.floor(j%3600000/60000)).padStart(2,'0')}min`,
       tel:cli.telefone||'', email:cli.email||'', waid:cli.whatsapp_id||'',
       ultimaAtividade:new Date(cv.ultima_msg_em).toLocaleString('pt-BR'),
-      tags:(cv.tags||[]).map(x=>x.tag&&x.tag.nome).filter(Boolean),
+      tags:(cv.tags||[]).map(x=>x.tag).filter(Boolean),
+      atendenteNome:(cv.atendente&&cv.atendente.full_name)||'', atendenteId:cv.atendente_id||null, setor:cv.setor||'',
       pedidoNumero:cv.pedido_numero||'', pedido:null, preview:cv.ultima_msg_preview||'', msgs };
   });
 }
@@ -178,10 +200,45 @@ async function bootstrap(){
   const { data: prof } = await c.from('profiles').select('full_name').eq('id',ATEND_ID).maybeSingle();
   AGENTE = (prof&&prof.full_name) ? prof.full_name : (email.split('@')[0]||'Atendente');
   document.getElementById('userAvatar').textContent = AGENTE[0].toUpperCase();
+  const { data: profs } = await c.from('profiles').select('id, full_name, email');
+  PROFILES = profs||[];
   CONVERSAS = await loadConversas();
   renderList();
   document.getElementById('emptyState').classList.toggle('hidden', false);
   if(CONVERSAS.length){ document.getElementById('emptyState').classList.add('hidden'); selecionar(CONVERSAS[0].id); }
+  subscribeRealtime();
+}
+
+/* ===== Tempo real (Supabase Realtime) ===== */
+let _rtTimer=null;
+async function subscribeRealtime(){
+  const c = await getSb();
+  c.channel('at-realtime')
+   .on('postgres_changes',{event:'*',schema:'public',table:'at_conversas'}, softReload)
+   .on('postgres_changes',{event:'*',schema:'public',table:'at_mensagens'}, softReload)
+   .subscribe();
+}
+function softReload(){ clearTimeout(_rtTimer); _rtTimer=setTimeout(async()=>{
+  const keep=SEL; CONVERSAS=await loadConversas(); renderList();
+  const cv=CONVERSAS.find(x=>x.id===keep); if(cv){ renderChat(cv); renderProfile(cv); enrichPedido(cv); }
+},350); }
+
+/* ===== Nova conversa ===== */
+function abrirNovaConversa(){ document.getElementById('novaConversaModal').classList.remove('hidden'); document.getElementById('ncNome').focus(); }
+function fecharNovaConversa(){ document.getElementById('novaConversaModal').classList.add('hidden'); ['ncNome','ncTel','ncEmail','ncPedido'].forEach(id=>document.getElementById(id).value=''); }
+async function salvarNovaConversa(){
+  const nome=document.getElementById('ncNome').value.trim(); if(!nome){ document.getElementById('ncNome').focus(); return; }
+  const tel=document.getElementById('ncTel').value.trim(), email=document.getElementById('ncEmail').value.trim(), pedido=document.getElementById('ncPedido').value.trim();
+  const btn=document.getElementById('ncSalvar'); btn.disabled=true; btn.textContent='Salvando…';
+  try{ const c=await getSb();
+    const { data: cli, error: e1 } = await c.from('at_clientes').insert({ nome, telefone:tel||null, email:email||null }).select().single();
+    if(e1) throw e1;
+    const { data: conv, error: e2 } = await c.from('at_conversas').insert({ cliente_id:cli.id, status:'aberta', nao_lida:false, atendente_id:ATEND_ID, janela_expira_em:new Date(Date.now()+24*3600*1000).toISOString(), ultima_msg_preview:'(conversa criada manualmente)', pedido_numero:pedido||null }).select().single();
+    if(e2) throw e2;
+    fecharNovaConversa();
+    CONVERSAS=await loadConversas(); renderList(); selecionar(conv.id);
+  }catch(err){ alert('Erro ao criar conversa: '+err.message); btn.disabled=false; btn.textContent='Criar conversa'; }
+  btn.disabled=false; btn.textContent='Criar conversa';
 }
 
 /* ===== Lista ===== */
@@ -189,7 +246,7 @@ function filtroTab(cv){ if(TAB==='minhas')return cv.status!=='encerrada'; if(TAB
 const statusDot=cv=>({aberta:'#22c55e',pendente:'#f59e0b',encerrada:'#94a3b8'}[cv.status]||'#94a3b8');
 function renderList(){
   const q=(document.getElementById('search').value||'').toLowerCase();
-  const arr=CONVERSAS.filter(filtroTab).filter(cv=>!q||cv.nome.toLowerCase().includes(q)||(cv.tel||'').includes(q)||(cv.email||'').toLowerCase().includes(q));
+  const arr=CONVERSAS.filter(filtroTab).filter(cv=>!q||cv.nome.toLowerCase().includes(q)||(cv.tel||'').includes(q)||(cv.email||'').toLowerCase().includes(q)||(cv.pedidoNumero||'').includes(q));
   document.getElementById('badgeNaoLidas').textContent=CONVERSAS.filter(cv=>cv.naoLida).length;
   const el=document.getElementById('convList');
   if(!arr.length){ el.innerHTML='<div class="p-8 text-center text-sm text-slate-400" data-fade>Nenhuma conversa aqui.</div>'; return; }
@@ -249,18 +306,23 @@ function renderProfile(cv){
     ${campo('Nome',esc(cv.nome))}${cv.waid?campo('WhatsApp ID (LID)',esc(cv.waid),true):''}${cv.email?campo('Email',esc(cv.email)):''}${cv.tel?campo('Telefone',esc(cv.tel)):''}
     <div class="mt-4 pt-4 border-t border-slate-200 dark:border-ink-600">
       <div class="text-sm font-semibold mb-1">Operador atribuído</div>
-      <div class="flex items-center gap-2 text-sm"><span class="w-6 h-6 rounded-full bg-pink-500 text-white text-xs flex items-center justify-center font-bold">${esc(AGENTE[0].toUpperCase())}</span>${esc(AGENTE)}</div>
+      <select onchange="transferir(this.value)" class="w-full mt-1 p-2 text-sm rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-pink-500 outline-none">
+        <option value="">Não atribuído</option>
+        ${PROFILES.map(p=>`<option value="${p.id}" ${p.id===cv.atendenteId?'selected':''}>${esc(p.full_name||p.email||p.id)}</option>`).join('')}
+      </select>
+      <div class="mt-2"><label class="text-[11px] text-slate-400">Setor</label>
+        <input value="${esc(cv.setor||'')}" onchange="setSetor(this.value)" placeholder="ex.: Trocas, SAC…" class="w-full mt-0.5 p-2 text-sm rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-pink-500 outline-none"></div>
       <div class="mt-3 text-xs text-slate-400">Última atividade<br><span class="text-slate-600 dark:text-slate-300 text-[13px]">${esc(cv.ultimaAtividade)}</span></div>
     </div>
     <div class="mt-4 pt-4 border-t border-slate-200 dark:border-ink-600">
-      <div class="flex items-center justify-between mb-2"><span class="text-sm font-semibold">Tags</span></div>
-      <div class="flex flex-wrap gap-1.5">${(cv.tags||[]).map(t=>`<span class="text-[11px] px-2 py-1 rounded-full bg-pink-50 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300 font-medium">${esc(t)}</span>`).join('')||'<span class="text-xs text-slate-400">Sem tags</span>'}</div>
+      <div class="flex items-center justify-between mb-2"><span class="text-sm font-semibold">Tags</span><button onclick="addTag()" class="text-pink-600 text-xs hover:underline">+ Adicionar</button></div>
+      <div class="flex flex-wrap gap-1.5">${(cv.tags||[]).map(t=>`<span class="group text-[11px] px-2 py-1 rounded-full bg-pink-50 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300 font-medium inline-flex items-center gap-1">${esc(t.nome)}<button onclick="delTag('${t.id}')" class="opacity-0 group-hover:opacity-100 hover:text-pink-900">×</button></span>`).join('')||'<span class="text-xs text-slate-400">Sem tags</span>'}</div>
     </div>
     <div class="mt-4 pt-4 border-t border-slate-200 dark:border-ink-600">
       <div class="flex items-center gap-2 mb-2"><span class="text-sm font-semibold">Pedido do cliente</span><span id="pedBadge"></span></div>
       <div id="pedBox" class="rounded-xl border border-slate-200 dark:border-ink-600 divide-y divide-slate-100 dark:divide-ink-700 text-[13px]">
         ${cv.pedidoNumero?lp('Nº do pedido','#'+esc(cv.pedidoNumero)):'<div class="px-3 py-3 text-slate-400">Sem pedido vinculado</div>'}
-        ${ped?renderPedRows(ped):(cv.pedidoNumero?'<div class="px-3 py-2 text-slate-400 text-xs">Buscando na Loja Integrada…</div>':'')}
+        ${ped?renderPedRows(ped):(/^\d{10,}$/.test(cv.pedidoNumero||'')?'<div class="px-3 py-2 text-slate-400 text-xs">Buscando na Loja Integrada…</div>':'')}
       </div>
     </div></div>`;
 }
@@ -310,6 +372,21 @@ async function toggleResolver(){
     await c.from('at_mensagens').insert({ conversa_id:cv.id, direcao:'sys', tipo:'evento', conteudo:evt.txt, meta:{evento:evt.k}, autor:'sistema' });
   }catch(e){ console.warn('persist status falhou:',e.message); }
 }
+async function transferir(pid){ const cv=cur(); if(!cv) return; cv.atendenteId=pid||null;
+  cv.atendenteNome = (PROFILES.find(p=>p.id===pid)||{}).full_name||'';
+  try{ await (await getSb()).from('at_conversas').update({atendente_id:pid||null}).eq('id',cv.id); }catch(e){ console.warn(e.message); } }
+async function setSetor(v){ const cv=cur(); if(!cv) return; cv.setor=v.trim();
+  try{ await (await getSb()).from('at_conversas').update({setor:v.trim()||null}).eq('id',cv.id); }catch(e){ console.warn(e.message); } }
+async function addTag(){ const cv=cur(); if(!cv) return; const nome=(prompt('Tag:')||'').trim(); if(!nome) return;
+  try{ const c=await getSb();
+    let { data: tag } = await c.from('at_tags').select('*').eq('nome',nome).maybeSingle();
+    if(!tag){ const r=await c.from('at_tags').insert({nome}).select().single(); tag=r.data; }
+    if(cv.tags.some(t=>t.id===tag.id)) return;
+    await c.from('at_conversa_tags').insert({conversa_id:cv.id, tag_id:tag.id});
+    cv.tags.push(tag); renderProfile(cv);
+  }catch(e){ alert('Erro ao adicionar tag: '+e.message); } }
+async function delTag(tagId){ const cv=cur(); if(!cv) return; cv.tags=cv.tags.filter(t=>t.id!==tagId); renderProfile(cv);
+  try{ await (await getSb()).from('at_conversa_tags').delete().eq('conversa_id',cv.id).eq('tag_id',tagId); }catch(e){ console.warn(e.message); } }
 function toggleQR(){ const b=document.getElementById('qrBox'); const l=document.getElementById('qrList');
   l.innerHTML=QUICK_REPLIES.map((q,i)=>`<div class="qr-item" onclick="useQR(${i})"><span class="font-semibold text-pink-600">${q.atalho}</span> <span class="text-slate-500 dark:text-slate-400">${esc(q.txt).slice(0,42)}…</span></div>`).join(''); b.classList.toggle('hidden'); }
 function useQR(i){ const inp=document.getElementById('msgInput'); inp.value=QUICK_REPLIES[i].txt; document.getElementById('qrBox').classList.add('hidden'); inp.focus(); updCount(); }
