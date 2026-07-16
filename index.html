@@ -84,6 +84,13 @@ tailwind.config = {
   .board-mem{transition:transform .12s ease, box-shadow .12s ease; cursor:default; position:relative}
   .board-mem:hover{transform:translateY(-3px) scale(1.14); z-index:20; box-shadow:0 5px 14px rgba(0,0,0,.28)}
   .modal-bg{background:rgba(0,0,0,.5);backdrop-filter:blur(2px)}
+  /* Modo só leitura (usuário sem permissão de edição no quadro) */
+  body.board-readonly #tab-details{pointer-events:none}
+  body.board-readonly #cardTitle{pointer-events:none;background:transparent}
+  body.board-readonly .card-drag{cursor:default}
+  body.board-readonly #autosaveStatus{display:none}
+  #readonlyBadge{display:none}
+  body.board-readonly #readonlyBadge{display:inline-flex;align-items:center;gap:4px}
   kbd{background:#eef2ff;border:1px solid #c7d2fe;padding:0 6px;border-radius:4px;font-size:11px;font-family:ui-monospace,monospace}
   .dark kbd{background:#312e81;border-color:#4338ca;color:#e0e7ff}
   @keyframes slideIn{from{transform:translateY(6px);opacity:0}to{transform:translateY(0);opacity:1}}
@@ -669,6 +676,7 @@ tailwind.config = {
       <button data-tab="activity" class="tab-btn px-4 py-2 text-sm text-slate-500 border-b-2 border-transparent">Log / Atividade</button>
       <div class="flex-1"></div>
       <div id="autosaveStatus" class="text-xs text-slate-400 self-center">salvo</div>
+      <span id="readonlyBadge" class="text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 rounded-full px-2 py-0.5 self-center">🔒 Só leitura</span>
       <span id="commentCount" class="hidden"></span>
     </div>
     <div class="flex-1 overflow-y-auto overflow-x-hidden">
@@ -1029,6 +1037,7 @@ let cardLabels = {}, cardMembers = {}, checklistsByCard = {};
 let comments = [], activity = [], notifications = [];
 let activeCardId = null, draggingCardId = null;
 let _localMoveAt = 0;
+let canEditBoard = true; // permissão de edição do usuário atual no quadro aberto (false = só leitura)
 let filters = { faccao: new Set(), search: '', hideFinalizado: true, density: 'cozy' };
 let commentCounts = {};
 let attachmentCounts = {};
@@ -1353,6 +1362,15 @@ async function switchBoard(boardId){
   document.getElementById('board').innerHTML = '<div class="text-center p-8 text-slate-500">Carregando...</div>';
   const b = boards.find(x => x.id === boardId);
   applyBoardBackground(b?.background_url);
+  // Permissão de edição do usuário atual neste quadro (admin sempre edita)
+  if (profile && profile.role === 'admin') { canEditBoard = true; }
+  else {
+    try {
+      const { data: meM } = await sb.from('board_members').select('can_edit').eq('board_id', boardId).eq('user_id', user.id).maybeSingle();
+      canEditBoard = meM ? (meM.can_edit !== false) : false;
+    } catch(_) { canEditBoard = false; }
+  }
+  document.body.classList.toggle('board-readonly', !canEditBoard);
   const isProducao = b && /produ[cç][aã]o/i.test(b.name);
   const isBordado = boardType(b) === 'bordado';
   const facBtn = document.getElementById('filterFaccaoBtn');
@@ -1416,7 +1434,7 @@ function renderBoard(){
         <span class="text-xs px-1.5 rounded-full bg-white dark:bg-ink-700 text-slate-500">${listCards.length}</span>
       </div>
       <div class="cards mt-1 flex-1 overflow-y-auto space-y-1.5 min-h-8 p-1"></div>
-      <button class="mt-1 text-left px-2 py-1.5 text-xs text-slate-500 hover:bg-slate-300/50 dark:hover:bg-ink-700 rounded-lg add-card">+ Novo card</button>`;
+      ${canEditBoard ? '<button class="mt-1 text-left px-2 py-1.5 text-xs text-slate-500 hover:bg-slate-300/50 dark:hover:bg-ink-700 rounded-lg add-card">+ Novo card</button>' : ''}`;
     const cw = col.querySelector('.cards');
     listCards.forEach(c => cw.appendChild(renderCard(c, compact)));
     col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('drop-hint'); });
@@ -1428,7 +1446,8 @@ function renderBoard(){
         if (moved) toast(`Movido para "${list.name}"`);
       }
     });
-    col.querySelector('.add-card').onclick = async () => {
+    const _addBtn = col.querySelector('.add-card');
+    if (_addBtn) _addBtn.onclick = async () => {
       const t = prompt('Nome do card');
       if (t){
         const maxPos = Math.max(0, ...listCards.map(c=>c.position||0));
@@ -1471,7 +1490,7 @@ function renderBoard(){
   addCol.querySelector('.add-list-cancel').onclick = closeAddList;
   addCol.querySelector('.add-list-save').onclick = saveAddList;
   alInput.addEventListener('keydown', (e) => { if (e.key === 'Enter'){ e.preventDefault(); saveAddList(); } else if (e.key === 'Escape'){ closeAddList(); } });
-  board.appendChild(addCol);
+  if (canEditBoard) board.appendChild(addCol);
 
   updateStats(); renderFilterBar();
 }
@@ -1479,6 +1498,7 @@ function renderBoard(){
 // Move um card pra uma lista, calculando a POSIÇÃO exata pelo ponto (Y) onde foi solto,
 // pra ele ficar entre os dois cards certos (não só no fim da lista).
 async function dropCardAt(cardId, listId, clientY){
+  if (!canEditBoard) return false;
   const card = cards.find(x => x.id === cardId);
   if (!card || !listId) return false;
   const STEP = 16384;
@@ -1595,6 +1615,7 @@ function renderCard(c, compact){
   // ===== Drag por toque (mobile): segura ~0,35s pra pegar o card e arrasta pra outra coluna =====
   let tTimer = null, tDrag = false, ghost = null, sX = 0, sY = 0, lastCol = null, lastTouchY = 0;
   el.addEventListener('touchstart', (ev) => {
+    if (!canEditBoard) return;
     if (ev.touches.length !== 1) return;
     const t = ev.touches[0]; sX = t.clientX; sY = t.clientY;
     tTimer = setTimeout(() => {
@@ -1646,6 +1667,7 @@ function renderCard(c, compact){
 
   // ===== Drag com mouse (desktop): card inclina e "levanta" estilo Trello =====
   el.addEventListener('mousedown', (ev) => {
+    if (!canEditBoard) return;
     if (ev.button !== 0) return;
     if (ev.target.closest('a,button,input,select,textarea,label')) return;
     const startX = ev.clientX, startY = ev.clientY;
@@ -2118,6 +2140,7 @@ window.addChecklistItem = async () => {
 
 let autosaveTimer = null;
 function autosave(){
+  if (!canEditBoard) return;
   clearTimeout(autosaveTimer);
   document.getElementById('autosaveStatus').textContent = 'salvando...';
   autosaveTimer = setTimeout(() => saveCard(true), 600);
@@ -2146,6 +2169,7 @@ window.archiveCard = async () => {
 };
 
 window.saveCard = async (silent = false) => {
+  if (!canEditBoard) return;
   const c0 = cards.find(x => x.id === activeCardId) || {};
   const newLabelId = document.getElementById('cardFaccao').value || null;
   const gi = k => parseInt(document.getElementById(k).value) || null;
@@ -2760,7 +2784,7 @@ window.addTecido = async () => {
 // Filtro de etiqueta removido do header — a busca agora inclui as etiquetas (facções).
 
 document.getElementById('search').oninput = e => { filters.search = e.target.value; renderBoard(); };
-document.getElementById('hideFinalizado').onchange = async e => { filters.hideFinalizado = e.target.checked; if (!e.target.checked) { await enterBoard(currentBoardId); } else { renderBoard(); } };
+document.getElementById('hideFinalizado').onchange = async e => { filters.hideFinalizado = e.target.checked; if (!e.target.checked) { await switchBoard(currentBoardId); } else { renderBoard(); } };
 document.getElementById('density').onchange = e => { filters.density = e.target.value; renderBoard(); };
 setTimeout(() => { const d = document.getElementById('density'); if (d) d.value = filters.density; }, 100);
 document.getElementById('estoqueBtn').onclick = openEstoque;
@@ -2806,7 +2830,7 @@ document.addEventListener('keydown', e => {
   if (document.activeElement && ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
   if (!e.key) return;
   if (e.key === '/'){ e.preventDefault(); document.getElementById('search').focus(); }
-  if (e.key.toLowerCase() === 'n' && lists[0]){
+  if (e.key.toLowerCase() === 'n' && lists[0] && canEditBoard){
     e.preventDefault();
     const t = prompt('Nome do card');
     if (t){
@@ -3070,8 +3094,9 @@ window.openUsers = async () => {
     const { data: users, error } = await sb.from('profiles').select('id, email, full_name, access, role').order('email');
     if (error) throw error;
     const { data: boardsList } = await sb.from('boards').select('id, name').order('name');
-    const { data: allMembers } = await sb.from('board_members').select('board_id, user_id');
+    const { data: allMembers } = await sb.from('board_members').select('board_id, user_id, can_edit');
     const memberSet = new Set((allMembers||[]).map(m => m.board_id+'|'+m.user_id));
+    const memberEdit = {}; (allMembers||[]).forEach(m => { memberEdit[m.board_id+'|'+m.user_id] = m.can_edit !== false; });
     const systems = [
       {key:'quadros', label:'Quadros'},
       {key:'cep', label:'CEP'},
@@ -3080,7 +3105,7 @@ window.openUsers = async () => {
       {key:'cade_pedido', label:'Cadê Pedido'},
       {key:'painel', label:'Painel'},
     ];
-    window.__uc = { users, boards: boardsList||[], memberSet, systems };
+    window.__uc = { users, boards: boardsList||[], memberSet, memberEdit, systems };
     renderUsersList();
   } catch(e){
     document.getElementById('usersBody').innerHTML = '<div class="text-center text-red-500 py-12">Erro: '+e.message+'</div>';
@@ -3139,8 +3164,22 @@ window.editUserRow = (uid) => {
       </section>
       <section>
         <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">Quadros que pode ver</h3>
-        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          ${c.boards.map(b => `<label class="flex items-center gap-2 p-2 rounded-lg border border-slate-200 dark:border-ink-700 cursor-pointer hover:bg-slate-50 dark:hover:bg-ink-700"><input type="checkbox" class="w-4 h-4 accent-pink-600" data-board="${b.id}" ${c.memberSet.has(b.id+'|'+uid)?'checked':''}><span class="text-sm">${escapeHtml(b.name)}</span></label>`).join('')}
+        <p class="text-xs text-slate-500 mb-3">Marque os quadros e escolha se a pessoa pode <b>Editar</b> ou só <b>ver</b> (Só leitura).</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          ${c.boards.map(b => {
+            const isMember = c.memberSet.has(b.id+'|'+uid);
+            const canEd = (c.memberEdit||{})[b.id+'|'+uid] !== false;
+            return `<div class="flex items-center gap-2 p-2 rounded-lg border border-slate-200 dark:border-ink-700">
+              <label class="flex items-center gap-2 flex-1 min-w-0 cursor-pointer">
+                <input type="checkbox" class="w-4 h-4 accent-pink-600" data-board="${b.id}" ${isMember?'checked':''} onchange="var s=this.closest('div').querySelector('[data-board-role]'); if(s) s.disabled=!this.checked;">
+                <span class="text-sm truncate">${escapeHtml(b.name)}</span>
+              </label>
+              <select data-board-role="${b.id}" class="text-xs rounded-md border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 px-1.5 py-1 shrink-0" ${isMember?'':'disabled'}>
+                <option value="edit" ${canEd?'selected':''}>Editar</option>
+                <option value="view" ${!canEd?'selected':''}>Só leitura</option>
+              </select>
+            </div>`;
+          }).join('')}
         </div>
       </section>
       <section>
@@ -3177,11 +3216,24 @@ window.saveUserRow = async (uid, btn) => {
     document.querySelectorAll('#usersBody input[data-sys]').forEach(cb => { if (cb.checked) access[cb.dataset.sys] = true; });
     const { error: e1 } = await sb.from('profiles').update({ full_name, role, access }).eq('id', uid);
     if (e1) throw e1;
+    c.memberEdit = c.memberEdit || {};
     for (const b of c.boards) {
+      const key = b.id+'|'+uid;
       const desired = document.querySelector('#usersBody input[data-board="'+b.id+'"]').checked;
-      const current = c.memberSet.has(b.id+'|'+uid);
-      if (desired && !current) { const { error } = await sb.from('board_members').insert({ board_id: b.id, user_id: uid, can_edit: true }); if (error) throw error; c.memberSet.add(b.id+'|'+uid); }
-      else if (!desired && current) { const { error } = await sb.from('board_members').delete().eq('board_id', b.id).eq('user_id', uid); if (error) throw error; c.memberSet.delete(b.id+'|'+uid); }
+      const roleSel = document.querySelector('#usersBody [data-board-role="'+b.id+'"]');
+      const wantEdit = !roleSel || roleSel.value === 'edit';
+      const current = c.memberSet.has(key);
+      const curEdit = c.memberEdit[key] !== false;
+      if (desired && !current) {
+        const { error } = await sb.from('board_members').insert({ board_id: b.id, user_id: uid, can_edit: wantEdit }); if (error) throw error;
+        c.memberSet.add(key); c.memberEdit[key] = wantEdit;
+      } else if (!desired && current) {
+        const { error } = await sb.from('board_members').delete().eq('board_id', b.id).eq('user_id', uid); if (error) throw error;
+        c.memberSet.delete(key); delete c.memberEdit[key];
+      } else if (desired && current && wantEdit !== curEdit) {
+        const { error } = await sb.from('board_members').update({ can_edit: wantEdit }).eq('board_id', b.id).eq('user_id', uid); if (error) throw error;
+        c.memberEdit[key] = wantEdit;
+      }
     }
     u.full_name = full_name; u.role = role; u.access = access;
     st.textContent = 'Salvo!'; st.className = 'text-xs text-emerald-600 mr-auto';
