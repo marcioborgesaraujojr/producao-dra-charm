@@ -1460,12 +1460,8 @@ function renderBoard(){
     col.addEventListener('drop', async e => {
       e.preventDefault(); col.classList.remove('drop-hint');
       if (draggingCardId){
-        const card = cards.find(c=>c.id===draggingCardId);
-        if (card && card.list_id !== list.id){
-          await sb.from('cards').update({list_id: list.id}).eq('id', card.id);
-          card.list_id = list.id; _localMoveAt = Date.now(); renderBoard();
-          toast(`Movido para "${list.name}"`);
-        }
+        const moved = await dropCardAt(draggingCardId, list.id, e.clientY);
+        if (moved) toast(`Movido para "${list.name}"`);
       }
     });
     col.querySelector('.add-card').onclick = async () => {
@@ -1516,11 +1512,45 @@ function renderBoard(){
   updateStats(); renderFilterBar();
 }
 
+// Move um card pra uma lista, calculando a POSIÇÃO exata pelo ponto (Y) onde foi solto,
+// pra ele ficar entre os dois cards certos (não só no fim da lista).
+async function dropCardAt(cardId, listId, clientY){
+  const card = cards.find(x => x.id === cardId);
+  if (!card || !listId) return false;
+  const STEP = 16384;
+  // Índice de inserção: quantos cards da lista-alvo têm o meio acima do cursor
+  let idx = 0;
+  const cw = document.querySelector(`[data-list-id="${listId}"] .cards`);
+  if (cw){
+    cw.querySelectorAll(':scope > .card').forEach(cel => {
+      if (cel.dataset.cardId === cardId) return; // ignora o próprio card arrastado
+      const r = cel.getBoundingClientRect();
+      if (clientY > r.top + r.height / 2) idx++;
+    });
+  }
+  const siblings = cards
+    .filter(x => x.list_id === listId && x.id !== cardId)
+    .sort((a,b) => (a.position||0) - (b.position||0));
+  const prev = siblings[idx-1], next = siblings[idx];
+  const P = prev ? (prev.position||0) : null;
+  const N = next ? (next.position||0) : null;
+  let newPos;
+  if (P == null && N == null) newPos = STEP;
+  else if (P == null) newPos = N - STEP;
+  else if (N == null) newPos = P + STEP;
+  else newPos = (P + N) / 2;
+  if (card.list_id === listId && (card.position||0) === newPos) return false;
+  await sb.from('cards').update({ list_id: listId, position: newPos }).eq('id', cardId);
+  card.list_id = listId; card.position = newPos; _localMoveAt = Date.now(); renderBoard();
+  return true;
+}
+
 function renderCard(c, compact){
   const el = document.createElement('div');
   const clbls = cardLabels[c.id] || [];
   const cmembs = cardMembers[c.id] || [];
   el.className = `card card-drag bg-white dark:bg-ink-700 rounded-lg overflow-hidden shadow-sm border border-transparent hover:border-pink-500 p-2 ${compact?'text-xs':'text-sm'}`;
+  el.dataset.cardId = c.id;
   el.draggable = false; // desktop usa drag customizado (mouse) com card inclinado; ver handlers mousedown abaixo
   const labelChips = clbls.slice(0,3).map(l=>`<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style="background:${l.color}22;color:${l.color}"><span class="w-1.5 h-1.5 rounded-full" style="background:${l.color}"></span>${escapeHtml(l.name)}</span>`).join('');
   const memAvatars = cmembs.slice(0,3).map(m=>`<div class="w-5 h-5 rounded-full text-white text-[10px] font-bold flex items-center justify-center" style="background:${userColor(m)}" title="${escapeHtml(m.full_name)}">${(m.full_name||'?').charAt(0).toUpperCase()}</div>`).join('');
@@ -1599,7 +1629,7 @@ function renderCard(c, compact){
   el.addEventListener('click', (e) => { if (el._justDragged){ el._justDragged = false; e.preventDefault(); e.stopPropagation(); return; } openCard(c.id); });
 
   // ===== Drag por toque (mobile): segura ~0,35s pra pegar o card e arrasta pra outra coluna =====
-  let tTimer = null, tDrag = false, ghost = null, sX = 0, sY = 0, lastCol = null;
+  let tTimer = null, tDrag = false, ghost = null, sX = 0, sY = 0, lastCol = null, lastTouchY = 0;
   el.addEventListener('touchstart', (ev) => {
     if (ev.touches.length !== 1) return;
     const t = ev.touches[0]; sX = t.clientX; sY = t.clientY;
@@ -1619,6 +1649,7 @@ function renderCard(c, compact){
       return;
     }
     ev.preventDefault();
+    lastTouchY = t.clientY;
     if (ghost){ ghost.style.left = (t.clientX - 40) + 'px'; ghost.style.top = (t.clientY - 20) + 'px'; ghost.style.display = 'none'; }
     const under = document.elementFromPoint(t.clientX, t.clientY);
     if (ghost) ghost.style.display = '';
@@ -1641,11 +1672,8 @@ function renderCard(c, compact){
     draggingCardId = null;
     if (col){
       const listId = col.getAttribute('data-list-id');
-      const card = cards.find(x => x.id === c.id);
-      if (card && listId && card.list_id !== listId){
-        await sb.from('cards').update({ list_id: listId }).eq('id', card.id);
-        card.list_id = listId; _localMoveAt = Date.now(); renderBoard(); toast('Card movido');
-      }
+      const moved = await dropCardAt(c.id, listId, lastTouchY);
+      if (moved) toast('Card movido');
     }
     setTimeout(() => { el._justDragged = false; }, 400);
   };
@@ -1657,8 +1685,9 @@ function renderCard(c, compact){
     if (ev.button !== 0) return;
     if (ev.target.closest('a,button,input,select,textarea,label')) return;
     const startX = ev.clientX, startY = ev.clientY;
-    let started = false, offx = 0, offy = 0, mCol = null;
+    let started = false, offx = 0, offy = 0, mCol = null, lastY = startY;
     const onMove = (e) => {
+      lastY = e.clientY;
       if (!started){
         if (Math.abs(e.clientX - startX) < 5 && Math.abs(e.clientY - startY) < 5) return;
         started = true; draggingCardId = c.id; el.classList.add('opacity-40');
@@ -1694,11 +1723,8 @@ function renderCard(c, compact){
       draggingCardId = null;
       if (col){
         const listId = col.getAttribute('data-list-id');
-        const card = cards.find(x => x.id === c.id);
-        if (card && listId && card.list_id !== listId){
-          await sb.from('cards').update({ list_id: listId }).eq('id', card.id);
-          card.list_id = listId; _localMoveAt = Date.now(); renderBoard(); toast('Card movido');
-        }
+        const moved = await dropCardAt(c.id, listId, lastY);
+        if (moved) toast('Card movido');
       }
       setTimeout(() => { el._justDragged = false; }, 300);
     };
@@ -2814,6 +2840,7 @@ document.addEventListener('keydown', e => {
                 || !document.getElementById('estoqueModal').classList.contains('hidden');
   if (e.key === 'Escape' && inModal){ closeCard(); closeEstoque(); return; }
   if (document.activeElement && ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
+  if (!e.key) return;
   if (e.key === '/'){ e.preventDefault(); document.getElementById('search').focus(); }
   if (e.key.toLowerCase() === 'n' && lists[0]){
     e.preventDefault();
