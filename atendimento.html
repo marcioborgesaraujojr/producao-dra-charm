@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atendimento ao Cliente — Sistema Grupo Aragão</title>
+<link rel="icon" type="image/png" href="https://cdn.awsli.com.br/1930/1930166/arquivos/logo.png">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
+  ink:{900:'#0b1220',800:'#111827',700:'#1f2937',600:'#374151'}, accent:{DEFAULT:'#e91e63',600:'#db2777'} }}}};
+</script>
+<style>
+  html{background:#f1f5f9}html.dark{background:#0b1220}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0}
+  .list-scroll{scrollbar-width:thin}.list-scroll::-webkit-scrollbar{width:8px}
+  .list-scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px}.dark .list-scroll::-webkit-scrollbar-thumb{background:#475569}
+  .conv-tab{position:relative;padding:6px 1px;font-size:13px;font-weight:600;color:#64748b;cursor:pointer;white-space:nowrap;transition:color .12s}
+  .conv-tab:hover{color:#db2777}.conv-tab[data-active="1"]{color:#db2777}
+  .conv-tab[data-active="1"]::after{content:'';position:absolute;left:0;right:0;bottom:-9px;height:2px;background:#db2777;border-radius:2px}
+  .dark .conv-tab{color:#94a3b8}
+  .conv-item{cursor:pointer;border-left:3px solid transparent;transition:background .12s,border-color .12s}
+  .conv-item:hover{background:#faf5f8}.dark .conv-item:hover{background:#151d2b}
+  .conv-item[data-active="1"]{background:#fdf2f8;border-left-color:#db2777}.dark .conv-item[data-active="1"]{background:#1e1520;border-left-color:#db2777}
+  .bubble-in{background:#fff;border:1px solid #eef2f7}.dark .bubble-in{background:#1f2937;border-color:#334155;color:#e5e7eb}
+  .bubble-out{background:#fce7f3;border:1px solid #fbcfe8}.dark .bubble-out{background:#3f1d2b;border-color:#6d2647;color:#fbe4ee}
+  .bubble-note{background:#fffbeb;border:1px solid #fde68a}.dark .bubble-note{background:#3a2f10;border-color:#78621b;color:#fde68a}
+  .sys-chip{font-size:12px;font-weight:600;padding:4px 12px;border-radius:999px;display:inline-flex;align-items:center;gap:6px}
+  .icon-btn{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#64748b}
+  .icon-btn:hover{background:#f1f5f9;color:#db2777}.dark .icon-btn{color:#94a3b8}.dark .icon-btn:hover{background:#1f2937}
+  .qr-item{padding:8px 12px;font-size:13px;cursor:pointer;border-radius:8px}.qr-item:hover{background:#fdf2f8}.dark .qr-item:hover{background:#1e1520}
+  [data-fade]{animation:fade .18s ease}@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body class="text-slate-800 dark:text-slate-100">
+
+<!-- Trava de acesso -->
+<div id="authGate" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-50 dark:bg-ink-900">
+  <div class="text-center">
+    <div class="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-pink-500 to-rose-500 text-white font-bold text-2xl flex items-center justify-center mb-4">A</div>
+    <div class="font-semibold mb-1">Atendimento ao Cliente</div>
+    <div class="text-sm text-slate-500 mb-4">Você precisa estar logado na Suíte para acessar.</div>
+    <a href="/" class="inline-block text-sm font-semibold text-white bg-pink-500 hover:bg-pink-600 px-4 py-2 rounded-lg">Ir para o login da Suíte</a>
+  </div>
+</div>
+
+<div id="appWrap" class="hidden">
+<header class="h-14 flex items-center justify-between px-4 bg-white/95 dark:bg-ink-800/95 border-b border-slate-200 dark:border-ink-600 sticky top-0 z-30 backdrop-blur">
+  <div class="flex items-center gap-3">
+    <button onclick="location.href='/'" title="Voltar à Suíte" class="w-9 h-9 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 text-white font-bold flex items-center justify-center shadow hover:scale-105 transition">A</button>
+    <div class="leading-tight">
+      <div class="text-sm font-semibold">Atendimento ao Cliente</div>
+      <div class="text-[11px] text-slate-500 dark:text-slate-400">Sistema Grupo Aragão</div>
+    </div>
+  </div>
+  <div class="flex items-center gap-1">
+    <button onclick="location.href='/'" class="icon-btn" title="Voltar à Suíte"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg></button>
+    <button onclick="toggleDark()" class="icon-btn" title="Tema"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+    <div id="userAvatar" class="w-8 h-8 ml-1 rounded-full bg-pink-500 text-white flex items-center justify-center font-bold text-sm">?</div>
+  </div>
+</header>
+
+<div class="flex" style="height:calc(100vh - 3.5rem)">
+  <aside class="w-[340px] shrink-0 flex flex-col bg-white dark:bg-ink-800 border-r border-slate-200 dark:border-ink-600">
+    <div class="px-4 pt-3 pb-2 border-b border-slate-200 dark:border-ink-600">
+      <div class="flex items-center gap-5 mb-3">
+        <span class="conv-tab" data-tab="minhas" data-active="1" onclick="setTab('minhas')">Minhas</span>
+        <span class="conv-tab" data-tab="pendentes" onclick="setTab('pendentes')">Pendentes</span>
+        <span class="conv-tab" data-tab="naolidas" onclick="setTab('naolidas')">Não lidas <span id="badgeNaoLidas" class="ml-0.5 text-[10px] bg-pink-500 text-white rounded-full px-1.5 py-0.5 align-middle">0</span></span>
+        <span class="conv-tab" data-tab="todas" onclick="setTab('todas')">Todas</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="relative flex-1">
+          <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input id="search" oninput="renderList()" placeholder="Busque por email, nome ou telefone"
+                 class="w-full pl-9 pr-3 py-2 text-sm rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-pink-500 outline-none">
+        </div>
+      </div>
+    </div>
+    <div id="convList" class="flex-1 overflow-y-auto list-scroll"></div>
+  </aside>
+
+  <main class="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-ink-900">
+    <div id="convHeader" class="min-h-12 shrink-0 flex items-center justify-between gap-3 px-4 py-2 bg-white dark:bg-ink-800 border-b border-slate-200 dark:border-ink-600 text-sm">
+      <div class="flex items-center gap-3 min-w-0">
+        <span id="chName" class="font-semibold truncate"></span>
+        <span id="chChannel" class="flex items-center gap-1.5 text-[12px] text-slate-500 dark:text-slate-400 shrink-0"></span>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <span id="chWindow" class="hidden sm:flex items-center gap-1.5 text-slate-500 dark:text-slate-400 text-[12px]"></span>
+        <button id="btnResolver" onclick="toggleResolver()" class="text-xs font-semibold px-3 py-1.5 rounded-lg"></button>
+      </div>
+    </div>
+    <div id="chatArea" class="flex-1 overflow-y-auto list-scroll px-6 py-5 space-y-3"></div>
+    <div id="emptyState" class="flex-1 flex items-center justify-center text-center text-slate-400 px-6">
+      <div><svg class="w-16 h-16 mx-auto mb-3 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <div class="text-sm">Selecione uma conversa para começar.</div></div>
+    </div>
+
+    <div id="composer" class="shrink-0 border-t border-slate-200 dark:border-ink-600 bg-white dark:bg-ink-800 px-4 py-2 hidden relative">
+      <div id="notaBanner" class="hidden mb-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>Nota interna — só a equipe vê
+      </div>
+      <div class="flex items-center gap-3 text-slate-400 dark:text-slate-500 px-1 pb-1">
+        <button onclick="fmt('*')" class="hover:text-slate-600 font-bold text-sm w-6" title="Negrito">B</button>
+        <button onclick="fmt('_')" class="hover:text-slate-600 italic text-sm w-6" title="Itálico">I</button>
+        <button onclick="fmt('~')" class="hover:text-slate-600 line-through text-sm w-6" title="Tachado">S</button>
+        <button onclick="toggleQR()" class="hover:text-pink-600" title="Respostas rápidas"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
+        <button id="btnNota" onclick="toggleNota()" class="hover:text-amber-500" title="Nota interna"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></button>
+        <span id="charCount" class="ml-auto text-[11px] tabular-nums">0 / 2.000</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <input id="msgInput" maxlength="2000" oninput="updCount()" onkeydown="if(event.key==='Enter'){enviar();}" placeholder="Mande uma mensagem…" class="flex-1 py-2 px-2 text-sm bg-transparent outline-none">
+        <button id="btnEnviar" onclick="enviar()" class="w-9 h-9 rounded-full bg-pink-500 text-white flex items-center justify-center shrink-0 hover:bg-pink-600 transition"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
+      </div>
+      <div id="qrBox" class="hidden absolute bottom-full left-4 mb-2 w-80 bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600 rounded-xl shadow-xl p-1.5" data-fade>
+        <div class="text-[11px] font-semibold text-slate-400 px-2 py-1">Respostas rápidas</div><div id="qrList"></div>
+      </div>
+    </div>
+    <div id="composerEncerrada" class="hidden shrink-0 border-t border-slate-200 dark:border-ink-600 bg-slate-50 dark:bg-ink-900 px-4 py-3 text-center text-sm text-slate-500">
+      Conversa encerrada. <button onclick="toggleResolver()" class="text-pink-600 font-semibold hover:underline">Reabrir</button>
+    </div>
+  </main>
+
+  <aside id="profile" class="w-[320px] shrink-0 overflow-y-auto list-scroll bg-white dark:bg-ink-800 border-l border-slate-200 dark:border-ink-600 hidden"></aside>
+</div>
+</div>
+
+<script>
+/* ===== Config ===== */
+const SUPA = { url:'https://wwytzoyeibekhstinott.supabase.co', key:'sb_publishable_uMoCEK4Ed_u8ZIfjVZ7Jrg_tdR4b9bO' };
+let AGENTE = 'Atendente', ATEND_ID = null;
+const SITUACOES = {6:'Em aberto',9:'Atendido',11:'Verificado',12:'Cancelado',15:'Em andamento',3:'Checkout parcial',4:'Aguardando pagamento',8:'Devolução total'};
+const QUICK_REPLIES = [
+  {atalho:'/ola', txt:'Oi! 👋 Aqui é a Dra. Charm. Como posso te ajudar?'},
+  {atalho:'/rastreio', txt:'Seu pedido já foi enviado! Segue o código de rastreio: '},
+  {atalho:'/prazo', txt:'O prazo de entrega para sua região é de 5 a 10 dias úteis.'},
+  {atalho:'/troca', txt:'Claro! Para iniciar a troca, me confirma o número do pedido, por favor?'},
+  {atalho:'/obrigada', txt:'Obrigada pelo contato! Qualquer coisa, estamos por aqui. 💗'},
+];
+const CORES = ['#ec4899','#f59e0b','#3b82f6','#14b8a6','#a855f7','#22c55e','#ef4444','#0ea5e9'];
+
+let sb=null, CONVERSAS=[], TAB='minhas', SEL=null, NOTA=false;
+async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2'); sb=createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true}}); } return sb; }
+const cur=()=>CONVERSAS.find(x=>x.id===SEL);
+
+/* ===== Carregamento do Supabase ===== */
+async function loadConversas(){
+  const c = await getSb();
+  const { data, error } = await c.from('at_conversas')
+    .select('*, cliente:at_clientes(*), mensagens:at_mensagens(*), tags:at_conversa_tags(tag:at_tags(*))')
+    .order('ultima_msg_em',{ascending:false});
+  if(error){ console.error(error); return []; }
+  return (data||[]).map((cv,i)=>{
+    const cli=cv.cliente||{};
+    const msgs=(cv.mensagens||[]).sort((a,b)=>new Date(a.enviada_em)-new Date(b.enviada_em)).map(m=>({
+      id:m.id, t: m.tipo==='nota'?'nota':m.direcao, k:(m.meta&&m.meta.evento)||undefined, txt:m.conteudo||'',
+      hora:new Date(m.enviada_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) }));
+    const j=cv.janela_expira_em?new Date(cv.janela_expira_em)-Date.now():0;
+    return { id:cv.id, nome:cli.nome||'Cliente', inicial:(cli.nome||'C')[0].toUpperCase(), cor:CORES[i%CORES.length],
+      canal:cv.canal==='whatsapp_oficial'?'API Oficial':(cv.canal||'—'), status:cv.status, naoLida:cv.nao_lida, minha:true,
+      janela:(cv.status==='encerrada'||j<=0)?'—':`${Math.floor(j/3600000)}h${String(Math.floor(j%3600000/60000)).padStart(2,'0')}min`,
+      tel:cli.telefone||'', email:cli.email||'', waid:cli.whatsapp_id||'',
+      ultimaAtividade:new Date(cv.ultima_msg_em).toLocaleString('pt-BR'),
+      tags:(cv.tags||[]).map(x=>x.tag&&x.tag.nome).filter(Boolean),
+      pedidoNumero:cv.pedido_numero||'', pedido:null, preview:cv.ultima_msg_preview||'', msgs };
+  });
+}
+
+async function bootstrap(){
+  const c = await getSb();
+  const { data:{ session } } = await c.auth.getSession();
+  if(!session){ document.getElementById('authGate').classList.remove('hidden'); return; }
+  document.getElementById('appWrap').classList.remove('hidden');
+  // identidade do atendente
+  ATEND_ID = session.user.id;
+  const email = session.user.email||'';
+  const { data: prof } = await c.from('profiles').select('full_name').eq('id',ATEND_ID).maybeSingle();
+  AGENTE = (prof&&prof.full_name) ? prof.full_name : (email.split('@')[0]||'Atendente');
+  document.getElementById('userAvatar').textContent = AGENTE[0].toUpperCase();
+  CONVERSAS = await loadConversas();
+  renderList();
+  document.getElementById('emptyState').classList.toggle('hidden', false);
+  if(CONVERSAS.length){ document.getElementById('emptyState').classList.add('hidden'); selecionar(CONVERSAS[0].id); }
+}
+
+/* ===== Lista ===== */
+function filtroTab(cv){ if(TAB==='minhas')return cv.status!=='encerrada'; if(TAB==='pendentes')return cv.status==='pendente'; if(TAB==='naolidas')return cv.naoLida; return true; }
+const statusDot=cv=>({aberta:'#22c55e',pendente:'#f59e0b',encerrada:'#94a3b8'}[cv.status]||'#94a3b8');
+function renderList(){
+  const q=(document.getElementById('search').value||'').toLowerCase();
+  const arr=CONVERSAS.filter(filtroTab).filter(cv=>!q||cv.nome.toLowerCase().includes(q)||(cv.tel||'').includes(q)||(cv.email||'').toLowerCase().includes(q));
+  document.getElementById('badgeNaoLidas').textContent=CONVERSAS.filter(cv=>cv.naoLida).length;
+  const el=document.getElementById('convList');
+  if(!arr.length){ el.innerHTML='<div class="p-8 text-center text-sm text-slate-400" data-fade>Nenhuma conversa aqui.</div>'; return; }
+  el.innerHTML=arr.map(cv=>`
+    <div class="conv-item px-3 py-3 flex gap-3" data-active="${SEL===cv.id?1:0}" onclick="selecionar('${cv.id}')">
+      <div class="relative shrink-0">
+        <div class="w-11 h-11 rounded-full text-white flex items-center justify-center font-semibold" style="background:${cv.cor}">${cv.inicial}</div>
+        <span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-ink-800" style="background:${statusDot(cv)}"></span>
+      </div>
+      <div class="min-w-0 flex-1">
+        <div class="flex items-center justify-between gap-2"><div class="truncate text-sm font-semibold">${esc(cv.nome)} <span class="text-slate-400 font-normal">· ${esc(AGENTE)}</span></div></div>
+        <div class="truncate text-[13px] ${cv.naoLida?'font-semibold text-slate-700 dark:text-slate-200':'text-slate-500 dark:text-slate-400'}">${esc(cv.preview)}</div>
+        <div class="mt-1 flex items-center gap-1 text-[11px] text-slate-400">
+          <svg class="w-3.5 h-3.5 text-green-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15l-1.4 5 5.1-1.3A10 10 0 1 0 12 2z"/></svg>${esc(cv.canal)}
+          ${cv.naoLida?'<span class="ml-auto w-2 h-2 rounded-full bg-pink-500"></span>':''}
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+/* ===== Conversa ===== */
+async function selecionar(id){
+  SEL=id; NOTA=false; const cv=cur(); if(!cv) return;
+  if(cv.naoLida){ cv.naoLida=false; try{ (await getSb()).from('at_conversas').update({nao_lida:false}).eq('id',id).then(()=>{}); }catch(e){} }
+  renderList();
+  document.getElementById('emptyState').classList.add('hidden');
+  document.getElementById('chatArea').classList.remove('hidden');
+  document.getElementById('chName').textContent=cv.nome;
+  document.getElementById('chChannel').innerHTML=`<svg class="w-3.5 h-3.5 text-green-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15l-1.4 5 5.1-1.3A10 10 0 1 0 12 2z"/></svg>${esc(cv.canal)}`;
+  document.getElementById('chWindow').innerHTML = cv.status==='encerrada' ? '' : `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Janela: ${cv.janela}`;
+  const br=document.getElementById('btnResolver');
+  if(cv.status==='encerrada'){ br.textContent='Reabrir'; br.className='text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-ink-700 dark:text-slate-300'; }
+  else { br.textContent='Resolver'; br.className='text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600'; }
+  renderChat(cv); renderProfile(cv);
+  document.getElementById('composer').classList.toggle('hidden', cv.status==='encerrada');
+  document.getElementById('composerEncerrada').classList.toggle('hidden', cv.status!=='encerrada');
+  document.getElementById('qrBox').classList.add('hidden');
+  const inp=document.getElementById('msgInput'); inp.placeholder=`Mande uma mensagem para ${cv.nome.split(' ')[0]}…`; inp.value=''; updCount(); setNotaUI();
+  enrichPedido(cv);
+}
+function renderChat(cv){
+  const chat=document.getElementById('chatArea');
+  chat.innerHTML=`<div class="flex justify-center"><span class="text-[11px] text-slate-400 bg-slate-100 dark:bg-ink-700 px-3 py-1 rounded-full">Conversa</span></div>`
+   + cv.msgs.map(m=>{
+      if(m.t==='sys'){ const s={reabriu:'bg-orange-100 text-orange-700',resolvida:'bg-green-100 text-green-700'}; return `<div class="flex justify-center"><span class="sys-chip ${s[m.k]||'bg-slate-100 text-slate-600'}">${esc(m.txt)}</span></div>`; }
+      if(m.t==='nota') return `<div class="flex justify-end"><div class="max-w-[70%] bubble-note rounded-2xl px-4 py-2 shadow-sm" data-fade><div class="text-[10px] font-semibold text-amber-600 mb-0.5">Nota interna</div><div class="text-sm whitespace-pre-wrap">${esc(m.txt)}</div><div class="text-[10px] text-amber-500/70 text-right mt-1">${m.hora}</div></div></div>`;
+      const out=m.t==='out';
+      return `<div class="flex ${out?'justify-end':'justify-start'}"><div class="max-w-[70%] ${out?'bubble-out':'bubble-in'} rounded-2xl px-4 py-2 shadow-sm" data-fade><div class="text-sm whitespace-pre-wrap">${esc(m.txt)}</div><div class="text-[10px] text-slate-400 text-right mt-1">${m.hora}${out?' ✓✓':''}</div></div></div>`;
+    }).join('');
+  chat.scrollTop=chat.scrollHeight;
+}
+function renderProfile(cv){
+  const p=document.getElementById('profile'); p.classList.remove('hidden'); const ped=cv.pedido;
+  p.innerHTML=`<div class="p-4">
+    <div class="flex items-center justify-between mb-4"><span class="font-semibold">Perfil</span></div>
+    <div class="w-14 h-14 rounded-full text-white flex items-center justify-center font-bold text-xl mb-3" style="background:${cv.cor}">${cv.inicial}</div>
+    ${campo('Nome',esc(cv.nome))}${cv.waid?campo('WhatsApp ID (LID)',esc(cv.waid),true):''}${cv.email?campo('Email',esc(cv.email)):''}${cv.tel?campo('Telefone',esc(cv.tel)):''}
+    <div class="mt-4 pt-4 border-t border-slate-200 dark:border-ink-600">
+      <div class="text-sm font-semibold mb-1">Operador atribuído</div>
+      <div class="flex items-center gap-2 text-sm"><span class="w-6 h-6 rounded-full bg-pink-500 text-white text-xs flex items-center justify-center font-bold">${esc(AGENTE[0].toUpperCase())}</span>${esc(AGENTE)}</div>
+      <div class="mt-3 text-xs text-slate-400">Última atividade<br><span class="text-slate-600 dark:text-slate-300 text-[13px]">${esc(cv.ultimaAtividade)}</span></div>
+    </div>
+    <div class="mt-4 pt-4 border-t border-slate-200 dark:border-ink-600">
+      <div class="flex items-center justify-between mb-2"><span class="text-sm font-semibold">Tags</span></div>
+      <div class="flex flex-wrap gap-1.5">${(cv.tags||[]).map(t=>`<span class="text-[11px] px-2 py-1 rounded-full bg-pink-50 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300 font-medium">${esc(t)}</span>`).join('')||'<span class="text-xs text-slate-400">Sem tags</span>'}</div>
+    </div>
+    <div class="mt-4 pt-4 border-t border-slate-200 dark:border-ink-600">
+      <div class="flex items-center gap-2 mb-2"><span class="text-sm font-semibold">Pedido do cliente</span><span id="pedBadge"></span></div>
+      <div id="pedBox" class="rounded-xl border border-slate-200 dark:border-ink-600 divide-y divide-slate-100 dark:divide-ink-700 text-[13px]">
+        ${cv.pedidoNumero?lp('Nº do pedido','#'+esc(cv.pedidoNumero)):'<div class="px-3 py-3 text-slate-400">Sem pedido vinculado</div>'}
+        ${ped?renderPedRows(ped):(cv.pedidoNumero?'<div class="px-3 py-2 text-slate-400 text-xs">Buscando na Loja Integrada…</div>':'')}
+      </div>
+    </div></div>`;
+}
+function renderPedRows(ped){
+  return lp('Status',`<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold ${spc(ped.status)}">${esc(ped.status)}</span>`)
+    + (ped.cidade?lp('Cidade/UF',esc(ped.cidade)+'/'+esc(ped.estado)):'')
+    + (ped.endereco?lp('Endereço',esc(ped.endereco)):'')
+    + (ped.cep?lp('CEP',esc(ped.cep)):'');
+}
+async function enrichPedido(cv){
+  if(!cv.pedidoNumero || cv.pedido) return;
+  // /api/pedidos?id= espera o id interno (Bling). Se pedidoNumero for um id longo, busca; senão exibe só o número.
+  if(!/^\d{10,}$/.test(cv.pedidoNumero)) return;
+  try{
+    const det = await fetch('/api/pedidos?id='+cv.pedidoNumero).then(r=>r.ok?r.json():null);
+    if(det){ cv.pedido={ status:SITUACOES[det.situacao_id]||'—', cidade:det.cidade||'', estado:det.estado||'',
+      endereco:[det.endereco,det.numero,det.complemento].filter(Boolean).join(', '), cep:det.cep||'', real:true };
+      if(SEL===cv.id){ const box=document.getElementById('pedBox'); if(box) box.insertAdjacentHTML('beforeend',renderPedRows(cv.pedido));
+        const b=document.getElementById('pedBadge'); if(b) b.innerHTML='<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 inline-flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Loja Integrada · ao vivo</span>'; }
+    }
+  }catch(e){}
+}
+const campo=(l,v,m)=>`<div class="mb-2"><div class="text-[11px] text-slate-400 mb-0.5">${l}</div><div class="text-sm ${m?'font-mono text-slate-500 text-[12px]':''} truncate">${v}</div></div>`;
+const lp=(k,v)=>`<div class="flex items-center justify-between px-3 py-2"><span class="text-slate-500 dark:text-slate-400">${k}</span><span class="font-medium text-right">${v}</span></div>`;
+function spc(s){ if(/entreg/i.test(s))return'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'; if(/envi|andamento/i.test(s))return'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'; if(/cancel/i.test(s))return'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'; return'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'; }
+
+/* ===== Interações (persistem no Supabase, com fallback local) ===== */
+async function enviar(){
+  const cv=cur(); if(!cv) return; const inp=document.getElementById('msgInput'); const txt=inp.value.trim(); if(!txt) return;
+  const hora=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  const isNota=NOTA;
+  cv.msgs.push(isNota?{t:'nota',txt,hora}:{t:'out',txt,hora});
+  if(!isNota){ cv.preview=txt; cv.ultimaAtividade=new Date().toLocaleString('pt-BR'); }
+  inp.value=''; updCount(); renderChat(cv); if(isNota){NOTA=false;setNotaUI();} renderList();
+  try{ const c=await getSb();
+    await c.from('at_mensagens').insert({ conversa_id:cv.id, direcao:isNota?'out':'out', tipo:isNota?'nota':'texto', conteudo:txt, autor:AGENTE });
+    if(!isNota) await c.from('at_conversas').update({ ultima_msg_preview:txt, ultima_msg_em:new Date().toISOString() }).eq('id',cv.id);
+  }catch(e){ console.warn('persist msg falhou:',e.message); }
+}
+async function toggleResolver(){
+  const cv=cur(); if(!cv) return;
+  const novo = cv.status==='encerrada' ? 'aberta' : 'encerrada';
+  const evt = novo==='aberta' ? {t:'sys',k:'reabriu',txt:`${AGENTE} reabriu a conversa`} : {t:'sys',k:'resolvida',txt:`${AGENTE} resolveu a conversa manualmente`};
+  cv.status=novo; cv.msgs.push(evt); selecionar(cv.id);
+  try{ const c=await getSb();
+    await c.from('at_conversas').update({status:novo}).eq('id',cv.id);
+    await c.from('at_mensagens').insert({ conversa_id:cv.id, direcao:'sys', tipo:'evento', conteudo:evt.txt, meta:{evento:evt.k}, autor:'sistema' });
+  }catch(e){ console.warn('persist status falhou:',e.message); }
+}
+function toggleQR(){ const b=document.getElementById('qrBox'); const l=document.getElementById('qrList');
+  l.innerHTML=QUICK_REPLIES.map((q,i)=>`<div class="qr-item" onclick="useQR(${i})"><span class="font-semibold text-pink-600">${q.atalho}</span> <span class="text-slate-500 dark:text-slate-400">${esc(q.txt).slice(0,42)}…</span></div>`).join(''); b.classList.toggle('hidden'); }
+function useQR(i){ const inp=document.getElementById('msgInput'); inp.value=QUICK_REPLIES[i].txt; document.getElementById('qrBox').classList.add('hidden'); inp.focus(); updCount(); }
+function toggleNota(){ NOTA=!NOTA; setNotaUI(); document.getElementById('msgInput').focus(); }
+function setNotaUI(){ const on=NOTA; document.getElementById('notaBanner').classList.toggle('hidden',!on); document.getElementById('btnNota').classList.toggle('text-amber-500',on);
+  const send=document.getElementById('btnEnviar'); send.classList.toggle('bg-pink-500',!on); send.classList.toggle('hover:bg-pink-600',!on); send.classList.toggle('bg-amber-500',on); send.classList.toggle('hover:bg-amber-600',on);
+  document.getElementById('msgInput').placeholder = on?'Escreva uma nota interna…':(cur()?`Mande uma mensagem para ${cur().nome.split(' ')[0]}…`:'Mande uma mensagem…'); }
+function fmt(ch){ const inp=document.getElementById('msgInput'); const s=inp.selectionStart,e=inp.selectionEnd,v=inp.value; if(s===e)return; inp.value=v.slice(0,s)+ch+v.slice(s,e)+ch+v.slice(e); updCount(); inp.focus(); }
+function updCount(){ document.getElementById('charCount').textContent=`${document.getElementById('msgInput').value.length} / 2.000`; }
+function setTab(t){ TAB=t; document.querySelectorAll('.conv-tab').forEach(el=>el.dataset.active=el.dataset.tab===t?'1':'0'); renderList(); }
+function toggleDark(){ document.documentElement.classList.toggle('dark'); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[x])); }
+document.addEventListener('click',e=>{ if(!e.target.closest('#qrBox')&&!e.target.closest('[title="Respostas rápidas"]')){ const q=document.getElementById('qrBox'); if(q)q.classList.add('hidden'); }});
+
+bootstrap();
+</script>
+</body>
+</html>
