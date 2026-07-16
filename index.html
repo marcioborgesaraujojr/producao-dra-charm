@@ -1358,6 +1358,8 @@ function renderBoardSelect(){
 
 async function switchBoard(boardId){
   currentBoardId = boardId;
+  // Mantém o seletor de quadro sempre igual ao quadro realmente carregado
+  const _bs = document.getElementById('boardSelect'); if (_bs && _bs.value !== boardId) _bs.value = boardId;
   try { localStorage.setItem('dc_last_board', boardId); } catch(e){}
   renderBoardMembers(boardId);
   filters.faccao.clear();
