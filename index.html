@@ -1619,7 +1619,7 @@ function renderCard(c, compact){
     ${!compact && icons.length ? `<div class="flex flex-wrap gap-2 mt-1.5">${icons.join('')}</div>`:''}
     ${cmembs.length ? `<div class="flex -space-x-1 mt-1">${memAvatars}${cmembs.length>3?`<div class="w-5 h-5 rounded-full bg-slate-400 text-white text-[9px] flex items-center justify-center">+${cmembs.length-3}</div>`:''}</div>`:''}
   `;
-  el.innerHTML = `<div class="flex gap-2">${cover}<div class="flex-1 min-w-0">${bodyInner}</div></div>${bordadoBadge}`;
+  el.innerHTML = `<div class="flex gap-2"><div class="relative shrink-0">${cover}${bordadoBadge}</div><div class="flex-1 min-w-0">${bodyInner}</div></div>`;
   el.addEventListener('dragstart', (ev) => {
     draggingCardId = c.id;
     el.classList.add('opacity-50');
