@@ -1121,7 +1121,7 @@ function bordadoPreviewFromInfo(info, prodNome, size){
         <span style="font-size:11px;font-weight:800;color:#dc2626;letter-spacing:.5px">PDF</span>
       </div>`;
     }
-    return `<img src="${escapeHtml(info.imagem)}" style="width:${w}px;height:${h}px;object-fit:contain;background:#fff;${boxCss}" class="block" loading="lazy" onerror="this.style.display='none'" title="${escapeHtml(prodNome||'')}"/>`;
+    return `<img src="${escapeHtml(info.imagem)}" style="max-width:${w}px;max-height:${h}px;width:auto;height:auto;background:#fff;${boxCss};display:block" loading="lazy" onerror="this.style.display='none'" title="${escapeHtml(prodNome||'')}"/>`;
   }
   const fontFam=bordadoFontFamily(info.fonte);
   const cor=info.corHex||'#333';
@@ -1129,7 +1129,7 @@ function bordadoPreviewFromInfo(info, prodNome, size){
   const bg = peca ? peca.hex : (isLightColor(cor) ? '#0f172a' : '#e2e8f0');
   const l1=escapeHtml((info.linha1||'').slice(0,28));
   const l2=escapeHtml((info.linha2||'').slice(0,28));
-  return `<div class="bordado-preview fabric-weave rounded-lg block" style="width:${w}px;height:${h}px;background-color:${bg}" title="${escapeHtml(prodNome||'')}"><div style="font-family:${fontFam};line-height:1.25;text-align:center;padding:4px;overflow:hidden;--thread-color:${cor}"><div class="bordado-thread" style="font-size:${size>100?13:11}px">${l1}</div>${l2?`<div class="bordado-thread" style="font-size:${size>100?10:9}px;margin-top:2px">${l2}</div>`:''}</div></div>`;
+  return `<div class="bordado-preview fabric-weave" style="width:${w}px;height:${h}px;background-color:${bg}" title="${escapeHtml(prodNome||'')}"><div style="font-family:${fontFam};line-height:1.25;text-align:center;padding:4px;overflow:hidden;--thread-color:${cor}"><div class="bordado-thread" style="font-size:${size>100?13:11}px">${l1}</div>${l2?`<div class="bordado-thread" style="font-size:${size>100?10:9}px;margin-top:2px">${l2}</div>`:''}</div></div>`;
 }
 // Mapeia fonte do LI para a fonte native carregada (mesma do site dracharm.com.br)
 function bordadoFontFamily(fonteName){
@@ -1599,14 +1599,14 @@ function renderCard(c, compact){
   if (bType === 'bordado'){
     // Vários bordados por pedido: empilhado com contador + hover revela o de trás. Cada um com sua cor.
     const bords = bordadosDoCard(c);
-    const size = compact ? 88 : 120;
+    const size = compact ? 80 : 110;
     if (bords.length){
       // Estilo checkout: preview da frente (no fluxo, centralizado) + card caidinho atrás quando há mais de um
       const back = bords.length>1
-        ? `<div style="position:absolute;top:0;left:0;transform:rotate(8deg) translate(6px,5px);z-index:1;pointer-events:none">${bordadoPreviewFromInfo(bords[1].info, bords[1].nome, size)}</div>`
+        ? `<div style="position:absolute;top:0;left:0;transform:rotate(9deg) translate(11px,8px);z-index:1;pointer-events:none">${bordadoPreviewFromInfo(bords[1].info, bords[1].nome, size)}</div>`
         : '';
       const badge = bords.length>1 ? `<div style="position:absolute;bottom:-3px;left:-3px;z-index:5;background:#0f172a;color:#fff;font-size:10px;font-weight:800;border-radius:999px;min-width:19px;height:19px;display:flex;align-items:center;justify-content:center;padding:0 5px;box-shadow:0 1px 4px rgba(0,0,0,.4)" title="${bords.length} bordados neste pedido">${bords.length}</div>` : '';
-      cover = `<div class="bord-stack shrink-0" style="position:relative;display:inline-flex;margin-right:${bords.length>1?12:0}px">${back}<div style="position:relative;z-index:2">${bordadoPreviewFromInfo(bords[0].info, bords[0].nome, size)}</div>${badge}</div>`;
+      cover = `<div class="bord-stack shrink-0" style="position:relative;display:inline-flex;margin-right:${bords.length>1?16:0}px">${back}<div style="position:relative;z-index:2">${bordadoPreviewFromInfo(bords[0].info, bords[0].nome, size)}</div>${badge}</div>`;
     }
   } else if (c.cover_url){
     cover = `<img src="${escapeHtml(c.cover_url)}" class="product-cover ${compact?'product-cover-compact':'product-cover-normal'}" loading="lazy" onerror="this.style.display='none'"/>`;
