@@ -21,7 +21,7 @@ tailwind.config = {
 @font-face{font-family:'Monotype Corsiva';src:url('/f-monotype-corsiva.ttf') format('truetype');font-display:swap;}
 @font-face{font-family:'Ballantines Script';src:url('/f-ballantines-script.ttf') format('truetype');font-display:swap;}
 
-  html,body{height:100%}
+  html,body{height:100%;overflow-x:hidden;overscroll-behavior-x:none}
   body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
   #appBg{position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;z-index:-1;background-size:cover;background-position:center;background-repeat:no-repeat;pointer-events:none}
   /* v80: body transparente pra deixar #appBg (fixed) aparecer atrás dos cards sem ser coberto pela cor bg-slate-100 do Tailwind */
@@ -206,7 +206,7 @@ tailwind.config = {
 <div id="loginScreen" class="hidden min-h-screen flex items-center justify-center p-4">
   <div class="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-md p-8">
     <div class="flex items-center gap-3 mb-6">
-      <div class="system-logo w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden bg-white">
+      <div class="system-logo shrink-0 w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden bg-white">
         <img src="/logo_500x500.svg" alt="Aragão" class="w-full h-full object-contain p-0.5">
       </div>
       <div>
@@ -240,7 +240,7 @@ tailwind.config = {
 <div id="recoveryScreen" class="hidden min-h-screen flex items-center justify-center p-4">
   <div class="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-md p-8">
     <div class="flex items-center gap-3 mb-6">
-      <div class="system-logo w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden bg-white">
+      <div class="system-logo shrink-0 w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden bg-white">
         <img src="/logo_500x500.svg" alt="Aragão" class="w-full h-full object-contain p-0.5">
       </div>
       <div>
@@ -269,7 +269,7 @@ tailwind.config = {
   <div class="w-full max-w-6xl">
     <div class="flex items-center justify-between mb-10">
       <div class="flex items-center gap-3">
-        <div class="system-logo w-12 h-12 rounded-2xl flex items-center justify-center overflow-hidden bg-white shadow-sm">
+        <div class="system-logo shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center overflow-hidden bg-white shadow-sm">
           <img src="/logo_500x500.svg" alt="Aragão" class="w-full h-full object-contain p-0.5" onerror="this.style.display='none'"/>
         </div>
         <div>
@@ -479,7 +479,7 @@ tailwind.config = {
   <header class="sticky top-0 z-30 bg-white/90 dark:bg-ink-800/90 backdrop-blur border-b border-slate-200 dark:border-ink-700">
     <div class="px-4 py-2 flex flex-wrap items-center gap-3">
       <div class="flex items-center gap-2">
-        <div class="system-logo w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-white">
+        <div class="system-logo shrink-0 w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-white">
         <img src="https://cdn.awsli.com.br/1930/1930166/arquivos/logo.png" class="w-full h-full object-contain">
       </div>
         <div class="leading-tight">
@@ -529,7 +529,7 @@ tailwind.config = {
       </div>
 
       <div class="flex items-center gap-2">
-        <div id="boardMembers" class="flex items-center -space-x-1.5 mr-1"></div>
+        <div id="boardMembers" class="hidden sm:flex items-center -space-x-1.5 mr-1"></div>
         <button onclick="backToHub()" title="Voltar à Suíte" class="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:text-pink-500 transition-colors">
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
         </button>
@@ -677,7 +677,7 @@ tailwind.config = {
       <div id="autosaveStatus" class="text-xs text-slate-400 self-center">salvo</div>
       <span id="commentCount" class="hidden"></span>
     </div>
-    <div class="flex-1 overflow-y-auto">
+    <div class="flex-1 overflow-y-auto overflow-x-hidden">
       <div id="tab-details" class="tab-content p-5 grid gap-5" style="grid-template-columns:1fr 400px">
         <div class="space-y-4 min-w-0">
           <div id="producaoFields" class="space-y-4">
@@ -2254,7 +2254,7 @@ function renderFeed(){
   // v79: ocultar=comments + últimas 5 atividades; mostrar=tudo
   const acts = items.filter(i=>i.kind==='activity');
   const cs = items.filter(i=>i.kind==='comment');
-  const ACT_LIMIT = 5;
+  const ACT_LIMIT = 2;
   const visible = showDetalhes ? items : [...cs, ...acts.slice(0, ACT_LIMIT)].sort((a,b) => new Date(b.at) - new Date(a.at));
   const tBtn = document.getElementById('toggleDetalhes');
   if (tBtn) tBtn.style.display = (acts.length > ACT_LIMIT) ? '' : 'none';
@@ -2264,7 +2264,7 @@ function renderFeed(){
       const c = item.data;
       const author = profiles.find(p=>p.id===c.author_id) || {full_name:'?'};
       return `<div class="flex gap-2">
-        <div class="w-7 h-7 rounded-full bg-pink-500 text-white text-xs flex items-center justify-center flex-shrink-0">${(author.full_name||'?').charAt(0).toUpperCase()}</div>
+        <div class="w-7 h-7 rounded-full text-white text-xs flex items-center justify-center flex-shrink-0" style="background:${userColor(author)}">${(author.full_name||'?').charAt(0).toUpperCase()}</div>
         <div class="flex-1 bg-slate-50 dark:bg-ink-700 rounded-lg p-2">
           <div class="flex items-center gap-2 text-[11px] text-slate-500 mb-1">
             <span class="font-semibold text-slate-700 dark:text-slate-200">${escapeHtml(author.full_name)}</span>
