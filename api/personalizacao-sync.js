@@ -29,8 +29,8 @@ function parseFields(obs){
   return fields;
 }
 
-function buildBordado(tipoOrder, obs){
-  const f=parseFields(obs);
+// Monta um bordado a partir dos campos já parseados de um bloco (raw = texto do bloco pra achar URL de imagem)
+function buildBordadoFromFields(f, raw){
   let corHex=null, corNome=null;
   if(f['cores']){
     const cm=f['cores'].match(/^(#?[0-9a-fA-F]{3,8})\s*-\s*(.+)$/);
@@ -38,17 +38,46 @@ function buildBordado(tipoOrder, obs){
     else corNome=f['cores'];
   }
   let imgUrl = f['fazer upload da imagem'] || null;
-  if(!imgUrl){ const m=String(obs||'').match(/https?:\/\/[^\s\n]+\.(?:jpg|jpeg|png|pdf|svg|gif)/i); if(m) imgUrl=m[0]; }
+  if(!imgUrl){ const m=String(raw||'').match(/https?:\/\/[^\s\n]+\.(?:jpg|jpeg|png|pdf|svg|gif)/i); if(m) imgUrl=m[0]; }
+  const linha1 = f['linha 1'] || null;
+  const linha2 = f['linha 2'] || f['linha 3'] || null;
+  const hasLinhas = !!(linha1 || linha2);
+  // Tipo inferido do próprio bloco: imagem => logomarca; linhas => nome_profissao; os dois => ambos
+  let tipo = null;
+  if(imgUrl && hasLinhas) tipo='ambos';
+  else if(imgUrl) tipo='logomarca';
+  else if(hasLinhas) tipo='nome_profissao';
   return {
-    tipo: tipoOrder,
-    linha1: f['linha 1'] || null,
-    linha2: f['linha 2'] || f['linha 3'] || null,
+    tipo,
+    linha1, linha2,
     corHex, corNome,
     fonte: f['tipo de letra'] || null,
     lado: f['lados'] || f['lado'] || null,
     imagem: imgUrl,
     detalhes: f['detalhes do bordado (opcional)'] || f['detalhes do bordado'] || null
   };
+}
+// Bordado "do card" (nível pedido, first-wins) — mantém o tipo do pedido pra compatibilidade
+function buildBordado(tipoOrder, obs){
+  const b = buildBordadoFromFields(parseFields(obs), obs);
+  b.tipo = tipoOrder;
+  return b;
+}
+// Bordado de CADA SKU: mapa sku(minúsculo) -> objeto bordado, parseando o bloco "** sku [..] **" de cada um
+function parseBordadoBySku(obs){
+  const map={};
+  const block=String(obs||'');
+  const skuMatches=[...block.matchAll(/\*\*\s*([^\s\[*]+)[^*]*\*\*/g)];
+  for(let i=0;i<skuMatches.length;i++){
+    const sku=skuMatches[i][1].trim().toLowerCase();
+    const start=skuMatches[i].index+skuMatches[i][0].length;
+    const end=(i+1<skuMatches.length)?skuMatches[i+1].index:block.length;
+    const content=block.slice(start,end);
+    const f=parseFields(content);
+    if(Object.keys(f).length===0) continue; // bloco sem bordado
+    map[sku]=buildBordadoFromFields(f, content);
+  }
+  return map;
 }
 
 function tamanhoOf(variacao){
@@ -93,6 +122,7 @@ function pickImg(pj){
 async function buildProdutos(itens, cache, obs){
   const out=[]; let dbg=null;
   const bset=computeBordadoSkus(obs);
+  const bySku=parseBordadoBySku(obs);
   for(const it of (itens||[])){
     if(!it || isSkipItem(it)) continue;
     const ref = it.produto_pai || it.produto;
@@ -105,13 +135,15 @@ async function buildProdutos(itens, cache, obs){
       }
     }
     if(!dbg) dbg={ ref: ref||null, keys };
+    const skuLc=String(it.sku||'').toLowerCase();
     out.push({
       qtd: Math.round(parseFloat(it.quantidade||'1'))||1,
       sku: it.sku||null,
       nome: it.nome||'',
-      bordado: bset.has(String(it.sku||'').toLowerCase()),
+      bordado: bset.has(skuLc),
       tamanho: tamanhoOf(it.variacao),
-      imagem_url
+      imagem_url,
+      bordadoInfo: bySku[skuLc] || null
     });
   }
   return { produtos: out, dbg };
