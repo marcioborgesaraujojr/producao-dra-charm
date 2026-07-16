@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Campanhas — Sistema Grupo Aragão</title>
+<link rel="icon" type="image/png" href="https://cdn.awsli.com.br/1930/1930166/arquivos/logo.png">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
+  ink:{900:'#0b1220',800:'#111827',700:'#1f2937',600:'#374151'}, accent:{DEFAULT:'#e91e63',600:'#db2777'} }}}};
+</script>
+<style>
+  html{background:#f1f5f9}html.dark{background:#0b1220}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0}
+  .fld{width:100%;padding:8px 10px;font-size:14px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0;outline:none}
+  .fld:focus{border-color:#db2777}.dark .fld{background:#1f2937;border-color:#374151;color:#e5e7eb}
+  label{font-size:12px;color:#64748b;font-weight:600}
+  .bin{background:#fff;border:1px solid #eef2f7}.dark .bin{background:#1f2937;border-color:#334155}
+  .var-chip{font-size:11px;font-family:ui-monospace,monospace;background:#fdf2f8;color:#db2777;border:1px solid #fbcfe8;border-radius:6px;padding:2px 6px;cursor:pointer}
+  .dark .var-chip{background:#3f1d2b;color:#f9a8d4;border-color:#6d2647}
+  [data-fade]{animation:fade .2s ease}@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body class="text-slate-800 dark:text-slate-100">
+
+<div id="authGate" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-50 dark:bg-ink-900">
+  <div class="text-center">
+    <div class="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-pink-500 to-rose-500 text-white font-bold text-2xl flex items-center justify-center mb-4">A</div>
+    <div class="font-semibold mb-1">Campanhas</div><div class="text-sm text-slate-500 mb-4">Faça login na Suíte para acessar.</div>
+    <a href="/" class="inline-block text-sm font-semibold text-white bg-pink-500 hover:bg-pink-600 px-4 py-2 rounded-lg">Ir para o login</a>
+  </div>
+</div>
+
+<div id="appWrap" class="hidden max-w-5xl mx-auto">
+<header class="h-14 flex items-center justify-between px-4 bg-white/95 dark:bg-ink-800/95 border-b border-slate-200 dark:border-ink-600 sticky top-0 z-30 backdrop-blur">
+  <div class="flex items-center gap-3">
+    <button onclick="location.href='/'" title="Voltar à Suíte" class="w-9 h-9 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 text-white font-bold flex items-center justify-center shadow hover:scale-105 transition">A</button>
+    <div class="leading-tight"><div class="text-sm font-semibold">Campanhas</div><div class="text-[11px] text-slate-500 dark:text-slate-400">Disparos em massa · Grupo Aragão</div></div>
+  </div>
+  <div class="flex items-center gap-1">
+    <button onclick="location.href='/'" class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 flex items-center justify-center text-slate-500" title="Voltar"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg></button>
+    <button onclick="document.documentElement.classList.toggle('dark')" class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 flex items-center justify-center text-slate-500" title="Tema"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+  </div>
+</header>
+
+<div class="p-4 grid md:grid-cols-2 gap-4">
+  <!-- Nova campanha -->
+  <div class="space-y-3">
+    <div class="text-sm font-semibold">Nova campanha</div>
+    <div><label>Nome</label><input id="nome" class="fld mt-1" placeholder="Ex.: Promoção de inverno"></div>
+    <div>
+      <label>Mensagem</label>
+      <div class="flex flex-wrap gap-1.5 my-1"><span class="var-chip" onclick="insVar('{{nome}}')">{{nome}}</span></div>
+      <textarea id="mensagem" rows="5" class="fld" placeholder="Oi {{nome}}! Temos novidades pra você… 💗"></textarea>
+    </div>
+    <div>
+      <label>Público</label>
+      <select id="publico" class="fld mt-1" onchange="togglePublico()">
+        <option value="todos">Todos os clientes cadastrados</option>
+        <option value="manual">Lista manual de telefones</option>
+      </select>
+    </div>
+    <div id="wrapManual" class="hidden"><label>Telefones (um por linha)</label><textarea id="telefones" rows="4" class="fld mt-1" placeholder="5585999990000&#10;5585988887777"></textarea></div>
+    <div class="flex gap-2">
+      <button onclick="salvar(false)" class="flex-1 text-sm font-semibold px-4 py-2.5 rounded-lg bg-slate-100 dark:bg-ink-700 hover:bg-slate-200">Salvar rascunho</button>
+      <button onclick="salvar(true)" class="flex-1 text-sm font-semibold px-4 py-2.5 rounded-lg bg-pink-500 hover:bg-pink-600 text-white">Salvar e disparar</button>
+    </div>
+    <div class="text-[11px] text-slate-400">O disparo enfileira as mensagens. O envio real acontece quando o WhatsApp estiver conectado.</div>
+  </div>
+
+  <!-- Lista -->
+  <div>
+    <div class="text-sm font-semibold mb-2">Campanhas</div>
+    <div id="lista" class="space-y-2"></div>
+  </div>
+</div>
+</div>
+
+<script>
+const SUPA = { url:'https://wwytzoyeibekhstinott.supabase.co', key:'sb_publishable_uMoCEK4Ed_u8ZIfjVZ7Jrg_tdR4b9bO' };
+let sb=null, TOKEN=null;
+async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2'); sb=createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true}}); } return sb; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[x])); }
+function insVar(v){ const t=document.getElementById('mensagem'); const s=t.selectionStart||t.value.length; t.value=t.value.slice(0,s)+v+t.value.slice(s); t.focus(); }
+function togglePublico(){ document.getElementById('wrapManual').classList.toggle('hidden', document.getElementById('publico').value!=='manual'); }
+
+async function bootstrap(){
+  const c=await getSb(); const { data:{ session } }=await c.auth.getSession();
+  if(!session){ document.getElementById('authGate').classList.remove('hidden'); return; }
+  TOKEN=session.access_token;
+  document.getElementById('appWrap').classList.remove('hidden');
+  carregar();
+  c.channel('campanhas').on('postgres_changes',{event:'*',schema:'public',table:'at_campanhas'},()=>carregar()).subscribe();
+}
+async function carregar(){
+  const c=await getSb();
+  const { data }=await c.from('at_campanhas').select('*').order('created_at',{ascending:false}).limit(50);
+  const el=document.getElementById('lista');
+  if(!data||!data.length){ el.innerHTML='<div class="bin rounded-xl p-6 text-center text-sm text-slate-400">Nenhuma campanha ainda.</div>'; return; }
+  el.innerHTML=data.map(x=>`
+    <div class="bin rounded-xl p-3" data-fade>
+      <div class="flex items-center justify-between">
+        <div class="font-semibold text-sm">${esc(x.nome)}</div>
+        <span class="text-[11px] px-2 py-0.5 rounded-full ${x.status==='enfileirada'?'bg-emerald-100 text-emerald-700':'bg-slate-200 text-slate-600'}">${x.status}${x.total?(' · '+x.total):''}</span>
+      </div>
+      <div class="text-[13px] text-slate-500 dark:text-slate-400 truncate mt-1">${esc(x.mensagem)}</div>
+      <div class="flex items-center gap-3 mt-2 text-[11px]">
+        <span class="text-slate-400">${x.publico==='manual'?'Lista manual':'Todos os clientes'} · ${new Date(x.created_at).toLocaleString('pt-BR')}</span>
+        ${x.status!=='enfileirada'?`<button onclick="disparar('${x.id}')" class="ml-auto text-pink-600 font-semibold hover:underline">Disparar</button>`:''}
+      </div>
+    </div>`).join('');
+}
+async function salvar(disparo){
+  const nome=document.getElementById('nome').value.trim()||'Campanha';
+  const mensagem=document.getElementById('mensagem').value.trim();
+  if(!mensagem){ alert('Escreva a mensagem.'); return; }
+  const publico=document.getElementById('publico').value;
+  const telefones=document.getElementById('telefones').value;
+  try{ const c=await getSb();
+    const { data, error }=await c.from('at_campanhas').insert({nome,mensagem,publico,telefones}).select().single();
+    if(error) throw error;
+    document.getElementById('nome').value=''; document.getElementById('mensagem').value=''; document.getElementById('telefones').value='';
+    carregar();
+    if(disparo) disparar(data.id);
+  }catch(e){ alert('Erro: '+e.message); }
+}
+async function disparar(id){
+  if(!confirm('Enfileirar esta campanha para envio?')) return;
+  try{
+    const r=await fetch('/api/campanha-disparar',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+TOKEN},body:JSON.stringify({campanha_id:id})});
+    const j=await r.json();
+    if(!r.ok){ alert('Erro: '+(j.error||'falha')); return; }
+    alert('Campanha enfileirada! '+ (j.total||0) +' mensagem(ns) na fila.'+(j.aviso?('\n'+j.aviso):''));
+    carregar();
+  }catch(e){ alert('Erro: '+e.message); }
+}
+bootstrap();
+</script>
+<script src="/nav.js"></script>
+</body>
+</html>
