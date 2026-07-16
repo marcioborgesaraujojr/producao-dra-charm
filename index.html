@@ -528,22 +528,6 @@ tailwind.config = {
           <svg class="absolute left-2.5 top-2.5 w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg>
         </div>
         <div id="boardMembers" class="flex items-center -space-x-1.5 shrink-0"></div>
-        <div class="relative">
-          <button id="filterFaccaoBtn" class="px-3 py-2 rounded-lg bg-slate-100 dark:bg-ink-700 hover:bg-slate-200 text-sm flex items-center gap-1">
-            Etiqueta <span id="filterFaccaoCount" class="text-xs bg-pink-500 text-white rounded-full px-1.5 hidden">0</span>
-            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
-          </button>
-          <div id="filterFaccaoDropdown" class="hidden absolute left-0 mt-1 w-64 bg-white dark:bg-ink-800 rounded-xl shadow-2xl border border-slate-200 dark:border-ink-700 z-40">
-            <div class="p-2 border-b border-slate-200 dark:border-ink-700">
-              <input id="filterFaccaoSearch" type="text" placeholder="Buscar facção..." class="w-full px-2 py-1 rounded bg-slate-100 dark:bg-ink-700 text-sm outline-none focus:ring-2 focus:ring-pink-500"/>
-            </div>
-            <div id="filterFaccaoList" class="max-h-72 overflow-y-auto p-1"></div>
-            <div class="border-t border-slate-200 dark:border-ink-700 p-2 flex gap-2">
-              <button onclick="clearFacFilter()" class="text-xs text-slate-500 hover:underline flex-1 text-left">Limpar</button>
-              <button onclick="closeFacFilter()" class="text-xs bg-pink-500 text-white px-3 py-1 rounded">Fechar</button>
-            </div>
-          </div>
-        </div>
         <label class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 dark:bg-ink-700 text-sm cursor-pointer select-none">
           <input id="hideFinalizado" type="checkbox" checked class="accent-pink-500">Ocultar finalizados
         </label>
@@ -1414,7 +1398,7 @@ function renderBoard(){
   lists.forEach(list => {
     if (filters.hideFinalizado && list.id === finalizadoId) return;
     const listCards = cards.filter(c => c.list_id === list.id)
-      .filter(c => !q || (c.title||'').toLowerCase().includes(q) || (c.description||'').toLowerCase().includes(q) || String(c.pedido_numero||'').toLowerCase().includes(q) || (c.pedido_cliente||'').toLowerCase().includes(q))
+      .filter(c => !q || (c.title||'').toLowerCase().includes(q) || (c.description||'').toLowerCase().includes(q) || String(c.pedido_numero||'').toLowerCase().includes(q) || (c.pedido_cliente||'').toLowerCase().includes(q) || (cardLabels[c.id]||[]).some(l => (l.name||'').toLowerCase().includes(q)))
       .filter(c => filters.faccao.size===0 || cardLabels[c.id].some(l => filters.faccao.has(l.name)))
       .sort((a,b) => (a.position||0) - (b.position||0));
     const col = document.createElement('div');
@@ -1690,22 +1674,9 @@ function updateStats(){
 }
 
 function renderFilterBar(){
+  // Filtro de etiqueta foi removido do header; a busca agora inclui as etiquetas.
   const bar = document.getElementById('faccaoFilterBar');
-  if (filters.faccao.size===0){ bar.classList.add('hidden'); document.getElementById('filterFaccaoCount').classList.add('hidden'); return; }
-  bar.classList.remove('hidden');
-  bar.innerHTML = '';
-  filters.faccao.forEach(name => {
-    const l = labels.find(x=>x.name===name);
-    if (!l) return;
-    const chip = document.createElement('button');
-    chip.className = 'text-[11px] px-2 py-0.5 rounded-full';
-    chip.style.background = l.color+'22'; chip.style.color = l.color;
-    chip.innerHTML = `${escapeHtml(name)} <span class="ml-1 opacity-60">X</span>`;
-    chip.onclick = () => { filters.faccao.delete(name); renderBoard(); };
-    bar.appendChild(chip);
-  });
-  document.getElementById('filterFaccaoCount').textContent = filters.faccao.size;
-  document.getElementById('filterFaccaoCount').classList.remove('hidden');
+  if (bar){ bar.classList.add('hidden'); bar.innerHTML = ''; }
 }
 
 async function openCard(id){
@@ -2754,37 +2725,7 @@ window.addTecido = async () => {
   openEstoque();
 };
 
-function renderFacFilterList(query=''){
-  const list = document.getElementById('filterFaccaoList');
-  list.innerHTML = '';
-  const q = query.toLowerCase();
-  labels.filter(l => !q || l.name.toLowerCase().includes(q)).forEach(l => {
-    const active = filters.faccao.has(l.name);
-    const b = document.createElement('button');
-    b.className = `w-full text-xs text-left px-2 py-1.5 rounded flex items-center gap-2 ${active?'bg-pink-100 dark:bg-pink-900/40':'hover:bg-slate-100 dark:hover:bg-ink-700'}`;
-    b.innerHTML = `<span class="w-2.5 h-2.5 rounded-full" style="background:${l.color}"></span>${escapeHtml(l.name)}${active?`<span class="ml-auto text-pink-600"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>`:''}`;
-    b.onclick = () => {
-      if (filters.faccao.has(l.name)) filters.faccao.delete(l.name);
-      else filters.faccao.add(l.name);
-      renderFacFilterList(document.getElementById('filterFaccaoSearch').value);
-      renderBoard();
-    };
-    list.appendChild(b);
-  });
-}
-document.getElementById('filterFaccaoBtn').onclick = e => {
-  e.stopPropagation();
-  const dd = document.getElementById('filterFaccaoDropdown');
-  const open = dd.classList.contains('hidden');
-  dd.classList.toggle('hidden');
-  if (open){
-    renderFacFilterList();
-    setTimeout(()=>document.getElementById('filterFaccaoSearch').focus(),50);
-  }
-};
-document.getElementById('filterFaccaoSearch').oninput = e => renderFacFilterList(e.target.value);
-window.clearFacFilter = () => { filters.faccao.clear(); renderFacFilterList(document.getElementById('filterFaccaoSearch').value); renderBoard(); };
-window.closeFacFilter = () => document.getElementById('filterFaccaoDropdown').classList.add('hidden');
+// Filtro de etiqueta removido do header — a busca agora inclui as etiquetas (facções).
 
 document.getElementById('search').oninput = e => { filters.search = e.target.value; renderBoard(); };
 document.getElementById('hideFinalizado').onchange = async e => { filters.hideFinalizado = e.target.checked; if (!e.target.checked) { await enterBoard(currentBoardId); } else { renderBoard(); } };
