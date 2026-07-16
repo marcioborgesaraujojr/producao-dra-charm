@@ -1550,12 +1550,12 @@ function renderCard(c, compact){
   // Bordado alterado e ainda não conferido por outra pessoa → destaque âmbar
   const bordadoAlerta = bType === 'bordado' && !!c.bordado_alterado_em;
   if (bordadoAlerta){
-    el.classList.add('relative','ring-2','ring-amber-400','dark:ring-amber-500');
-    el.style.boxShadow = '0 8px 24px rgba(0,0,0,.4)'; // sombra preta destacando do fundo
+    // Borda amarela mais grossa (mesmo amarelo do selo) — sem sombra
+    el.classList.add('relative','ring-4','ring-amber-400','dark:ring-amber-400');
   }
   // Selo flutuante no canto inferior esquerdo, por cima das infos do card
   const bordadoBadge = bordadoAlerta
-    ? `<div class="absolute bottom-1.5 left-1.5 z-10 text-[11px] font-extrabold text-amber-950 dark:text-amber-50 bg-amber-400/85 dark:bg-amber-500/85 backdrop-blur-sm rounded-md px-2 py-1 whitespace-nowrap">✏️ Bordado Alterado</div>`
+    ? `<div class="absolute bottom-1.5 left-1.5 z-10 text-[11px] font-extrabold text-black bg-amber-400/70 rounded-md px-2 py-1 whitespace-nowrap">✏️ Bordado Alterado</div>`
     : '';
   // Cover normal: foto do produto. Bordado: preview de texto ou thumb da logomarca.
   let cover = '';
