@@ -2053,7 +2053,13 @@ function renderCardCover(c){
     if (_heroIdx >= bords.length) _heroIdx = 0;
     const b = bords[_heroIdx]; const info = b.info;
     if ((info.tipo === 'logomarca' || info.tipo === 'ambos') && info.imagem){
-      img.src = info.imagem; img.classList.remove('hidden');
+      if (/\.pdf(\?|$)/i.test(info.imagem)){
+        // Logo em PDF não renderiza como imagem: mostra ícone de PDF no hero
+        textPreview.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:8px;color:#dc2626"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span style="font-size:15px;font-weight:800;letter-spacing:1px">PDF</span></div>`;
+        textPreview.style.display = 'flex';
+      } else {
+        img.src = info.imagem; img.classList.remove('hidden');
+      }
     } else if (info.linha1 || info.linha2){
       const fam = bordadoFontFamily(info.fonte);
       const cor = info.corHex || '#333';
