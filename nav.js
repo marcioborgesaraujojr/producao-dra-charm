@@ -17,6 +17,8 @@
       icon: '<path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/>' },
     { href: '/workflows.html', label: 'Workflows', admin: true,
       icon: '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="12" r="3"/><path d="M9 6h6a3 3 0 0 1 3 3v0M9 18h6a3 3 0 0 0 3-3v0"/>' },
+    { href: '/pipelines.html', label: 'Funil de Leads', admin: true,
+      icon: '<rect x="3" y="4" width="4" height="16" rx="1"/><rect x="10" y="4" width="4" height="10" rx="1"/><rect x="17" y="4" width="4" height="6" rx="1"/>' },
   ];
   const path = location.pathname;
   const isActive = (href) => path === href || path.endsWith(href) || (path === '/' && href === '/atendimento.html');
