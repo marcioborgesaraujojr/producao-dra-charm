@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Automações — Sistema Grupo Aragão</title>
+<link rel="icon" type="image/png" href="https://cdn.awsli.com.br/1930/1930166/arquivos/logo.png">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
+  ink:{900:'#0b1220',800:'#111827',700:'#1f2937',600:'#374151'}, accent:{DEFAULT:'#e91e63',600:'#db2777'} }}}};
+</script>
+<style>
+  html{background:#f1f5f9}html.dark{background:#0b1220}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0}
+  .scroll{scrollbar-width:thin}.scroll::-webkit-scrollbar{width:8px}.scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px}.dark .scroll::-webkit-scrollbar-thumb{background:#475569}
+  .tab{padding:8px 4px;font-size:14px;font-weight:600;color:#64748b;cursor:pointer;border-bottom:2px solid transparent}
+  .tab[data-active="1"]{color:#db2777;border-bottom-color:#db2777}.dark .tab{color:#94a3b8}
+  .switch{width:42px;height:24px;border-radius:999px;background:#cbd5e1;position:relative;cursor:pointer;transition:background .15s;flex-shrink:0}
+  .switch[data-on="1"]{background:#db2777}
+  .switch::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s}
+  .switch[data-on="1"]::after{left:21px}
+  .dark .switch{background:#374151}
+  .var-chip{font-size:11px;font-family:ui-monospace,monospace;background:#fdf2f8;color:#db2777;border:1px solid #fbcfe8;border-radius:6px;padding:2px 6px;cursor:pointer}
+  .dark .var-chip{background:#3f1d2b;color:#f9a8d4;border-color:#6d2647}
+  [data-fade]{animation:fade .18s ease}@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body class="text-slate-800 dark:text-slate-100">
+
+<div id="authGate" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-50 dark:bg-ink-900">
+  <div class="text-center">
+    <div class="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-pink-500 to-rose-500 text-white font-bold text-2xl flex items-center justify-center mb-4">A</div>
+    <div class="font-semibold mb-1">Automações</div><div class="text-sm text-slate-500 mb-4">Faça login na Suíte para acessar.</div>
+    <a href="/" class="inline-block text-sm font-semibold text-white bg-pink-500 hover:bg-pink-600 px-4 py-2 rounded-lg">Ir para o login</a>
+  </div>
+</div>
+
+<div id="appWrap" class="hidden max-w-5xl mx-auto">
+<header class="h-14 flex items-center justify-between px-4 bg-white/95 dark:bg-ink-800/95 border-b border-slate-200 dark:border-ink-600 sticky top-0 z-30 backdrop-blur">
+  <div class="flex items-center gap-3">
+    <button onclick="location.href='/'" title="Voltar à Suíte" class="w-9 h-9 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 text-white font-bold flex items-center justify-center shadow hover:scale-105 transition">A</button>
+    <div class="leading-tight"><div class="text-sm font-semibold">Automações</div><div class="text-[11px] text-slate-500 dark:text-slate-400">Gatilhos e Fila de envios · Grupo Aragão</div></div>
+  </div>
+  <div class="flex items-center gap-1">
+    <button onclick="location.href='/'" class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 flex items-center justify-center text-slate-500" title="Voltar à Suíte"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg></button>
+    <button onclick="document.documentElement.classList.toggle('dark')" class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 flex items-center justify-center text-slate-500" title="Tema"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+  </div>
+</header>
+
+<div class="px-4 pt-4">
+  <div class="flex items-center gap-6 border-b border-slate-200 dark:border-ink-600 mb-4">
+    <span class="tab" data-tab="gatilhos" data-active="1" onclick="setTab('gatilhos')">Gatilhos</span>
+    <span class="tab" data-tab="fila" onclick="setTab('fila')">Fila de envios <span id="filaBadge" class="ml-0.5 text-[10px] bg-slate-200 text-slate-600 dark:bg-ink-600 dark:text-slate-300 rounded-full px-1.5 py-0.5 align-middle">0</span></span>
+  </div>
+
+  <!-- Gatilhos -->
+  <div id="viewGatilhos">
+    <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">Ative os eventos da <b>Loja Integrada</b> e personalize a mensagem que o cliente recebe. O envio de fato acontece quando o WhatsApp estiver conectado (por enquanto vai pra Fila).</p>
+    <div id="gatilhosList" class="space-y-6 pb-10"></div>
+  </div>
+
+  <!-- Fila -->
+  <div id="viewFila" class="hidden pb-10">
+    <div class="flex items-center gap-2 mb-3">
+      <select id="filaFiltro" onchange="renderFila()" class="p-2 text-sm rounded-lg bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600">
+        <option value="">Todos os status</option><option value="pendente">Pendente</option><option value="enviado">Enviado</option><option value="falha">Falha</option><option value="cancelado">Cancelado</option>
+      </select>
+      <button onclick="carregarFila()" class="text-sm px-3 py-2 rounded-lg bg-slate-100 dark:bg-ink-700 hover:bg-slate-200">Atualizar</button>
+    </div>
+    <div id="filaList" class="rounded-xl border border-slate-200 dark:border-ink-600 overflow-hidden"></div>
+  </div>
+</div>
+</div>
+
+<script>
+const SUPA = { url:'https://wwytzoyeibekhstinott.supabase.co', key:'sb_publishable_uMoCEK4Ed_u8ZIfjVZ7Jrg_tdR4b9bO' };
+const VARS = ['{{nome}}','{{pedido}}','{{produto}}','{{codigo_rastreio}}','{{valor}}','{{loja}}'];
+let sb=null, GATILHOS=[], FILA=[], TAB='gatilhos';
+async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2'); sb=createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true}}); } return sb; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[x])); }
+
+async function bootstrap(){
+  const c=await getSb(); const { data:{ session } }=await c.auth.getSession();
+  if(!session){ document.getElementById('authGate').classList.remove('hidden'); return; }
+  document.getElementById('appWrap').classList.remove('hidden');
+  await carregarGatilhos(); await carregarFila();
+  // realtime na fila
+  c.channel('automacoes').on('postgres_changes',{event:'*',schema:'public',table:'at_fila_envios'},()=>carregarFila()).subscribe();
+}
+
+async function carregarGatilhos(){
+  const c=await getSb();
+  const { data, error }=await c.from('at_gatilhos').select('*').order('categoria').order('ordem');
+  if(error){ console.error(error); return; }
+  GATILHOS=data||[]; renderGatilhos();
+}
+function renderGatilhos(){
+  const cats={pedido:'Eventos do pedido', nota:'Eventos de nota fiscal', troca:'Eventos de troca', fidelizar:'Fidelidade'};
+  const grupos={};
+  GATILHOS.forEach(g=>{ (grupos[g.categoria]=grupos[g.categoria]||[]).push(g); });
+  const el=document.getElementById('gatilhosList');
+  el.innerHTML=Object.keys(grupos).map(cat=>`
+    <div>
+      <div class="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">${cats[cat]||cat}</div>
+      <div class="rounded-xl border border-slate-200 dark:border-ink-600 divide-y divide-slate-100 dark:divide-ink-700 bg-white dark:bg-ink-800">
+        ${grupos[cat].map(g=>gatilhoRow(g)).join('')}
+      </div>
+    </div>`).join('');
+}
+function gatilhoRow(g){
+  return `<div class="p-3" data-fade>
+    <div class="flex items-center gap-3">
+      <div class="switch" data-on="${g.ativo?1:0}" onclick="toggleAtivo('${g.id}')"></div>
+      <button onclick="toggleEditor('${g.id}')" class="flex-1 text-left text-sm font-medium">${esc(g.evento_nome)}</button>
+      <button onclick="toggleEditor('${g.id}')" class="text-slate-400 hover:text-pink-600" title="Editar mensagem"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
+    </div>
+    <div id="ed_${g.id}" class="hidden mt-3 pl-1">
+      <div class="flex flex-wrap gap-1.5 mb-2">${VARS.map(v=>`<span class="var-chip" onclick="inserirVar('${g.id}','${v}')">${v}</span>`).join('')}</div>
+      <textarea id="msg_${g.id}" rows="4" class="w-full p-2 text-sm rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-pink-500 outline-none">${esc(g.mensagem||'')}</textarea>
+      <div class="flex items-center justify-between mt-2">
+        <span class="text-[11px] text-slate-400">Canal: WhatsApp (oficial). Variáveis são preenchidas com os dados do pedido no envio.</span>
+        <button onclick="salvarMsg('${g.id}')" class="text-sm font-semibold px-3 py-1.5 rounded-lg bg-pink-500 hover:bg-pink-600 text-white">Salvar</button>
+      </div>
+    </div>
+  </div>`;
+}
+async function toggleAtivo(id){ const g=GATILHOS.find(x=>x.id===id); if(!g) return; g.ativo=!g.ativo;
+  document.querySelector(`.switch[onclick="toggleAtivo('${id}')"]`).dataset.on=g.ativo?1:0;
+  try{ await (await getSb()).from('at_gatilhos').update({ativo:g.ativo}).eq('id',id); }catch(e){ console.warn(e.message); } }
+function toggleEditor(id){ document.getElementById('ed_'+id).classList.toggle('hidden'); }
+function inserirVar(id,v){ const t=document.getElementById('msg_'+id); const s=t.selectionStart||t.value.length; t.value=t.value.slice(0,s)+v+t.value.slice(s); t.focus(); }
+async function salvarMsg(id){ const g=GATILHOS.find(x=>x.id===id); const msg=document.getElementById('msg_'+id).value; g.mensagem=msg;
+  const btn=event.target; btn.textContent='Salvando…'; btn.disabled=true;
+  try{ await (await getSb()).from('at_gatilhos').update({mensagem:msg,updated_at:new Date().toISOString()}).eq('id',id); btn.textContent='Salvo ✓'; }
+  catch(e){ alert('Erro ao salvar: '+e.message); btn.textContent='Salvar'; } finally{ btn.disabled=false; setTimeout(()=>{btn.textContent='Salvar';},1500); } }
+
+async function carregarFila(){
+  const c=await getSb();
+  const { data }=await c.from('at_fila_envios').select('*').order('created_at',{ascending:false}).limit(200);
+  FILA=data||[]; document.getElementById('filaBadge').textContent=FILA.filter(f=>f.status==='pendente').length; renderFila();
+}
+function renderFila(){
+  const f=document.getElementById('filaFiltro').value;
+  const arr=FILA.filter(x=>!f||x.status===f);
+  const el=document.getElementById('filaList');
+  if(!arr.length){ el.innerHTML='<div class="p-8 text-center text-sm text-slate-400 bg-white dark:bg-ink-800">Fila vazia. Quando um evento da loja disparar um gatilho ativo, a mensagem aparece aqui.</div>'; return; }
+  el.innerHTML=`<div class="bg-white dark:bg-ink-800 divide-y divide-slate-100 dark:divide-ink-700">`+arr.map(x=>`
+    <div class="p-3 flex items-start gap-3 text-sm">
+      <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold ${filaCor(x.status)} shrink-0">${x.status}</span>
+      <div class="min-w-0 flex-1">
+        <div class="truncate">${esc(x.conteudo||'')}</div>
+        <div class="text-[11px] text-slate-400 mt-0.5">${x.pedido_numero?('Pedido '+esc(x.pedido_numero)+' · '):''}${esc(x.telefone||'')} · ${new Date(x.created_at).toLocaleString('pt-BR')}${x.erro?(' · <span class=\"text-red-500\">'+esc(x.erro)+'</span>'):''}</div>
+      </div>
+    </div>`).join('')+`</div>`;
+}
+function filaCor(s){ return s==='enviado'?'bg-emerald-100 text-emerald-700':s==='falha'?'bg-red-100 text-red-700':s==='cancelado'?'bg-slate-200 text-slate-600':'bg-amber-100 text-amber-700'; }
+
+function setTab(t){ TAB=t; document.querySelectorAll('.tab').forEach(el=>el.dataset.active=el.dataset.tab===t?'1':'0');
+  document.getElementById('viewGatilhos').classList.toggle('hidden',t!=='gatilhos');
+  document.getElementById('viewFila').classList.toggle('hidden',t!=='fila'); }
+
+bootstrap();
+</script>
+</body>
+</html>
