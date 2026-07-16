@@ -2135,7 +2135,7 @@ function autosave(){
 document.addEventListener('input', e => {
   if (!activeCardId) return;
   const t = e.target;
-  if (t.closest('#tab-details') && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT') && t.id !== 'commentInput') {
+  if ((t.id === 'cardTitle' || (t.closest('#tab-details') && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT'))) && t.id !== 'commentInput') {
     autosave();
   }
 });
