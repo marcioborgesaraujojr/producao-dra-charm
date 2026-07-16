@@ -1599,11 +1599,11 @@ function renderCard(c, compact){
   if (bType === 'bordado'){
     // Vários bordados por pedido: empilhado com contador + hover revela o de trás. Cada um com sua cor.
     const bords = bordadosDoCard(c);
-    const size = compact ? 80 : 110;
+    const size = compact ? 76 : 104;
     if (bords.length){
       // Estilo checkout: preview da frente (no fluxo, centralizado) + card caidinho atrás quando há mais de um
       const back = bords.length>1
-        ? `<div style="position:absolute;top:0;left:0;transform:rotate(9deg) translate(11px,8px);z-index:1;pointer-events:none">${bordadoPreviewFromInfo(bords[1].info, bords[1].nome, size)}</div>`
+        ? `<div style="position:absolute;top:0;left:0;transform:rotate(5deg) translate(10px,0px);z-index:1;pointer-events:none">${bordadoPreviewFromInfo(bords[1].info, bords[1].nome, size)}</div>`
         : '';
       const badge = bords.length>1 ? `<div style="position:absolute;bottom:-3px;left:-3px;z-index:5;background:#0f172a;color:#fff;font-size:10px;font-weight:800;border-radius:999px;min-width:19px;height:19px;display:flex;align-items:center;justify-content:center;padding:0 5px;box-shadow:0 1px 4px rgba(0,0,0,.4)" title="${bords.length} bordados neste pedido">${bords.length}</div>` : '';
       cover = `<div class="bord-stack shrink-0" style="position:relative;display:inline-flex;margin-right:${bords.length>1?16:0}px">${back}<div style="position:relative;z-index:2">${bordadoPreviewFromInfo(bords[0].info, bords[0].nome, size)}</div>${badge}</div>`;
@@ -1789,6 +1789,7 @@ async function openCard(id){
   activeCardId = id;
   const c = cards.find(x=>x.id===id);
   if (!c) return;
+  _heroIdx = 0;
   // Ajusta quais campos aparecem por tipo de board
   const bType = boardType(currentBoardId);
   // Bordado alterado: se OUTRA pessoa (não quem alterou) abre o card, some o destaque (conferido)
@@ -1934,6 +1935,9 @@ async function openCard(id){
   renderCardMembers();
   _heroIdx = 0;
   renderCardCover(c);
+  // Campos iniciam no 1º bordado (pra casar com o hero/produto selecionado)
+  const _bd0 = bType === 'bordado' ? bordadosDoCard(c) : [];
+  if (_bd0.length) fillBordadoFields(_bd0[0].info);
   await loadChecklists(id);
   await loadComments(id);
   await loadActivity(id);
@@ -2077,12 +2081,34 @@ function renderCardCover(c){
   if (src){ img.src = src; img.classList.remove('hidden'); rm.classList.remove('hidden'); }
   else { plus.classList.remove('hidden'); }
 }
-// Seleciona um bordado: troca a imagem/infos do hero e destaca o produto correspondente
+// Preenche os campos do bordado (linha1/2, cor, fonte, lado, imagem, detalhes) a partir de um info
+function fillBordadoFields(info){
+  if (!info) return;
+  const set = (id,v)=>{ const el=document.getElementById(id); if(el) el.value = v||''; };
+  set('cardBordadoTipo', info.tipo);
+  set('cardBordadoLinha1', info.linha1);
+  set('cardBordadoLinha2', info.linha2);
+  set('cardBordadoCorHex', info.corHex);
+  set('cardBordadoCorNome', info.corNome);
+  const swatch=document.getElementById('cardBordadoCorSwatch'); if(swatch) swatch.style.background = info.corHex || '#94a3b8';
+  const bfEl=document.getElementById('cardBordadoFonte');
+  if(bfEl){ bfEl.value=info.fonte||''; bfEl.style.fontFamily = info.fonte?bordadoFontFamily(info.fonte):''; bfEl.style.fontSize = info.fonte?'18px':''; }
+  set('cardBordadoLado', info.lado);
+  set('cardBordadoImagemUrl', info.imagem);
+  set('cardBordadoDetalhes', info.detalhes);
+  const _lbWrap=document.getElementById('cardBordadoLinhasBox'), _imgWrap=document.getElementById('cardBordadoImagemBox');
+  if(_lbWrap&&_imgWrap){ _lbWrap.classList.toggle('hidden', info.tipo==='logomarca'); _imgWrap.classList.toggle('hidden', info.tipo==='nome_profissao'); }
+  const imgLink=document.getElementById('cardBordadoImagemLink');
+  if(imgLink){ if(info.imagem){ imgLink.href=info.imagem; imgLink.classList.remove('hidden'); } else imgLink.classList.add('hidden'); }
+  const imgPreview=document.getElementById('cardBordadoImgPreview');
+  if(imgPreview){ if(info.imagem){ imgPreview.src=info.imagem; imgPreview.classList.remove('hidden'); } else imgPreview.classList.add('hidden'); }
+}
+// Seleciona um bordado: troca a imagem/infos do hero, os campos e destaca o produto correspondente
 function selectBordado(i){
   if (i < 0) return;
   _heroIdx = i;
   const c = cards.find(x => x.id === activeCardId);
-  if (c) renderCardCover(c);
+  if (c){ renderCardCover(c); const bs = bordadosDoCard(c); if (bs[i]) fillBordadoFields(bs[i].info); }
   document.querySelectorAll('#cardProdutosList [data-bordidx]').forEach(el => {
     const sel = parseInt(el.dataset.bordidx) === i;
     el.style.boxShadow = '0 0 0 ' + (sel?3:2) + 'px ' + (el.dataset.bordcor || '#f59e0b');
