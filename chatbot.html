@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chatbot IA — Sistema Grupo Aragão</title>
+<link rel="icon" type="image/png" href="https://cdn.awsli.com.br/1930/1930166/arquivos/logo.png">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
+  ink:{900:'#0b1220',800:'#111827',700:'#1f2937',600:'#374151'}, accent:{DEFAULT:'#e91e63',600:'#db2777'} }}}};
+</script>
+<style>
+  html{background:#f1f5f9}html.dark{background:#0b1220}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0}
+  .fld{width:100%;padding:8px 10px;font-size:14px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0;outline:none}
+  .fld:focus{border-color:#db2777}.dark .fld{background:#1f2937;border-color:#374151;color:#e5e7eb}
+  label{font-size:12px;color:#64748b;font-weight:600}
+  .switch{width:42px;height:24px;border-radius:999px;background:#cbd5e1;position:relative;cursor:pointer;transition:.15s;flex-shrink:0}
+  .switch[data-on="1"]{background:#db2777}.switch::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.15s}
+  .switch[data-on="1"]::after{left:21px}.dark .switch{background:#374151}
+  .scroll::-webkit-scrollbar{width:8px}.scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px}
+  .bin{background:#fff;border:1px solid #eef2f7}.dark .bin{background:#1f2937;border-color:#334155}
+  .bout{background:#fce7f3;border:1px solid #fbcfe8}.dark .bout{background:#3f1d2b;border-color:#6d2647;color:#fbe4ee}
+  [data-fade]{animation:fade .2s ease}@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body class="text-slate-800 dark:text-slate-100">
+
+<div id="authGate" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-50 dark:bg-ink-900">
+  <div class="text-center">
+    <div class="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-pink-500 to-rose-500 text-white font-bold text-2xl flex items-center justify-center mb-4">A</div>
+    <div class="font-semibold mb-1">Chatbot IA</div><div class="text-sm text-slate-500 mb-4">Faça login na Suíte para acessar.</div>
+    <a href="/" class="inline-block text-sm font-semibold text-white bg-pink-500 hover:bg-pink-600 px-4 py-2 rounded-lg">Ir para o login</a>
+  </div>
+</div>
+
+<div id="appWrap" class="hidden max-w-5xl mx-auto">
+<header class="h-14 flex items-center justify-between px-4 bg-white/95 dark:bg-ink-800/95 border-b border-slate-200 dark:border-ink-600 sticky top-0 z-30 backdrop-blur">
+  <div class="flex items-center gap-3">
+    <button onclick="location.href='/'" title="Voltar à Suíte" class="w-9 h-9 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 text-white font-bold flex items-center justify-center shadow hover:scale-105 transition">A</button>
+    <div class="leading-tight"><div class="text-sm font-semibold">Chatbot IA</div><div class="text-[11px] text-slate-500 dark:text-slate-400">Robô de atendimento · Grupo Aragão</div></div>
+  </div>
+  <div class="flex items-center gap-1">
+    <button onclick="location.href='/'" class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 flex items-center justify-center text-slate-500" title="Voltar"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg></button>
+    <button onclick="document.documentElement.classList.toggle('dark')" class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 flex items-center justify-center text-slate-500" title="Tema"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+  </div>
+</header>
+
+<div class="p-4 grid md:grid-cols-2 gap-4">
+  <!-- Config -->
+  <div class="space-y-3">
+    <div class="flex items-center gap-3 bin rounded-xl p-3">
+      <div id="swAtivo" class="switch" data-on="0" onclick="toggleAtivo()"></div>
+      <div><div class="text-sm font-semibold">Chatbot ativo</div><div class="text-[11px] text-slate-400">Quando ligado, responde automaticamente (após conectar o WhatsApp).</div></div>
+    </div>
+    <div><label>Nome do robô</label><input id="nome" class="fld mt-1"></div>
+    <div><label>Personalidade / instruções</label><textarea id="persona" rows="5" class="fld mt-1"></textarea></div>
+    <div><label>Base de conhecimento (FAQ, prazos, políticas…)</label><textarea id="base" rows="5" class="fld mt-1" placeholder="Ex.: Prazo de entrega 5-10 dias úteis. Trocas em até 7 dias. Frete grátis acima de R$199…"></textarea></div>
+    <div class="grid grid-cols-2 gap-3">
+      <div><label>Modelo</label>
+        <select id="modelo" class="fld mt-1">
+          <optgroup label="OpenAI (GPT)"><option value="gpt-4o-mini">gpt-4o-mini (barato)</option><option value="gpt-5-mini">gpt-5-mini</option><option value="gpt-5-nano">gpt-5-nano</option></optgroup>
+          <optgroup label="Anthropic (Claude)"><option value="claude-haiku-4-5-20251001">claude-haiku (barato)</option></optgroup>
+        </select>
+      </div>
+      <div><label>Saudação</label><input id="saudacao" class="fld mt-1"></div>
+    </div>
+    <div><label>Palavras que transferem pra humano (separadas por vírgula)</label><input id="handoff" class="fld mt-1"></div>
+    <button id="btnSalvar" onclick="salvar()" class="w-full text-sm font-semibold px-4 py-2.5 rounded-lg bg-pink-500 hover:bg-pink-600 text-white">Salvar configuração</button>
+  </div>
+
+  <!-- Teste -->
+  <div class="bin rounded-xl flex flex-col" style="height:70vh">
+    <div class="p-3 border-b border-slate-200 dark:border-ink-600 flex items-center justify-between">
+      <span class="text-sm font-semibold">Testar o robô</span>
+      <button onclick="limparTeste()" class="text-xs text-slate-400 hover:text-pink-600">limpar</button>
+    </div>
+    <div id="chat" class="flex-1 overflow-y-auto scroll p-3 space-y-2"></div>
+    <div class="p-3 border-t border-slate-200 dark:border-ink-600 flex items-center gap-2">
+      <input id="tin" onkeydown="if(event.key==='Enter')testar()" class="fld flex-1" placeholder="Escreva como se fosse o cliente…">
+      <button onclick="testar()" class="w-9 h-9 rounded-full bg-pink-500 text-white flex items-center justify-center hover:bg-pink-600 shrink-0"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+const SUPA = { url:'https://wwytzoyeibekhstinott.supabase.co', key:'sb_publishable_uMoCEK4Ed_u8ZIfjVZ7Jrg_tdR4b9bO' };
+let sb=null, CFG={}, TESTE=[];
+async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2'); sb=createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true}}); } return sb; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[x])); }
+
+async function bootstrap(){
+  const c=await getSb(); const { data:{ session } }=await c.auth.getSession();
+  if(!session){ document.getElementById('authGate').classList.remove('hidden'); return; }
+  window._token=session.access_token;
+  document.getElementById('appWrap').classList.remove('hidden');
+  const { data }=await c.from('at_chatbot').select('*').eq('id',1).maybeSingle();
+  CFG=data||{};
+  document.getElementById('swAtivo').dataset.on=CFG.ativo?1:0;
+  document.getElementById('nome').value=CFG.nome||'';
+  document.getElementById('persona').value=CFG.persona||'';
+  document.getElementById('base').value=CFG.base_conhecimento||'';
+  document.getElementById('saudacao').value=CFG.saudacao||'';
+  document.getElementById('handoff').value=CFG.handoff_termos||'';
+  if(CFG.modelo) document.getElementById('modelo').value=CFG.modelo;
+  if(CFG.saudacao){ TESTE=[]; addMsg('bot',CFG.saudacao); }
+}
+function toggleAtivo(){ const s=document.getElementById('swAtivo'); s.dataset.on=s.dataset.on==='1'?'0':'1'; }
+async function salvar(){
+  const btn=document.getElementById('btnSalvar'); btn.textContent='Salvando…'; btn.disabled=true;
+  const patch={ ativo:document.getElementById('swAtivo').dataset.on==='1', nome:document.getElementById('nome').value,
+    persona:document.getElementById('persona').value, base_conhecimento:document.getElementById('base').value,
+    modelo:document.getElementById('modelo').value, saudacao:document.getElementById('saudacao').value,
+    handoff_termos:document.getElementById('handoff').value, updated_at:new Date().toISOString() };
+  try{ await (await getSb()).from('at_chatbot').update(patch).eq('id',1); CFG={...CFG,...patch}; btn.textContent='Salvo ✓'; }
+  catch(e){ alert('Erro: '+e.message); btn.textContent='Salvar configuração'; }
+  finally{ btn.disabled=false; setTimeout(()=>btn.textContent='Salvar configuração',1500); }
+}
+function addMsg(quem,txt){
+  const chat=document.getElementById('chat'); const out=quem==='user';
+  chat.insertAdjacentHTML('beforeend',`<div class="flex ${out?'justify-end':'justify-start'}"><div class="max-w-[80%] ${out?'bout':'bin'} rounded-2xl px-3 py-2 text-sm shadow-sm" data-fade>${esc(txt)}</div></div>`);
+  chat.scrollTop=chat.scrollHeight;
+}
+async function testar(){
+  const inp=document.getElementById('tin'); const txt=inp.value.trim(); if(!txt) return; inp.value='';
+  addMsg('user',txt); TESTE.push({role:'user',content:txt});
+  const chat=document.getElementById('chat');
+  chat.insertAdjacentHTML('beforeend',`<div id="typing" class="flex justify-start"><div class="bin rounded-2xl px-3 py-2 text-sm text-slate-400">digitando…</div></div>`);
+  chat.scrollTop=chat.scrollHeight;
+  try{
+    const r=await fetch('/api/chatbot-reply',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+window._token},body:JSON.stringify({mensagens:TESTE})});
+    const j=await r.json(); document.getElementById('typing')?.remove();
+    if(!r.ok){ addMsg('bot','⚠️ '+(j.error||'erro')); return; }
+    addMsg('bot',j.reply); TESTE.push({role:'assistant',content:j.reply});
+    if(j.handoff) addMsg('bot','↪️ (transferiria para um atendente humano)');
+  }catch(e){ document.getElementById('typing')?.remove(); addMsg('bot','⚠️ '+e.message); }
+}
+function limparTeste(){ TESTE=[]; document.getElementById('chat').innerHTML=''; if(CFG.saudacao) addMsg('bot',CFG.saudacao); }
+bootstrap();
+</script>
+</body>
+</html>
