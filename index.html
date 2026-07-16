@@ -1038,6 +1038,8 @@ let comments = [], activity = [], notifications = [];
 let activeCardId = null, draggingCardId = null;
 let _localMoveAt = 0;
 let canEditBoard = true; // permissão de edição do usuário atual no quadro aberto (false = só leitura)
+// Normaliza texto pra busca: minúsculo, sem acento, espaços colapsados
+function normTxt(s){ return (s==null?'':String(s)).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); }
 let filters = { faccao: new Set(), search: '', hideFinalizado: true, density: 'cozy' };
 let commentCounts = {};
 let attachmentCounts = {};
@@ -1416,13 +1418,17 @@ async function switchBoard(boardId){
 function renderBoard(){
   const board = document.getElementById('board');
   board.innerHTML = '';
-  const q = filters.search.trim().toLowerCase();
+  const qTokens = normTxt(filters.search).split(/\s+/).filter(Boolean);
   const finalizadoId = lists.find(l => /finalizado/i.test(l.name))?.id;
   const compact = filters.density === 'compact';
   lists.forEach(list => {
     if (filters.hideFinalizado && list.id === finalizadoId) return;
     const listCards = cards.filter(c => c.list_id === list.id)
-      .filter(c => !q || (c.title||'').toLowerCase().includes(q) || (c.description||'').toLowerCase().includes(q) || String(c.pedido_numero||'').toLowerCase().includes(q) || (c.pedido_cliente||'').toLowerCase().includes(q) || (cardLabels[c.id]||[]).some(l => (l.name||'').toLowerCase().includes(q)))
+      .filter(c => {
+        if (!qTokens.length) return true;
+        const hay = normTxt([c.title, c.description, c.pedido_numero, c.pedido_cliente, ...(cardLabels[c.id]||[]).map(l=>l.name)].join(' '));
+        return qTokens.every(t => hay.includes(t));
+      })
       .filter(c => filters.faccao.size===0 || cardLabels[c.id].some(l => filters.faccao.has(l.name)))
       .sort((a,b) => (a.position||0) - (b.position||0));
     const col = document.createElement('div');
