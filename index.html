@@ -663,7 +663,7 @@ tailwind.config = {
         </div>
         <input id="cardCoverInputHeader" type="file" accept="image/*" class="hidden">
       </div>
-      <div id="cardHeroDots" class="hidden absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-20" style="top:132px"></div>
+      <div id="cardHeroDots" class="hidden absolute flex items-center gap-2 z-20" style="right:12px;top:124px"></div>
       <button id="cardHeaderCoverRemove" class="hidden absolute top-3 right-14 bg-white/95 hover:bg-white text-slate-700 rounded-lg w-9 h-9 flex items-center justify-center shadow-md" title="Remover foto">
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
       </button>
@@ -1113,7 +1113,7 @@ function bordadosDoCard(c){
 function bordadoPreviewFromInfo(info, prodNome, size){
   const w=size, h=size;
   if ((info.tipo==='logomarca' || info.tipo==='ambos') && info.imagem){
-    return `<img src="${escapeHtml(info.imagem)}" style="width:${w}px;height:${h}px;object-fit:contain;background:#fff" class="rounded-lg block" loading="lazy" onerror="this.style.display='none'" title="${escapeHtml(prodNome||'')}"/>`;
+    return `<img src="${escapeHtml(info.imagem)}" style="width:${w}px;height:${h}px;object-fit:contain;background:#fff;border:3px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.1);border-radius:8px" class="block" loading="lazy" onerror="this.style.display='none'" title="${escapeHtml(prodNome||'')}"/>`;
   }
   const fontFam=bordadoFontFamily(info.fonte);
   const cor=info.corHex||'#333';
@@ -1593,15 +1593,12 @@ function renderCard(c, compact){
     const bords = bordadosDoCard(c);
     const size = compact ? 88 : 120;
     if (bords.length){
-      // Estilo checkout: card da frente + (se tiver mais) um card caidinho atrás, mesma bordinha branca e sombra
-      const cardCss = 'position:absolute;top:7px;left:7px;border:3px solid #fff;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,.3);background:#fff;overflow:hidden';
+      // Estilo checkout: preview da frente (no fluxo, centralizado) + card caidinho atrás quando há mais de um
       const back = bords.length>1
-        ? `<div class="bord-layer" style="${cardCss};transform:rotate(-8deg) translate(-5px,4px);z-index:1">${bordadoPreviewFromInfo(bords[1].info, bords[1].nome, size)}</div>`
+        ? `<div style="position:absolute;top:0;left:0;transform:rotate(-8deg) translate(-6px,5px);z-index:1;pointer-events:none">${bordadoPreviewFromInfo(bords[1].info, bords[1].nome, size)}</div>`
         : '';
-      const front = `<div class="bord-layer" style="${cardCss};z-index:2">${bordadoPreviewFromInfo(bords[0].info, bords[0].nome, size)}</div>`;
-      const dim = size + 20;
-      const badge = bords.length>1 ? `<div style="position:absolute;bottom:0;right:0;z-index:10;background:#0f172a;color:#fff;font-size:10px;font-weight:800;border-radius:999px;min-width:19px;height:19px;display:flex;align-items:center;justify-content:center;padding:0 5px;box-shadow:0 1px 4px rgba(0,0,0,.4)" title="${bords.length} bordados neste pedido">${bords.length}</div>` : '';
-      cover = `<div class="bord-stack shrink-0" style="position:relative;width:${dim}px;height:${dim}px">${back}${front}${badge}</div>`;
+      const badge = bords.length>1 ? `<div style="position:absolute;bottom:-2px;right:-2px;z-index:5;background:#0f172a;color:#fff;font-size:10px;font-weight:800;border-radius:999px;min-width:19px;height:19px;display:flex;align-items:center;justify-content:center;padding:0 5px;box-shadow:0 1px 4px rgba(0,0,0,.4)" title="${bords.length} bordados neste pedido">${bords.length}</div>` : '';
+      cover = `<div class="bord-stack shrink-0" style="position:relative;display:inline-flex">${back}<div style="position:relative;z-index:2">${bordadoPreviewFromInfo(bords[0].info, bords[0].nome, size)}</div>${badge}</div>`;
     }
   } else if (c.cover_url){
     cover = `<img src="${escapeHtml(c.cover_url)}" class="product-cover ${compact?'product-cover-compact':'product-cover-normal'}" loading="lazy" onerror="this.style.display='none'"/>`;
@@ -1858,15 +1855,18 @@ async function openCard(id){
     if (countEl) countEl.textContent = produtos.length;
     if (produtos.length){
       prodBox.classList.remove('hidden');
-      // Estado de colapso: padrão OCULTO (menos rolagem); usuário pode expandir
-      const isOpen = localStorage.getItem('dc_produtos_open') === '1';
-      prodList.classList.toggle('hidden', !isOpen);
+      // Sempre aberto
+      prodList.classList.remove('hidden');
       const chev = document.getElementById('cardProdutosChevron');
-      if (chev) chev.style.transform = isOpen ? 'rotate(180deg)' : '';
+      if (chev) chev.style.transform = 'rotate(180deg)';
       const _bordsCor = bordadosDoCard(c);
       const corPorSku = {}; _bordsCor.forEach(b => { if (b.sku) corPorSku[String(b.sku).toLowerCase()] = b.cor; });
-      prodList.innerHTML = produtos.map(p => { const _cor = p.bordado ? (corPorSku[String(p.sku||'').toLowerCase()] || BORDADO_PALETTE[0]) : null; return `
-        <div class="produto-item p-2 rounded-lg ${p.bordado ? 'produto-bordado' : 'bg-slate-50 dark:bg-ink-700 border-slate-200 dark:border-ink-600'} border flex gap-3 items-center relative">
+      prodList.innerHTML = produtos.map(p => {
+        const _cor = p.bordado ? (corPorSku[String(p.sku||'').toLowerCase()] || BORDADO_PALETTE[0]) : null;
+        const _bidx = p.bordado ? _bordsCor.findIndex(b => String(b.sku||'').toLowerCase() === String(p.sku||'').toLowerCase()) : -1;
+        const _sel = _bidx>=0 && _bidx===_heroIdx;
+        return `
+        <div class="produto-item p-2 rounded-lg ${p.bordado ? 'produto-bordado' : 'bg-slate-50 dark:bg-ink-700 border-slate-200 dark:border-ink-600'} border flex gap-3 items-center relative" ${_bidx>=0?`data-bordidx="${_bidx}" data-bordcor="${_cor}" style="cursor:pointer;box-shadow:${_sel?('0 0 0 2px '+_cor):'none'}"`:''}>
           ${p.bordado ? `<div class="produto-badge-bordar" style="background:${_cor}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19 7-7 3 3-7 7-3-3z"/><path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="m2 2 7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg><span>Personalização</span></div>` : ''}
           ${p.imagem_url
             ? `<img src="${escapeHtml((p.imagem_url||'').replace(/\/64x64\//,'/500x500/'))}" class="produto-thumb ${p.bordado ? 'produto-thumb-bordado' : ''}" ${_cor?`style="box-shadow:0 0 0 3px ${_cor}"`:''} onerror="this.style.display='none'"/>`
@@ -2060,7 +2060,7 @@ function renderCardCover(c){
     // Bolinhas: uma por bordado, na cor do bordado; a selecionada fica maior
     if (bords.length > 1 && dots){
       dots.classList.remove('hidden');
-      dots.innerHTML = bords.map((bb,i)=>`<button type="button" data-heroidx="${i}" title="${escapeHtml(bb.nome||('Bordado '+(i+1)))}" style="width:${i===_heroIdx?24:11}px;height:11px;border-radius:999px;background:${bb.cor};opacity:${i===_heroIdx?1:.6};border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);cursor:pointer;transition:all .15s"></button>`).join('');
+      dots.innerHTML = bords.map((bb,i)=>`<button type="button" data-heroidx="${i}" title="${escapeHtml(bb.nome||('Bordado '+(i+1)))}" style="width:${i===_heroIdx?36:20}px;height:16px;border-radius:999px;background:${bb.cor};opacity:${i===_heroIdx?1:.65};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45);cursor:pointer;transition:all .15s"></button>`).join('');
     }
     return;
   }
@@ -2069,14 +2069,24 @@ function renderCardCover(c){
   if (src){ img.src = src; img.classList.remove('hidden'); rm.classList.remove('hidden'); }
   else { plus.classList.remove('hidden'); }
 }
-// Clicar numa bolinha troca o bordado exibido (só leitura)
-document.addEventListener('click', e => {
-  const dot = e.target.closest('#cardHeroDots [data-heroidx]');
-  if (!dot) return;
-  e.stopPropagation();
-  _heroIdx = parseInt(dot.dataset.heroidx) || 0;
+// Seleciona um bordado: troca a imagem/infos do hero e destaca o produto correspondente
+function selectBordado(i){
+  if (i < 0) return;
+  _heroIdx = i;
   const c = cards.find(x => x.id === activeCardId);
   if (c) renderCardCover(c);
+  document.querySelectorAll('#cardProdutosList [data-bordidx]').forEach(el => {
+    const sel = parseInt(el.dataset.bordidx) === i;
+    el.style.boxShadow = sel ? ('0 0 0 2px ' + (el.dataset.bordcor || '#f59e0b')) : 'none';
+  });
+}
+// Clicar numa bolinha do carrossel
+document.addEventListener('click', e => {
+  const dot = e.target.closest('#cardHeroDots [data-heroidx]');
+  if (dot){ e.stopPropagation(); selectBordado(parseInt(dot.dataset.heroidx) || 0); return; }
+  // Clicar num produto do pedido (troca o hero pro bordado daquele produto)
+  const prod = e.target.closest('#cardProdutosList [data-bordidx]');
+  if (prod){ selectBordado(parseInt(prod.dataset.bordidx)); }
 });
 document.addEventListener('click', e => {
   const cover = document.getElementById('cardHeroCover');
