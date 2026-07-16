@@ -101,7 +101,7 @@ tailwind.config = {
   input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
   input[type=number]{-moz-appearance:textfield}
   /* Cover unificada: imagem mantém proporção original, escalada dentro de bounding box */
-  .product-cover{background:#eaeaea;border:3px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.08);border-radius:8px;flex-shrink:0;align-self:flex-start;display:block;height:auto;width:auto;object-fit:contain}
+  .product-cover{background:#eaeaea;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.15);border-radius:8px;flex-shrink:0;align-self:flex-start;display:block;height:auto;width:auto;object-fit:contain}
   .product-cover-compact{max-width:88px;max-height:88px}
   .produto-thumb{width:70px;height:88px;object-fit:cover;border-radius:8px;border:3px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.08);background:#eaeaea;flex-shrink:0}
   .produto-bordado{background:linear-gradient(135deg,#f8fafc 0%,#f1f5f9 100%);border-color:#cbd5e1;box-shadow:0 2px 8px rgba(51,65,85,.08)}
@@ -110,7 +110,7 @@ tailwind.config = {
   .produto-badge-bordar{position:absolute;top:-8px;right:8px;background:linear-gradient(135deg,#334155 0%,#1e293b 100%);color:#fff;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:3px 9px 3px 7px;border-radius:999px;box-shadow:0 3px 10px rgba(15,23,42,.35);display:inline-flex;align-items:center;gap:4px;cursor:default}
   .produto-badge-bordar svg{width:11px;height:11px;stroke:#fff}
   .product-cover-normal{max-width:120px;max-height:120px}
-  .bordado-preview{background:#faf8f5;border:3px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.08);border-radius:8px;flex-shrink:0;align-self:flex-start;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+  .bordado-preview{background:#faf8f5;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.15);border-radius:8px;flex-shrink:0;align-self:flex-start;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
   .bordado-preview-dark{background:#0f172a}
   /* Trama do tecido: SVG inline exato do site dracharm (bordado-modalv9.css .abm-prevbox) */
   .fabric-weave{
@@ -1113,7 +1113,7 @@ function bordadosDoCard(c){
 function bordadoPreviewFromInfo(info, prodNome, size){
   const w=size, h=size;
   if ((info.tipo==='logomarca' || info.tipo==='ambos') && info.imagem){
-    const boxCss = 'border:3px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.08);border-radius:8px';
+    const boxCss = 'border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.15);border-radius:8px';
     if (/\.pdf(\?|$)/i.test(info.imagem)){
       // PDF não renderiza como imagem: mostra ícone de PDF (evita card bugado)
       return `<div style="width:${w}px;height:${h}px;background:#f8fafc;${boxCss};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px" title="Logo em PDF — ${escapeHtml(prodNome||'')}">
