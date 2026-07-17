@@ -89,8 +89,22 @@ async function li(path) {
 // ============ Storage do Supabase (grava/le JSON via service_role) ============
 const SB_URL = () => (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
 const SB_KEY = () => process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-const BUCKET = "system-assets";
+const BUCKET = "reposicao-data"; // bucket próprio (público, aceita JSON)
+let _bucketOk = false;
+async function ensureBucket() {
+  if (_bucketOk) return;
+  // cria o bucket se não existir (público, sem restrição de mime -> aceita JSON)
+  try {
+    await fetch(SB_URL() + "/storage/v1/bucket", {
+      method: "POST",
+      headers: { apikey: SB_KEY(), Authorization: "Bearer " + SB_KEY(), "Content-Type": "application/json" },
+      body: JSON.stringify({ id: BUCKET, name: BUCKET, public: true }),
+    });
+  } catch (_) {}
+  _bucketOk = true;
+}
 async function storagePut(path, obj) {
+  await ensureBucket();
   const r = await fetch(SB_URL() + "/storage/v1/object/" + BUCKET + "/" + path, {
     method: "POST",
     headers: { apikey: SB_KEY(), Authorization: "Bearer " + SB_KEY(), "Content-Type": "application/json", "x-upsert": "true" },
