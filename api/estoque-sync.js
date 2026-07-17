@@ -121,19 +121,39 @@ async function storageGet(path) {
   return r.json().catch(() => null);
 }
 
-// ============ SYNC ESTOQUE (Bling) ============
+// Coleta os SKUs que existem na Loja Integrada (só produtos da loja de verdade).
+async function coletarSkusLI() {
+  const set = new Set();
+  let offset = 0;
+  const LIMIT = 100, MAXP = 80;
+  for (let i = 0; i < MAXP; i++) {
+    const out = await li("/produto/?limit=" + LIMIT + "&offset=" + offset);
+    if (!out.ok || !out.data) break;
+    const objs = out.data.objects || [];
+    if (!objs.length) break;
+    for (const p of objs) { if (p.sku) set.add(String(p.sku).toLowerCase().trim()); }
+    if (objs.length < LIMIT) break;
+    offset += objs.length;
+  }
+  return set;
+}
+// ============ SYNC ESTOQUE (Bling, filtrado pelos SKUs da LI) ============
 async function runEstoque() {
+  const liSkus = await coletarSkusLI(); // só considera produtos que também estão na loja
   const token = await getBlingToken();
   const produtos = [];
-  let pagina = 1;
-  const LIMITE = 100, MAX_PAGINAS = 60; // teto de segurança
+  let pagina = 1, ignorados = 0;
+  const LIMITE = 100, MAX_PAGINAS = 60;
   while (pagina <= MAX_PAGINAS) {
     const out = await bling("/produtos?pagina=" + pagina + "&limite=" + LIMITE + "&criterio=2", token);
     const lista = (out.data && out.data.data) || [];
     if (!lista.length) break;
     for (const p of lista) {
+      const sku = p.codigo || String(p.id);
+      // Pula produtos que existem no Bling mas NÃO na Loja Integrada (ex.: itens só de nota fiscal).
+      if (liSkus.size && !liSkus.has(String(sku).toLowerCase().trim())) { ignorados++; continue; }
       produtos.push({
-        sku: p.codigo || String(p.id),
+        sku,
         nome: p.nome || "",
         pai: p.idProdutoPai || null,
         preco: Number(p.preco || 0),
@@ -145,9 +165,9 @@ async function runEstoque() {
     if (lista.length < LIMITE) break;
     pagina++;
   }
-  const snap = { atualizado_em: new Date().toISOString(), total: produtos.length, produtos };
+  const snap = { atualizado_em: new Date().toISOString(), total: produtos.length, li_skus: liSkus.size, ignorados, produtos };
   await storagePut("reposicao/estoque.json", snap);
-  return { ok: true, total: produtos.length, paginas: pagina };
+  return { ok: true, total: produtos.length, li_skus: liSkus.size, ignorados, paginas: pagina };
 }
 
 // ============ SYNC VENDAS (LI, cabeçalhos) — backfill + diário ============
@@ -167,7 +187,7 @@ function agregaPedido(dias, p) {
 }
 async function runVendas(maxPages, reset) {
   maxPages = Math.min(Math.max(parseInt(maxPages) || 20, 1), 60);
-  let snap = (reset ? null : await storageGet("reposicao/vendas.json")) || { atualizado_em: null, offset: 0, total_count: 0, dias: {}, done: false, janela_dias: 365 };
+  let snap = (reset ? null : await storageGet("reposicao/vendas.json")) || { atualizado_em: null, offset: 0, total_count: 0, dias: {}, done: false, janela_dias: 1095 };
   if (!snap.dias) snap.dias = {};
   const LIMIT = 100;
   const corte = diasAtras(snap.janela_dias || 365); // 'YYYY-MM-DD'
