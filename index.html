@@ -2604,6 +2604,37 @@ async function loadComments(cardId){
 }
 
 let showDetalhes = false;
+// ---- Log de atividade: rótulos amigáveis + formatação compartilhada (feed + aba Log) ----
+// Objetivo: registrar/mostrar TODAS as edições, de todos os boards, de forma legível.
+const ACTIVITY_LABELS = {
+  list_id:'Lista', title:'Título', description:'Descrição', archived:'Arquivado', due_date:'Prazo',
+  situacao:'Situação', qtd_oficina:'QTD Oficina', qtd_pcs_boas:'Boas', qtd_pcs_falhas:'Falhas',
+  pago_costura:'Pago costura', cover_url:'Foto', data_coleta_oficina:'Data coleta',
+  tam_pp:'PP',tam_p:'P',tam_m:'M',tam_g:'G',tam_gg:'GG',tam_xg:'XG',
+  tam_pp_of:'PP of',tam_p_of:'P of',tam_m_of:'M of',tam_g_of:'G of',tam_gg_of:'GG of',tam_xg_of:'XG of',
+  tecido_id:'Tecido', tecido_qtd:'Qtd tecido', metragem:'Metragem', qtd_rolos:'Rolos',
+  aprovacao:'Aprovação', valor:'Valor',
+  pedido_numero:'Nº pedido', pedido_cliente:'Cliente',
+  bordado_tipo:'Tipo do bordado', bordado_linha1:'Linha 1', bordado_linha2:'Linha 2',
+  bordado_cor_nome:'Cor', bordado_fonte:'Fonte', bordado_lado:'Lado', bordado_detalhes:'Detalhes',
+};
+// Campos técnicos/ruído que NÃO devem poluir o log (o valor legível já aparece por outro campo):
+const ACTIVITY_SKIP = new Set(['position','bordado_cor_hex','pedido_produtos','bordado_alterado_em','bordado_alterado_por','updated_at']);
+function humanizeCampo(k){ return ACTIVITY_LABELS[k] || k.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase()); }
+function tecidoNome(id){ const t = (tecidos||[]).find(x=>x.id===id); return t ? t.name : (id||'—'); }
+// Monta a lista de partes ("Campo: antigo → novo") a partir do meta de um 'edited'.
+function activityEditParts(meta, listResolver){
+  const listName = listResolver || (id => lists.find(l=>l.id===id)?.name || '?');
+  const fmt = x => { if (x === null || x === '' || x === undefined) return '—'; if (x === true) return 'Sim'; if (x === false) return 'Não'; return String(x).slice(0,40); };
+  return Object.entries(meta).map(([k,v]) => {
+    if (ACTIVITY_SKIP.has(k)) return null;
+    if (k === 'list_id') return `Lista: <span class="text-slate-400 line-through">${escapeHtml(listName(v?.from))}</span> → <span class="text-emerald-600 font-medium">${escapeHtml(listName(v?.to))}</span>`;
+    if (k === 'tecido_id') return `Tecido: <span class="text-slate-400 line-through">${escapeHtml(tecidoNome(v?.from))}</span> → <span class="text-emerald-600 font-medium">${escapeHtml(tecidoNome(v?.to))}</span>`;
+    if (k === 'cover_url') return 'Foto atualizada';
+    if (k === 'bordado_imagem_url') return 'Link da logo atualizado';
+    return `${humanizeCampo(k)}: <span class="text-slate-400 line-through">${escapeHtml(fmt(v?.from))}</span> → <span class="text-emerald-600 font-medium">${escapeHtml(fmt(v?.to))}</span>`;
+  }).filter(Boolean);
+}
 function renderComments(){ renderFeed(); }
 function renderFeed(){
   const box = document.getElementById('feedList');
@@ -2646,15 +2677,7 @@ function renderFeed(){
       else if (a.action === 'deleted') msg = 'excluiu o card';
       else if (a.action === 'moved') { msg = 'moveu'; detail = ` de <b>${escapeHtml(listName(a.meta?.from_list))}</b> pra <b>${escapeHtml(listName(a.meta?.to_list))}</b>`; }
       else if (a.action === 'edited' && a.meta){
-        const fmt = x => { if (x === null || x === '' || x === undefined) return '—'; if (x === true) return 'Sim'; if (x === false) return 'Não'; return String(x).slice(0,30); };
-        const partes = Object.entries(a.meta).map(([k,v])=>{
-          if (k === 'position') return null;
-          if (k === 'list_id') return `Lista: <span class="text-slate-400 line-through">${escapeHtml(listName(v?.from))}</span> → <span class="text-emerald-600 font-medium">${escapeHtml(listName(v?.to))}</span>`;
-          if (k === 'cover_url') return `Foto atualizada`;
-          if (k === 'bordado_imagem_url') return `Link da logo atualizado`;
-          const lbl = fieldLabels[k] || k;
-          return `${lbl}: <span class="text-slate-400 line-through">${escapeHtml(fmt(v?.from))}</span> → <span class="text-emerald-600 font-medium">${escapeHtml(fmt(v?.to))}</span>`;
-        }).filter(Boolean);
+        const partes = activityEditParts(a.meta);
         if (!partes.length){ msg = 'reordenou'; detail = ''; }
         else { msg = 'editou'; detail = ' — ' + partes.join(' · '); }
       }
@@ -2759,15 +2782,7 @@ async function loadActivity(cardId){
     else if (a.action === 'deleted') msg = 'excluiu o card';
     else if (a.action === 'moved') { msg = 'moveu'; detail = ` de <b>${escapeHtml(listName(a.meta?.from_list))}</b> pra <b>${escapeHtml(listName(a.meta?.to_list))}</b>`; }
     else if (a.action === 'edited' && a.meta){
-      const fmt = x => { if (x === null || x === '' || x === undefined) return '—'; if (x === true) return 'Sim'; if (x === false) return 'Não'; return String(x).slice(0,30); };
-      const partes = Object.entries(a.meta).map(([k,v])=>{
-        if (k === 'position') return null;
-        if (k === 'list_id') return `Lista: <span class="text-red-500 line-through">${escapeHtml(listName(v?.from))}</span> → <span class="text-emerald-600">${escapeHtml(listName(v?.to))}</span>`;
-        if (k === 'cover_url') return `Foto atualizada`;
-        if (k === 'bordado_imagem_url') return `Link da logo atualizado`;
-        const lbl = fieldLabels[k] || k;
-        return `${lbl}: <span class="text-red-500 line-through">${escapeHtml(fmt(v?.from))}</span> → <span class="text-emerald-600">${escapeHtml(fmt(v?.to))}</span>`;
-      }).filter(Boolean);
+      const partes = activityEditParts(a.meta);
       if (!partes.length){ msg = 'reordenou'; detail = ''; }
       else { msg = 'editou'; detail = ' — ' + partes.join(' · '); }
     }
@@ -2893,15 +2908,7 @@ async function renderLogGeral(){
     else if (a.action === 'moved') {
       msg = 'moveu'; detail = ` de <b>${escapeHtml(nomeLista(a.meta?.from_list))}</b> pra <b>${escapeHtml(nomeLista(a.meta?.to_list))}</b>`;
     } else if (a.action === 'edited' && a.meta){
-      const fmt = x => { if (x === null || x === '' || x === undefined) return '—'; if (x === true) return 'Sim'; if (x === false) return 'Não'; return String(x).slice(0,30); };
-      const partes = Object.entries(a.meta).map(([k,v])=>{
-        if (k === 'position') return null; // interno, não mostra
-        if (k === 'list_id') return `Lista: <span class="text-slate-400 line-through">${escapeHtml(nomeLista(v?.from))}</span> → <span class="text-emerald-600 font-medium">${escapeHtml(nomeLista(v?.to))}</span>`;
-        if (k === 'cover_url') return `Foto atualizada`;
-        if (k === 'bordado_imagem_url') return `Link da logo atualizado`;
-        const lbl = fieldLabels[k] || k;
-        return `${lbl}: <span class="text-slate-400 line-through">${escapeHtml(fmt(v?.from))}</span> → <span class="text-emerald-600 font-medium">${escapeHtml(fmt(v?.to))}</span>`;
-      }).filter(Boolean);
+      const partes = activityEditParts(a.meta, nomeLista);
       if (!partes.length){ msg = 'reordenou'; detail = ''; }
       else { msg = 'editou'; detail = ' — ' + partes.join(' · '); }
     }
