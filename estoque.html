@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Estoque & Vendas — Sistema Grupo Aragão</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
+  ink:{900:'#0b1220',800:'#111827',700:'#1f2937',600:'#374151'}, accent:{DEFAULT:'#e91e63',600:'#db2777'} }}}};
+</script>
+<style>
+  html{background:#f1f5f9}html.dark{background:#0b1220}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0}
+  .tab{position:relative;padding:8px 2px;font-size:14px;font-weight:600;color:#64748b;cursor:pointer;transition:color .12s}
+  .tab:hover{color:#db2777}.tab[data-active="1"]{color:#db2777}
+  .tab[data-active="1"]::after{content:'';position:absolute;left:0;right:0;bottom:-11px;height:2px;background:#db2777;border-radius:2px}
+  .dark .tab{color:#94a3b8}
+  .card{background:#fff;border:1px solid #eef2f7;border-radius:14px}.dark .card{background:#111827;border-color:#334155}
+  .prod{background:#fff;border:1px solid #eef2f7;border-radius:14px;overflow:hidden;transition:transform .1s,box-shadow .1s}
+  .prod:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)}
+  .dark .prod{background:#111827;border-color:#334155}
+  .badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px}
+  .b-zero{background:#fee2e2;color:#b91c1c}.dark .b-zero{background:#3f1d1d;color:#fca5a5}
+  .b-baixo{background:#fef3c7;color:#92400e}.dark .b-baixo{background:#3a2f10;color:#fde68a}
+  .b-ok{background:#dcfce7;color:#166534}.dark .b-ok{background:#12341f;color:#86efac}
+  .b-off{background:#e2e8f0;color:#475569}.dark .b-off{background:#1f2937;color:#94a3b8}
+  input,select{outline:none}
+  .inp{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px;font-size:14px}
+  .dark .inp{background:#0b1220;border-color:#334155;color:#e5e7eb}
+  ::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px}.dark ::-webkit-scrollbar-thumb{background:#475569}
+  [data-fade]{animation:fade .18s ease}@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body class="text-slate-800 dark:text-slate-100">
+
+<div id="authGate" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-50 dark:bg-ink-900">
+  <div class="text-center">
+    <div class="w-14 h-14 mx-auto rounded-2xl overflow-hidden mb-4"><img src="/icone-app.png" alt="Aragão" class="w-full h-full object-cover"></div>
+    <div class="font-semibold mb-1">Estoque & Vendas</div>
+    <div class="text-sm text-slate-500 mb-4">Você precisa estar logado na Suíte para acessar.</div>
+    <a href="/" class="inline-block text-sm font-semibold text-white bg-pink-500 hover:bg-pink-600 px-4 py-2 rounded-lg">Ir para o login da Suíte</a>
+  </div>
+</div>
+
+<div id="appWrap" class="hidden">
+<header class="h-14 flex items-center justify-between px-4 bg-white/95 dark:bg-ink-800/95 border-b border-slate-200 dark:border-ink-600 sticky top-0 z-30 backdrop-blur">
+  <div class="flex items-center gap-3">
+    <button onclick="location.href='/'" title="Voltar à Suíte" class="w-9 h-9 rounded-xl overflow-hidden shadow hover:scale-105 transition"><img src="/icone-app.png" alt="Aragão" class="w-full h-full object-cover"></button>
+    <div class="leading-tight">
+      <div class="text-sm font-semibold">Estoque & Vendas</div>
+      <div class="text-[11px] text-slate-500 dark:text-slate-400">Sistema Grupo Aragão</div>
+    </div>
+  </div>
+  <div class="flex items-center gap-2">
+    <button onclick="toggleDark()" title="Tema" class="w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:text-pink-500 hover:bg-slate-100 dark:hover:bg-ink-700"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+    <div id="userAvatar" class="w-8 h-8 rounded-full bg-pink-500 text-white flex items-center justify-center font-bold text-sm">?</div>
+  </div>
+</header>
+
+<div class="max-w-7xl mx-auto px-4 py-5">
+  <!-- Abas -->
+  <div class="flex items-center gap-6 border-b border-slate-200 dark:border-ink-600 mb-5">
+    <div class="tab" data-tab="estoque" data-active="1" onclick="switchTab('estoque')">📦 Estoque / Reposição</div>
+    <div class="tab" data-tab="vendas" onclick="switchTab('vendas')">📈 Vendas</div>
+    <div class="ml-auto text-[11px] text-slate-400" id="atualizadoInfo"></div>
+  </div>
+
+  <!-- ====== ESTOQUE ====== -->
+  <section id="tab-estoque" data-fade>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+      <div class="card p-4"><div class="text-xs text-slate-500">Produtos (SKUs)</div><div class="text-3xl font-bold mt-1" id="mTotal">—</div></div>
+      <div class="card p-4"><div class="text-xs text-slate-500">Zerados</div><div class="text-3xl font-bold mt-1 text-red-500" id="mZero">—</div></div>
+      <div class="card p-4"><div class="text-xs text-slate-500">Estoque baixo</div><div class="text-3xl font-bold mt-1 text-amber-500" id="mBaixo">—</div></div>
+      <div class="card p-4"><div class="text-xs text-slate-500">Unidades em estoque</div><div class="text-3xl font-bold mt-1" id="mUnid">—</div></div>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2 mb-4">
+      <input id="busca" class="inp flex-1 min-w-[180px]" placeholder="Buscar por nome ou SKU…" oninput="renderEstoque()">
+      <select id="fStatus" class="inp" onchange="renderEstoque()">
+        <option value="">Todos os status</option>
+        <option value="zero">Zerados</option>
+        <option value="baixo">Estoque baixo</option>
+        <option value="ok">Estoque ok</option>
+        <option value="off">Inativos</option>
+      </select>
+      <select id="fOrder" class="inp" onchange="renderEstoque()">
+        <option value="saldo">Menor estoque primeiro</option>
+        <option value="saldo_desc">Maior estoque primeiro</option>
+        <option value="nome">Nome (A–Z)</option>
+      </select>
+      <label class="text-xs text-slate-500 flex items-center gap-1">Baixo ≤ <input id="limiar" type="number" value="10" min="0" class="inp w-16 py-1" oninput="renderEstoque()"></label>
+      <button onclick="rodarSync('estoque')" class="text-sm font-semibold text-white bg-pink-500 hover:bg-pink-600 px-3 py-2 rounded-lg flex items-center gap-1"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 22v-6h6M3 12a9 9 0 0 1 15-6.7L21 8M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>Atualizar estoque</button>
+    </div>
+
+    <div id="gridEstoque" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3"></div>
+    <div id="estoqueVazio" class="hidden text-center text-slate-400 py-16"></div>
+  </section>
+
+  <!-- ====== VENDAS ====== -->
+  <section id="tab-vendas" class="hidden" data-fade>
+    <div class="flex flex-wrap items-center gap-2 mb-4">
+      <select id="fPeriodo" class="inp" onchange="renderVendas()">
+        <option value="7">Últimos 7 dias</option>
+        <option value="mes" selected>Mês atual</option>
+        <option value="30">Últimos 30 dias</option>
+        <option value="90">Últimos 90 dias</option>
+        <option value="365">Últimos 12 meses</option>
+      </select>
+      <div class="ml-auto text-[11px] text-slate-400" id="vendasInfo"></div>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
+      <div class="card p-4"><div class="text-xs text-slate-500">Receita</div><div class="text-2xl font-bold mt-1" id="vReceita">—</div></div>
+      <div class="card p-4"><div class="text-xs text-slate-500">Receita paga</div><div class="text-2xl font-bold mt-1 text-emerald-600" id="vReceitaPaga">—</div></div>
+      <div class="card p-4"><div class="text-xs text-slate-500">Pedidos</div><div class="text-2xl font-bold mt-1" id="vPedidos">—</div></div>
+      <div class="card p-4"><div class="text-xs text-slate-500">Pedidos pagos</div><div class="text-2xl font-bold mt-1" id="vPagos">—</div></div>
+      <div class="card p-4"><div class="text-xs text-slate-500">Ticket médio</div><div class="text-2xl font-bold mt-1" id="vTicket">—</div></div>
+    </div>
+    <div class="card p-4">
+      <div class="text-sm font-semibold mb-3">Receita por dia</div>
+      <div id="chart" class="w-full overflow-x-auto"></div>
+    </div>
+  </section>
+</div>
+</div>
+
+<script type="module">
+const SUPA = { url:'https://wwytzoyeibekhstinott.supabase.co', key:'sb_publishable_uMoCEK4Ed_u8ZIfjVZ7Jrg_tdR4b9bO' };
+const BUCKET_URL = SUPA.url + '/storage/v1/object/public/reposicao-data/reposicao/';
+let sb=null, ESTOQUE=null, VENDAS=null;
+
+async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2'); sb=createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true}}); } return sb; }
+window.toggleDark=()=>{ document.documentElement.classList.toggle('dark'); try{localStorage.setItem('dc_dark',document.documentElement.classList.contains('dark')?'1':'0');}catch(e){} };
+try{ if(localStorage.getItem('dc_dark')==='1') document.documentElement.classList.add('dark'); }catch(e){}
+
+const BRL = n => (Number(n)||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const NUM = n => (Number(n)||0).toLocaleString('pt-BR');
+const hoje = () => new Date().toISOString().slice(0,10);
+function statusDe(p, limiar){ if(!p.ativo) return 'off'; if((p.saldo||0)<=0) return 'zero'; if((p.saldo||0)<=limiar) return 'baixo'; return 'ok'; }
+
+async function carregar(){
+  try{ const r=await fetch(BUCKET_URL+'estoque.json?t='+Date.now()); if(r.ok) ESTOQUE=await r.json(); }catch(e){}
+  try{ const r=await fetch(BUCKET_URL+'vendas.json?t='+Date.now()); if(r.ok) VENDAS=await r.json(); }catch(e){}
+  const at = ESTOQUE?.atualizado_em ? new Date(ESTOQUE.atualizado_em).toLocaleString('pt-BR') : '—';
+  document.getElementById('atualizadoInfo').textContent = 'Estoque atualizado: '+at;
+  renderEstoque(); renderVendas();
+}
+
+window.switchTab=(t)=>{
+  document.querySelectorAll('.tab').forEach(x=>x.dataset.active = x.dataset.tab===t?'1':'0');
+  document.getElementById('tab-estoque').classList.toggle('hidden', t!=='estoque');
+  document.getElementById('tab-vendas').classList.toggle('hidden', t!=='vendas');
+};
+
+window.renderEstoque=()=>{
+  const grid=document.getElementById('gridEstoque'), vazio=document.getElementById('estoqueVazio');
+  if(!ESTOQUE){ grid.innerHTML=''; vazio.classList.remove('hidden'); vazio.textContent='Carregando estoque…'; return; }
+  const limiar = parseInt(document.getElementById('limiar').value)||0;
+  const q = (document.getElementById('busca').value||'').toLowerCase().trim();
+  const fs = document.getElementById('fStatus').value;
+  const ord = document.getElementById('fOrder').value;
+  let lista = (ESTOQUE.produtos||[]).slice();
+  // métricas
+  const ativos = lista.filter(p=>p.ativo);
+  document.getElementById('mTotal').textContent = NUM(lista.length);
+  document.getElementById('mZero').textContent = NUM(ativos.filter(p=>(p.saldo||0)<=0).length);
+  document.getElementById('mBaixo').textContent = NUM(ativos.filter(p=>(p.saldo||0)>0 && (p.saldo||0)<=limiar).length);
+  document.getElementById('mUnid').textContent = NUM(lista.reduce((s,p)=>s+(p.saldo||0),0));
+  // filtro
+  if(q) lista=lista.filter(p=>(p.nome||'').toLowerCase().includes(q)||(p.sku||'').toLowerCase().includes(q));
+  if(fs) lista=lista.filter(p=>statusDe(p,limiar)===fs);
+  if(ord==='saldo') lista.sort((a,b)=>(a.saldo||0)-(b.saldo||0));
+  else if(ord==='saldo_desc') lista.sort((a,b)=>(b.saldo||0)-(a.saldo||0));
+  else lista.sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
+  if(!lista.length){ grid.innerHTML=''; vazio.classList.remove('hidden'); vazio.textContent='Nenhum produto com esse filtro.'; return; }
+  vazio.classList.add('hidden');
+  const esc = s => (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  grid.innerHTML = lista.slice(0,600).map(p=>{
+    const st = statusDe(p,limiar);
+    const badge = st==='zero'?'<span class="badge b-zero">Zerado</span>':st==='baixo'?'<span class="badge b-baixo">Baixo</span>':st==='off'?'<span class="badge b-off">Inativo</span>':'<span class="badge b-ok">OK</span>';
+    const saldoCor = st==='zero'?'text-red-500':st==='baixo'?'text-amber-500':'text-slate-800 dark:text-slate-100';
+    const img = p.imagem_url ? `<img src="${esc(p.imagem_url)}" class="w-full h-full object-cover" loading="lazy">` : `<div class="w-full h-full flex items-center justify-center text-slate-300 dark:text-slate-600"><svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg></div>`;
+    return `<div class="prod">
+      <div class="aspect-square bg-slate-100 dark:bg-ink-700">${img}</div>
+      <div class="p-2.5">
+        <div class="flex items-center justify-between gap-1 mb-1">${badge}<span class="text-[10px] text-slate-400">${esc(p.sku)}</span></div>
+        <div class="text-[12px] font-medium leading-tight line-clamp-2" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden" title="${esc(p.nome)}">${esc(p.nome)}</div>
+        <div class="flex items-end justify-between mt-1.5">
+          <div><div class="text-[10px] text-slate-400 leading-none">estoque</div><div class="text-2xl font-bold ${saldoCor} leading-tight">${NUM(p.saldo)}</div></div>
+          <div class="text-right text-[11px] text-slate-500">${p.preco?BRL(p.preco):''}</div>
+        </div>
+      </div></div>`;
+  }).join('');
+};
+
+function janela(dias){ const d=new Date(); d.setDate(d.getDate()-dias+1); return d.toISOString().slice(0,10); }
+window.renderVendas=()=>{
+  if(!VENDAS || !VENDAS.dias){ document.getElementById('vendasInfo').textContent='Dados de vendas ainda carregando (backfill em andamento)…'; return; }
+  const per = document.getElementById('fPeriodo').value;
+  let desde;
+  if(per==='mes'){ desde = hoje().slice(0,7)+'-01'; }
+  else desde = janela(parseInt(per));
+  const ate = hoje();
+  const dias = Object.keys(VENDAS.dias).filter(d=>d>=desde && d<=ate).sort();
+  let receita=0, receitaPaga=0, pedidos=0, pagos=0;
+  dias.forEach(d=>{ const x=VENDAS.dias[d]; receita+=x.receita||0; receitaPaga+=x.receita_paga||0; pedidos+=x.pedidos||0; pagos+=x.pagos||0; });
+  document.getElementById('vReceita').textContent = BRL(receita);
+  document.getElementById('vReceitaPaga').textContent = BRL(receitaPaga);
+  document.getElementById('vPedidos').textContent = NUM(pedidos);
+  document.getElementById('vPagos').textContent = NUM(pagos);
+  document.getElementById('vTicket').textContent = pagos? BRL(receitaPaga/pagos) : '—';
+  const totalDias = Object.keys(VENDAS.dias).length;
+  document.getElementById('vendasInfo').textContent = (VENDAS.done?'Backfill completo · ':'Backfill em andamento · ')+totalDias+' dias no histórico';
+  // gráfico
+  const chart=document.getElementById('chart');
+  if(!dias.length){ chart.innerHTML='<div class="text-slate-400 text-sm py-8 text-center">Sem vendas no período.</div>'; return; }
+  const vals = dias.map(d=>VENDAS.dias[d].receita||0);
+  const max = Math.max(1,...vals);
+  const bw = Math.max(6, Math.min(40, Math.floor(880/dias.length)));
+  const gap = 3, W = dias.length*(bw+gap)+40, H=220;
+  let bars='';
+  dias.forEach((d,i)=>{ const h=Math.round((vals[i]/max)*(H-40)); const x=30+i*(bw+gap); const y=H-20-h;
+    bars+=`<rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="2" fill="#ec4899"><title>${d}: ${BRL(vals[i])}</title></rect>`; });
+  const showLbl = dias.length<=31;
+  let lbls=''; if(showLbl) dias.forEach((d,i)=>{ const x=30+i*(bw+gap)+bw/2; lbls+=`<text x="${x}" y="${H-6}" font-size="9" fill="#94a3b8" text-anchor="middle">${d.slice(8)}</text>`; });
+  chart.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="${Math.max(W,600)}" height="${H}"><text x="0" y="14" font-size="10" fill="#94a3b8">${BRL(max)}</text>${bars}${lbls}</svg>`;
+};
+
+window.rodarSync=async(tipo)=>{
+  const btnTxt = event?.target?.closest('button'); if(btnTxt) btnTxt.disabled=true;
+  try{ await fetch('/api/estoque-sync?run='+tipo+'&_='+Date.now()); }catch(e){}
+  await new Promise(r=>setTimeout(r,1500));
+  await carregar();
+  if(btnTxt) btnTxt.disabled=false;
+};
+
+(async()=>{
+  const c=await getSb();
+  const { data:{ session } } = await c.auth.getSession();
+  if(!session){ document.getElementById('authGate').classList.remove('hidden'); return; }
+  document.getElementById('appWrap').classList.remove('hidden');
+  const em=(session.user.email||'?'); document.getElementById('userAvatar').textContent=em.charAt(0).toUpperCase();
+  await carregar();
+})();
+</script>
+</body>
+</html>
