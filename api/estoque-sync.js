@@ -137,11 +137,24 @@ async function coletarSkusLI() {
   }
   return set;
 }
-// ============ SYNC ESTOQUE (Bling, filtrado pelos SKUs da LI) ============
+// Ordem canônica dos tamanhos
+const ORDEM_TAM = ["PP", "P", "M", "G", "GG", "XG", "XGG", "EG", "EGG", "U", "UNICO", "ÚNICO"];
+function ordemTam(t) { const i = ORDEM_TAM.indexOf((t || "").toUpperCase()); return i < 0 ? 99 : i; }
+function tamanhoDe(p) {
+  const m = (p.nome || "").match(/TAMANHO\s*:?\s*([A-Za-zÀ-ú0-9]+)/i);
+  if (m) return m[1].toUpperCase();
+  const parts = String(p.sku || "").split("-");
+  const suf = parts.length > 1 ? parts[parts.length - 1] : "";
+  return (suf || "U").toUpperCase();
+}
+function limpaNome(n) {
+  return (n || "").replace(/\s*-?\s*TAMANHO\s*:?.*$/i, "").replace(/\s*:\s*(PP|P|M|G|GG|XG|XGG|U|UNICO|ÚNICO)\s*$/i, "").trim();
+}
+// ============ SYNC ESTOQUE (Bling, filtrado pela LI, AGRUPADO por produto pai) ============
 async function runEstoque() {
-  const liSkus = await coletarSkusLI(); // só considera produtos que também estão na loja
+  const liSkus = await coletarSkusLI(); // só produtos que também estão na loja
   const token = await getBlingToken();
-  const produtos = [];
+  const flat = [];
   let pagina = 1, ignorados = 0;
   const LIMITE = 100, MAX_PAGINAS = 60;
   while (pagina <= MAX_PAGINAS) {
@@ -150,14 +163,10 @@ async function runEstoque() {
     if (!lista.length) break;
     for (const p of lista) {
       const sku = p.codigo || String(p.id);
-      // Pula produtos que existem no Bling mas NÃO na Loja Integrada (ex.: itens só de nota fiscal).
       if (liSkus.size && !liSkus.has(String(sku).toLowerCase().trim())) { ignorados++; continue; }
-      produtos.push({
-        sku,
-        nome: p.nome || "",
-        pai: p.idProdutoPai || null,
-        preco: Number(p.preco || 0),
-        custo: Number(p.precoCusto || 0),
+      flat.push({
+        id: p.id, sku, nome: p.nome || "", pai: p.idProdutoPai || null,
+        preco: Number(p.preco || 0), custo: Number(p.precoCusto || 0),
         saldo: Number((p.estoque && (p.estoque.saldoVirtualTotal ?? p.estoque.saldoFisicoTotal)) || 0),
         ativo: (p.situacao || "A") === "A",
       });
@@ -165,9 +174,27 @@ async function runEstoque() {
     if (lista.length < LIMITE) break;
     pagina++;
   }
-  const snap = { atualizado_em: new Date().toISOString(), total: produtos.length, li_skus: liSkus.size, ignorados, produtos };
+  // Agrupa variações pelo produto pai. Produto pai (que tem filhos) NÃO vira card.
+  const temFilhos = new Set(flat.filter(p => p.pai).map(p => String(p.pai)));
+  const grupos = {};
+  for (const p of flat) {
+    if (!p.pai && temFilhos.has(String(p.id))) continue; // é o pai -> ignora como card
+    const key = p.pai ? "p" + p.pai : "s" + p.id; // variação agrupa por pai; produto único fica sozinho
+    let g = grupos[key];
+    if (!g) { g = grupos[key] = { nome: limpaNome(p.nome) || p.nome, preco: p.preco, custo: p.custo, imagem: null, sku_base: (p.sku || "").split("-")[0], tamanhos: [] }; }
+    if (!g.nome) g.nome = limpaNome(p.nome) || p.nome;
+    if (!g.preco && p.preco) g.preco = p.preco;
+    g.tamanhos.push({ tamanho: tamanhoDe(p), sku: p.sku, saldo: p.saldo, ativo: p.ativo });
+  }
+  const produtos = Object.values(grupos).map(g => {
+    g.tamanhos.sort((a, b) => ordemTam(a.tamanho) - ordemTam(b.tamanho) || a.tamanho.localeCompare(b.tamanho));
+    const saldo_total = g.tamanhos.reduce((s, t) => s + (t.saldo || 0), 0);
+    const grades_zeradas = g.tamanhos.filter(t => (t.saldo || 0) <= 0).length;
+    return { nome: g.nome, sku_base: g.sku_base, preco: g.preco, custo: g.custo, imagem: g.imagem, saldo_total, grades: g.tamanhos.length, grades_zeradas, tamanhos: g.tamanhos };
+  });
+  const snap = { atualizado_em: new Date().toISOString(), li_skus: liSkus.size, total_produtos: produtos.length, total_variacoes: flat.length, ignorados, produtos };
   await storagePut("reposicao/estoque.json", snap);
-  return { ok: true, total: produtos.length, li_skus: liSkus.size, ignorados, paginas: pagina };
+  return { ok: true, total_produtos: produtos.length, total_variacoes: flat.length, li_skus: liSkus.size, ignorados, paginas: pagina };
 }
 
 // ============ SYNC VENDAS (LI, cabeçalhos) — backfill + diário ============
