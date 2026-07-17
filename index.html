@@ -830,7 +830,7 @@ tailwind.config = {
                 <label class="text-xs font-medium uppercase text-slate-500">Cor</label>
                 <div class="flex gap-1 mt-1 items-center">
                   <div id="cardBordadoCorSwatch" class="w-9 h-9 rounded border border-slate-300 flex-shrink-0" style="background:#94a3b8"></div>
-                  <input id="cardBordadoCorNome" type="text" readonly placeholder="—" class="flex-1 min-w-0 p-2 rounded-lg bg-slate-100 dark:bg-ink-600 border border-slate-200 dark:border-ink-600 text-sm text-slate-600"/>
+                  <select id="cardBordadoCorNome" class="flex-1 min-w-0 p-2 rounded-lg bg-white dark:bg-ink-900 border border-slate-200 dark:border-ink-600 text-sm cursor-pointer"></select>
                   <input id="cardBordadoCorHex" type="hidden"/>
                 </div>
               </div>
@@ -1076,6 +1076,26 @@ const PRODUCT_COLORS = [
   {name:"Rosé", hex:"#EEA3A3"},{name:"Pink", hex:"#F15788"},{name:"Azul Royal", hex:"#3853B9"},
   {name:"Azul Indigo", hex:"#4C79BB"},{name:"Azul Claro", hex:"#AEC6F1"},{name:"Branco off", hex:"#FDFAF5"}
 ];
+// Cores do FIO do bordado — as mesmas do site (opção "Cor do fio"). Hexes das cores reais dos pedidos.
+const THREAD_COLORS = [
+  {name:"Branco", hex:"#f4f4f4"}, {name:"Bege", hex:"#f5f5dc"}, {name:"Dourado", hex:"#b8860b"},
+  {name:"Prata", hex:"#c0c0c0"}, {name:"Rosa claro", hex:"#ffb6c1"}, {name:"Pink", hex:"#ff0084"},
+  {name:"Chumbo", hex:"#5c6274"}, {name:"Marinho", hex:"#00008b"}, {name:"Preto", hex:"#000000"}
+];
+// Popula o seletor de cor do fio, garantindo que a cor atual apareça mesmo se não estiver na paleta
+function setCorFio(nome, hex){
+  const sel = document.getElementById('cardBordadoCorNome');
+  const hx = document.getElementById('cardBordadoCorHex');
+  const sw = document.getElementById('cardBordadoCorSwatch');
+  if (!sel) return;
+  const opts = THREAD_COLORS.slice();
+  const norm = s => String(s||'').trim().toLowerCase();
+  if (nome && !opts.some(o => norm(o.name) === norm(nome))) opts.unshift({ name: nome, hex: hex || '#94a3b8' });
+  sel.innerHTML = '<option value="">—</option>' + opts.map(o => `<option value="${escapeHtml(o.name)}" data-hex="${o.hex}" ${norm(o.name)===norm(nome)?'selected':''}>${escapeHtml(o.name)}</option>`).join('');
+  const selHex = (opts.find(o => norm(o.name)===norm(nome))||{}).hex || hex || '';
+  if (hx) hx.value = selHex;
+  if (sw) sw.style.background = selHex || '#94a3b8';
+}
 // Match: encontra a cor da peça pelo nome do produto (ex: "Scrub Feminino Ava Branco" -> Branco -> #FFFFFF)
 function matchProductColor(productName){
   if (!productName) return null;
@@ -1941,9 +1961,7 @@ async function openCard(id){
       prodBox.classList.add('hidden');
     }
   }
-  const bchEl = document.getElementById('cardBordadoCorHex'); if (bchEl) bchEl.value = c.bordado_cor_hex || '';
-  const bcnEl = document.getElementById('cardBordadoCorNome'); if (bcnEl) bcnEl.value = c.bordado_cor_nome || '';
-  const swatch = document.getElementById('cardBordadoCorSwatch'); if (swatch) swatch.style.background = c.bordado_cor_hex || '#94a3b8';
+  setCorFio(c.bordado_cor_nome, c.bordado_cor_hex);
   const bfEl = document.getElementById('cardBordadoFonte');
   if (bfEl){
     bfEl.value = c.bordado_fonte || '';
@@ -2145,9 +2163,7 @@ function fillBordadoFields(info){
   set('cardBordadoTipo', info.tipo);
   set('cardBordadoLinha1', info.linha1);
   set('cardBordadoLinha2', info.linha2);
-  set('cardBordadoCorHex', info.corHex);
-  set('cardBordadoCorNome', info.corNome);
-  const swatch=document.getElementById('cardBordadoCorSwatch'); if(swatch) swatch.style.background = info.corHex || '#94a3b8';
+  setCorFio(info.corNome, info.corHex);
   const bfEl=document.getElementById('cardBordadoFonte');
   if(bfEl){ bfEl.value=info.fonte||''; bfEl.style.fontFamily = info.fonte?bordadoFontFamily(info.fonte):''; bfEl.style.fontSize = info.fonte?'18px':''; }
   set('cardBordadoLado', info.lado);
@@ -2338,6 +2354,16 @@ document.addEventListener('change', e => {
   if (t.closest('#tab-details') && (t.tagName === 'SELECT' || t.type === 'checkbox' || t.type === 'date')) {
     autosave();
   }
+});
+// Cor do fio: ao trocar no seletor, atualiza hex + swatch + preview na hora (o autosave persiste)
+document.addEventListener('change', e => {
+  if (e.target.id !== 'cardBordadoCorNome') return;
+  const nome = e.target.value;
+  const hex = (e.target.selectedOptions[0] && e.target.selectedOptions[0].dataset.hex) || (THREAD_COLORS.find(c=>c.name===nome)||{}).hex || '';
+  const hx = document.getElementById('cardBordadoCorHex'); if (hx) hx.value = hex;
+  const sw = document.getElementById('cardBordadoCorSwatch'); if (sw) sw.style.background = hex || '#94a3b8';
+  const c = cards.find(x=>x.id===activeCardId);
+  if (c){ c.bordado_cor_hex = hex || null; c.bordado_cor_nome = nome || null; try { renderCardCover(c); } catch(_){} }
 });
 
 window.archiveCard = async () => {
