@@ -2511,6 +2511,28 @@ window.saveCard = async (silent = false) => {
     updates.bordado_lado = document.getElementById('cardBordadoLado').value || null;
     updates.bordado_imagem_url = document.getElementById('cardBordadoImagemUrl').value || null;
     updates.bordado_detalhes = document.getElementById('cardBordadoDetalhes').value || null;
+    // FIX cor/infos não salvavam em pedido sincronizado: quando o bordado é POR PRODUTO
+    // (pedido_produtos[].bordadoInfo), a leitura ao reabrir vem de lá — então precisamos
+    // gravar a edição no produto ATIVO (_heroIdx), não só nos campos do card.
+    {
+      const _cAtual = cards.find(x=>x.id===activeCardId);
+      const _prods = _cAtual && Array.isArray(_cAtual.pedido_produtos) ? _cAtual.pedido_produtos : [];
+      const _bordProds = _prods.filter(p => p.bordado && p.bordadoInfo);
+      if (_bordProds.length){
+        const _alvo = _bordProds[_heroIdx] || _bordProds[0];
+        if (_alvo){
+          const _novoInfo = { ...(_alvo.bordadoInfo||{}),
+            tipo: updates.bordado_tipo, linha1: updates.bordado_linha1, linha2: updates.bordado_linha2,
+            corHex: updates.bordado_cor_hex, corNome: updates.bordado_cor_nome,
+            fonte: updates.bordado_fonte, lado: updates.bordado_lado,
+            imagem: updates.bordado_imagem_url, detalhes: updates.bordado_detalhes };
+          // Só grava se algo do bordado do produto realmente mudou (evita diff/flag à toa)
+          if (JSON.stringify(_alvo.bordadoInfo||{}) !== JSON.stringify(_novoInfo)){
+            updates.pedido_produtos = _prods.map(p => p === _alvo ? { ...p, bordadoInfo: _novoInfo } : p);
+          }
+        }
+      }
+    }
     // Marca qual produto do pedido é o bordado (fluxo manual). Só mexe em cards que NÃO têm
     // bordado por produto vindo do sync (evita quebrar cards multi-bordado sincronizados).
     const _pbCard = cards.find(x=>x.id===activeCardId);
@@ -2533,7 +2555,7 @@ window.saveCard = async (silent = false) => {
   // Personalização: se algum campo de bordado mudou, acende "alterado — conferir"
   if (bType === 'bordado'){
     const BFIELDS = ['bordado_tipo','bordado_linha1','bordado_linha2','bordado_cor_hex','bordado_cor_nome','bordado_fonte','bordado_lado','bordado_imagem_url','bordado_detalhes'];
-    if (BFIELDS.some(k => k in diff)){ diff.bordado_alterado_em = new Date().toISOString(); diff.bordado_alterado_por = user.id; }
+    if (BFIELDS.some(k => k in diff) || ('pedido_produtos' in diff)){ diff.bordado_alterado_em = new Date().toISOString(); diff.bordado_alterado_por = user.id; }
   }
   const _labelAtual = (cardLabels[activeCardId] && cardLabels[activeCardId][0]) ? cardLabels[activeCardId][0].id : null;
   const _labelMudou = _labelAtual !== newLabelId;
