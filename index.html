@@ -815,6 +815,10 @@ tailwind.config = {
                 <option value="ambos">Ambos</option>
               </select>
             </div>
+            <div id="cardBordadoProdutoBox" class="hidden">
+              <label class="text-xs font-medium uppercase text-slate-500 flex items-center gap-1"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7L12 3 4 7l8 4z"/><path d="M4 7v10l8 4 8-4V7"/></svg>Produto do bordado</label>
+              <select id="cardBordadoProduto" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"><option value="">— nenhum —</option></select>
+            </div>
             <div id="cardBordadoLinhasBox" class="grid grid-cols-2 gap-3">
               <div>
                 <label class="text-xs font-medium uppercase text-slate-500">Linha 1 (Nome)</label>
@@ -1127,7 +1131,8 @@ function bordadosDoCard(c){
   if (arr.length) return arr.map((p,i)=>({ info:p.bordadoInfo, nome:p.nome, sku:p.sku, cor:BORDADO_PALETTE[i%BORDADO_PALETTE.length] }));
   // fallback: bordado único do card (dados antigos)
   if (c.bordado_tipo || c.bordado_linha1 || c.bordado_imagem_url){
-    return [{ info:{ tipo:c.bordado_tipo, linha1:c.bordado_linha1, linha2:c.bordado_linha2, corHex:c.bordado_cor_hex, corNome:c.bordado_cor_nome, fonte:c.bordado_fonte, lado:c.bordado_lado, imagem:c.bordado_imagem_url, detalhes:c.bordado_detalhes }, nome:null, sku:null, cor:BORDADO_PALETTE[0] }];
+    const _pm = Array.isArray(c.pedido_produtos) ? c.pedido_produtos.find(p => p.bordado) : null;
+    return [{ info:{ tipo:c.bordado_tipo, linha1:c.bordado_linha1, linha2:c.bordado_linha2, corHex:c.bordado_cor_hex, corNome:c.bordado_cor_nome, fonte:c.bordado_fonte, lado:c.bordado_lado, imagem:c.bordado_imagem_url, detalhes:c.bordado_detalhes }, nome:_pm?_pm.nome:null, sku:_pm?_pm.sku:null, cor:BORDADO_PALETTE[0] }];
   }
   return [];
 }
@@ -1477,6 +1482,27 @@ async function switchBoard(boardId){
 }
 
 function closeAllListMenus(){ document.querySelectorAll('.list-menu').forEach(m=>m.remove()); }
+// Cria um card de bordado vinculado a um pedido da Loja Integrada (pra pedido que veio sem bordado)
+async function criarCardPedidoManual(list, listCards){
+  const num = (prompt('Número do pedido (Loja Integrada) pra vincular o bordado:')||'').replace(/[^0-9]/g,'');
+  if (!num) return;
+  toast('Buscando pedido na Loja Integrada...');
+  let data;
+  try {
+    const sess = (await sb.auth.getSession()).data.session;
+    const r = await fetch('/api/personalizacao-sync?lookup=1&numero='+encodeURIComponent(num), { headers:{ Authorization:'Bearer '+(sess&&sess.access_token) } });
+    data = await r.json();
+    if (!r.ok || !data || !data.ok){ toast((data&&data.error) || 'Pedido não encontrado na Loja Integrada'); return; }
+  } catch(e){ toast('Erro ao buscar: '+e.message); return; }
+  const maxPos = Math.max(0, ...listCards.map(c=>c.position||0));
+  const title = '#'+data.numero+' · '+(data.cliente || 'Sem nome');
+  const { data: nc, error } = await sb.from('cards').insert({
+    list_id: list.id, title, position: maxPos+16384, created_by: user.id,
+    pedido_numero: String(data.numero), pedido_cliente: data.cliente || null, pedido_produtos: data.produtos || []
+  }).select().single();
+  if (error){ toast('Erro ao criar card: '+error.message); return; }
+  if (nc){ cards.push(nc); cardLabels[nc.id]=[]; cardMembers[nc.id]=[]; renderBoard(); openCard(nc.id); toast('Card criado! Preencha o bordado e escolha o produto.'); }
+}
 if (!window.__listMenuDoc){ window.__listMenuDoc = true; document.addEventListener('click', (e)=>{ if (!e.target.closest('.list-menu') && !e.target.closest('.list-menu-btn')) closeAllListMenus(); }); }
 function renderBoard(){
   const board = document.getElementById('board');
@@ -1519,6 +1545,7 @@ function renderBoard(){
     });
     const _addBtn = col.querySelector('.add-card');
     if (_addBtn) _addBtn.onclick = async () => {
+      if (boardType(currentBoardId) === 'bordado'){ criarCardPedidoManual(list, listCards); return; }
       const t = prompt('Nome do card');
       if (t){
         const maxPos = Math.max(0, ...listCards.map(c=>c.position||0));
@@ -1962,6 +1989,7 @@ async function openCard(id){
     }
   }
   setCorFio(c.bordado_cor_nome, c.bordado_cor_hex);
+  preencherProdutoBordado(c);
   const bfEl = document.getElementById('cardBordadoFonte');
   if (bfEl){
     bfEl.value = c.bordado_fonte || '';
@@ -2155,6 +2183,17 @@ function renderCardCover(c){
   const src = c.cover_url;
   if (src){ img.src = src; img.classList.remove('hidden'); rm.classList.remove('hidden'); }
   else { plus.classList.remove('hidden'); }
+}
+// Popula o seletor "Produto do bordado" com os produtos do pedido; pré-seleciona o que já está marcado
+function preencherProdutoBordado(c){
+  const sel = document.getElementById('cardBordadoProduto');
+  const box = document.getElementById('cardBordadoProdutoBox');
+  if (!sel) return;
+  const prods = Array.isArray(c.pedido_produtos) ? c.pedido_produtos : [];
+  if (!prods.length){ if(box) box.classList.add('hidden'); sel.innerHTML = '<option value="">— nenhum —</option>'; return; }
+  if (box) box.classList.remove('hidden');
+  const selIdx = prods.findIndex(p => p.bordado);
+  sel.innerHTML = '<option value="">— nenhum —</option>' + prods.map((p,i)=>`<option value="${i}" ${i===selIdx?'selected':''}>${escapeHtml(p.nome||('Produto '+(i+1)))}</option>`).join('');
 }
 // Preenche os campos do bordado (linha1/2, cor, fonte, lado, imagem, detalhes) a partir de um info
 function fillBordadoFields(info){
@@ -2377,9 +2416,15 @@ window.archiveCard = async () => {
 window.saveCard = async (silent = false) => {
   if (!canEditBoard) return;
   const c0 = cards.find(x => x.id === activeCardId) || {};
-  const newLabelId = document.getElementById('cardFaccao').value || null;
+  let newLabelId = document.getElementById('cardFaccao').value || null;
   const gi = k => parseInt(document.getElementById(k).value) || null;
   const bType = boardType(currentBoardId);
+  // Card de bordado ainda sem etiqueta (ex.: card manual): deriva a etiqueta pelo tipo do bordado
+  if (bType === 'bordado' && !newLabelId){
+    const _tp = (document.getElementById('cardBordadoTipo')||{}).value;
+    const _rx = _tp==='nome_profissao' ? /nome/i : _tp==='logomarca' ? /logo/i : _tp==='ambos' ? /ambos/i : null;
+    if (_rx){ const _lbl = (labels||[]).find(l => _rx.test(l.name)); if (_lbl) newLabelId = _lbl.id; }
+  }
   // Campos comuns a todos os boards
   const updates = {
     title: document.getElementById('cardTitle').value,
@@ -2428,6 +2473,17 @@ window.saveCard = async (silent = false) => {
     updates.bordado_lado = document.getElementById('cardBordadoLado').value || null;
     updates.bordado_imagem_url = document.getElementById('cardBordadoImagemUrl').value || null;
     updates.bordado_detalhes = document.getElementById('cardBordadoDetalhes').value || null;
+    // Marca qual produto do pedido é o bordado (fluxo manual). Só mexe em cards que NÃO têm
+    // bordado por produto vindo do sync (evita quebrar cards multi-bordado sincronizados).
+    const _pbCard = cards.find(x=>x.id===activeCardId);
+    const _pbSel = document.getElementById('cardBordadoProduto');
+    if (_pbSel && _pbCard && Array.isArray(_pbCard.pedido_produtos) && _pbCard.pedido_produtos.length){
+      const jaTemPorProduto = _pbCard.pedido_produtos.some(p => p.bordado && p.bordadoInfo);
+      if (!jaTemPorProduto){
+        const idx = _pbSel.value === '' ? -1 : +_pbSel.value;
+        updates.pedido_produtos = _pbCard.pedido_produtos.map((p,i) => ({ ...p, bordado: i === idx }));
+      }
+    }
   }
   // Só envia campos que realmente mudaram vs snapshot do card atual
   // Normaliza "" e null como equivalentes (evita diff falso tipo "— → —")
