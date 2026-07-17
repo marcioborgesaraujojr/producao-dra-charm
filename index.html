@@ -1428,9 +1428,8 @@ async function switchBoard(boardId){
   lists = listsData || [];
   // v78: se hideFinalizado ativo, exclui a lista FINALIZADO da query inicial (grande win mobile: 771->120 cards)
   let listIdsArr = lists.map(l=>l.id);
-  const finalizadoIdInit = lists.find(l => /finalizado/i.test(l.name))?.id;
-  const skipFinalizado = filters.hideFinalizado && finalizadoIdInit;
-  if (skipFinalizado) listIdsArr = listIdsArr.filter(id => id !== finalizadoIdInit);
+  const finalizadoIdsInit = new Set(lists.filter(l => /finaliz|expedido/i.test(l.name)).map(l=>l.id));
+  if (filters.hideFinalizado) listIdsArr = listIdsArr.filter(id => !finalizadoIdsInit.has(id));
   const [laR, tR, cR] = await Promise.all([
     sb.from('labels').select('*').eq('board_id', boardId).order('name'),
     sb.from('tecidos').select('*').eq('board_id', boardId).order('name'),
@@ -1463,10 +1462,10 @@ function renderBoard(){
   const board = document.getElementById('board');
   board.innerHTML = '';
   const qTokens = normTxt(filters.search).split(/\s+/).filter(Boolean);
-  const finalizadoId = lists.find(l => /finalizado/i.test(l.name))?.id;
+  const finalizadoIds = new Set(lists.filter(l => /finaliz|expedido/i.test(l.name)).map(l=>l.id));
   const compact = filters.density === 'compact';
   lists.forEach(list => {
-    if (filters.hideFinalizado && list.id === finalizadoId) return;
+    if (filters.hideFinalizado && finalizadoIds.has(list.id)) return;
     const listCards = cards.filter(c => c.list_id === list.id)
       .filter(c => !boardLabelFilter.length || (cardLabels[c.id]||[]).some(l => boardLabelFilter.includes(l.id)))
       .filter(c => {
@@ -1814,9 +1813,9 @@ function renderCard(c, compact){
 }
 
 function updateStats(){
-  const finalizadoId = lists.find(l => /finalizado/i.test(l.name))?.id;
-  const ativos = cards.filter(c=>c.list_id!==finalizadoId).length;
-  const finalizados = cards.length - ativos;
+  const finalizadoIds = new Set(lists.filter(l => /finaliz|expedido/i.test(l.name)).map(l=>l.id));
+  const finalizados = cards.filter(c => finalizadoIds.has(c.list_id)).length;
+  const ativos = cards.length - finalizados;
   document.getElementById('statsLine').textContent = `${ativos} em produção · ${finalizados} finalizados · ${labels.length} facções`;
 }
 
@@ -1833,11 +1832,15 @@ async function openCard(id){
   _heroIdx = 0;
   // Ajusta quais campos aparecem por tipo de board
   const bType = boardType(currentBoardId);
-  // Bordado alterado: se OUTRA pessoa (não quem alterou) abre o card, some o destaque (conferido)
-  if (bType === 'bordado' && c.bordado_alterado_em && c.bordado_alterado_por && c.bordado_alterado_por !== user.id && canEditBoard){
-    sb.from('cards').update({ bordado_alterado_em: null, bordado_alterado_por: null }).eq('id', c.id).then(({error}) => {
-      if (!error){ c.bordado_alterado_em = null; c.bordado_alterado_por = null; _localMoveAt = Date.now(); renderBoard(); }
-    });
+  // Bordado alterado: SÓ o bordador responsável pelo tipo do bordado limpa o destaque ao abrir o card.
+  // Logomarca/Ambos -> designer@fcbordadosefardamentos.com.br | Nome/Profissão -> bordadoaragaoaraujo@gmail.com
+  if (bType === 'bordado' && c.bordado_alterado_em){
+    const clearer = (c.bordado_tipo === 'nome_profissao') ? 'bordadoaragaoaraujo@gmail.com' : 'designer@fcbordadosefardamentos.com.br';
+    if ((user.email||'').toLowerCase() === clearer){
+      sb.from('cards').update({ bordado_alterado_em: null, bordado_alterado_por: null }).eq('id', c.id).then(({error}) => {
+        if (!error){ c.bordado_alterado_em = null; c.bordado_alterado_por = null; _localMoveAt = Date.now(); renderBoard(); }
+      });
+    }
   }
   document.getElementById('producaoFields').classList.toggle('hidden', bType !== 'producao');
   document.getElementById('corteFields').classList.toggle('hidden', bType !== 'corte');
