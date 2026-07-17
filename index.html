@@ -2731,6 +2731,8 @@ async function renderLogGeral(){
   document.getElementById('logGeralCount').textContent = data.length + ' eventos';
   if (data.length === 0){ box.innerHTML = '<div class="text-center text-slate-500 p-8">Sem eventos com esses filtros.</div>'; return; }
   const fieldLabels = { list_id:'Lista', title:'Título', description:'Descrição', archived:'Arquivado', situacao:'Situação', qtd_oficina:'QTD Oficina', qtd_pcs_boas:'Boas', qtd_pcs_falhas:'Falhas', pago_costura:'Pago costura', cover_url:'Foto', tam_pp:'PP',tam_p:'P',tam_m:'M',tam_g:'G',tam_gg:'GG',tam_xg:'XG',tam_pp_of:'PP of',tam_p_of:'P of',tam_m_of:'M of',tam_g_of:'G of',tam_gg_of:'GG of',tam_xg_of:'XG of',data_coleta_oficina:'Data coleta' };
+  if (!window.__logListNames){ try { const { data:_ls } = await sb.from('lists').select('id,name'); window.__logListNames = {}; (_ls||[]).forEach(l=>{ window.__logListNames[l.id]=l.name; }); } catch(_){ window.__logListNames = {}; } }
+  const nomeLista = id => (id && window.__logListNames && window.__logListNames[id]) || (id ? '(lista removida)' : '—');
   box.innerHTML = data.map(a => {
     const actor = profiles.find(p=>p.id===a.actor_id);
     const actorName = actor?.full_name || 'Sistema';
@@ -2741,18 +2743,19 @@ async function renderLogGeral(){
     if (a.action === 'created') msg = 'criou';
     else if (a.action === 'deleted') msg = 'excluiu';
     else if (a.action === 'moved') {
-      const from = lists.find(l=>l.id===a.meta?.from_list)?.name || '?';
-      const to = lists.find(l=>l.id===a.meta?.to_list)?.name || '?';
-      msg = 'moveu'; detail = ` de <b>${escapeHtml(from)}</b> pra <b>${escapeHtml(to)}</b>`;
+      msg = 'moveu'; detail = ` de <b>${escapeHtml(nomeLista(a.meta?.from_list))}</b> pra <b>${escapeHtml(nomeLista(a.meta?.to_list))}</b>`;
     } else if (a.action === 'edited' && a.meta){
-      const changes = Object.entries(a.meta).map(([k,v])=>{
+      const fmt = x => { if (x === null || x === '' || x === undefined) return '—'; if (x === true) return 'Sim'; if (x === false) return 'Não'; return String(x).slice(0,30); };
+      const partes = Object.entries(a.meta).map(([k,v])=>{
+        if (k === 'position') return null; // interno, não mostra
+        if (k === 'list_id') return `Lista: <span class="text-slate-400 line-through">${escapeHtml(nomeLista(v?.from))}</span> → <span class="text-emerald-600 font-medium">${escapeHtml(nomeLista(v?.to))}</span>`;
+        if (k === 'cover_url') return `Foto atualizada`;
+        if (k === 'bordado_imagem_url') return `Link da logo atualizado`;
         const lbl = fieldLabels[k] || k;
-        let from = v?.from, to = v?.to;
-        if (from === null || from === '') from = '—';
-        if (to === null || to === '') to = '—';
-        return `${lbl}: <span class="text-slate-400 line-through">${escapeHtml(String(from).slice(0,20))}</span> → <span class="text-emerald-600 font-medium">${escapeHtml(String(to).slice(0,20))}</span>`;
-      }).join(' · ');
-      msg = 'editou'; detail = ' — ' + changes;
+        return `${lbl}: <span class="text-slate-400 line-through">${escapeHtml(fmt(v?.from))}</span> → <span class="text-emerald-600 font-medium">${escapeHtml(fmt(v?.to))}</span>`;
+      }).filter(Boolean);
+      if (!partes.length){ msg = 'reordenou'; detail = ''; }
+      else { msg = 'editou'; detail = ' — ' + partes.join(' · '); }
     }
     const cardId = a.card_id;
     return `<div class="p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-xs flex gap-2 items-start hover:bg-slate-100 dark:hover:bg-ink-600 cursor-pointer" data-card="${cardId||''}">
