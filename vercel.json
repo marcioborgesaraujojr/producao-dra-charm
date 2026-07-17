@@ -3,6 +3,19 @@
     {
       "path": "/api/personalizacao-sync?commit=1",
       "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/estoque-sync?run=estoque",
+      "schedule": "30 7 * * *"
+    },
+    {
+      "path": "/api/estoque-sync?run=vendas&pages=40",
+      "schedule": "*/20 * * * *"
     }
-  ]
+  ],
+  "functions": {
+    "api/estoque-sync.js": {
+      "maxDuration": 60
+    }
+  }
 }
