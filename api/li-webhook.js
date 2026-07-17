@@ -12,7 +12,9 @@ const MAP = {
   'pedido pago':'order.paid', 'pagamento aprovado':'order.paid', 'aprovado':'order.paid',
   'cancelado':'order.canceled', 'pagamento com falha':'order.canceled',
   'em separacao':'order.separating', 'em separação':'order.separating', 'separando':'order.separating',
-  'entregue':'order.delivered', 'confeccionando':'order.producing', 'em producao':'order.producing',
+  'entregue':'order.delivered',
+  'enviado':'order.shipped', 'enviada':'order.shipped', 'postado':'order.shipped', 'em transito':'order.shipped', 'em trânsito':'order.shipped', 'em transporte':'order.shipped',
+  'confeccionando':'order.producing', 'em producao':'order.producing',
   'aguardando retirada':'order.awaiting_pickup', 'estornado':'order.refunded',
   'aguardando pagamento':'order.awaiting_payment_no_method', 'pix':'order.awaiting_payment_pix',
   'boleto':'order.boleto_printed', 'nota fiscal emitida':'invoice.issued', 'nota emitida':'invoice.issued'
@@ -37,6 +39,26 @@ function preencher(msg, ctx) {
     .replace(/\{\{\s*codigo_rastreio\s*\}\}/gi, ctx.codigo_rastreio || '')
     .replace(/\{\{\s*valor\s*\}\}/gi, ctx.valor || '')
     .replace(/\{\{\s*loja\s*\}\}/gi, ctx.loja || 'Dra. Charm');
+}
+
+// Quando o pedido vira "enviado"/"entregue", move o card do quadro de Personalização
+// pra coluna "Bordado Expedido" (assim a expedição não precisa mover na mão).
+async function moverParaExpedido(pedido) {
+  if (!pedido) return { moved: false, motivo: 'sem pedido' };
+  const boards = await sb('boards?select=id&name=ilike.*personaliza*&limit=1');
+  const boardId = Array.isArray(boards) && boards[0] && boards[0].id;
+  if (!boardId) return { moved: false, motivo: 'board Personalização não encontrado' };
+  const listas = await sb('lists?select=id&board_id=eq.' + boardId + '&name=ilike.*expedido*&limit=1');
+  const expId = Array.isArray(listas) && listas[0] && listas[0].id;
+  if (!expId) return { moved: false, motivo: 'coluna "Bordado Expedido" não encontrada' };
+  const todasListas = await sb('lists?select=id&board_id=eq.' + boardId);
+  const listIds = (todasListas || []).map(l => l.id);
+  const cards = await sb('cards?select=id,list_id&archived=eq.false&pedido_numero=eq.' + encodeURIComponent(String(pedido)));
+  const card = (cards || []).find(c => listIds.includes(c.list_id)) || (cards || [])[0];
+  if (!card) return { moved: false, motivo: 'card não encontrado pro pedido ' + pedido };
+  if (card.list_id === expId) return { moved: false, motivo: 'já estava em Bordado Expedido' };
+  await sb('cards?id=eq.' + card.id, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ list_id: expId, position: Date.now() }) });
+  return { moved: true, card_id: card.id };
 }
 
 // núcleo: registra evento, acha gatilho ativo e enfileira
@@ -75,7 +97,9 @@ export default async function handler(req, res) {
       // modo teste
       const evento_code = deriveCode(null, q);
       const out = await processar({ evento_code, pedido: q.pedido, nome: q.nome, telefone: q.telefone });
-      return res.status(200).json(out);
+      let expedicao = null;
+      if (evento_code === 'order.shipped' || evento_code === 'order.delivered') { try { expedicao = await moverParaExpedido(q.pedido); } catch (e) { expedicao = { moved: false, erro: e.message }; } }
+      return res.status(200).json({ ...out, expedicao });
     }
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
     let body = req.body; if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = {}; } }
@@ -85,7 +109,9 @@ export default async function handler(req, res) {
     const nome = body.nome || cli.nome || cli.name || (cli.first_name ? (cli.first_name + ' ' + (cli.last_name || '')).trim() : null);
     const telefone = body.telefone || cli.telefone || cli.phone || null;
     const out = await processar({ evento_code, pedido, nome, telefone, payload: body });
-    return res.status(200).json(out);
+    let expedicao = null;
+    if (evento_code === 'order.shipped' || evento_code === 'order.delivered') { try { expedicao = await moverParaExpedido(pedido); } catch (e) { expedicao = { moved: false, erro: e.message }; } }
+    return res.status(200).json({ ...out, expedicao });
   } catch (err) {
     console.error('li-webhook erro:', err.message);
     return res.status(200).json({ ok: false, error: err.message });
