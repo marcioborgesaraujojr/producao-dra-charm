@@ -291,6 +291,10 @@ tailwind.config = {
         </div>
       </div>
       <div class="flex items-center gap-2">
+        <button id="hubBellBtn" title="Notificações" class="relative p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:text-pink-500 transition-colors">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span id="hubBellBadge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">0</span>
+        </button>
         <button id="hubThemeBtn" title="Tema" class="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:text-pink-500 transition-colors">
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
@@ -1419,11 +1423,15 @@ window.setMyColor = async (hex) => {
   renderBoard();
   toast('Cor atualizada');
 };
+let currentBoardMemberIds = new Set();
 async function renderBoardMembers(boardId){
+  let data = null;
+  try { ({ data } = await sb.from('board_members').select('user_id').eq('board_id', boardId)); } catch(e){ data = null; }
+  // Guarda os membros do quadro atual (usado pra restringir as menções @ a quem é do quadro).
+  currentBoardMemberIds = new Set((data || []).map(m => m.user_id));
   const boxes = document.querySelectorAll('.board-members');
   if (!boxes.length) return;
   try {
-    const { data } = await sb.from('board_members').select('user_id').eq('board_id', boardId);
     const members = (data || []).map(m => profiles.find(p => p.id === m.user_id)).filter(Boolean);
     const max = 6, shown = members.slice(0, max), rest = members.slice(max);
     const restNames = rest.map(p => p.full_name || p.email || '?').join(', ');
@@ -2333,6 +2341,8 @@ window.openMemberPicker = () => {
     b.onclick=async ()=>{
       await sb.from('card_members').insert({card_id: activeCardId, user_id: p.id});
       cardMembers[activeCardId] = [...(cardMembers[activeCardId]||[]), p];
+      // Notifica quem foi marcado no card (o sininho), menos você mesmo.
+      if (p.id !== user.id){ try { await sb.from('notifications').insert({ user_id: p.id, actor_id: user.id, type: 'card_assigned', card_id: activeCardId, read: false }); } catch(e){ console.warn('notif atribuição falhou:', e); } }
       renderCardMembers(); renderBoard(); menu.remove();
     };
     list.appendChild(b);
@@ -2720,6 +2730,9 @@ window.postComment = async () => {
   const { data: comment } = await sb.from('comments').insert({card_id: activeCardId, author_id: user.id, body}).select().single();
   if (comment && mentionedIds.length){
     await sb.from('mentions').insert(mentionedIds.map(uid => ({comment_id: comment.id, mentioned_user_id: uid})));
+    // Cria a notificação (o sininho) pra cada mencionado — menos você mesmo.
+    const _notif = mentionedIds.filter(uid => uid !== user.id).map(uid => ({ user_id: uid, actor_id: user.id, type: 'mention', card_id: activeCardId, read: false }));
+    if (_notif.length){ try { await sb.from('notifications').insert(_notif); } catch(e){ console.warn('notif menção falhou:', e); } }
   }
   ta.value = '';
   await loadComments(activeCardId);
@@ -2746,7 +2759,8 @@ document.getElementById('commentInput').addEventListener('input', e => {
   const menu = document.getElementById('mentionMenu');
   if (match){
     const query = match[1].toLowerCase();
-    const matches = profiles.filter(p => (p.full_name||'').toLowerCase().includes(query)).slice(0,6);
+    // Só sugere quem é membro DESTE quadro (não gente de outros boards), e não você mesmo.
+    const matches = profiles.filter(p => p.id !== user.id && currentBoardMemberIds.has(p.id) && (p.full_name||'').toLowerCase().includes(query)).slice(0,6);
     if (matches.length){
       menu.innerHTML = matches.map(p => `<button class="w-full text-left flex items-center gap-2 p-2 hover:bg-slate-100 dark:hover:bg-ink-700 text-sm" data-slug="${(p.full_name||'').toLowerCase().replace(/\s+/g,'.')}">
         <div class="w-6 h-6 rounded-full text-white text-xs flex items-center justify-center" style="background:${userColor(p)}">${(p.full_name||'?').charAt(0).toUpperCase()}</div>
@@ -2798,9 +2812,14 @@ async function loadNotifications(){
 
 function renderNotifications(){
   const unread = notifications.filter(n => !n.read).length;
-  const badge = document.getElementById('bellBadge');
-  if (unread > 0){ badge.textContent = unread; badge.classList.remove('hidden'); }
-  else badge.classList.add('hidden');
+  // Atualiza os dois sinos: o do quadro e o do hub. Badge com o número + ícone vermelho vivo quando há não-lidas.
+  [['bellBadge','bellBtn'], ['hubBellBadge','hubBellBtn']].forEach(([bId, btnId]) => {
+    const badge = document.getElementById(bId);
+    if (badge){ if (unread > 0){ badge.textContent = unread; badge.classList.remove('hidden'); } else badge.classList.add('hidden'); }
+    const btn = document.getElementById(btnId);
+    const svg = btn && btn.querySelector('svg');
+    if (svg){ svg.style.color = unread > 0 ? '#ef4444' : ''; svg.style.strokeWidth = unread > 0 ? '2.4' : ''; }
+  });
   const list = document.getElementById('notifList');
   if (notifications.length === 0){ list.innerHTML = '<div class="p-4 text-sm text-slate-500 text-center">Sem notificações</div>'; return; }
   list.innerHTML = notifications.map(n => {
@@ -3180,6 +3199,15 @@ document.getElementById('bellBtn').onclick = () => {
   document.getElementById('bellDropdown').classList.toggle('hidden');
   document.getElementById('userMenu').classList.add('hidden');
 };
+const _hubBell = document.getElementById('hubBellBtn');
+if (_hubBell) _hubBell.onclick = () => {
+  const dd = document.getElementById('bellDropdown');
+  const r = _hubBell.getBoundingClientRect();
+  dd.style.top = (r.bottom + 8) + 'px';
+  dd.style.right = Math.max(8, (window.innerWidth - r.right)) + 'px';
+  dd.classList.toggle('hidden');
+  document.getElementById('userMenu').classList.add('hidden');
+};
 function _positionUserMenuUnder(btn){
   const menu = document.getElementById('userMenu');
   const willShow = menu.classList.contains('hidden');
@@ -3198,11 +3226,12 @@ if (_hubUserMenuBtn) _hubUserMenuBtn.onclick = () => _positionUserMenuUnder(_hub
 
 document.addEventListener('click', e => {
   const bell = document.getElementById('bellBtn');
+  const hubBell = document.getElementById('hubBellBtn');
   const dropdown = document.getElementById('bellDropdown');
   const umenu = document.getElementById('userMenu');
   const umbtn = document.getElementById('userMenuBtn');
   const hubBtn = document.getElementById('hubUserMenuBtn');
-  if (bell && dropdown && !bell.contains(e.target) && !dropdown.contains(e.target)) dropdown.classList.add('hidden');
+  if (dropdown && !(bell && bell.contains(e.target)) && !(hubBell && hubBell.contains(e.target)) && !dropdown.contains(e.target)) dropdown.classList.add('hidden');
   if (!umbtn.contains(e.target) && !(hubBtn && hubBtn.contains(e.target)) && !umenu.contains(e.target)) umenu.classList.add('hidden');
 });
 
