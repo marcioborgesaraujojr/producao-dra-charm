@@ -165,6 +165,24 @@ async function validUser(token){
 export default async function handler(req,res){
   res.setHeader('Access-Control-Allow-Origin','*');
   const q=req.query||{};
+  // Modo "buscar 1 pedido" (só leitura): puxa cliente + produtos da LI pra criar card manual.
+  if (q.lookup==='1'){
+    const uid = await validUser((req.headers.authorization||'').replace('Bearer ',''));
+    if(!uid) return res.status(401).json({error:'precisa estar logado'});
+    const num=String(q.numero||'').trim().replace(/[^0-9]/g,'');
+    if(!num) return res.status(400).json({error:'informe o número do pedido'});
+    try{
+      let d=null;
+      const r=await liGet('/v1/pedido/?numero='+encodeURIComponent(num)+'&limit=1');
+      const o=(r.j&&r.j.objects&&r.j.objects[0])||null;
+      if(o&&o.resource_uri){ const dd=await liGet(o.resource_uri); d=dd.j||o; }
+      else { const dr=await liGet('/v1/pedido/'+num+'/'); if(dr.status>=200&&dr.status<300) d=dr.j; }
+      if(!d || !d.itens) return res.status(404).json({error:'Pedido '+num+' não encontrado na Loja Integrada'});
+      const cliente=(d.cliente&&(d.cliente.nome||d.cliente.email))||null;
+      const rb=await buildProdutos(d.itens, {}, d.cliente_obs);
+      return res.status(200).json({ ok:true, numero:num, cliente, produtos: rb.produtos||[] });
+    }catch(e){ return res.status(500).json({error:e.message}); }
+  }
   const commit = q.commit==='1';
   const backfill = q.backfill==='1';
   const bearer=(req.headers.authorization||'').replace('Bearer ','');
