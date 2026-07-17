@@ -165,42 +165,39 @@ function agregaPedido(dias, p) {
   d.receita += Number(p.valor_total || 0);
   dias[dia] = d;
 }
-async function runVendas(maxPages) {
+async function runVendas(maxPages, reset) {
   maxPages = Math.min(Math.max(parseInt(maxPages) || 20, 1), 60);
-  let snap = (await storageGet("reposicao/vendas.json")) || { atualizado_em: null, offset: null, total_count: 0, dias: {}, done: false, janela_dias: 365 };
+  let snap = (reset ? null : await storageGet("reposicao/vendas.json")) || { atualizado_em: null, offset: 0, total_count: 0, dias: {}, done: false, janela_dias: 365 };
   if (!snap.dias) snap.dias = {};
   const LIMIT = 100;
   const corte = diasAtras(snap.janela_dias || 365); // 'YYYY-MM-DD'
-  // total de pedidos (pra começar do fim = mais recentes). Pedidos vêm do mais ANTIGO pro mais novo.
-  if (!snap.total_count) {
-    const head = await li("/pedido/?limit=1");
-    snap.total_count = (head.data && head.data.meta && head.data.meta.total_count) || 0;
-  }
   const modo = snap.done ? "incremental" : "backfill";
-  // No incremental, recontar só os últimos 3 dias: zera esses dias antes.
+  // Mais NOVO primeiro (order_by=-data_criacao): offset 0 = pedidos mais recentes.
+  let offset = (modo === "backfill") ? (snap.offset || 0) : 0;
   if (modo === "incremental") { const inc = diasAtras(3); for (const k of Object.keys(snap.dias)) if (k >= inc) delete snap.dias[k]; }
-  // offset: começa do fim (registros mais novos) e vai voltando de LIMIT em LIMIT.
-  let offset = (modo === "backfill" && snap.offset != null) ? snap.offset : Math.max(0, snap.total_count - LIMIT);
-  let processados = 0;
+  let processados = 0, ultOk = false;
   for (let i = 0; i < maxPages; i++) {
-    const out = await li("/pedido/?limit=" + LIMIT + "&offset=" + offset);
+    const out = await li("/pedido/?limit=" + LIMIT + "&offset=" + offset + "&order_by=-data_criacao");
     if (!out.ok || !out.data) break;
+    ultOk = true;
     if (out.data.meta && out.data.meta.total_count) snap.total_count = out.data.meta.total_count;
     const objs = out.data.objects || [];
-    let paginaTodaAntiga = objs.length > 0;
+    if (!objs.length) { snap.done = true; break; }
+    let passouDoCorte = false;
     for (const p of objs) {
       const dia = diaISO(p.data_criacao);
-      if (dia && dia >= corte) { agregaPedido(snap.dias, p); processados++; paginaTodaAntiga = false; }
+      if (dia && dia >= corte) { agregaPedido(snap.dias, p); processados++; }
+      else if (dia) { passouDoCorte = true; }
     }
-    if (offset === 0) { snap.done = true; break; }                 // chegou no começo de tudo
-    if (paginaTodaAntiga && modo === "backfill") { snap.done = true; break; } // passou de 1 ano
-    offset = Math.max(0, offset - LIMIT);
-    if (modo === "incremental" && i >= 2) break;                   // incremental: só as páginas recentes
+    offset += objs.length;
+    if (objs.length < LIMIT) { snap.done = true; break; }
+    if (passouDoCorte && modo === "backfill") { snap.done = true; break; } // já entrou em pedidos com +1 ano
+    if (modo === "incremental" && i >= 2) break; // incremental só varre as primeiras páginas (recentes)
   }
-  if (modo === "backfill") snap.offset = snap.done ? null : offset;
+  if (modo === "backfill") snap.offset = snap.done ? 0 : offset;
   snap.atualizado_em = new Date().toISOString();
   await storagePut("reposicao/vendas.json", snap);
-  return { ok: true, modo, processados, offset: snap.offset, total_count: snap.total_count, done: snap.done, dias: Object.keys(snap.dias).length };
+  return { ok: true, modo, processados, offset: snap.offset, total_count: snap.total_count, done: snap.done, dias: Object.keys(snap.dias).length, li_ok: ultOk };
 }
 
 export default async function handler(req, res) {
@@ -208,7 +205,7 @@ export default async function handler(req, res) {
   const { run, debug } = req.query;
   try {
     if (run === "estoque") return res.json(await runEstoque());
-    if (run === "vendas") return res.json(await runVendas(req.query.pages));
+    if (run === "vendas") return res.json(await runVendas(req.query.pages, req.query.reset === "1"));
     if (run === "status") {
       const e = await storageGet("reposicao/estoque.json");
       const v = await storageGet("reposicao/vendas.json");
