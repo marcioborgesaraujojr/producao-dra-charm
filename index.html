@@ -587,7 +587,7 @@ tailwind.config = {
     <input type="file" id="loginBgInput" accept="image/*" class="hidden">
     <button onclick="openArchived()" class="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-slate-100 dark:hover:bg-ink-700 flex items-center gap-2">
       <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="5" rx="2"/><path d="M4 9v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/></svg>
-      Cards arquivados
+      Itens arquivados
     </button>
   </div>
   <input type="file" id="logoInput" accept="image/*" class="hidden">
@@ -644,7 +644,7 @@ tailwind.config = {
 <div id="archivedModal" class="hidden fixed inset-0 z-40 modal-bg items-center justify-center p-4">
   <div class="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
     <div class="p-5 border-b border-slate-200 dark:border-ink-700 flex items-center">
-      <h2 class="text-lg font-semibold flex-1">Cards arquivados</h2>
+      <h2 class="text-lg font-semibold flex-1">Itens arquivados</h2>
       <button onclick="closeArchived()" class="text-slate-400 hover:text-slate-700"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
     </div>
     <div id="archivedList" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
@@ -2969,12 +2969,52 @@ window.openArchived = async () => {
   box.innerHTML = '<div class="text-center text-slate-400 p-4">Carregando...</div>';
   document.getElementById('archivedModal').classList.remove('hidden');
   document.getElementById('archivedModal').classList.add('flex');
-  const { data: archs } = await sb.from('cards').select('id, title, updated_at, list_id, lists(name, board_id, boards(name))').eq('archived', true).order('updated_at', {ascending: false});
-  if (!archs || archs.length === 0){
-    box.innerHTML = '<div class="text-center text-slate-500 p-8 text-sm">Nenhum card arquivado.</div>';
+  const [colsR, archsR] = await Promise.all([
+    sb.from('lists').select('id, name, board_id, boards(name)').eq('archived', true).order('name'),
+    sb.from('cards').select('id, title, updated_at, list_id, lists(name, board_id, boards(name))').eq('archived', true).order('updated_at', {ascending: false}),
+  ]);
+  const cols = colsR.data || [], archs = archsR.data || [];
+  if (!cols.length && !archs.length){
+    box.innerHTML = '<div class="text-center text-slate-500 p-8 text-sm">Nada arquivado.</div>';
     return;
   }
   box.innerHTML = '';
+  // ---- Colunas arquivadas ----
+  if (cols.length){
+    const h = document.createElement('div');
+    h.className = 'text-xs font-semibold uppercase text-slate-500 tracking-wide mb-2';
+    h.textContent = 'Colunas arquivadas';
+    box.appendChild(h);
+    cols.forEach(l => {
+      const row = document.createElement('div');
+      row.className = 'flex items-center gap-2 p-3 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 mb-2';
+      row.innerHTML = `
+        <div class="flex-1 min-w-0">
+          <div class="font-medium text-sm truncate">${escapeHtml(l.name)}</div>
+          <div class="text-xs text-slate-500">${escapeHtml(l.boards?.name||'')} · coluna</div>
+        </div>
+        <button class="restore text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-medium">Restaurar</button>
+        <button class="delete text-xs px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-red-50 hover:border-red-200 hover:text-red-600 font-medium transition-colors">Excluir</button>`;
+      row.querySelector('.restore').onclick = async () => {
+        await sb.from('lists').update({archived:false}).eq('id', l.id);
+        await sb.from('cards').update({archived:false}).eq('list_id', l.id);
+        row.remove(); toast('Coluna restaurada');
+        if (currentBoardId) switchBoard(currentBoardId);
+      };
+      row.querySelector('.delete').onclick = async () => {
+        if (!confirm(`Excluir DEFINITIVAMENTE a coluna "${l.name}" e TODOS os cards dela? Esta ação não pode ser desfeita.`)) return;
+        const t = prompt('Digite EXCLUIR pra confirmar'); if (!t || !/^EXCLUIR$/i.test(t.trim())){ toast('Cancelado'); return; }
+        await sb.from('cards').delete().eq('list_id', l.id);
+        await sb.from('lists').delete().eq('id', l.id);
+        row.remove(); toast('Coluna excluída definitivamente');
+      };
+      box.appendChild(row);
+    });
+    const hc = document.createElement('div');
+    hc.className = 'text-xs font-semibold uppercase text-slate-500 tracking-wide mb-2 mt-4';
+    hc.textContent = 'Cards arquivados';
+    box.appendChild(hc);
+  }
   archs.forEach(a => {
     const row = document.createElement('div');
     row.className = 'flex items-center gap-2 p-3 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600';
@@ -2994,7 +3034,7 @@ window.openArchived = async () => {
     };
     row.querySelector('.delete').onclick = async () => {
       if (!confirm(`Excluir DEFINITIVAMENTE "${a.title}"? Esta ação não pode ser desfeita.`)) return;
-      if (!prompt('Digite EXCLUIR pra confirmar').match(/^EXCLUIR$/i)) { toast('Cancelado'); return; }
+      const _t = prompt('Digite EXCLUIR pra confirmar'); if (!_t || !/^EXCLUIR$/i.test(_t.trim())){ toast('Cancelado'); return; }
       await sb.from('cards').delete().eq('id', a.id);
       row.remove();
       toast('Excluído definitivamente');
