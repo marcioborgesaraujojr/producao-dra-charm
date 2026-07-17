@@ -1329,35 +1329,46 @@ async function afterLogin(){
   // Guarda a última tela/quadro ANTES do showHub sobrescrever (pra refresh continuar onde estava)
   let _restore = {};
   try { _restore = { v: localStorage.getItem('dc_last_view'), b: localStorage.getItem('dc_last_board') }; } catch(e){}
-  const { data: p } = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle();
-  profile = p;
-  if (!profile){
-    const { data: np } = await sb.from('profiles').insert({ id: user.id, email: user.email, full_name: user.email.split('@')[0] }).select().single();
-    profile = np;
-  }
-  const { data: allP } = await sb.from('profiles').select('*');
-  profiles = allP || [];
-  showHub();
-  updateUserAvatar();
-  await loadAppSettings();
-  const { data: bs } = await sb.from('boards').select('*, board_members!inner(*)').eq('board_members.user_id', user.id).order('created_at');
-  boards = bs || [];
-  if (boards.length === 0){
-    if (profile.role === 'admin' || (await uiConfirm('Você não tem quadros. Criar os quadros iniciais?', {title:'Criar quadros'}))){
-      await bootstrapBoards();
-    } else {
-      document.getElementById('board').innerHTML = '<div class="text-center p-8 text-slate-500">Você ainda não foi adicionado a nenhum quadro.</div>';
-      return;
+  // Carga crítica protegida: se o servidor não responder, mostra banner em vez de travar a tela.
+  try {
+    const { data: p } = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle();
+    profile = p;
+    if (!profile){
+      const { data: np } = await sb.from('profiles').insert({ id: user.id, email: user.email, full_name: user.email.split('@')[0] }).select().single();
+      profile = np;
     }
+    const { data: allP } = await sb.from('profiles').select('*');
+    profiles = allP || [];
+    showHub();
+    updateUserAvatar();
+    await loadAppSettings();
+    const { data: bs } = await sb.from('boards').select('*, board_members!inner(*)').eq('board_members.user_id', user.id).order('created_at');
+    boards = bs || [];
+    if (boards.length === 0){
+      if (profile.role === 'admin' || (await uiConfirm('Você não tem quadros. Criar os quadros iniciais?', {title:'Criar quadros'}))){
+        await bootstrapBoards();
+      } else {
+        document.getElementById('board').innerHTML = '<div class="text-center p-8 text-slate-500">Você ainda não foi adicionado a nenhum quadro.</div>';
+        esconderBannerConexao();
+        return;
+      }
+    }
+    renderBoardSelect();
+    const _tb = (_restore.b && boards.find(b => b.id === _restore.b)) ? _restore.b : boards[0].id;
+    await switchBoard(_tb);
+    esconderBannerConexao();
+  } catch(e){
+    console.error('afterLogin falhou:', e);
+    mostrarBannerConexao('Não consegui carregar seus dados do servidor. Pode ser instabilidade de conexão — tente de novo.');
+    return;
   }
-  renderBoardSelect();
-  const _tb = (_restore.b && boards.find(b => b.id === _restore.b)) ? _restore.b : boards[0].id;
-  await switchBoard(_tb);
-  await loadNotifications();
-  subscribeRealtime();
-  // Restaura a tela onde o usuário estava antes do refresh
-  if (_restore.v === 'quadros') enterQuadros();
-  else if (_restore.v === 'cep' && typeof enterCep === 'function') enterCep();
+  // Tarefas não-críticas: se uma falhar, NÃO derruba o resto do app.
+  try { await loadNotifications(); } catch(e){ console.warn('loadNotifications falhou:', e); }
+  try { subscribeRealtime(); } catch(e){ console.warn('subscribeRealtime falhou:', e); }
+  try {
+    if (_restore.v === 'quadros') enterQuadros();
+    else if (_restore.v === 'cep' && typeof enterCep === 'function') enterCep();
+  } catch(e){ console.warn('restaurar tela falhou:', e); }
 }
 
 async function bootstrapBoards(){
@@ -1503,24 +1514,34 @@ async function switchBoard(boardId){
 function closeAllListMenus(){ document.querySelectorAll('.list-menu').forEach(m=>m.remove()); }
 // Cria um card de bordado vinculado a um pedido da Loja Integrada (pra pedido que veio sem bordado)
 async function criarCardPedidoManual(list, listCards){
-  const num = ((await uiPrompt('Número do pedido (Loja Integrada) pra vincular o bordado:', {title:'Vincular pedido', placeholder:'Ex: 238864'}))||'').replace(/[^0-9]/g,'');
-  if (!num) return;
-  toast('Buscando pedido na Loja Integrada...');
-  let data;
+  // Trava de duplo-clique / reentrância: evita criar 2 cards se clicar rápido 2x
+  if (criarCardPedidoManual._busy) return;
+  criarCardPedidoManual._busy = true;
   try {
-    const sess = (await sb.auth.getSession()).data.session;
-    const r = await fetch('/api/personalizacao-sync?lookup=1&numero='+encodeURIComponent(num), { headers:{ Authorization:'Bearer '+(sess&&sess.access_token) } });
-    data = await r.json();
-    if (!r.ok || !data || !data.ok){ toast((data&&data.error) || 'Pedido não encontrado na Loja Integrada'); return; }
-  } catch(e){ toast('Erro ao buscar: '+e.message); return; }
-  const maxPos = Math.max(0, ...listCards.map(c=>c.position||0));
-  const title = '#'+data.numero+' · '+(data.cliente || 'Sem nome');
-  const { data: nc, error } = await sb.from('cards').insert({
-    list_id: list.id, title, position: maxPos+16384, created_by: user.id,
-    pedido_numero: String(data.numero), pedido_cliente: data.cliente || null, pedido_produtos: data.produtos || []
-  }).select().single();
-  if (error){ toast('Erro ao criar card: '+error.message); return; }
-  if (nc){ cards.push(nc); cardLabels[nc.id]=[]; cardMembers[nc.id]=[]; renderBoard(); openCard(nc.id); toast('Card criado! Preencha o bordado e escolha o produto.'); }
+    const num = ((await uiPrompt('Número do pedido (Loja Integrada) pra vincular o bordado:', {title:'Vincular pedido', placeholder:'Ex: 238864'}))||'').replace(/[^0-9]/g,'');
+    if (!num) return;
+    toast('Buscando pedido na Loja Integrada...');
+    let data;
+    try {
+      const sess = (await sb.auth.getSession()).data.session;
+      const r = await fetch('/api/personalizacao-sync?lookup=1&numero='+encodeURIComponent(num), { headers:{ Authorization:'Bearer '+(sess&&sess.access_token) } });
+      data = await r.json();
+      if (!r.ok || !data || !data.ok){ toast((data&&data.error) || 'Pedido não encontrado na Loja Integrada'); return; }
+    } catch(e){ toast('Erro ao buscar: '+e.message); return; }
+    // Evita duplicar: se já existe card ativo com esse pedido no quadro, abre o existente
+    const jaExiste = cards.find(c => !c.archived && String(c.pedido_numero||'') === String(data.numero) && lists.some(l=>l.id===c.list_id));
+    if (jaExiste){ toast('Já existe um card para o pedido #'+data.numero+'. Abrindo o existente.'); openCard(jaExiste.id); return; }
+    const maxPos = Math.max(0, ...listCards.map(c=>c.position||0));
+    const title = '#'+data.numero+' · '+(data.cliente || 'Sem nome');
+    const { data: nc, error } = await sb.from('cards').insert({
+      list_id: list.id, title, position: maxPos+16384, created_by: user.id,
+      pedido_numero: String(data.numero), pedido_cliente: data.cliente || null, pedido_produtos: data.produtos || []
+    }).select().single();
+    if (error){ toast('Erro ao criar card: '+error.message); return; }
+    if (nc){ cards.push(nc); cardLabels[nc.id]=[]; cardMembers[nc.id]=[]; renderBoard(); openCard(nc.id); toast('Card criado! Preencha o bordado e escolha o produto.'); }
+  } finally {
+    criarCardPedidoManual._busy = false;
+  }
 }
 if (!window.__listMenuDoc){ window.__listMenuDoc = true; document.addEventListener('click', (e)=>{ if (!e.target.closest('.list-menu') && !e.target.closest('.list-menu-btn')) closeAllListMenus(); }); }
 function renderBoard(){
@@ -1564,12 +1585,16 @@ function renderBoard(){
     });
     const _addBtn = col.querySelector('.add-card');
     if (_addBtn) _addBtn.onclick = async () => {
+      if (_addBtn.dataset.busy === '1') return; // trava de duplo-clique
       if (boardType(currentBoardId) === 'bordado'){ criarCardPedidoManual(list, listCards); return; }
       const t = await uiPrompt('Nome do card', {title:'Novo card'});
       if (t){
-        const maxPos = Math.max(0, ...listCards.map(c=>c.position||0));
-        const { data: nc } = await sb.from('cards').insert({list_id: list.id, title: t, position: maxPos+16384, created_by: user.id}).select().single();
-        if (nc){ cards.push(nc); cardLabels[nc.id]=[]; cardMembers[nc.id]=[]; renderBoard(); }
+        _addBtn.dataset.busy = '1'; _addBtn.disabled = true;
+        try {
+          const maxPos = Math.max(0, ...listCards.map(c=>c.position||0));
+          const { data: nc } = await sb.from('cards').insert({list_id: list.id, title: t, position: maxPos+16384, created_by: user.id}).select().single();
+          if (nc){ cards.push(nc); cardLabels[nc.id]=[]; cardMembers[nc.id]=[]; renderBoard(); }
+        } finally { _addBtn.dataset.busy = '0'; _addBtn.disabled = false; }
       }
     };
     const _lmBtn = col.querySelector('.list-menu-btn');
@@ -2252,7 +2277,7 @@ document.addEventListener('click', e => {
 document.addEventListener('change', async e => {
   if (e.target.id === 'cardCoverInputHeader' && e.target.files[0] && activeCardId){
     const file = e.target.files[0];
-    if (file.size > 5*1024*1024){ toast('Foto muito grande — máx 5MB'); return; }
+    { const _v = validarImagemUpload(file, 5); if (!_v.ok){ toast(_v.msg); e.target.value=''; return; } }
     toast('Enviando foto...');
     const ext = file.name.split('.').pop().toLowerCase();
     const path = `covers/${activeCardId}-${Date.now()}.${ext}`;
@@ -2893,7 +2918,7 @@ window.openLogoUpload = () => {
 document.addEventListener('change', async e => {
   if (e.target.id === 'logoInput' && e.target.files[0]){
     const file = e.target.files[0];
-    if (file.size > 2*1024*1024){ toast('Logo muito grande — max 2MB'); return; }
+    { const _v = validarImagemUpload(file, 2); if (!_v.ok){ toast(_v.msg); e.target.value=''; return; } }
     toast('Enviando logo...');
     const ext = file.name.split('.').pop().toLowerCase();
     const path = 'system/logo-' + Date.now() + '.' + ext;
@@ -2943,7 +2968,7 @@ document.addEventListener('click', e => {
 document.addEventListener('change', async e => {
   if (e.target.id === 'boardBgInput' && e.target.files[0]){
     const file = e.target.files[0];
-    if (file.size > 5*1024*1024){ toast('Imagem muito grande — máx 5MB'); return; }
+    { const _v = validarImagemUpload(file, 5); if (!_v.ok){ toast(_v.msg); e.target.value=''; return; } }
     toast('Enviando fundo...');
     const ext = file.name.split('.').pop().toLowerCase();
     const path = `backgrounds/${currentBoardId}-${Date.now()}.${ext}`;
@@ -3161,13 +3186,14 @@ document.addEventListener('keydown', e => {
   if (e.key === '/'){ e.preventDefault(); document.getElementById('search').focus(); }
   if (e.key.toLowerCase() === 'n' && lists[0] && canEditBoard){
     e.preventDefault();
+    if (window.__novoCardBusy) return; // trava de duplo-atalho
+    window.__novoCardBusy = true;
     uiPrompt('Nome do card', {title:'Novo card'}).then(t => {
-      if (t){
-        sb.from('cards').insert({list_id: lists[0].id, title: t, position: 0, created_by: user.id}).select().single().then(({data}) => {
-          if (data) { cards.push(data); cardLabels[data.id]=[]; cardMembers[data.id]=[]; renderBoard(); }
-        });
-      }
-    });
+      if (!t){ window.__novoCardBusy = false; return; }
+      sb.from('cards').insert({list_id: lists[0].id, title: t, position: 0, created_by: user.id}).select().single().then(({data}) => {
+        if (data) { cards.push(data); cardLabels[data.id]=[]; cardMembers[data.id]=[]; renderBoard(); }
+      }).finally(() => { window.__novoCardBusy = false; });
+    }).catch(() => { window.__novoCardBusy = false; });
   }
 });
 
@@ -3177,6 +3203,41 @@ window.toast = function(msg){
   t.style.opacity = '1';
   setTimeout(()=>{ t.style.opacity='0'; }, 2500);
 };
+// Valida arquivo de imagem antes de qualquer upload (tipo + tamanho). Reforço no
+// navegador — retorna {ok:true} ou {ok:false, msg} com mensagem clara pro usuário.
+window.validarImagemUpload = function(file, maxMB){
+  if (!file) return { ok:false, msg:'Nenhum arquivo selecionado.' };
+  const extsOk = ['jpg','jpeg','png','gif','webp','svg','bmp','avif','ico'];
+  const ext = (file.name && file.name.indexOf('.') >= 0) ? file.name.split('.').pop().toLowerCase() : '';
+  const tipoOk = (typeof file.type === 'string' && file.type.indexOf('image/') === 0) || extsOk.includes(ext);
+  if (!tipoOk) return { ok:false, msg:'Arquivo inválido — envie uma imagem (JPG, PNG, GIF, WEBP ou SVG).' };
+  const lim = (maxMB || 5) * 1024 * 1024;
+  if (file.size > lim) return { ok:false, msg:'Arquivo muito grande — máximo '+(maxMB||5)+'MB.' };
+  return { ok:true };
+};
+// Banner de conexão: quando o servidor (Supabase) não responde, em vez de tela
+// travada, mostra um aviso no topo com "Tentar de novo". Aditivo, não muda o fluxo.
+window.mostrarBannerConexao = function(msg){
+  let b = document.getElementById('connBanner');
+  if (!b){
+    b = document.createElement('div');
+    b.id = 'connBanner';
+    b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#b91c1c;color:#fff;padding:10px 16px;font-size:14px;display:flex;align-items:center;justify-content:center;gap:12px;box-shadow:0 2px 10px rgba(0,0,0,.25)';
+    b.innerHTML = '<span id="connBannerMsg" style="text-align:center"></span><button type="button" onclick="location.reload()" style="background:#fff;color:#b91c1c;border:none;border-radius:6px;padding:5px 14px;font-weight:600;cursor:pointer;white-space:nowrap">Tentar de novo</button>';
+    document.body.appendChild(b);
+  }
+  var m = document.getElementById('connBannerMsg');
+  if (m) m.textContent = msg || 'Sem conexão com o servidor. Verifique sua internet e tente de novo.';
+  b.style.display = 'flex';
+};
+window.esconderBannerConexao = function(){ var b=document.getElementById('connBanner'); if(b) b.style.display='none'; };
+// Erros de rede não tratados: em vez de a tela morrer em silêncio, mostra o banner.
+window.addEventListener('unhandledrejection', function(ev){
+  try {
+    var r = ev && ev.reason; var m = (r && (r.message||r.msg)) ? String(r.message||r.msg) : String(r||'');
+    if (/failed to fetch|networkerror|network error|timeout|fetch/i.test(m)) window.mostrarBannerConexao();
+  } catch(e){}
+});
 // Modais próprios (substituem prompt/confirm/alert nativos, sem o "site diz" do navegador)
 function uiDialog(opts){
   const { title, message, input, placeholder, defaultValue, okText, cancelText, danger, noCancel } = opts || {};
@@ -3404,6 +3465,7 @@ document.addEventListener('change', async e => {
   if (e.target && e.target.id === 'loginBgInput'){
     const file = e.target.files[0];
     if (!file || typeof sb === 'undefined') return;
+    { const _v = validarImagemUpload(file, 5); if (!_v.ok){ toast && toast(_v.msg); e.target.value=''; return; } }
     toast && toast('Enviando fundo...');
     const { error } = await sb.storage.from('system-assets').upload('login-bg.jpg', file, {upsert: true, contentType: file.type});
     if (error) { toast('Erro: '+error.message); return; }
@@ -3700,9 +3762,9 @@ window.closeSuiteSettings=function(){var m=document.getElementById('suiteSetting
 document.addEventListener('click',function(e){if(e.target.closest('#suiteBgBtn'))document.getElementById('suiteBgInput').click();});
 document.addEventListener('click',function(e){if(e.target.closest('#suiteLoginBgBtn'))document.getElementById('loginBgInput').click();});
 document.addEventListener('click',function(e){if(e.target.closest('#suiteFaviconBtn'))document.getElementById('faviconInput').click();});
-document.addEventListener('change',async function(e){ if(e.target && e.target.id==='faviconInput' && e.target.files[0]){ var file=e.target.files[0]; var st=document.getElementById('faviconStatus'); if(st){st.className='text-slate-500';st.textContent='Enviando...';} try{ var r=await sb.storage.from('system-assets').upload('favicon.png', file, {upsert:true, contentType:file.type}); if(r.error) throw r.error; applyFavicon(); if(st){st.className='text-emerald-600';st.textContent='Favicon atualizado!';} }catch(err){ if(st){st.className='text-red-600';st.textContent='Erro: '+err.message;} } } });
+document.addEventListener('change',async function(e){ if(e.target && e.target.id==='faviconInput' && e.target.files[0]){ var file=e.target.files[0]; var st=document.getElementById('faviconStatus'); var _v=validarImagemUpload(file,2); if(!_v.ok){ if(st){st.className='text-red-600';st.textContent=_v.msg;} e.target.value=''; return; } if(st){st.className='text-slate-500';st.textContent='Enviando...';} try{ var r=await sb.storage.from('system-assets').upload('favicon.png', file, {upsert:true, contentType:file.type}); if(r.error) throw r.error; applyFavicon(); if(st){st.className='text-emerald-600';st.textContent='Favicon atualizado!';} }catch(err){ if(st){st.className='text-red-600';st.textContent='Erro: '+err.message;} } } });
 document.addEventListener('click',function(e){if(e.target.closest('#suiteLogoBtn'))document.getElementById('logoInput').click();});
-document.addEventListener('change',async function(e){if(e.target&&e.target.id==='suiteBgInput'&&e.target.files[0]){var file=e.target.files[0];var st=document.getElementById('suiteBgStatus');if(file.size>5*1024*1024){st.className='text-xs mt-1 text-red-600';st.textContent='Imagem muito grande (máximo 5MB)';return;}st.className='text-xs mt-1 text-slate-500';st.textContent='Enviando wallpaper...';try{var r=await sb.storage.from('system-assets').upload('suite-bg.jpg',file,{upsert:true,contentType:file.type});if(r.error)throw r.error;applySuiteBg();st.className='text-xs mt-1 text-emerald-600';st.textContent='Wallpaper atualizado!';}catch(err){st.className='text-xs mt-1 text-red-600';st.textContent='Erro: '+err.message;}}});
+document.addEventListener('change',async function(e){if(e.target&&e.target.id==='suiteBgInput'&&e.target.files[0]){var file=e.target.files[0];var st=document.getElementById('suiteBgStatus');var _v=validarImagemUpload(file,5);if(!_v.ok){st.className='text-xs mt-1 text-red-600';st.textContent=_v.msg;e.target.value='';return;}st.className='text-xs mt-1 text-slate-500';st.textContent='Enviando wallpaper...';try{var r=await sb.storage.from('system-assets').upload('suite-bg.jpg',file,{upsert:true,contentType:file.type});if(r.error)throw r.error;applySuiteBg();st.className='text-xs mt-1 text-emerald-600';st.textContent='Wallpaper atualizado!';}catch(err){st.className='text-xs mt-1 text-red-600';st.textContent='Erro: '+err.message;}}});
 document.addEventListener('click',async function(e){if(e.target.closest('#inviteBtn')){var email=(document.getElementById('inviteEmail').value||'').trim();var pass=(document.getElementById('invitePass').value||'').trim();var st=document.getElementById('inviteStatus');if(!email||pass.length<6){st.className='text-xs mt-2 text-red-600';st.textContent='Informe email e senha (mínimo 6 caracteres).';return;}st.className='text-xs mt-2 text-slate-500';st.textContent='Criando acesso...';try{var c2=createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:false,storageKey:'dc_invite_tmp'}});var r=await c2.auth.signUp({email:email,password:pass});if(r.error)throw r.error;st.className='text-xs mt-2 text-emerald-600';st.textContent='Acesso criado para '+email+'. Passe email e senha provisória pra pessoa e libere os sistemas em Permissões. (Se a confirmação de email estiver ligada no Supabase, a pessoa precisa confirmar antes.)';document.getElementById('inviteEmail').value='';document.getElementById('invitePass').value='';}catch(err){st.className='text-xs mt-2 text-red-600';st.textContent='Erro: '+err.message;}}});
 applySuiteBg();
 
@@ -4163,7 +4225,7 @@ window.syncBordadoApi = async function(){
   if(btn) btn.disabled=false;
 };
 
-initAuth();
+initAuth().catch(function(e){ console.error('initAuth falhou:', e); if(window.mostrarBannerConexao) mostrarBannerConexao('Não consegui iniciar o sistema — instabilidade de conexão. Tente de novo.'); });
 </script>
 <div id="painelModal" class="hidden fixed inset-0 z-40 modal-bg items-center justify-center p-4">
   <div class="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[92vh] overflow-hidden flex flex-col">
