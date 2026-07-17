@@ -167,26 +167,37 @@ function agregaPedido(dias, p) {
 }
 async function runVendas(maxPages) {
   maxPages = Math.min(Math.max(parseInt(maxPages) || 20, 1), 60);
-  let snap = (await storageGet("reposicao/vendas.json")) || { atualizado_em: null, offset: 0, total_count: 0, dias: {}, done: false, janela_dias: 365 };
+  let snap = (await storageGet("reposicao/vendas.json")) || { atualizado_em: null, offset: null, total_count: 0, dias: {}, done: false, janela_dias: 365 };
   if (!snap.dias) snap.dias = {};
   const LIMIT = 100;
-  const modo = snap.done ? "incremental" : "backfill";
-  const desde = modo === "backfill" ? diasAtras(snap.janela_dias || 365) : diasAtras(3);
-  // No incremental, zera os dias recentes antes de recontar (evita dobrar contagem).
-  if (modo === "incremental") { for (const k of Object.keys(snap.dias)) { if (k >= desde) delete snap.dias[k]; } }
-  let offset = modo === "backfill" ? (snap.offset || 0) : 0;
-  let processados = 0, ultimoTotal = snap.total_count || 0;
-  for (let i = 0; i < maxPages; i++) {
-    const out = await li("/pedido/?limit=" + LIMIT + "&offset=" + offset + "&data_criacao__gte=" + desde);
-    if (!out.ok || !out.data) break;
-    if (out.data.meta && modo === "backfill") ultimoTotal = out.data.meta.total_count || ultimoTotal;
-    const objs = out.data.objects || [];
-    if (!objs.length) { if (modo === "backfill") snap.done = true; break; }
-    for (const p of objs) { agregaPedido(snap.dias, p); processados++; }
-    offset += objs.length;
-    if (objs.length < LIMIT) { if (modo === "backfill") snap.done = true; break; }
+  const corte = diasAtras(snap.janela_dias || 365); // 'YYYY-MM-DD'
+  // total de pedidos (pra começar do fim = mais recentes). Pedidos vêm do mais ANTIGO pro mais novo.
+  if (!snap.total_count) {
+    const head = await li("/pedido/?limit=1");
+    snap.total_count = (head.data && head.data.meta && head.data.meta.total_count) || 0;
   }
-  if (modo === "backfill") { snap.offset = snap.done ? 0 : offset; snap.total_count = ultimoTotal; }
+  const modo = snap.done ? "incremental" : "backfill";
+  // No incremental, recontar só os últimos 3 dias: zera esses dias antes.
+  if (modo === "incremental") { const inc = diasAtras(3); for (const k of Object.keys(snap.dias)) if (k >= inc) delete snap.dias[k]; }
+  // offset: começa do fim (registros mais novos) e vai voltando de LIMIT em LIMIT.
+  let offset = (modo === "backfill" && snap.offset != null) ? snap.offset : Math.max(0, snap.total_count - LIMIT);
+  let processados = 0;
+  for (let i = 0; i < maxPages; i++) {
+    const out = await li("/pedido/?limit=" + LIMIT + "&offset=" + offset);
+    if (!out.ok || !out.data) break;
+    if (out.data.meta && out.data.meta.total_count) snap.total_count = out.data.meta.total_count;
+    const objs = out.data.objects || [];
+    let paginaTodaAntiga = objs.length > 0;
+    for (const p of objs) {
+      const dia = diaISO(p.data_criacao);
+      if (dia && dia >= corte) { agregaPedido(snap.dias, p); processados++; paginaTodaAntiga = false; }
+    }
+    if (offset === 0) { snap.done = true; break; }                 // chegou no começo de tudo
+    if (paginaTodaAntiga && modo === "backfill") { snap.done = true; break; } // passou de 1 ano
+    offset = Math.max(0, offset - LIMIT);
+    if (modo === "incremental" && i >= 2) break;                   // incremental: só as páginas recentes
+  }
+  if (modo === "backfill") snap.offset = snap.done ? null : offset;
   snap.atualizado_em = new Date().toISOString();
   await storagePut("reposicao/vendas.json", snap);
   return { ok: true, modo, processados, offset: snap.offset, total_count: snap.total_count, done: snap.done, dias: Object.keys(snap.dias).length };
