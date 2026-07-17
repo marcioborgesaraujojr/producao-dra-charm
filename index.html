@@ -1457,6 +1457,8 @@ async function switchBoard(boardId){
   renderBoard();
 }
 
+function closeAllListMenus(){ document.querySelectorAll('.list-menu').forEach(m=>m.remove()); }
+if (!window.__listMenuDoc){ window.__listMenuDoc = true; document.addEventListener('click', (e)=>{ if (!e.target.closest('.list-menu') && !e.target.closest('.list-menu-btn')) closeAllListMenus(); }); }
 function renderBoard(){
   const board = document.getElementById('board');
   board.innerHTML = '';
@@ -1478,9 +1480,10 @@ function renderBoard(){
     col.className = 'shrink-0 w-72 bg-slate-200/70 dark:bg-ink-800 rounded-xl p-2 flex flex-col max-h-full';
     col.dataset.listId = list.id;
     col.innerHTML = `
-      <div class="flex items-center gap-2 px-2 py-1">
+      <div class="flex items-center gap-1 px-2 py-1 relative">
         <div class="font-semibold text-sm flex-1 truncate">${escapeHtml(list.name)}</div>
         <span class="text-xs px-1.5 rounded-full bg-white dark:bg-ink-700 text-slate-500">${listCards.length}</span>
+        ${canEditBoard ? '<button class="list-menu-btn p-1 rounded hover:bg-slate-300/60 dark:hover:bg-ink-700 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" title="Opções da coluna"><svg class="w-4 h-4 pointer-events-none" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button>' : ''}
       </div>
       <div class="cards mt-1 flex-1 overflow-y-auto space-y-1.5 min-h-8 p-1"></div>
       ${canEditBoard ? '<button class="mt-1 text-left px-2 py-1.5 text-xs text-slate-500 hover:bg-slate-300/50 dark:hover:bg-ink-700 rounded-lg add-card">+ Novo card</button>' : ''}`;
@@ -1503,6 +1506,40 @@ function renderBoard(){
         const { data: nc } = await sb.from('cards').insert({list_id: list.id, title: t, position: maxPos+16384, created_by: user.id}).select().single();
         if (nc){ cards.push(nc); cardLabels[nc.id]=[]; cardMembers[nc.id]=[]; renderBoard(); }
       }
+    };
+    const _lmBtn = col.querySelector('.list-menu-btn');
+    if (_lmBtn) _lmBtn.onclick = (ev) => {
+      ev.stopPropagation();
+      const jaAberto = !!_lmBtn.parentElement.querySelector('.list-menu');
+      closeAllListMenus();
+      if (jaAberto) return;
+      const menu = document.createElement('div');
+      menu.className = 'list-menu absolute right-2 top-9 z-30 bg-white dark:bg-ink-800 rounded-lg shadow-2xl border border-slate-200 dark:border-ink-700 py-1 w-44 text-sm';
+      menu.innerHTML = `
+        <button class="lm-rename w-full text-left px-3 py-2 hover:bg-slate-100 dark:hover:bg-ink-700 flex items-center gap-2"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Renomear</button>
+        <button class="lm-delete w-full text-left px-3 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 flex items-center gap-2"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Excluir coluna</button>`;
+      _lmBtn.parentElement.appendChild(menu);
+      menu.querySelector('.lm-rename').onclick = async () => {
+        closeAllListMenus();
+        const nn = prompt('Novo nome da coluna:', list.name);
+        if (nn && nn.trim() && nn.trim() !== list.name){
+          const { error } = await sb.from('lists').update({ name: nn.trim() }).eq('id', list.id);
+          if (error){ toast('Erro: '+error.message); return; }
+          const ll = lists.find(l=>l.id===list.id); if (ll) ll.name = nn.trim();
+          renderBoard(); toast('Coluna renomeada');
+        }
+      };
+      menu.querySelector('.lm-delete').onclick = async () => {
+        closeAllListMenus();
+        const n = listCards.length;
+        if (!confirm(n ? `Excluir a coluna "${list.name}" e arquivar os ${n} card(s) dentro dela? (dá pra recuperar os cards em Cards arquivados)` : `Excluir a coluna "${list.name}"?`)) return;
+        if (n) await sb.from('cards').update({archived:true}).eq('list_id', list.id).eq('archived', false);
+        const { error } = await sb.from('lists').update({archived:true}).eq('id', list.id);
+        if (error){ toast('Erro ao excluir: '+error.message); return; }
+        cards = cards.filter(c => c.list_id !== list.id);
+        lists = lists.filter(l => l.id !== list.id);
+        renderBoard(); toast(`Coluna "${list.name}" excluída`);
+      };
     };
     board.appendChild(col);
   });
