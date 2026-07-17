@@ -2401,8 +2401,9 @@ document.addEventListener('change', e => {
   const hex = (e.target.selectedOptions[0] && e.target.selectedOptions[0].dataset.hex) || (THREAD_COLORS.find(c=>c.name===nome)||{}).hex || '';
   const hx = document.getElementById('cardBordadoCorHex'); if (hx) hx.value = hex;
   const sw = document.getElementById('cardBordadoCorSwatch'); if (sw) sw.style.background = hex || '#94a3b8';
+  // Atualiza a prévia com uma CÓPIA temporária (não mexe no card real, senão o autosave acha que nada mudou)
   const c = cards.find(x=>x.id===activeCardId);
-  if (c){ c.bordado_cor_hex = hex || null; c.bordado_cor_nome = nome || null; try { renderCardCover(c); } catch(_){} }
+  if (c){ try { renderCardCover({ ...c, bordado_cor_hex: hex || null, bordado_cor_nome: nome || null }); } catch(_){} }
 });
 
 window.archiveCard = async () => {
