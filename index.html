@@ -2304,7 +2304,7 @@ function renderCardMembers(){
   const box = document.getElementById('cardMembers');
   const cms = cardMembers[activeCardId] || [];
   box.innerHTML = cms.map(m => `<div class="flex items-center gap-1 bg-slate-100 dark:bg-ink-700 px-2 py-1 rounded-full text-xs">
-    <div class="w-5 h-5 rounded-full bg-pink-500 text-white text-[10px] flex items-center justify-center">${(m.full_name||'?').charAt(0).toUpperCase()}</div>
+    <div class="w-5 h-5 rounded-full text-white text-[10px] flex items-center justify-center" style="background:${userColor(m)}">${(m.full_name||'?').charAt(0).toUpperCase()}</div>
     ${escapeHtml(m.full_name)}
     <button data-uid="${m.id}" class="text-slate-400 hover:text-red-500 remove-mem">X</button>
   </div>`).join('');
@@ -2329,7 +2329,7 @@ window.openMemberPicker = () => {
   profiles.filter(p=>!already.has(p.id)).forEach(p => {
     const b = document.createElement('button');
     b.className='w-full text-left flex items-center gap-2 p-2 hover:bg-slate-100 dark:hover:bg-ink-700 rounded-lg';
-    b.innerHTML=`<div class="w-7 h-7 rounded-full bg-pink-500 text-white text-xs flex items-center justify-center">${(p.full_name||'?').charAt(0).toUpperCase()}</div><div class="text-sm">${escapeHtml(p.full_name)}</div>`;
+    b.innerHTML=`<div class="w-7 h-7 rounded-full text-white text-xs flex items-center justify-center" style="background:${userColor(p)}">${(p.full_name||'?').charAt(0).toUpperCase()}</div><div class="text-sm">${escapeHtml(p.full_name)}</div>`;
     b.onclick=async ()=>{
       await sb.from('card_members').insert({card_id: activeCardId, user_id: p.id});
       cardMembers[activeCardId] = [...(cardMembers[activeCardId]||[]), p];
@@ -2682,7 +2682,7 @@ function renderFeed(){
         else { msg = 'editou'; detail = ' — ' + partes.join(' · '); }
       }
       return `<div class="flex gap-2 text-[11px]">
-        <div class="w-7 h-7 rounded-full bg-slate-300 dark:bg-ink-600 text-slate-700 dark:text-slate-200 text-xs flex items-center justify-center flex-shrink-0">${(actorName||'?').charAt(0).toUpperCase()}</div>
+        <div class="w-7 h-7 rounded-full text-white text-xs flex items-center justify-center flex-shrink-0" style="background:${userColor(actor)}">${(actorName||'?').charAt(0).toUpperCase()}</div>
         <div class="flex-1 text-slate-600 dark:text-slate-300 pt-1">
           <span class="font-medium">${escapeHtml(actorName)}</span> ${msg}${detail}
           <div class="text-[10px] text-slate-400">${timeAgo(a.created_at)}</div>
@@ -2749,7 +2749,7 @@ document.getElementById('commentInput').addEventListener('input', e => {
     const matches = profiles.filter(p => (p.full_name||'').toLowerCase().includes(query)).slice(0,6);
     if (matches.length){
       menu.innerHTML = matches.map(p => `<button class="w-full text-left flex items-center gap-2 p-2 hover:bg-slate-100 dark:hover:bg-ink-700 text-sm" data-slug="${(p.full_name||'').toLowerCase().replace(/\s+/g,'.')}">
-        <div class="w-6 h-6 rounded-full bg-pink-500 text-white text-xs flex items-center justify-center">${(p.full_name||'?').charAt(0).toUpperCase()}</div>
+        <div class="w-6 h-6 rounded-full text-white text-xs flex items-center justify-center" style="background:${userColor(p)}">${(p.full_name||'?').charAt(0).toUpperCase()}</div>
         ${escapeHtml(p.full_name)}</button>`).join('');
       menu.style.top = (ta.offsetTop + ta.offsetHeight + 4) + 'px';
       menu.style.left = ta.offsetLeft + 'px';
@@ -2914,7 +2914,7 @@ async function renderLogGeral(){
     }
     const cardId = a.card_id;
     return `<div class="p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-xs flex gap-2 items-start hover:bg-slate-100 dark:hover:bg-ink-600 cursor-pointer" data-card="${cardId||''}">
-      <div class="w-7 h-7 rounded-full bg-pink-500 text-white text-xs flex items-center justify-center flex-shrink-0">${(actorName||'?').charAt(0).toUpperCase()}</div>
+      <div class="w-7 h-7 rounded-full text-white text-xs flex items-center justify-center flex-shrink-0" style="background:${userColor(actor)}">${(actorName||'?').charAt(0).toUpperCase()}</div>
       <div class="flex-1 min-w-0">
         <div><b>${escapeHtml(actorName)}</b> ${msg}${detail} em <b class="text-pink-600">${escapeHtml(cardTitle)}</b></div>
         <div class="text-[10px] text-slate-400 mt-0.5">${escapeHtml(boardName)}${listName?' · '+escapeHtml(listName):''} · ${timeAgo(a.created_at)}</div>
@@ -3577,7 +3577,7 @@ window.renderUsersList = () => {
     <div class="divide-y divide-slate-100 dark:divide-ink-700/50">
       ${users.map(u => `
         <div class="flex items-center gap-3 py-3">
-          <div class="w-9 h-9 rounded-full bg-pink-500 text-white flex items-center justify-center font-semibold flex-shrink-0">${escapeHtml((u.full_name||u.email||'?').charAt(0).toUpperCase())}</div>
+          <div class="w-9 h-9 rounded-full text-white flex items-center justify-center font-semibold flex-shrink-0" style="background:${userColor(u)}">${escapeHtml((u.full_name||u.email||'?').charAt(0).toUpperCase())}</div>
           <div class="flex-1 min-w-0">
             <div class="font-medium text-slate-800 dark:text-slate-100 truncate">${escapeHtml(u.full_name || u.email.split('@')[0])}</div>
             <div class="text-xs text-slate-500 truncate">${escapeHtml(u.email)}</div>
