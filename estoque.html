@@ -101,13 +101,22 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
   <!-- ====== VENDAS ====== -->
   <section id="tab-vendas" class="hidden" data-fade>
     <div class="flex flex-wrap items-center gap-2 mb-4">
-      <select id="fPeriodo" class="inp" onchange="renderVendas()">
+      <select id="fPeriodo" class="inp" onchange="onPeriodoChange()">
+        <option value="ontem">Ontem</option>
         <option value="7">Últimos 7 dias</option>
         <option value="mes" selected>Mês atual</option>
         <option value="30">Últimos 30 dias</option>
         <option value="90">Últimos 90 dias</option>
         <option value="365">Últimos 12 meses</option>
+        <option value="730">Últimos 2 anos</option>
+        <option value="1095">Últimos 3 anos</option>
+        <option value="custom">Personalizado…</option>
       </select>
+      <div id="customDatas" class="hidden items-center gap-2">
+        <input id="dtDe" type="date" class="inp py-1" onchange="renderVendas()">
+        <span class="text-slate-400 text-sm">até</span>
+        <input id="dtAte" type="date" class="inp py-1" onchange="renderVendas()">
+      </div>
       <div class="ml-auto text-[11px] text-slate-400" id="vendasInfo"></div>
     </div>
     <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
@@ -195,13 +204,22 @@ window.renderEstoque=()=>{
 };
 
 function janela(dias){ const d=new Date(); d.setDate(d.getDate()-dias+1); return d.toISOString().slice(0,10); }
+window.onPeriodoChange=()=>{
+  const custom = document.getElementById('fPeriodo').value==='custom';
+  const box = document.getElementById('customDatas');
+  box.classList.toggle('hidden', !custom); box.classList.toggle('flex', custom);
+  if(custom && !document.getElementById('dtDe').value){ document.getElementById('dtDe').value=janela(30); document.getElementById('dtAte').value=hoje(); }
+  renderVendas();
+};
 window.renderVendas=()=>{
   if(!VENDAS || !VENDAS.dias){ document.getElementById('vendasInfo').textContent='Dados de vendas ainda carregando (backfill em andamento)…'; return; }
   const per = document.getElementById('fPeriodo').value;
-  let desde;
+  const ontemD = janela(2).slice(0,10); // ontem (hoje-1)
+  let desde, ate = hoje();
   if(per==='mes'){ desde = hoje().slice(0,7)+'-01'; }
+  else if(per==='ontem'){ desde = ontemD; ate = ontemD; }
+  else if(per==='custom'){ desde = document.getElementById('dtDe').value||janela(30); ate = document.getElementById('dtAte').value||hoje(); }
   else desde = janela(parseInt(per));
-  const ate = hoje();
   const dias = Object.keys(VENDAS.dias).filter(d=>d>=desde && d<=ate).sort();
   let receita=0, receitaPaga=0, pedidos=0, pagos=0;
   dias.forEach(d=>{ const x=VENDAS.dias[d]; receita+=x.receita||0; receitaPaga+=x.receita_paga||0; pedidos+=x.pedidos||0; pagos+=x.pagos||0; });
