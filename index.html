@@ -1257,7 +1257,7 @@ window.doPasswordUpdate = async () => {
   if (p1 !== p2){ err.textContent = 'As senhas não conferem.'; err.classList.remove('hidden'); return; }
   const { error } = await sb.auth.updateUser({ password: p1 });
   if (error){ err.textContent = error.message; err.classList.remove('hidden'); return; }
-  alert('Senha redefinida com sucesso! Faça login com a nova senha.');
+  await uiAlert('Senha redefinida com sucesso! Faça login com a nova senha.', {title:'Pronto'});
   await sb.auth.signOut();
   location.replace(location.origin);
 };
@@ -1343,7 +1343,7 @@ async function afterLogin(){
   const { data: bs } = await sb.from('boards').select('*, board_members!inner(*)').eq('board_members.user_id', user.id).order('created_at');
   boards = bs || [];
   if (boards.length === 0){
-    if (profile.role === 'admin' || confirm('Você não tem quadros. Criar os quadros iniciais?')){
+    if (profile.role === 'admin' || (await uiConfirm('Você não tem quadros. Criar os quadros iniciais?', {title:'Criar quadros'}))){
       await bootstrapBoards();
     } else {
       document.getElementById('board').innerHTML = '<div class="text-center p-8 text-slate-500">Você ainda não foi adicionado a nenhum quadro.</div>';
@@ -1503,7 +1503,7 @@ async function switchBoard(boardId){
 function closeAllListMenus(){ document.querySelectorAll('.list-menu').forEach(m=>m.remove()); }
 // Cria um card de bordado vinculado a um pedido da Loja Integrada (pra pedido que veio sem bordado)
 async function criarCardPedidoManual(list, listCards){
-  const num = (prompt('Número do pedido (Loja Integrada) pra vincular o bordado:')||'').replace(/[^0-9]/g,'');
+  const num = ((await uiPrompt('Número do pedido (Loja Integrada) pra vincular o bordado:', {title:'Vincular pedido', placeholder:'Ex: 238864'}))||'').replace(/[^0-9]/g,'');
   if (!num) return;
   toast('Buscando pedido na Loja Integrada...');
   let data;
@@ -1565,7 +1565,7 @@ function renderBoard(){
     const _addBtn = col.querySelector('.add-card');
     if (_addBtn) _addBtn.onclick = async () => {
       if (boardType(currentBoardId) === 'bordado'){ criarCardPedidoManual(list, listCards); return; }
-      const t = prompt('Nome do card');
+      const t = await uiPrompt('Nome do card', {title:'Novo card'});
       if (t){
         const maxPos = Math.max(0, ...listCards.map(c=>c.position||0));
         const { data: nc } = await sb.from('cards').insert({list_id: list.id, title: t, position: maxPos+16384, created_by: user.id}).select().single();
@@ -1586,7 +1586,7 @@ function renderBoard(){
       _lmBtn.parentElement.appendChild(menu);
       menu.querySelector('.lm-rename').onclick = async () => {
         closeAllListMenus();
-        const nn = prompt('Novo nome da coluna:', list.name);
+        const nn = await uiPrompt('Novo nome da coluna:', {title:'Renomear coluna', defaultValue: list.name});
         if (nn && nn.trim() && nn.trim() !== list.name){
           const { error } = await sb.from('lists').update({ name: nn.trim() }).eq('id', list.id);
           if (error){ toast('Erro: '+error.message); return; }
@@ -1597,7 +1597,7 @@ function renderBoard(){
       menu.querySelector('.lm-delete').onclick = async () => {
         closeAllListMenus();
         const n = listCards.length;
-        if (!confirm(n ? `Excluir a coluna "${list.name}" e arquivar os ${n} card(s) dentro dela? (dá pra recuperar os cards em Cards arquivados)` : `Excluir a coluna "${list.name}"?`)) return;
+        if (!(await uiConfirm(n ? `Excluir a coluna "${list.name}" e arquivar os ${n} card(s) dentro dela?\n(dá pra recuperar em Itens arquivados)` : `Excluir a coluna "${list.name}"?`, {title:'Excluir coluna', danger:true, okText:'Excluir'}))) return;
         if (n) await sb.from('cards').update({archived:true}).eq('list_id', list.id).eq('archived', false);
         const { error } = await sb.from('lists').update({archived:true}).eq('id', list.id);
         if (error){ toast('Erro ao excluir: '+error.message); return; }
@@ -2268,7 +2268,7 @@ document.addEventListener('change', async e => {
 document.addEventListener('click', async e => {
   if (e.target.closest('#cardHeaderCoverRemove') && activeCardId){
     e.stopPropagation();
-    if (!confirm('Remover foto?')) return;
+    if (!(await uiConfirm('Remover foto?', {danger:true, okText:'Remover'}))) return;
     await sb.from('cards').update({ cover_url: null }).eq('id', activeCardId);
     const c = cards.find(x=>x.id===activeCardId);
     if (c){ c.cover_url = null; renderCardCover(c); renderBoard(); }
@@ -2365,7 +2365,7 @@ function renderChecklist(){
 }
 
 window.addChecklistItem = async () => {
-  const text = prompt('Item da checklist');
+  const text = await uiPrompt('Item da checklist', {title:'Novo item'});
   if (!text) return;
   let cls = checklistsByCard[activeCardId] || [];
   let cl = cls[0];
@@ -2419,7 +2419,7 @@ document.addEventListener('change', e => {
 });
 
 window.archiveCard = async () => {
-  if (!confirm('Arquivar este card? Ele some da tela mas fica salvo. Pra excluir de vez vá em Configurações → Arquivados.')) return;
+  if (!(await uiConfirm('Arquivar este card? Ele some da tela mas fica salvo em Itens arquivados (dá pra recuperar ou excluir de vez lá).', {title:'Arquivar card', okText:'Arquivar'}))) return;
   await sb.from('cards').update({archived: true}).eq('id', activeCardId);
   cards = cards.filter(c=>c.id!==activeCardId);
   renderBoard(); closeCard();
@@ -2542,7 +2542,7 @@ window.closeCard = () => {
 };
 
 window.deleteCard = async () => {
-  if (!confirm('Excluir este card?')) return;
+  if (!(await uiConfirm('Excluir este card?', {danger:true, okText:'Excluir'}))) return;
   await sb.from('cards').update({archived: true}).eq('id', activeCardId);
   cards = cards.filter(c=>c.id!==activeCardId);
   renderBoard(); closeCard();
@@ -3002,8 +3002,8 @@ window.openArchived = async () => {
         if (currentBoardId) switchBoard(currentBoardId);
       };
       row.querySelector('.delete').onclick = async () => {
-        if (!confirm(`Excluir DEFINITIVAMENTE a coluna "${l.name}" e TODOS os cards dela? Esta ação não pode ser desfeita.`)) return;
-        const t = prompt('Digite EXCLUIR pra confirmar'); if (!t || !/^EXCLUIR$/i.test(t.trim())){ toast('Cancelado'); return; }
+        if (!(await uiConfirm(`Excluir DEFINITIVAMENTE a coluna "${l.name}" e TODOS os cards dela? Esta ação não pode ser desfeita.`, {title:'Excluir definitivamente', danger:true, okText:'Continuar'}))) return;
+        const t = await uiPrompt('Digite EXCLUIR pra confirmar', {title:'Confirmar exclusão', placeholder:'EXCLUIR'}); if (!t || !/^EXCLUIR$/i.test(t.trim())){ toast('Cancelado'); return; }
         await sb.from('cards').delete().eq('list_id', l.id);
         await sb.from('lists').delete().eq('id', l.id);
         row.remove(); toast('Coluna excluída definitivamente');
@@ -3033,8 +3033,8 @@ window.openArchived = async () => {
       if (currentBoardId) switchBoard(currentBoardId);
     };
     row.querySelector('.delete').onclick = async () => {
-      if (!confirm(`Excluir DEFINITIVAMENTE "${a.title}"? Esta ação não pode ser desfeita.`)) return;
-      const _t = prompt('Digite EXCLUIR pra confirmar'); if (!_t || !/^EXCLUIR$/i.test(_t.trim())){ toast('Cancelado'); return; }
+      if (!(await uiConfirm(`Excluir DEFINITIVAMENTE "${a.title}"? Esta ação não pode ser desfeita.`, {title:'Excluir definitivamente', danger:true, okText:'Continuar'}))) return;
+      const _t = await uiPrompt('Digite EXCLUIR pra confirmar', {title:'Confirmar exclusão', placeholder:'EXCLUIR'}); if (!_t || !/^EXCLUIR$/i.test(_t.trim())){ toast('Cancelado'); return; }
       await sb.from('cards').delete().eq('id', a.id);
       row.remove();
       toast('Excluído definitivamente');
@@ -3161,12 +3161,13 @@ document.addEventListener('keydown', e => {
   if (e.key === '/'){ e.preventDefault(); document.getElementById('search').focus(); }
   if (e.key.toLowerCase() === 'n' && lists[0] && canEditBoard){
     e.preventDefault();
-    const t = prompt('Nome do card');
-    if (t){
-      sb.from('cards').insert({list_id: lists[0].id, title: t, position: 0, created_by: user.id}).select().single().then(({data}) => {
-        if (data) { cards.push(data); cardLabels[data.id]=[]; cardMembers[data.id]=[]; renderBoard(); }
-      });
-    }
+    uiPrompt('Nome do card', {title:'Novo card'}).then(t => {
+      if (t){
+        sb.from('cards').insert({list_id: lists[0].id, title: t, position: 0, created_by: user.id}).select().single().then(({data}) => {
+          if (data) { cards.push(data); cardLabels[data.id]=[]; cardMembers[data.id]=[]; renderBoard(); }
+        });
+      }
+    });
   }
 });
 
@@ -3176,6 +3177,40 @@ window.toast = function(msg){
   t.style.opacity = '1';
   setTimeout(()=>{ t.style.opacity='0'; }, 2500);
 };
+// Modais próprios (substituem prompt/confirm/alert nativos, sem o "site diz" do navegador)
+function uiDialog(opts){
+  const { title, message, input, placeholder, defaultValue, okText, cancelText, danger, noCancel } = opts || {};
+  return new Promise(resolve => {
+    const ov = document.createElement('div');
+    ov.className = 'ui-dialog-ov fixed inset-0 z-[120] flex items-center justify-center p-4';
+    ov.style.cssText = 'background:rgba(15,23,42,.45);backdrop-filter:blur(2px)';
+    ov.innerHTML = `
+      <div class="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-sm p-5" style="animation:none">
+        ${title ? `<div class="text-base font-semibold text-slate-800 dark:text-slate-100 mb-1">${escapeHtml(title)}</div>` : ''}
+        <div class="text-sm text-slate-600 dark:text-slate-300 ${input?'mb-3':'mb-4'}" style="white-space:pre-wrap">${escapeHtml(message||'')}</div>
+        ${input ? `<input class="ui-dlg-input w-full p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm outline-none focus:border-pink-500 mb-4" placeholder="${escapeHtml(placeholder||'')}" value="${escapeHtml(defaultValue||'')}">` : ''}
+        <div class="flex justify-end gap-2">
+          ${noCancel?'':`<button class="ui-dlg-cancel px-4 py-2 rounded-lg text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-ink-700">${escapeHtml(cancelText||'Cancelar')}</button>`}
+          <button class="ui-dlg-ok px-4 py-2 rounded-lg text-sm font-medium text-white ${danger?'bg-red-600 hover:bg-red-700':'bg-pink-600 hover:bg-pink-700'}">${escapeHtml(okText||'Confirmar')}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    const inp = ov.querySelector('.ui-dlg-input');
+    const finish = (val) => { document.removeEventListener('keydown', onKey, true); ov.remove(); resolve(val); };
+    ov.querySelector('.ui-dlg-ok').onclick = () => finish(input ? inp.value : true);
+    const cancelBtn = ov.querySelector('.ui-dlg-cancel'); if (cancelBtn) cancelBtn.onclick = () => finish(input ? null : false);
+    ov.addEventListener('mousedown', e => { if (e.target === ov) finish(input ? null : false); });
+    const onKey = e => {
+      if (e.key === 'Escape'){ e.stopPropagation(); finish(input ? null : false); }
+      else if (e.key === 'Enter'){ e.preventDefault(); e.stopPropagation(); finish(input ? inp.value : true); }
+    };
+    document.addEventListener('keydown', onKey, true);
+    if (inp){ inp.focus(); inp.select(); }
+  });
+}
+window.uiConfirm = (message, opts={}) => uiDialog({ message, okText: opts.okText||'Confirmar', cancelText: opts.cancelText, danger: opts.danger, title: opts.title });
+window.uiPrompt = (message, opts={}) => uiDialog({ message, input:true, placeholder: opts.placeholder, defaultValue: opts.defaultValue, okText: opts.okText||'OK', title: opts.title });
+window.uiAlert = (message, opts={}) => uiDialog({ message, okText: opts.okText||'OK', noCancel:true, title: opts.title });
 
 function escapeHtml(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]); }
 function timeAgo(t){
@@ -3280,8 +3315,7 @@ window.addEventListener('message', async (e) => {
   const { data: persoBoardRows, error: pbErr } = await sb.from('boards').select('id, name').ilike('name', '%personaliza%').limit(1);
   if (pbErr || !persoBoardRows?.length){
     document.getElementById('syncStatus').innerHTML = `<span class="text-red-600 inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>Board Personalização não encontrado no banco</span>`;
-    toast('Board Personalização não encontrado');
-    return;
+    toast('Board Personalização não encontrado'); return;
   }
   const persoBoard = persoBoardRows[0];
   const { data: persoLists, error: lErr } = await sb.from('lists').select('id, name').eq('board_id', persoBoard.id);
@@ -3372,7 +3406,7 @@ document.addEventListener('change', async e => {
     if (!file || typeof sb === 'undefined') return;
     toast && toast('Enviando fundo...');
     const { error } = await sb.storage.from('system-assets').upload('login-bg.jpg', file, {upsert: true, contentType: file.type});
-    if (error) { alert('Erro: '+error.message); return; }
+    if (error) { toast('Erro: '+error.message); return; }
     toast && toast('Fundo atualizado');
     applyLoginBg();
     e.target.value = '';
@@ -3593,10 +3627,10 @@ window.saveUserRow = async (uid, btn) => {
   } finally { btn.disabled = false; }
 };
 window.resetUserPassword = async (email, btn) => {
-  if (!confirm('Enviar link de redefinição de senha para '+email+'?')) return;
+  if (!(await uiConfirm('Enviar link de redefinição de senha para '+email+'?', {title:'Redefinir senha', okText:'Enviar'}))) return;
   const old = btn.textContent; btn.disabled = true; btn.textContent = 'Enviando...';
   try { const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin }); if (error) throw error; btn.textContent = 'Link enviado ✔'; }
-  catch(e){ alert('Erro: '+e.message); btn.textContent = old; }
+  catch(e){ toast('Erro: '+e.message); btn.textContent = old; }
   finally { btn.disabled = false; }
 };
 window.togglePassView = (id) => {
@@ -3608,7 +3642,7 @@ window.adminSetPassword = async (uid, btn) => {
   const st = document.getElementById('euPassStatus');
   const pass = ((inp && inp.value) || '').trim();
   if (pass.length < 6){ if(st){ st.className='text-xs text-red-600'; st.textContent='Mínimo 6 caracteres.'; } return; }
-  if (!confirm('Definir a senha desse usuário para "'+pass+'"?')) return;
+  if (!(await uiConfirm('Definir a senha desse usuário para "'+pass+'"?', {title:'Definir senha', okText:'Definir'}))) return;
   const old = btn.textContent; btn.disabled = true; btn.textContent = 'Salvando...';
   try {
     const { data: { session } } = await sb.auth.getSession();
