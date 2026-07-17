@@ -3312,10 +3312,13 @@ window.editUserRow = (uid) => {
             const bLabels = (c.labelsByBoard||{})[b.id] || [];
             const curFilter = (c.memberLabelFilter||{})[b.id+'|'+uid] || [];
             const labelsUi = bLabels.length ? `
-              <div class="mt-2 pl-6 flex flex-wrap gap-1.5 items-center">
-                <span class="text-[10px] uppercase tracking-wide text-slate-400 w-full">Ver só estas etiquetas (vazio = todas):</span>
-                ${bLabels.map(l => `<label class="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-md border border-slate-200 dark:border-ink-700 cursor-pointer"><input type="checkbox" class="w-3.5 h-3.5 accent-pink-600" data-board-label="${b.id}" value="${l.id}" ${curFilter.includes(l.id)?'checked':''} ${isMember?'':'disabled'}><span>${escapeHtml(l.name)}</span></label>`).join('')}
-              </div>` : '';
+              <details class="mt-2 pl-6" ${curFilter.length?'open':''}>
+                <summary class="text-[11px] text-slate-500 cursor-pointer select-none hover:text-slate-700 dark:hover:text-slate-300 list-none">▸ Ver só etiquetas específicas${curFilter.length?` <span class="text-pink-600 font-semibold">(${curFilter.length})</span>`:''}</summary>
+                <div class="mt-2 flex flex-wrap gap-1.5 items-center">
+                  <span class="text-[10px] uppercase tracking-wide text-slate-400 w-full">Marque as que ele pode ver (vazio = todas):</span>
+                  ${bLabels.map(l => `<label class="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-md border border-slate-200 dark:border-ink-700 cursor-pointer"><input type="checkbox" class="w-3.5 h-3.5 accent-pink-600" data-board-label="${b.id}" value="${l.id}" ${curFilter.includes(l.id)?'checked':''} ${isMember?'':'disabled'}><span>${escapeHtml(l.name)}</span></label>`).join('')}
+                </div>
+              </details>` : '';
             return `<div class="board-perm p-2 rounded-lg border border-slate-200 dark:border-ink-700">
               <div class="flex items-center gap-2">
                 <label class="flex items-center gap-2 flex-1 min-w-0 cursor-pointer">
