@@ -3537,17 +3537,18 @@ async function calcPainelKPIs(){
   const estoqueTecidos = corteLists.filter(l => !fluxoRx.test(l.name)).map(l => ({ nome: l.name, rolos: rolosByList[l.id]||0 })).filter(t=>t.rolos>0 || /malha|alfaiat|scuba|two|tecido|linho|crepe|jeans|moletom|viscose/i.test(t.nome)).sort((a,b)=>b.rolos-a.rolos);
 
   // PRODUÇÃO: por setor, OCs rodando, peças, atrasadas
-  const listFinalP = findL(prodLists, /^finalizado$|finaliz/i);
-  const setores = prodLists.filter(l => l.id !== listFinalP?.id).map(l => {
+  const doneRx = /finaliz|estoque|expedi|entregue|dado entrada/i;
+  const doneIds = new Set(prodLists.filter(l => doneRx.test(l.name)).map(l=>l.id));
+  const setores = prodLists.filter(l => !doneIds.has(l.id)).map(l => {
     const cs = prodCards.filter(c => c.list_id === l.id);
     return { nome: l.name, ocs: cs.length, pecas: cs.reduce((s,c)=>s+pecas(c),0) };
   });
-  const ocsRodando = prodCards.filter(c => c.list_id !== listFinalP?.id).length;
-  const pecasRodando = prodCards.filter(c => c.list_id !== listFinalP?.id).reduce((s,c)=>s+pecas(c),0);
-  const nFinalP = prodCards.filter(c => c.list_id === listFinalP?.id).length;
+  const ocsRodando = prodCards.filter(c => !doneIds.has(c.list_id)).length;
+  const pecasRodando = prodCards.filter(c => !doneIds.has(c.list_id)).reduce((s,c)=>s+pecas(c),0);
+  const nFinalP = prodCards.filter(c => doneIds.has(c.list_id)).length;
   const listNameById = {}; prodLists.forEach(l => listNameById[l.id]=l.name);
   const hoje = new Date(); hoje.setHours(0,0,0,0);
-  const atrasadas = prodCards.filter(c => c.list_id !== listFinalP?.id && c.due_date && new Date(c.due_date) < hoje)
+  const atrasadas = prodCards.filter(c => !doneIds.has(c.list_id) && c.due_date && new Date(c.due_date) < hoje)
     .map(c => ({ title: c.title||'(sem título)', setor: listNameById[c.list_id]||'', dias: Math.floor((hoje - new Date(c.due_date))/864e5) }))
     .sort((a,b)=> b.dias - a.dias);
 
@@ -3562,8 +3563,8 @@ async function calcPainelKPIs(){
   const weekIdx = d => { const t=monday(d).getTime(); return semanas.findIndex(s => s.t === t); };
   movesArr.forEach(mv => { if (listConcluidoC && mv.meta?.to_list === listConcluidoC.id){ const i=weekIdx(mv.created_at); if (i>=0) semanas[i].ocs++; } });
   let leadDias = null;
-  if (listFinalP){
-    const finMoves = movesArr.filter(mv => mv.meta?.to_list === listFinalP.id);
+  {
+    const finMoves = movesArr.filter(mv => doneIds.has(mv.meta?.to_list));
     const cardCreated = {}; prodCards.forEach(c => cardCreated[c.id]=c.created_at);
     const difs = finMoves.map(mv => cardCreated[mv.card_id] ? (new Date(mv.created_at)-new Date(cardCreated[mv.card_id]))/864e5 : null).filter(x=>x!=null && x>=0 && x<400);
     if (difs.length) leadDias = Math.round(difs.reduce((s,x)=>s+x,0)/difs.length);
