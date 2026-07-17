@@ -138,41 +138,44 @@ async function runEstoque() {
 
 // ============ SYNC VENDAS (LI, cabeçalhos) — backfill + diário ============
 function diaISO(dt) { return (dt || "").slice(0, 10); }
+function diasAtras(n) { return new Date(Date.now() - n * 864e5).toISOString().slice(0, 10); }
+function agregaPedido(dias, p) {
+  const dia = diaISO(p.data_criacao);
+  if (!dia) return;
+  const sit = p.situacao || {};
+  const pago = !!sit.aprovado && !sit.cancelado;
+  const d = dias[dia] || { pedidos: 0, pagos: 0, cancelados: 0, receita: 0, receita_paga: 0 };
+  d.pedidos += 1;
+  if (sit.cancelado) d.cancelados += 1;
+  if (pago) { d.pagos += 1; d.receita_paga += Number(p.valor_total || 0); }
+  d.receita += Number(p.valor_total || 0);
+  dias[dia] = d;
+}
 async function runVendas(maxPages) {
   maxPages = Math.min(Math.max(parseInt(maxPages) || 20, 1), 60);
-  // Estado atual
-  let snap = (await storageGet("reposicao/vendas.json")) || { atualizado_em: null, offset: 0, total_count: 0, dias: {}, done: false };
+  let snap = (await storageGet("reposicao/vendas.json")) || { atualizado_em: null, offset: 0, total_count: 0, dias: {}, done: false, janela_dias: 365 };
   if (!snap.dias) snap.dias = {};
   const LIMIT = 100;
-  let offset = snap.done ? 0 : (snap.offset || 0); // se terminou o backfill, recomeça do topo (incremental diário)
+  const modo = snap.done ? "incremental" : "backfill";
+  const desde = modo === "backfill" ? diasAtras(snap.janela_dias || 365) : diasAtras(3);
+  // No incremental, zera os dias recentes antes de recontar (evita dobrar contagem).
+  if (modo === "incremental") { for (const k of Object.keys(snap.dias)) { if (k >= desde) delete snap.dias[k]; } }
+  let offset = modo === "backfill" ? (snap.offset || 0) : 0;
   let processados = 0, ultimoTotal = snap.total_count || 0;
   for (let i = 0; i < maxPages; i++) {
-    const out = await li("/pedido/?limit=" + LIMIT + "&offset=" + offset + "&order_by=-data_criacao");
+    const out = await li("/pedido/?limit=" + LIMIT + "&offset=" + offset + "&data_criacao__gte=" + desde);
     if (!out.ok || !out.data) break;
-    ultimoTotal = (out.data.meta && out.data.meta.total_count) || ultimoTotal;
+    if (out.data.meta && modo === "backfill") ultimoTotal = out.data.meta.total_count || ultimoTotal;
     const objs = out.data.objects || [];
-    if (!objs.length) { snap.done = true; break; }
-    for (const p of objs) {
-      const dia = diaISO(p.data_criacao);
-      if (!dia) continue;
-      const sit = p.situacao || {};
-      const pago = !!sit.aprovado && !sit.cancelado;
-      const d = snap.dias[dia] || { pedidos: 0, pagos: 0, cancelados: 0, receita: 0, receita_paga: 0 };
-      d.pedidos += 1;
-      if (sit.cancelado) d.cancelados += 1;
-      if (pago) { d.pagos += 1; d.receita_paga += Number(p.valor_total || 0); }
-      d.receita += Number(p.valor_total || 0);
-      snap.dias[dia] = d;
-      processados++;
-    }
+    if (!objs.length) { if (modo === "backfill") snap.done = true; break; }
+    for (const p of objs) { agregaPedido(snap.dias, p); processados++; }
     offset += objs.length;
-    if (objs.length < LIMIT) { snap.done = true; break; } // chegou ao fim
+    if (objs.length < LIMIT) { if (modo === "backfill") snap.done = true; break; }
   }
-  snap.offset = snap.done ? 0 : offset;
-  snap.total_count = ultimoTotal;
+  if (modo === "backfill") { snap.offset = snap.done ? 0 : offset; snap.total_count = ultimoTotal; }
   snap.atualizado_em = new Date().toISOString();
   await storagePut("reposicao/vendas.json", snap);
-  return { ok: true, processados, offset: snap.offset, total_count: snap.total_count, done: snap.done, dias: Object.keys(snap.dias).length };
+  return { ok: true, modo, processados, offset: snap.offset, total_count: snap.total_count, done: snap.done, dias: Object.keys(snap.dias).length };
 }
 
 export default async function handler(req, res) {
@@ -188,6 +191,13 @@ export default async function handler(req, res) {
         estoque: e ? { atualizado_em: e.atualizado_em, total: e.total } : null,
         vendas: v ? { atualizado_em: v.atualizado_em, dias: v.dias ? Object.keys(v.dias).length : 0, done: v.done, total_count: v.total_count, offset: v.offset } : null,
       });
+    }
+    // ---- teste isolado da gravação no Storage ----
+    if (debug === "storage-test") {
+      const t0 = Date.now();
+      await storagePut("reposicao/test.json", { hello: "world", em: new Date().toISOString() });
+      const back = await storageGet("reposicao/test.json");
+      return res.json({ ok: true, ms: Date.now() - t0, escrito_e_lido: back, sb_url_set: !!SB_URL(), sb_key_set: !!SB_KEY() });
     }
     // ---- sondagem ----
     if (debug === "bling-prod") { const t = await getBlingToken(); const o = await bling("/produtos?pagina=1&limite=" + (req.query.limite || 3), t); return res.json({ status: o.status, amostra: (o.data && o.data.data) || o.data }); }
