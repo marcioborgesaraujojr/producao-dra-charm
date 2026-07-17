@@ -10,6 +10,8 @@
 //   ?debug=bling-prod | li-prod | li-pedidos | li-img&id= ...   (sondagem)
 
 // ============ Bling (OAuth, mesmo esquema do api/pedidos.js) ============
+const PROJ = "prj_ErH4xc9FokreQHv0utp1xJ2eGvdO";
+const TEAM = "team_Hv0Wqku1l7HhDDiJZmR2u5Ze";
 function parseEC() {
   try {
     const u = new URL(process.env.EDGE_CONFIG || "");
@@ -53,6 +55,34 @@ async function salvarAccessTokenCache(accessToken) {
     });
   } catch (_) {}
 }
+// IMPORTANTE: o Bling ROTACIONA o refresh token a cada refresh. Se não salvarmos o novo,
+// o próximo refresh (aqui ou em qualquer outra função) falha. Por isso salvamos de volta.
+async function salvarRefreshToken(novoToken) {
+  const ec = parseEC();
+  if (ec && process.env.VERCEL_TOKEN) {
+    for (let i = 0; i < 3; i++) {
+      try {
+        const r = await fetch("https://api.vercel.com/v1/edge-config/" + ec.ecId + "/items", {
+          method: "PATCH",
+          headers: { Authorization: "Bearer " + process.env.VERCEL_TOKEN, "Content-Type": "application/json" },
+          body: JSON.stringify({ items: [{ operation: "upsert", key: "bling_refresh_token", value: novoToken }] }),
+        });
+        if (r.ok) return;
+      } catch (_) {}
+      if (i < 2) await new Promise((res) => setTimeout(res, 200));
+    }
+  }
+  const envId = process.env.VERCEL_ENV_ID;
+  if (envId && process.env.VERCEL_TOKEN) {
+    try {
+      await fetch("https://api.vercel.com/v9/projects/" + PROJ + "/env/" + envId + "?teamId=" + TEAM, {
+        method: "PATCH",
+        headers: { Authorization: "Bearer " + process.env.VERCEL_TOKEN, "Content-Type": "application/json" },
+        body: JSON.stringify({ value: novoToken }),
+      });
+    } catch (_) {}
+  }
+}
 async function getBlingToken() {
   const cached = await lerAccessTokenCache();
   if (cached) return cached;
@@ -66,7 +96,8 @@ async function getBlingToken() {
   });
   const d = await r.json();
   if (!d.access_token) throw new Error("Falha no refresh do Bling.");
-  salvarAccessTokenCache(d.access_token);
+  if (d.refresh_token && d.refresh_token !== refreshToken) await salvarRefreshToken(d.refresh_token);
+  await salvarAccessTokenCache(d.access_token);
   return d.access_token;
 }
 async function bling(path, token) {
