@@ -2510,12 +2510,14 @@ window.saveCard = async (silent = false) => {
     const BFIELDS = ['bordado_tipo','bordado_linha1','bordado_linha2','bordado_cor_hex','bordado_cor_nome','bordado_fonte','bordado_lado','bordado_imagem_url','bordado_detalhes'];
     if (BFIELDS.some(k => k in diff)){ diff.bordado_alterado_em = new Date().toISOString(); diff.bordado_alterado_por = user.id; }
   }
-  if (Object.keys(diff).length === 0){
+  const _labelAtual = (cardLabels[activeCardId] && cardLabels[activeCardId][0]) ? cardLabels[activeCardId][0].id : null;
+  const _labelMudou = _labelAtual !== newLabelId;
+  if (Object.keys(diff).length === 0 && !_labelMudou){
     if (silent) document.getElementById('autosaveStatus').textContent = 'salvo';
     else { closeCard(); }
     return;
   }
-  await sb.from('cards').update(diff).eq('id', activeCardId);
+  if (Object.keys(diff).length) await sb.from('cards').update(diff).eq('id', activeCardId);
   await sb.from('card_labels').delete().eq('card_id', activeCardId);
   if (newLabelId){
     await sb.from('card_labels').insert({card_id: activeCardId, label_id: newLabelId});
