@@ -840,11 +840,11 @@ tailwind.config = {
               </div>
               <div>
                 <label class="text-xs font-medium uppercase text-slate-500">Fonte</label>
-                <input id="cardBordadoFonte" type="text" readonly placeholder="—" class="mt-1 w-full p-2 rounded-lg bg-slate-100 dark:bg-ink-600 border border-slate-200 dark:border-ink-600 text-sm text-slate-600"/>
+                <select id="cardBordadoFonte" class="mt-1 w-full p-2 rounded-lg bg-white dark:bg-ink-900 border border-slate-200 dark:border-ink-600 text-sm cursor-pointer"></select>
               </div>
               <div>
                 <label class="text-xs font-medium uppercase text-slate-500">Lado</label>
-                <input id="cardBordadoLado" type="text" readonly placeholder="—" class="mt-1 w-full p-2 rounded-lg bg-slate-100 dark:bg-ink-600 border border-slate-200 dark:border-ink-600 text-sm text-slate-600"/>
+                <select id="cardBordadoLado" class="mt-1 w-full p-2 rounded-lg bg-white dark:bg-ink-900 border border-slate-200 dark:border-ink-600 text-sm cursor-pointer"></select>
               </div>
             </div>
             <div id="cardBordadoImagemBox">
@@ -1099,6 +1099,25 @@ function setCorFio(nome, hex){
   const selHex = (opts.find(o => norm(o.name)===norm(nome))||{}).hex || hex || '';
   if (hx) hx.value = selHex;
   if (sw) sw.style.background = selHex || '#94a3b8';
+}
+// Opções de Fonte e Lado do bordado (as mesmas do site, tiradas dos pedidos reais)
+const FONTE_OPTS = ['Monotype Corsiva','Ballantines Script','Arial'];
+const LADO_OPTS = ['Peito Esquerdo','Peito Direito','Manga Esquerda','Manga Direita','Costas'];
+function preencherSelectBordado(id, opts, valor){
+  const sel = document.getElementById(id);
+  if (!sel || sel.tagName !== 'SELECT') return;
+  const norm = s => String(s||'').trim().toLowerCase();
+  const arr = opts.slice();
+  if (valor && !arr.some(o => norm(o)===norm(valor))) arr.unshift(valor);
+  sel.innerHTML = '<option value="">—</option>' + arr.map(o => `<option value="${escapeHtml(o)}" ${norm(o)===norm(valor)?'selected':''}>${escapeHtml(o)}</option>`).join('');
+  if (id === 'cardBordadoFonte') sel.style.fontFamily = valor ? bordadoFontFamily(valor) : '';
+}
+// Mostra/esconde campos conforme o tipo: logomarca=só URL; nome_profissao=só linhas; ambos=os dois
+function toggleBordadoCampos(tipo){
+  const lb = document.getElementById('cardBordadoLinhasBox');
+  const ib = document.getElementById('cardBordadoImagemBox');
+  if (lb) lb.classList.toggle('hidden', tipo === 'logomarca');
+  if (ib) ib.style.display = (tipo === 'logomarca' || tipo === 'ambos') ? '' : 'none';
 }
 // Match: encontra a cor da peça pelo nome do produto (ex: "Scrub Feminino Ava Branco" -> Branco -> #FFFFFF)
 function matchProductColor(productName){
@@ -1951,6 +1970,7 @@ async function openCard(id){
   const imgBox = document.getElementById('cardBordadoImagemBox');
   if (imgBox) imgBox.style.display = (c.bordado_tipo === 'logomarca' || c.bordado_tipo === 'ambos') ? '' : 'none';
   // Renderiza produtos
+  window.renderCardProdutos = function(c){
   const prodBox = document.getElementById('cardProdutosBox');
   const prodList = document.getElementById('cardProdutosList');
   if (prodBox && prodList){
@@ -1988,26 +2008,15 @@ async function openCard(id){
       prodBox.classList.add('hidden');
     }
   }
+  };
+  window.renderCardProdutos(c);
   setCorFio(c.bordado_cor_nome, c.bordado_cor_hex);
   preencherProdutoBordado(c);
-  const bfEl = document.getElementById('cardBordadoFonte');
-  if (bfEl){
-    bfEl.value = c.bordado_fonte || '';
-    // Renderiza o nome da fonte na própria fonte (Ballantines Script aparece em Ballantines cursivo)
-    bfEl.style.fontFamily = c.bordado_fonte ? bordadoFontFamily(c.bordado_fonte) : '';
-    bfEl.style.fontSize = c.bordado_fonte ? '18px' : '';
-  }
-  const blEl = document.getElementById('cardBordadoLado'); if (blEl) blEl.value = c.bordado_lado || '';
+  preencherSelectBordado('cardBordadoFonte', FONTE_OPTS, c.bordado_fonte);
+  preencherSelectBordado('cardBordadoLado', LADO_OPTS, c.bordado_lado);
   const biuEl = document.getElementById('cardBordadoImagemUrl'); if (biuEl) biuEl.value = c.bordado_imagem_url || '';
   const bdEl = document.getElementById('cardBordadoDetalhes'); if (bdEl) bdEl.value = c.bordado_detalhes || '';
-  // Esconde/mostra campos conforme tipo de bordado (mesmas regras do site dracharm.com.br)
-  const _lbWrap = document.getElementById('cardBordadoLinhasBox');
-  const _imgWrap = document.getElementById('cardBordadoImagemBox');
-  if (_lbWrap && _imgWrap){
-    const _t = c.bordado_tipo;
-    _lbWrap.classList.toggle('hidden', _t === 'logomarca');
-    _imgWrap.classList.toggle('hidden', _t === 'nome_profissao');
-  }
+  toggleBordadoCampos(c.bordado_tipo);
   const pedidoLink = document.getElementById('cardPedidoLink');
   if (pedidoLink){ if (c.pedido_url){ pedidoLink.href = c.pedido_url; pedidoLink.classList.remove('hidden'); } else pedidoLink.classList.add('hidden'); }
   const imgLink = document.getElementById('cardBordadoImagemLink');
@@ -2203,13 +2212,11 @@ function fillBordadoFields(info){
   set('cardBordadoLinha1', info.linha1);
   set('cardBordadoLinha2', info.linha2);
   setCorFio(info.corNome, info.corHex);
-  const bfEl=document.getElementById('cardBordadoFonte');
-  if(bfEl){ bfEl.value=info.fonte||''; bfEl.style.fontFamily = info.fonte?bordadoFontFamily(info.fonte):''; bfEl.style.fontSize = info.fonte?'18px':''; }
-  set('cardBordadoLado', info.lado);
+  preencherSelectBordado('cardBordadoFonte', FONTE_OPTS, info.fonte);
+  preencherSelectBordado('cardBordadoLado', LADO_OPTS, info.lado);
   set('cardBordadoImagemUrl', info.imagem);
   set('cardBordadoDetalhes', info.detalhes);
-  const _lbWrap=document.getElementById('cardBordadoLinhasBox'), _imgWrap=document.getElementById('cardBordadoImagemBox');
-  if(_lbWrap&&_imgWrap){ _lbWrap.classList.toggle('hidden', info.tipo==='logomarca'); _imgWrap.classList.toggle('hidden', info.tipo==='nome_profissao'); }
+  toggleBordadoCampos(info.tipo);
   const imgLink=document.getElementById('cardBordadoImagemLink');
   if(imgLink){ if(info.imagem){ imgLink.href=info.imagem; imgLink.classList.remove('hidden'); } else imgLink.classList.add('hidden'); }
   const imgPreview=document.getElementById('cardBordadoImgPreview');
@@ -2405,6 +2412,11 @@ document.addEventListener('change', e => {
   const c = cards.find(x=>x.id===activeCardId);
   if (c){ try { renderCardCover({ ...c, bordado_cor_hex: hex || null, bordado_cor_nome: nome || null }); } catch(_){} }
 });
+// Tipo do bordado: mostra/esconde os campos na hora. Fonte: aplica a fonte no próprio seletor.
+document.addEventListener('change', e => {
+  if (e.target.id === 'cardBordadoTipo'){ toggleBordadoCampos(e.target.value); }
+  if (e.target.id === 'cardBordadoFonte'){ e.target.style.fontFamily = e.target.value ? bordadoFontFamily(e.target.value) : ''; }
+});
 
 window.archiveCard = async () => {
   if (!confirm('Arquivar este card? Ele some da tela mas fica salvo. Pra excluir de vez vá em Configurações → Arquivados.')) return;
@@ -2512,6 +2524,8 @@ window.saveCard = async (silent = false) => {
   const c = cards.find(x=>x.id===activeCardId);
   if (c) Object.assign(c, diff);
   renderBoard();
+  // Se a marcação de produto/bordado mudou e o card está aberto, re-renderiza os produtos (lápis na hora)
+  if (activeCardId && c && ('pedido_produtos' in diff) && typeof window.renderCardProdutos === 'function'){ try { window.renderCardProdutos(c); } catch(_){} }
   if (silent){
     document.getElementById('autosaveStatus').textContent = 'salvo';
   } else {
