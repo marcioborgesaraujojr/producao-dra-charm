@@ -30,7 +30,7 @@
     const rail = document.createElement('nav');
     rail.id = 'atRail';
     rail.className = 'fixed left-0 top-0 bottom-0 w-14 bg-white dark:bg-ink-800 border-r border-slate-200 dark:border-ink-600 flex flex-col items-center py-3 gap-1 z-40';
-    let html = '<a href="/" title="Voltar à Suíte" class="w-10 h-10 rounded-xl overflow-hidden shadow mb-2 hover:scale-105 hover:shadow-md transition"><img src="/aragao-180.png" alt="Aragão" class="w-full h-full object-cover"></a>';
+    let html = '<a href="/" title="Voltar à Suíte" class="w-10 h-10 rounded-xl overflow-hidden shadow mb-2 hover:scale-105 hover:shadow-md transition"><img src="/icone-app.png" alt="Aragão" class="w-full h-full object-cover"></a>';
     items.forEach((it) => {
       if (it.admin && !showAdmin) return;
       const active = isActive(it.href);
