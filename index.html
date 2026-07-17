@@ -1835,7 +1835,11 @@ async function openCard(id){
   // Bordado alterado: SÓ o bordador responsável pelo tipo do bordado limpa o destaque ao abrir o card.
   // Logomarca/Ambos -> designer@fcbordadosefardamentos.com.br | Nome/Profissão -> bordadoaragaoaraujo@gmail.com
   if (bType === 'bordado' && c.bordado_alterado_em){
-    const clearer = (c.bordado_tipo === 'nome_profissao') ? 'bordadoaragaoaraujo@gmail.com' : 'designer@fcbordadosefardamentos.com.br';
+    const _tipos = new Set(bordadosDoCard(c).map(b => b.info?.tipo).filter(Boolean));
+    if (!_tipos.size && c.bordado_tipo) _tipos.add(c.bordado_tipo);
+    // Só Nome/Profissão -> bordadoaragao. Qualquer logomarca/ambos/misto (2 tipos) -> designer (borda os 2 juntos).
+    const _soNome = _tipos.size > 0 && [..._tipos].every(t => t === 'nome_profissao');
+    const clearer = _soNome ? 'bordadoaragaoaraujo@gmail.com' : 'designer@fcbordadosefardamentos.com.br';
     if ((user.email||'').toLowerCase() === clearer){
       sb.from('cards').update({ bordado_alterado_em: null, bordado_alterado_por: null }).eq('id', c.id).then(({error}) => {
         if (!error){ c.bordado_alterado_em = null; c.bordado_alterado_por = null; _localMoveAt = Date.now(); renderBoard(); }
