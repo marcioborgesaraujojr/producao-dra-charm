@@ -2085,6 +2085,9 @@ function renderCardCover(c){
   const hero = document.getElementById('cardHeroCover');
   const dots = document.getElementById('cardHeroDots');
   const bType = boardType(currentBoardId);
+  // Bordado: imagem travada (derivada do link da logo / dos dados de nome-profissão), não é clicável pra trocar
+  hero.classList.toggle('cursor-pointer', bType !== 'bordado');
+  hero.classList.toggle('group', bType !== 'bordado');
   // Reset
   img.classList.add('hidden');
   plus.classList.add('hidden');
@@ -2179,6 +2182,7 @@ document.addEventListener('click', e => {
 document.addEventListener('click', e => {
   const cover = document.getElementById('cardHeroCover');
   if (cover && cover.contains(e.target) && !e.target.closest('#cardHeaderCoverRemove')){
+    if (boardType(currentBoardId) === 'bordado') return; // imagem travada: sempre reflete o link da logo / os dados de nome-profissão
     document.getElementById('cardCoverInputHeader').click();
   }
 });
