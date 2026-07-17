@@ -1041,6 +1041,7 @@ let comments = [], activity = [], notifications = [];
 let activeCardId = null, draggingCardId = null;
 let _localMoveAt = 0;
 let canEditBoard = true; // permissão de edição do usuário atual no quadro aberto (false = só leitura)
+let boardLabelFilter = []; // se não-vazio, o usuário atual só vê cards com pelo menos uma dessas labels (id)
 // Normaliza texto pra busca: minúsculo, sem acento, espaços colapsados
 function normTxt(s){ return (s==null?'':String(s)).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); }
 let filters = { faccao: new Set(), search: '', hideFinalizado: true, density: 'cozy' };
@@ -1404,12 +1405,13 @@ async function switchBoard(boardId){
   const b = boards.find(x => x.id === boardId);
   applyBoardBackground(b?.background_url);
   // Permissão de edição do usuário atual neste quadro (admin sempre edita)
-  if (profile && profile.role === 'admin') { canEditBoard = true; }
+  if (profile && profile.role === 'admin') { canEditBoard = true; boardLabelFilter = []; }
   else {
     try {
-      const { data: meM } = await sb.from('board_members').select('can_edit').eq('board_id', boardId).eq('user_id', user.id).maybeSingle();
+      const { data: meM } = await sb.from('board_members').select('can_edit, label_filter').eq('board_id', boardId).eq('user_id', user.id).maybeSingle();
       canEditBoard = meM ? (meM.can_edit !== false) : false;
-    } catch(_) { canEditBoard = false; }
+      boardLabelFilter = (meM && Array.isArray(meM.label_filter)) ? meM.label_filter : [];
+    } catch(_) { canEditBoard = false; boardLabelFilter = []; }
   }
   document.body.classList.toggle('board-readonly', !canEditBoard);
   const isProducao = b && /produ[cç][aã]o/i.test(b.name);
@@ -1463,6 +1465,7 @@ function renderBoard(){
   lists.forEach(list => {
     if (filters.hideFinalizado && list.id === finalizadoId) return;
     const listCards = cards.filter(c => c.list_id === list.id)
+      .filter(c => !boardLabelFilter.length || (cardLabels[c.id]||[]).some(l => boardLabelFilter.includes(l.id)))
       .filter(c => {
         if (!qTokens.length) return true;
         const hay = normTxt([c.title, c.description, c.pedido_numero, c.pedido_cliente, ...(cardLabels[c.id]||[]).map(l=>l.name)].join(' '));
@@ -3227,9 +3230,12 @@ window.openUsers = async () => {
     const { data: users, error } = await sb.from('profiles').select('id, email, full_name, access, role').order('email');
     if (error) throw error;
     const { data: boardsList } = await sb.from('boards').select('id, name').order('name');
-    const { data: allMembers } = await sb.from('board_members').select('board_id, user_id, can_edit');
+    const { data: allMembers } = await sb.from('board_members').select('board_id, user_id, can_edit, label_filter');
+    const { data: allLabelsRows } = await sb.from('labels').select('id, name, color, board_id').order('name');
     const memberSet = new Set((allMembers||[]).map(m => m.board_id+'|'+m.user_id));
     const memberEdit = {}; (allMembers||[]).forEach(m => { memberEdit[m.board_id+'|'+m.user_id] = m.can_edit !== false; });
+    const memberLabelFilter = {}; (allMembers||[]).forEach(m => { memberLabelFilter[m.board_id+'|'+m.user_id] = Array.isArray(m.label_filter) ? m.label_filter : []; });
+    const labelsByBoard = {}; (allLabelsRows||[]).forEach(l => { (labelsByBoard[l.board_id] = labelsByBoard[l.board_id] || []).push(l); });
     const systems = [
       {key:'quadros', label:'Quadros'},
       {key:'cep', label:'CEP'},
@@ -3238,7 +3244,7 @@ window.openUsers = async () => {
       {key:'cade_pedido', label:'Cadê Pedido'},
       {key:'painel', label:'Painel'},
     ];
-    window.__uc = { users, boards: boardsList||[], memberSet, memberEdit, systems };
+    window.__uc = { users, boards: boardsList||[], memberSet, memberEdit, memberLabelFilter, labelsByBoard, systems };
     renderUsersList();
   } catch(e){
     document.getElementById('usersBody').innerHTML = '<div class="text-center text-red-500 py-12">Erro: '+e.message+'</div>';
@@ -3302,15 +3308,25 @@ window.editUserRow = (uid) => {
           ${c.boards.map(b => {
             const isMember = c.memberSet.has(b.id+'|'+uid);
             const canEd = (c.memberEdit||{})[b.id+'|'+uid] !== false;
-            return `<div class="flex items-center gap-2 p-2 rounded-lg border border-slate-200 dark:border-ink-700">
-              <label class="flex items-center gap-2 flex-1 min-w-0 cursor-pointer">
-                <input type="checkbox" class="w-4 h-4 accent-pink-600" data-board="${b.id}" ${isMember?'checked':''} onchange="var s=this.closest('div').querySelector('[data-board-role]'); if(s) s.disabled=!this.checked;">
-                <span class="text-sm truncate">${escapeHtml(b.name)}</span>
-              </label>
-              <select data-board-role="${b.id}" class="text-xs rounded-md border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 px-1.5 py-1 shrink-0" ${isMember?'':'disabled'}>
-                <option value="edit" ${canEd?'selected':''}>Editar</option>
-                <option value="view" ${!canEd?'selected':''}>Só leitura</option>
-              </select>
+            const bLabels = (c.labelsByBoard||{})[b.id] || [];
+            const curFilter = (c.memberLabelFilter||{})[b.id+'|'+uid] || [];
+            const labelsUi = bLabels.length ? `
+              <div class="mt-2 pl-6 flex flex-wrap gap-1.5 items-center">
+                <span class="text-[10px] uppercase tracking-wide text-slate-400 w-full">Ver só estas etiquetas (vazio = todas):</span>
+                ${bLabels.map(l => `<label class="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-md border border-slate-200 dark:border-ink-700 cursor-pointer"><input type="checkbox" class="w-3.5 h-3.5 accent-pink-600" data-board-label="${b.id}" value="${l.id}" ${curFilter.includes(l.id)?'checked':''} ${isMember?'':'disabled'}><span>${escapeHtml(l.name)}</span></label>`).join('')}
+              </div>` : '';
+            return `<div class="board-perm p-2 rounded-lg border border-slate-200 dark:border-ink-700">
+              <div class="flex items-center gap-2">
+                <label class="flex items-center gap-2 flex-1 min-w-0 cursor-pointer">
+                  <input type="checkbox" class="w-4 h-4 accent-pink-600" data-board="${b.id}" ${isMember?'checked':''} onchange="var w=this.closest('.board-perm'); var s=w.querySelector('[data-board-role]'); if(s)s.disabled=!this.checked; w.querySelectorAll('[data-board-label]').forEach(function(el){el.disabled=!this.checked;}.bind(this));">
+                  <span class="text-sm truncate">${escapeHtml(b.name)}</span>
+                </label>
+                <select data-board-role="${b.id}" class="text-xs rounded-md border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 px-1.5 py-1 shrink-0" ${isMember?'':'disabled'}>
+                  <option value="edit" ${canEd?'selected':''}>Editar</option>
+                  <option value="view" ${!canEd?'selected':''}>Só leitura</option>
+                </select>
+              </div>
+              ${labelsUi}
             </div>`;
           }).join('')}
         </div>
@@ -3355,17 +3371,22 @@ window.saveUserRow = async (uid, btn) => {
       const desired = document.querySelector('#usersBody input[data-board="'+b.id+'"]').checked;
       const roleSel = document.querySelector('#usersBody [data-board-role="'+b.id+'"]');
       const wantEdit = !roleSel || roleSel.value === 'edit';
+      const lf = [...document.querySelectorAll('#usersBody input[data-board-label="'+b.id+'"]:checked')].map(x=>x.value);
+      const lfVal = lf.length ? lf : null;
       const current = c.memberSet.has(key);
       const curEdit = c.memberEdit[key] !== false;
+      const curLf = (c.memberLabelFilter||{})[key] || [];
+      const lfChanged = JSON.stringify([...curLf].sort()) !== JSON.stringify([...lf].sort());
+      c.memberLabelFilter = c.memberLabelFilter || {};
       if (desired && !current) {
-        const { error } = await sb.from('board_members').insert({ board_id: b.id, user_id: uid, can_edit: wantEdit }); if (error) throw error;
-        c.memberSet.add(key); c.memberEdit[key] = wantEdit;
+        const { error } = await sb.from('board_members').insert({ board_id: b.id, user_id: uid, can_edit: wantEdit, label_filter: lfVal }); if (error) throw error;
+        c.memberSet.add(key); c.memberEdit[key] = wantEdit; c.memberLabelFilter[key] = lf;
       } else if (!desired && current) {
         const { error } = await sb.from('board_members').delete().eq('board_id', b.id).eq('user_id', uid); if (error) throw error;
-        c.memberSet.delete(key); delete c.memberEdit[key];
-      } else if (desired && current && wantEdit !== curEdit) {
-        const { error } = await sb.from('board_members').update({ can_edit: wantEdit }).eq('board_id', b.id).eq('user_id', uid); if (error) throw error;
-        c.memberEdit[key] = wantEdit;
+        c.memberSet.delete(key); delete c.memberEdit[key]; delete c.memberLabelFilter[key];
+      } else if (desired && current && (wantEdit !== curEdit || lfChanged)) {
+        const { error } = await sb.from('board_members').update({ can_edit: wantEdit, label_filter: lfVal }).eq('board_id', b.id).eq('user_id', uid); if (error) throw error;
+        c.memberEdit[key] = wantEdit; c.memberLabelFilter[key] = lf;
       }
     }
     u.full_name = full_name; u.role = role; u.access = access;
