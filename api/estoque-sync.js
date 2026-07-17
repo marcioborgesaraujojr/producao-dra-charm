@@ -109,9 +109,33 @@ export default async function handler(req, res) {
       const limit = req.query.limit || 3;
       const out = await li("/produto/?limit=" + limit);
       const objs = (out.data && (out.data.objects || out.data.results)) || out.data;
-      return res.json({ fonte: "LI /produto/", status: out.status, amostra: objs });
+      return res.json({ fonte: "LI /produto/", status: out.status, meta: out.data && out.data.meta, amostra: objs });
     }
-    return res.json({ ok: true, uso: ["?debug=bling-prod", "?debug=bling-estoque&id=", "?debug=li-prod"] });
+    if (debug === "li-detail") {
+      const id = req.query.id;
+      const out = await li("/produto/" + id + "/");
+      return res.json({ fonte: "LI /produto/{id}/", status: out.status, amostra: out.data });
+    }
+    if (debug === "li-img") {
+      const id = req.query.id;
+      const out = await li("/produto_imagem/?produto=" + id);
+      const objs = (out.data && (out.data.objects || out.data.results)) || out.data;
+      return res.json({ fonte: "LI /produto_imagem/?produto=", status: out.status, amostra: objs });
+    }
+    if (debug === "li-pedidos") {
+      const limit = req.query.limit || 2;
+      const out = await li("/pedido/?limit=" + limit);
+      const objs = (out.data && (out.data.objects || out.data.results)) || out.data;
+      return res.json({ fonte: "LI /pedido/", status: out.status, meta: out.data && out.data.meta, amostra: objs });
+    }
+    if (debug === "li-itens") {
+      // itens de venda por SKU — recurso que lista linhas de itens de pedidos
+      const limit = req.query.limit || 3;
+      const out = await li("/pedido_item/?limit=" + limit);
+      const objs = (out.data && (out.data.objects || out.data.results)) || out.data;
+      return res.json({ fonte: "LI /pedido_item/", status: out.status, meta: out.data && out.data.meta, amostra: objs });
+    }
+    return res.json({ ok: true, uso: ["?debug=bling-prod", "?debug=bling-estoque&id=", "?debug=li-prod", "?debug=li-detail&id=", "?debug=li-img&id=", "?debug=li-pedidos", "?debug=li-itens"] });
   } catch (err) {
     return res.status(500).json({ erro: err.message });
   }
