@@ -3492,67 +3492,90 @@ setTimeout(showPainelBtnIfAdmin, 800);
 setTimeout(showPainelBtnIfAdmin, 2500);
 setTimeout(showPainelBtnIfAdmin, 5000);
 
+const PIcon = {
+  box:'<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8v13H3V8"/><rect x="1" y="3" width="22" height="5" rx="1"/><path d="M10 12h4"/></svg>',
+  layers:'<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>',
+  roll:'<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.66 3.58 3 8 3s8-1.34 8-3V6"/></svg>',
+  tag:'<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1"/></svg>',
+  check:'<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>',
+  clock:'<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
+  alert:'<svg class="w-4 h-4 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
+  scissors:'<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12"/></svg>',
+};
+
 async function calcPainelKPIs(){
-  // Boards e listas relevantes
   const { data: boards } = await sb.from('boards').select('id, name');
   const corteBoard = boards.find(b => /corte/i.test(b.name));
   const prodBoard = boards.find(b => /produ/i.test(b.name));
   const persoBoard = boards.find(b => /personaliza/i.test(b.name));
 
-  const [corteLists, prodLists, persoLists] = await Promise.all([
-    corteBoard ? sb.from('lists').select('id, name').eq('board_id', corteBoard.id) : Promise.resolve({data:[]}),
-    prodBoard ? sb.from('lists').select('id, name').eq('board_id', prodBoard.id) : Promise.resolve({data:[]}),
-    persoBoard ? sb.from('lists').select('id, name').eq('board_id', persoBoard.id) : Promise.resolve({data:[]}),
+  const [corteListsR, prodListsR, persoListsR] = await Promise.all([
+    corteBoard ? sb.from('lists').select('id, name, position').eq('board_id', corteBoard.id).order('position') : Promise.resolve({data:[]}),
+    prodBoard ? sb.from('lists').select('id, name, position').eq('board_id', prodBoard.id).order('position') : Promise.resolve({data:[]}),
+    persoBoard ? sb.from('lists').select('id, name, position').eq('board_id', persoBoard.id).order('position') : Promise.resolve({data:[]}),
   ]);
+  const corteLists = corteListsR.data||[], prodLists = prodListsR.data||[], persoLists = persoListsR.data||[];
+  const findL = (lists, rx) => lists.find(l => rx.test(l.name));
 
-  const findList = (lists, rx) => (lists.data||[]).find(l => rx.test(l.name));
-  const listMalha = findList(corteLists, /malha.*tec/i);
-  const listAlf = findList(corteLists, /alfaiat/i);
-  const listScuba = findList(corteLists, /scuba/i);
-  const listTwoWay = findList(corteLists, /two.*way/i);
-  const listCortar = findList(corteLists, /para\s*cortar/i);
-
-  const listCostura = findList(prodLists, /costurando/i);
-  const listAguard = findList(prodLists, /entrada.*acab/i);
-  const listAcab = findList(prodLists, /^em\s*acabamento$/i);
-  const listFalt = findList(prodLists, /faltando.*finalizar/i);
-  const listFinal = findList(prodLists, /^finalizado$/i);
-
-  // Query rolos + cards em paralelo
-  async function sumRolos(listId){
-    if (!listId) return 0;
-    const { data } = await sb.from('cards').select('qtd_rolos').eq('list_id', listId).eq('archived', false);
-    return (data||[]).reduce((s,c) => s + (c.qtd_rolos||0), 0);
-  }
-  async function countCards(listId){
-    if (!listId) return 0;
-    const { count } = await sb.from('cards').select('*', {count:'exact', head:true}).eq('list_id', listId).eq('archived', false);
-    return count || 0;
-  }
-  async function sumMetragem(listId){
-    if (!listId) return 0;
-    const { data } = await sb.from('cards').select('metragem').eq('list_id', listId).eq('archived', false);
-    return (data||[]).reduce((s,c) => s + (parseFloat(c.metragem)||0), 0);
-  }
-
-  const [rolosMalha, rolosAlf, rolosScuba, rolosTwo, mCortar,
-         nCostura, nAguard, nAcab, nFalt, nFinal, nPerso] = await Promise.all([
-    sumRolos(listMalha?.id),
-    sumRolos(listAlf?.id),
-    sumRolos(listScuba?.id),
-    sumRolos(listTwoWay?.id),
-    sumMetragem(listCortar?.id),
-    countCards(listCostura?.id),
-    countCards(listAguard?.id),
-    countCards(listAcab?.id),
-    countCards(listFalt?.id),
-    countCards(listFinal?.id),
-    (persoLists.data||[]).reduce((p, l) => p, 0) || Promise.all((persoLists.data||[]).map(l => countCards(l.id))).then(arr => arr.reduce((s,n)=>s+n,0)),
+  const prodListIds = prodLists.map(l=>l.id), corteListIds = corteLists.map(l=>l.id), persoListIds = persoLists.map(l=>l.id);
+  const [prodCardsR, corteCardsR, persoCardsR] = await Promise.all([
+    prodListIds.length ? sb.from('cards').select('id, list_id, title, due_date, created_at, tam_pp,tam_p,tam_m,tam_g,tam_gg,tam_xg, qtd_oficina, data_coleta_oficina').eq('archived', false).in('list_id', prodListIds) : Promise.resolve({data:[]}),
+    corteListIds.length ? sb.from('cards').select('id, list_id, metragem, qtd_rolos').eq('archived', false).in('list_id', corteListIds) : Promise.resolve({data:[]}),
+    persoListIds.length ? sb.from('cards').select('id, list_id, bordado_tipo').eq('archived', false).in('list_id', persoListIds) : Promise.resolve({data:[]}),
   ]);
+  const prodCards = prodCardsR.data||[], corteCards = corteCardsR.data||[], persoCards = persoCardsR.data||[];
+  const pecas = c => (c.tam_pp||0)+(c.tam_p||0)+(c.tam_m||0)+(c.tam_g||0)+(c.tam_gg||0)+(c.tam_xg||0);
 
-  return {rolosMalha, rolosAlf, rolosScuba, rolosTwo, mCortar,
-          nCostura, nAguard, nAcab, nFalt, nFinal, nPerso,
-          rolosTotal: rolosMalha + rolosAlf + rolosScuba + rolosTwo};
+  // CORTE: rolos por lista de tecido, metros a cortar, concluído
+  const rolosByList = {}; corteLists.forEach(l => rolosByList[l.id] = 0);
+  corteCards.forEach(c => { rolosByList[c.list_id] = (rolosByList[c.list_id]||0) + (c.qtd_rolos||0); });
+  const listCortarC = findL(corteLists, /para\s*cortar/i);
+  const listConcluidoC = findL(corteLists, /conclu/i);
+  const mCortar = corteCards.filter(c => c.list_id === listCortarC?.id).reduce((s,c)=>s+(parseFloat(c.metragem)||0),0);
+  const rolosTotal = corteCards.reduce((s,c)=>s+(c.qtd_rolos||0),0);
+  const fluxoRx = /para\s*cortar|conclu|entrada|acaba|finaliz|estoque$/i;
+  const estoqueTecidos = corteLists.filter(l => !fluxoRx.test(l.name)).map(l => ({ nome: l.name, rolos: rolosByList[l.id]||0 })).filter(t=>t.rolos>0 || /malha|alfaiat|scuba|two|tecido|linho|crepe|jeans|moletom|viscose/i.test(t.nome)).sort((a,b)=>b.rolos-a.rolos);
+
+  // PRODUÇÃO: por setor, OCs rodando, peças, atrasadas
+  const listFinalP = findL(prodLists, /^finalizado$|finaliz/i);
+  const setores = prodLists.filter(l => l.id !== listFinalP?.id).map(l => {
+    const cs = prodCards.filter(c => c.list_id === l.id);
+    return { nome: l.name, ocs: cs.length, pecas: cs.reduce((s,c)=>s+pecas(c),0) };
+  });
+  const ocsRodando = prodCards.filter(c => c.list_id !== listFinalP?.id).length;
+  const pecasRodando = prodCards.filter(c => c.list_id !== listFinalP?.id).reduce((s,c)=>s+pecas(c),0);
+  const nFinalP = prodCards.filter(c => c.list_id === listFinalP?.id).length;
+  const listNameById = {}; prodLists.forEach(l => listNameById[l.id]=l.name);
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const atrasadas = prodCards.filter(c => c.list_id !== listFinalP?.id && c.due_date && new Date(c.due_date) < hoje)
+    .map(c => ({ title: c.title||'(sem título)', setor: listNameById[c.list_id]||'', dias: Math.floor((hoje - new Date(c.due_date))/864e5) }))
+    .sort((a,b)=> b.dias - a.dias);
+
+  // activity_log: throughput corte/semana + lead time produção
+  const since = new Date(Date.now() - 56*864e5).toISOString();
+  const { data: moves } = await sb.from('activity_log').select('meta, created_at, card_id').eq('action','moved').gte('created_at', since).limit(3000);
+  const movesArr = moves||[];
+  const monday = d => { const x=new Date(d); const day=(x.getDay()+6)%7; x.setHours(0,0,0,0); x.setDate(x.getDate()-day); return x; };
+  const thisMon = monday(new Date());
+  const semanas = [];
+  for (let i=7;i>=0;i--){ const m=new Date(thisMon); m.setDate(m.getDate()-i*7); semanas.push({ t:m.getTime(), label: ('0'+m.getDate()).slice(-2)+'/'+('0'+(m.getMonth()+1)).slice(-2), ocs:0 }); }
+  const weekIdx = d => { const t=monday(d).getTime(); return semanas.findIndex(s => s.t === t); };
+  movesArr.forEach(mv => { if (listConcluidoC && mv.meta?.to_list === listConcluidoC.id){ const i=weekIdx(mv.created_at); if (i>=0) semanas[i].ocs++; } });
+  let leadDias = null;
+  if (listFinalP){
+    const finMoves = movesArr.filter(mv => mv.meta?.to_list === listFinalP.id);
+    const cardCreated = {}; prodCards.forEach(c => cardCreated[c.id]=c.created_at);
+    const difs = finMoves.map(mv => cardCreated[mv.card_id] ? (new Date(mv.created_at)-new Date(cardCreated[mv.card_id]))/864e5 : null).filter(x=>x!=null && x>=0 && x<400);
+    if (difs.length) leadDias = Math.round(difs.reduce((s,x)=>s+x,0)/difs.length);
+  }
+
+  // PERSO: por tipo + por etapa
+  const persoByTipo = { logomarca:0, nome_profissao:0, ambos:0 };
+  persoCards.forEach(c => { if (persoByTipo[c.bordado_tipo]!=null) persoByTipo[c.bordado_tipo]++; });
+  const persoSetores = persoLists.map(l => ({ nome: l.name, n: persoCards.filter(c=>c.list_id===l.id).length }));
+  const nPerso = persoCards.length;
+
+  return { estoqueTecidos, rolosTotal, mCortar, setores, ocsRodando, pecasRodando, nFinalP, atrasadas, semanas, leadDias, persoByTipo, persoSetores, nPerso };
 }
 
 function kpiCard(label, value, icon, cls, valueCls){
@@ -3570,47 +3593,116 @@ async function openPainel(){
   document.getElementById('painelModal').classList.remove('hidden');
   document.getElementById('painelModal').classList.add('flex');
   const body = document.getElementById('painelBody');
-  body.innerHTML = '<div class="text-center text-slate-400 py-12">Calculando...</div>';
+  body.innerHTML = '<div class="text-center text-slate-400 py-12">Calculando métricas...</div>';
   try {
-    const k = await calcPainelKPIs();
-    body.innerHTML = `
-      <div>
-        <div class="text-xs font-semibold uppercase text-slate-500 mb-3 tracking-wide">Estoque de tecidos</div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-          ${kpiCard('Malha Tecnológica', k.rolosMalha,'<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7L12 3 4 7l8 4z"/><path d="M4 7v10l8 4 8-4V7"/></svg>', 'bg-gradient-to-br from-blue-50 to-blue-100/40 dark:from-blue-900/20 dark:to-blue-800/10 border-blue-200')}
-          ${kpiCard('Alfaiataria', k.rolosAlf,'<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3L4 8l3 12h10l3-12-2-5"/><path d="M6 3l6 6 6-6"/></svg>', 'bg-gradient-to-br from-emerald-50 to-emerald-100/40 dark:from-emerald-900/20 dark:to-emerald-800/10 border-emerald-200')}
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          ${k.rolosScuba > 0 ? kpiCard('Scuba', k.rolosScuba,'', 'bg-slate-50 dark:bg-ink-700') : ''}
-          ${k.rolosTwo > 0 ? kpiCard('Two Way', k.rolosTwo,'', 'bg-slate-50 dark:bg-ink-700') : ''}
-          ${kpiCard('Total geral rolos', k.rolosTotal,'<svg class="w-4 h-4 text-pink-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7L12 3 4 7l8 4 8-4z"/><path d="M4 7v10l8 4"/><path d="M20 7v10l-8 4"/></svg>', 'bg-gradient-to-br from-pink-50 to-pink-100/40 dark:from-pink-900/20 dark:to-pink-800/10 border-2 border-pink-300 dark:border-pink-700', 'text-pink-600 dark:text-pink-400')}
-        </div>
-      </div>
-
-      <div>
-        <div class="text-xs font-semibold uppercase text-slate-500 mb-3 tracking-wide">Produção</div>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          ${kpiCard('Costurando', k.nCostura,'<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>')}
-          ${kpiCard('Aguardando acabamento', k.nAguard,'<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>')}
-          ${kpiCard('Em acabamento', k.nAcab,'<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg>')}
-          ${kpiCard('Faltando finalizar', k.nFalt,'<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4"/><circle cx="12" cy="17" r="1"/><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>', 'bg-amber-50 dark:bg-amber-900/20 border-amber-200')}
-        </div>
-      </div>
-
-      <div>
-        <div class="text-xs font-semibold uppercase text-slate-500 mb-3 tracking-wide">Extras</div>
-        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-          ${kpiCard('Para cortar (metros)', Math.round(k.mCortar),'<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l4 4 8-8"/></svg>')}
-          ${kpiCard('Finalizados', k.nFinal,'')}
-          ${kpiCard('Pedidos personalização', k.nPerso,'')}
-        </div>
-      </div>
-
-      <div class="text-xs text-slate-400 text-center pt-2">Atualizado agora · dados em tempo real do banco</div>
-    `;
+    window.__painel = await calcPainelKPIs();
+    if (!window.__painelTab) window.__painelTab = 'geral';
+    renderPainel();
   } catch(e){
-    body.innerHTML = '<div class="text-center text-red-500 py-12">Erro: '+e.message+'</div>';
+    body.innerHTML = '<div class="text-center text-red-500 py-12">Erro: '+escapeHtml(e.message)+'</div>';
   }
+}
+window.painelTab = (t) => { window.__painelTab = t; renderPainel(); };
+function renderPainel(){
+  const P = window.__painel; if (!P) return;
+  const T = window.__painelTab || 'geral';
+  const tabs = [['geral','Visão Geral'],['producao','Produção'],['corte','Corte'],['bordado','Bordado']];
+  const tabBar = `<div class="flex gap-1 border-b border-slate-200 dark:border-ink-600 mb-5 sticky top-0 bg-white dark:bg-ink-800 z-10">
+    ${tabs.map(([k,l])=>`<button onclick="painelTab('${k}')" class="px-4 py-2 text-sm font-medium border-b-2 transition-colors ${T===k?'border-pink-500 text-pink-600 dark:text-pink-400':'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}">${l}</button>`).join('')}
+  </div>`;
+  let content;
+  if (T==='producao') content = painelProducao(P);
+  else if (T==='corte') content = painelCorte(P);
+  else if (T==='bordado') content = painelBordado(P);
+  else content = painelGeral(P);
+  document.getElementById('painelBody').innerHTML = tabBar + content + `<div class="text-xs text-slate-400 text-center pt-5">Dados em tempo real do banco · atualizado agora</div>`;
+}
+function painelGeral(P){
+  const atras = P.atrasadas.length;
+  return `
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+      ${kpiCard('OCs rodando', P.ocsRodando, PIcon.box, 'bg-gradient-to-br from-blue-50 to-blue-100/40 dark:from-blue-900/20 dark:to-blue-800/10 border-blue-200')}
+      ${kpiCard('Peças rodando', P.pecasRodando, PIcon.layers, 'bg-gradient-to-br from-indigo-50 to-indigo-100/40 dark:from-indigo-900/20 dark:to-indigo-800/10 border-indigo-200')}
+      ${kpiCard('Rolos em estoque', P.rolosTotal, PIcon.roll, 'bg-gradient-to-br from-emerald-50 to-emerald-100/40 dark:from-emerald-900/20 dark:to-emerald-800/10 border-emerald-200')}
+      ${kpiCard('Pedidos personalização', P.nPerso, PIcon.tag, 'bg-gradient-to-br from-pink-50 to-pink-100/40 dark:from-pink-900/20 dark:to-pink-800/10 border-pink-200')}
+    </div>
+    <div class="rounded-2xl p-5 flex items-center gap-4 ${atras? 'bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-800':'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200'}">
+      <div class="shrink-0">${atras? PIcon.alert.replace('w-4 h-4','w-8 h-8') : PIcon.check.replace('w-4 h-4','w-8 h-8 text-emerald-500')}</div>
+      <div>
+        <div class="text-2xl font-bold ${atras?'text-red-600 dark:text-red-400':'text-emerald-600 dark:text-emerald-400'}">${atras} OC${atras===1?'':'s'} atrasada${atras===1?'':'s'}</div>
+        <div class="text-sm text-slate-500">${atras? 'Veja a aba Produção pra ver quais são e cobrar as oficinas.':'Nenhuma OC com prazo estourado.'}</div>
+      </div>
+    </div>`;
+}
+function painelProducao(P){
+  const maxP = Math.max(1, ...P.setores.map(s=>s.pecas));
+  const bars = P.setores.map(s => `
+    <div class="mb-3">
+      <div class="flex justify-between text-xs mb-1"><span class="font-medium text-slate-700 dark:text-slate-200">${escapeHtml(s.nome)}</span><span class="text-slate-500">${s.pecas.toLocaleString('pt-BR')} peças · ${s.ocs} OC${s.ocs===1?'':'s'}</span></div>
+      <div class="h-3 rounded-full bg-slate-100 dark:bg-ink-700 overflow-hidden"><div class="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-600" style="width:${Math.round(s.pecas/maxP*100)}%"></div></div>
+    </div>`).join('');
+  const rows = P.atrasadas.length ? P.atrasadas.slice(0,40).map(a => `
+    <tr class="border-b border-slate-100 dark:border-ink-700">
+      <td class="py-2 pr-2 font-medium text-slate-700 dark:text-slate-200">${escapeHtml(a.title)}</td>
+      <td class="py-2 pr-2 text-slate-500">${escapeHtml(a.setor)}</td>
+      <td class="py-2 text-right"><span class="px-2 py-0.5 rounded-full text-xs font-bold ${a.dias>=15?'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300':'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'}">${a.dias} dia${a.dias===1?'':'s'}</span></td>
+    </tr>`).join('') : `<tr><td colspan="3" class="py-4 text-center text-slate-400">Nenhuma OC atrasada.</td></tr>`;
+  return `
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+      ${kpiCard('OCs rodando', P.ocsRodando, PIcon.box)}
+      ${kpiCard('Peças rodando', P.pecasRodando, PIcon.layers)}
+      ${kpiCard('Finalizadas', P.nFinalP, PIcon.check)}
+      ${kpiCard('Tempo médio (dias)', P.leadDias!=null?P.leadDias:0, PIcon.clock)}
+    </div>
+    <div class="text-xs text-slate-400 mb-5 -mt-2">${P.leadDias!=null? 'Tempo médio entre criar a OC e finalizar (com base no histórico de movimentações).':'Ainda sem dados suficientes de finalização pra calcular o tempo médio.'}</div>
+    <div class="rounded-2xl bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600 p-5 mb-5">
+      <div class="text-xs font-semibold uppercase text-slate-500 mb-4 tracking-wide">Peças rodando por setor</div>
+      ${bars || '<div class="text-slate-400 text-sm">Sem setores.</div>'}
+    </div>
+    <div class="rounded-2xl bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600 p-5">
+      <div class="text-xs font-semibold uppercase text-slate-500 mb-3 tracking-wide flex items-center gap-2">${PIcon.alert} OCs atrasadas (${P.atrasadas.length})</div>
+      <table class="w-full text-sm"><thead><tr class="text-left text-xs text-slate-400 border-b border-slate-200 dark:border-ink-600"><th class="pb-2 font-medium">OC</th><th class="pb-2 font-medium">Setor</th><th class="pb-2 text-right font-medium">Atraso</th></tr></thead><tbody>${rows}</tbody></table>
+    </div>`;
+}
+function painelCorte(P){
+  const estoque = P.estoqueTecidos.length ? P.estoqueTecidos.map(t => kpiCard(t.nome, t.rolos, PIcon.roll)).join('') : '<div class="text-slate-400 text-sm col-span-full">Sem estoque de tecido cadastrado.</div>';
+  const maxW = Math.max(1, ...P.semanas.map(s=>s.ocs));
+  const chart = P.semanas.map(s => `
+    <div class="flex-1 flex flex-col items-center gap-1">
+      <div class="text-[11px] text-slate-500 font-bold h-4">${s.ocs||''}</div>
+      <div class="w-full flex items-end justify-center" style="height:90px"><div class="w-3/4 rounded-t bg-gradient-to-t from-emerald-500 to-emerald-400" style="height:${s.ocs?Math.max(4,Math.round(s.ocs/maxW*100)):0}%"></div></div>
+      <div class="text-[10px] text-slate-400">${s.label}</div>
+    </div>`).join('');
+  return `
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+      ${estoque}
+      ${kpiCard('Total de rolos', P.rolosTotal, PIcon.roll, 'bg-gradient-to-br from-emerald-50 to-emerald-100/40 dark:from-emerald-900/20 dark:to-emerald-800/10 border-emerald-200', 'text-emerald-600 dark:text-emerald-400')}
+      ${kpiCard('Metros para cortar', Math.round(P.mCortar), PIcon.scissors, 'bg-amber-50 dark:bg-amber-900/20 border-amber-200')}
+    </div>
+    <div class="rounded-2xl bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600 p-5">
+      <div class="text-xs font-semibold uppercase text-slate-500 mb-4 tracking-wide">OCs concluídas por semana (últimas 8)</div>
+      <div class="flex items-end gap-2" style="height:130px">${chart}</div>
+      <div class="text-xs text-slate-400 mt-3">Conta as OCs que entraram em "Concluído" no quadro de Corte em cada semana.</div>
+    </div>`;
+}
+function painelBordado(P){
+  const tipos = [['logomarca','Logomarca','from-blue-400 to-blue-600'],['nome_profissao','Nome/Profissão','from-amber-400 to-amber-600'],['ambos','Ambos','from-purple-400 to-purple-600']];
+  const totalTipo = tipos.reduce((s,[k])=>s+(P.persoByTipo[k]||0),0) || 1;
+  const tipoCards = tipos.map(([k,l,grad]) => {
+    const n = P.persoByTipo[k]||0;
+    return `<div class="rounded-2xl bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600 p-4">
+      <div class="text-xs text-slate-500 mb-1">${l}</div>
+      <div class="text-3xl font-bold text-slate-900 dark:text-slate-100">${n}</div>
+      <div class="h-2 rounded-full bg-slate-100 dark:bg-ink-600 mt-2 overflow-hidden"><div class="h-full rounded-full bg-gradient-to-r ${grad}" style="width:${Math.round(n/totalTipo*100)}%"></div></div>
+    </div>`;
+  }).join('');
+  const setores = P.persoSetores.filter(s=>s.n>0).map(s => `<div class="flex justify-between py-1.5 border-b border-slate-100 dark:border-ink-700 text-sm"><span class="text-slate-600 dark:text-slate-300">${escapeHtml(s.nome)}</span><span class="font-semibold">${s.n}</span></div>`).join('');
+  return `
+    <div class="grid grid-cols-3 gap-4 mb-5">${tipoCards}</div>
+    <div class="rounded-2xl bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600 p-5">
+      <div class="text-xs font-semibold uppercase text-slate-500 mb-3 tracking-wide">Pedidos por etapa</div>
+      ${setores || '<div class="text-slate-400 text-sm">Sem pedidos.</div>'}
+    </div>`;
 }
 window.closePainel = () => {
   document.getElementById('painelModal').classList.add('hidden');
