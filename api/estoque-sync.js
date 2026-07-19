@@ -152,9 +152,19 @@ async function storageGet(path) {
   return r.json().catch(() => null);
 }
 
-// Coleta os SKUs que existem e estão ATIVOS na Loja Integrada (ignora inativos/removidos/bloqueados).
-async function coletarSkusLI() {
-  const set = new Set();
+// Extrai a URL da foto do array "imagens" do produto LI (variação NÃO tem foto; vem do pai).
+// Mesma lógica do api/personalizacao-sync.js.
+function pickImg(pj) {
+  const imgs = (pj && (pj.imagens || pj.imagem)) || [];
+  const f = (Array.isArray(imgs) ? imgs[0] : imgs) || null;
+  if (!f) return null;
+  if (typeof f === "string") return f;
+  return f.grande || f.media || f["380x380"] || f.pequena || f.thumbnail || f["64x64"] || f.url || f.imagem || f.src || f.caminho || null;
+}
+// Coleta SKUs ATIVOS da LI + mapa de id do produto pai por SKU (pra buscar a foto).
+async function coletarLI() {
+  const skus = new Set();
+  const parentIdBySku = {};
   let offset = 0;
   const LIMIT = 100, MAXP = 80;
   for (let i = 0; i < MAXP; i++) {
@@ -163,12 +173,16 @@ async function coletarSkusLI() {
     const objs = out.data.objects || [];
     if (!objs.length) break;
     for (const p of objs) {
-      if (p.sku && p.ativo && !p.removido && !p.bloqueado) set.add(String(p.sku).toLowerCase().trim());
+      if (p.sku && p.ativo && !p.removido && !p.bloqueado) {
+        const s = String(p.sku).toLowerCase().trim();
+        skus.add(s);
+        if (p.tipo !== "atributo_opcao") parentIdBySku[s] = p.id; // pai/standalone (tem foto)
+      }
     }
     if (objs.length < LIMIT) break;
     offset += objs.length;
   }
-  return set;
+  return { skus, parentIdBySku };
 }
 // Ordem canônica dos tamanhos
 const ORDEM_TAM = ["PP", "P", "M", "G", "GG", "XG", "XGG", "EG", "EGG", "U", "UNICO", "ÚNICO"];
@@ -185,7 +199,7 @@ function limpaNome(n) {
 }
 // ============ SYNC ESTOQUE (Bling, filtrado pela LI, AGRUPADO por produto pai) ============
 async function runEstoque() {
-  const liSkus = await coletarSkusLI(); // só produtos que também estão na loja
+  const { skus: liSkus, parentIdBySku } = await coletarLI(); // só ativos + mapa de foto
   const token = await getBlingToken();
   const flat = [];
   let pagina = 1, ignorados = 0;
@@ -207,14 +221,16 @@ async function runEstoque() {
     if (lista.length < LIMITE) break;
     pagina++;
   }
-  // Agrupa variações pelo produto pai. Produto pai (que tem filhos) NÃO vira card.
+  // Guarda o SKU do produto pai do Bling (bate com o SKU do pai na LI -> foto)
   const temFilhos = new Set(flat.filter(p => p.pai).map(p => String(p.pai)));
+  const codigoPaiById = {};
+  flat.forEach(p => { if (!p.pai && temFilhos.has(String(p.id))) codigoPaiById[String(p.id)] = p.sku; });
   const grupos = {};
   for (const p of flat) {
     if (!p.pai && temFilhos.has(String(p.id))) continue; // é o pai -> ignora como card
-    const key = p.pai ? "p" + p.pai : "s" + p.id; // variação agrupa por pai; produto único fica sozinho
+    const key = p.pai ? "p" + p.pai : "s" + p.id;
     let g = grupos[key];
-    if (!g) { g = grupos[key] = { nome: limpaNome(p.nome) || p.nome, preco: p.preco, custo: p.custo, imagem: null, sku_base: (p.sku || "").split("-")[0], tamanhos: [] }; }
+    if (!g) { g = grupos[key] = { nome: limpaNome(p.nome) || p.nome, preco: p.preco, custo: p.custo, imagem: null, sku_base: (p.sku || "").split("-")[0], pai_codigo: p.pai ? (codigoPaiById[String(p.pai)] || null) : p.sku, tamanhos: [] }; }
     if (!g.nome) g.nome = limpaNome(p.nome) || p.nome;
     if (!g.preco && p.preco) g.preco = p.preco;
     g.tamanhos.push({ tamanho: tamanhoDe(p), sku: p.sku, saldo: p.saldo, ativo: p.ativo });
@@ -223,11 +239,31 @@ async function runEstoque() {
     g.tamanhos.sort((a, b) => ordemTam(a.tamanho) - ordemTam(b.tamanho) || a.tamanho.localeCompare(b.tamanho));
     const saldo_total = g.tamanhos.reduce((s, t) => s + (t.saldo || 0), 0);
     const grades_zeradas = g.tamanhos.filter(t => (t.saldo || 0) <= 0).length;
-    return { nome: g.nome, sku_base: g.sku_base, preco: g.preco, custo: g.custo, imagem: g.imagem, saldo_total, grades: g.tamanhos.length, grades_zeradas, tamanhos: g.tamanhos };
+    return { nome: g.nome, sku_base: g.sku_base, pai_codigo: g.pai_codigo, preco: g.preco, custo: g.custo, imagem: null, saldo_total, grades: g.tamanhos.length, grades_zeradas, tamanhos: g.tamanhos };
   });
-  const snap = { atualizado_em: new Date().toISOString(), li_skus: liSkus.size, total_produtos: produtos.length, total_variacoes: flat.length, ignorados, produtos };
+  // Reaproveita fotos já buscadas (merge do snapshot anterior)
+  try {
+    const prev = await storageGet("reposicao/estoque.json");
+    if (prev && prev.produtos) {
+      const imgPrev = {};
+      prev.produtos.forEach(p => { if (p.imagem && p.pai_codigo) imgPrev[String(p.pai_codigo).toLowerCase()] = p.imagem; });
+      produtos.forEach(p => { const k = String(p.pai_codigo || "").toLowerCase(); if (!p.imagem && imgPrev[k]) p.imagem = imgPrev[k]; });
+    }
+  } catch (_) {}
+  // Busca as fotos faltantes na LI (produto pai -> imagens[0]), com orçamento de tempo pra não estourar.
+  const t0img = Date.now();
+  let buscadas = 0;
+  for (const p of produtos) {
+    if (p.imagem) continue;
+    if (Date.now() - t0img > 38000) break;
+    const pid = parentIdBySku[String(p.pai_codigo || "").toLowerCase()];
+    if (!pid) continue;
+    try { const d = await li("/produto/" + pid + "/"); const url = pickImg(d.data); if (url) { p.imagem = url; buscadas++; } } catch (_) {}
+  }
+  const com_imagem = produtos.filter(p => p.imagem).length;
+  const snap = { atualizado_em: new Date().toISOString(), li_skus: liSkus.size, total_produtos: produtos.length, total_variacoes: flat.length, ignorados, com_imagem, produtos };
   await storagePut("reposicao/estoque.json", snap);
-  return { ok: true, total_produtos: produtos.length, total_variacoes: flat.length, li_skus: liSkus.size, ignorados, paginas: pagina };
+  return { ok: true, total_produtos: produtos.length, total_variacoes: flat.length, li_skus: liSkus.size, ignorados, com_imagem, imagens_buscadas: buscadas, paginas: pagina };
 }
 
 // ============ SYNC VENDAS (LI, cabeçalhos) — backfill + diário ============
