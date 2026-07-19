@@ -197,20 +197,32 @@ function tamanhoDe(p) {
 function limpaNome(n) {
   return (n || "").replace(/\s*-?\s*TAMANHO\s*:?.*$/i, "").replace(/\s*:\s*(PP|P|M|G|GG|XG|XGG|U|UNICO|ÚNICO)\s*$/i, "").trim();
 }
+// Itens de serviço/acréscimo que NÃO são produto (não entram na lista de estoque).
+function isServico(nome) {
+  return /acr[eé]scimo|embalagem|personaliza|brinde|vale.?presente|cart[aã]o|frete|desconto/i.test(String(nome || ""));
+}
 // ============ SYNC ESTOQUE (Bling, filtrado pela LI, AGRUPADO por produto pai) ============
 async function runEstoque() {
   const { skus: liSkus, parentIdBySku } = await coletarLI(); // só ativos + mapa de foto
   const token = await getBlingToken();
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const flat = [];
   let pagina = 1, ignorados = 0;
   const LIMITE = 100, MAX_PAGINAS = 60;
   while (pagina <= MAX_PAGINAS) {
-    const out = await bling("/produtos?pagina=" + pagina + "&limite=" + LIMITE + "&criterio=2", token);
-    const lista = (out.data && out.data.data) || [];
-    if (!lista.length) break;
+    // Retry: se vier vazio por soluço/rate-limit do Bling, tenta de novo antes de desistir.
+    let lista = [], tent = 0, ok = false;
+    while (tent < 3) {
+      const out = await bling("/produtos?pagina=" + pagina + "&limite=" + LIMITE + "&criterio=2", token);
+      lista = (out.data && out.data.data) || [];
+      if (lista.length) { ok = true; break; }
+      tent++; await sleep(700);
+    }
+    if (!ok || !lista.length) break; // fim de verdade
     for (const p of lista) {
       const sku = p.codigo || String(p.id);
       if (liSkus.size && !liSkus.has(String(sku).toLowerCase().trim())) { ignorados++; continue; }
+      if (isServico(p.nome)) { ignorados++; continue; } // pula acréscimo/embalagem/personalização/etc.
       flat.push({
         id: p.id, sku, nome: p.nome || "", pai: p.idProdutoPai || null,
         preco: Number(p.preco || 0), custo: Number(p.precoCusto || 0),
@@ -220,6 +232,7 @@ async function runEstoque() {
     }
     if (lista.length < LIMITE) break;
     pagina++;
+    await sleep(250); // respeita o rate limit do Bling (3 req/s)
   }
   // Guarda o SKU do produto pai do Bling (bate com o SKU do pai na LI -> foto)
   const temFilhos = new Set(flat.filter(p => p.pai).map(p => String(p.pai)));
@@ -241,21 +254,25 @@ async function runEstoque() {
     const grades_zeradas = g.tamanhos.filter(t => (t.saldo || 0) <= 0).length;
     return { nome: g.nome, sku_base: g.sku_base, pai_codigo: g.pai_codigo, preco: g.preco, custo: g.custo, imagem: null, saldo_total, grades: g.tamanhos.length, grades_zeradas, tamanhos: g.tamanhos };
   });
-  // Reaproveita fotos já buscadas (merge do snapshot anterior)
-  try {
-    const prev = await storageGet("reposicao/estoque.json");
-    if (prev && prev.produtos) {
-      const imgPrev = {};
-      prev.produtos.forEach(p => { if (p.imagem && p.pai_codigo) imgPrev[String(p.pai_codigo).toLowerCase()] = p.imagem; });
-      produtos.forEach(p => { const k = String(p.pai_codigo || "").toLowerCase(); if (!p.imagem && imgPrev[k]) p.imagem = imgPrev[k]; });
-    }
-  } catch (_) {}
+  // Snapshot anterior (pra merge de fotos e pra trava anti-sobrescrita)
+  let prev = null;
+  try { prev = await storageGet("reposicao/estoque.json"); } catch (_) {}
+  // TRAVA: se a varredura veio muito menor que o catálogo anterior, foi soluço do Bling -> não sobrescreve.
+  if (prev && prev.total_produtos && produtos.length < prev.total_produtos * 0.5) {
+    return { ok: false, motivo: "varredura parcial (Bling) — mantido o snapshot anterior", agora: produtos.length, anterior: prev.total_produtos, paginas: pagina };
+  }
+  // Reaproveita fotos já buscadas
+  if (prev && prev.produtos) {
+    const imgPrev = {};
+    prev.produtos.forEach(p => { if (p.imagem && p.pai_codigo) imgPrev[String(p.pai_codigo).toLowerCase()] = p.imagem; });
+    produtos.forEach(p => { const k = String(p.pai_codigo || "").toLowerCase(); if (!p.imagem && imgPrev[k]) p.imagem = imgPrev[k]; });
+  }
   // Busca as fotos faltantes na LI (produto pai -> imagens[0]), com orçamento de tempo pra não estourar.
   const t0img = Date.now();
   let buscadas = 0;
   for (const p of produtos) {
     if (p.imagem) continue;
-    if (Date.now() - t0img > 38000) break;
+    if (Date.now() - t0img > 28000) break;
     const pid = parentIdBySku[String(p.pai_codigo || "").toLowerCase()];
     if (!pid) continue;
     try { const d = await li("/produto/" + pid + "/"); const url = pickImg(d.data); if (url) { p.imagem = url; buscadas++; } } catch (_) {}
