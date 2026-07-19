@@ -46,6 +46,20 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
   .dark .inp{background:#0b1220;border-color:#334155;color:#e5e7eb}
   ::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px}.dark ::-webkit-scrollbar-thumb{background:#475569}
   [data-fade]{animation:fade .18s ease}@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  /* Indicadores de cliente + tooltip do "i" */
+  .kpi{position:relative;overflow:visible}
+  .ico-i{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:999px;border:1px solid #cbd5e1;color:#94a3b8;font-size:9px;font-weight:800;font-style:normal;cursor:help;flex-shrink:0;line-height:1}
+  .dark .ico-i{border-color:#475569;color:#94a3b8}
+  .ico-i:hover{border-color:#ec4899;color:#ec4899}
+  .ico-i::after{content:attr(data-tip);position:absolute;left:12px;top:26px;width:230px;background:#0f172a;color:#f1f5f9;font-size:11px;font-weight:500;line-height:1.45;padding:8px 10px;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);opacity:0;visibility:hidden;transform:translateY(-3px);transition:opacity .12s,transform .12s;z-index:40;pointer-events:none;text-align:left}
+  .ico-i:hover::after{opacity:1;visibility:visible;transform:none}
+  /* Tooltip do gráfico de linha */
+  #chartWrap{position:relative}
+  #chartTip{position:absolute;pointer-events:none;background:#fff;border:1px solid #eef2f7;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.12);padding:10px 14px;font-size:13px;opacity:0;transition:opacity .1s;z-index:30;white-space:nowrap}
+  .dark #chartTip{background:#111827;border-color:#334155}
+  #chartTip .d{color:#94a3b8;font-size:12px;margin-bottom:4px}
+  #chartTip .v{font-weight:800;font-size:15px;display:flex;align-items:center;gap:6px}
+  #chartTip .v i{width:9px;height:9px;border-radius:999px;background:#7c6cf0;display:inline-block}
 </style>
 </head>
 <body class="text-slate-800 dark:text-slate-100">
@@ -143,16 +157,27 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
       <button id="btnAtVendas" onclick="atualizarVendas()" class="text-sm font-semibold text-white bg-pink-500 hover:bg-pink-600 px-3 py-2 rounded-lg flex items-center gap-1 flex-shrink-0"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 22v-6h6M3 12a9 9 0 0 1 15-6.7L21 8M21 12a9 9 0 0 1-15 6.7L3 16"/></svg><span class="hidden sm:inline">Atualizar hoje</span></button>
       <div class="ml-auto text-[10px] text-slate-500 dark:text-slate-300 bg-white/70 dark:bg-ink-800/70 px-2 py-0.5 rounded-md" id="vendasInfo"></div>
     </div>
-    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
-      <div class="card p-4"><div class="text-xs text-slate-500">Receita</div><div class="text-2xl font-bold mt-1" id="vReceita">—</div></div>
-      <div class="card p-4"><div class="text-xs text-slate-500">Receita paga</div><div class="text-2xl font-bold mt-1 text-emerald-600" id="vReceitaPaga">—</div></div>
-      <div class="card p-4"><div class="text-xs text-slate-500">Pedidos</div><div class="text-2xl font-bold mt-1" id="vPedidos">—</div></div>
-      <div class="card p-4"><div class="text-xs text-slate-500">Pedidos pagos</div><div class="text-2xl font-bold mt-1" id="vPagos">—</div></div>
-      <div class="card p-4"><div class="text-xs text-slate-500">Ticket médio</div><div class="text-2xl font-bold mt-1" id="vTicket">—</div></div>
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3">
+      <div class="card p-4 kpi"><div class="flex items-center gap-1 text-xs text-slate-500">Receita <i class="ico-i" data-tip="Soma do valor de TODOS os pedidos do período (pagos + não pagos + cancelados).">i</i></div><div class="text-2xl font-bold mt-1" id="vReceita">—</div></div>
+      <div class="card p-4 kpi"><div class="flex items-center gap-1 text-xs text-slate-500">Receita paga <i class="ico-i" data-tip="Soma do valor apenas dos pedidos PAGOS (aprovados e não cancelados) no período.">i</i></div><div class="text-2xl font-bold mt-1 text-emerald-600" id="vReceitaPaga">—</div></div>
+      <div class="card p-4 kpi"><div class="flex items-center gap-1 text-xs text-slate-500">Pedidos <i class="ico-i" data-tip="Quantidade total de pedidos criados no período, independente do status.">i</i></div><div class="text-2xl font-bold mt-1" id="vPedidos">—</div></div>
+      <div class="card p-4 kpi"><div class="flex items-center gap-1 text-xs text-slate-500">Pedidos pagos <i class="ico-i" data-tip="Quantidade de pedidos aprovados e não cancelados no período.">i</i></div><div class="text-2xl font-bold mt-1" id="vPagos">—</div></div>
+      <div class="card p-4 kpi"><div class="flex items-center gap-1 text-xs text-slate-500">Ticket médio <i class="ico-i" data-tip="Receita paga ÷ nº de pedidos pagos. Valor médio de cada pedido pago.">i</i></div><div class="text-2xl font-bold mt-1" id="vTicket">—</div></div>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-5">
+      <div class="card p-4 kpi"><div class="flex items-center gap-1 text-xs text-slate-500">Clientes ativos <i class="ico-i" data-tip="Clientes únicos (por ID) que fizeram ao menos 1 pedido pago no período selecionado.">i</i></div><div class="text-2xl font-bold mt-1" id="kAtivos">—</div></div>
+      <div class="card p-4 kpi"><div class="flex items-center gap-1 text-xs text-slate-500">Recorrentes <i class="ico-i" data-tip="Clientes com 2 ou mais pedidos pagos no período. Mede quem repete a compra.">i</i></div><div class="text-2xl font-bold mt-1" id="kRecorrentes">—</div></div>
+      <div class="card p-4 kpi"><div class="flex items-center gap-1 text-xs text-slate-500">Novos clientes <i class="ico-i" data-tip="Clientes cuja PRIMEIRA compra paga (de todo o histórico) caiu dentro do período.">i</i></div><div class="text-2xl font-bold mt-1" id="kNovos">—</div></div>
+      <div class="card p-4 kpi"><div class="flex items-center gap-1 text-xs text-slate-500">Cresc. da base <i class="ico-i" data-tip="Novos clientes do período ÷ base de clientes que já existia antes do período × 100.">i</i></div><div class="text-2xl font-bold mt-1" id="kCrescimento">—</div></div>
+      <div class="card p-4 kpi"><div class="flex items-center gap-1 text-xs text-slate-500">LTV médio <i class="ico-i" data-tip="Receita paga do período ÷ nº de clientes ativos. Valor médio gerado por cliente no período.">i</i></div><div class="text-2xl font-bold mt-1" id="kLtv">—</div></div>
+      <div class="card p-4 kpi"><div class="flex items-center gap-1 text-xs text-slate-500">Frequência <i class="ico-i" data-tip="Nº de pedidos pagos ÷ nº de clientes ativos. Em média, quantas vezes cada cliente comprou.">i</i></div><div class="text-2xl font-bold mt-1" id="kFreq">—</div></div>
     </div>
     <div class="card p-4">
       <div class="text-sm font-semibold mb-3">Receita por dia</div>
-      <div id="chart" class="w-full overflow-x-auto"></div>
+      <div id="chartWrap" class="w-full overflow-x-auto">
+        <div id="chart"></div>
+        <div id="chartTip"></div>
+      </div>
     </div>
   </section>
 </div>
@@ -161,7 +186,7 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
 <script type="module">
 const SUPA = { url:'https://wwytzoyeibekhstinott.supabase.co', key:'sb_publishable_uMoCEK4Ed_u8ZIfjVZ7Jrg_tdR4b9bO' };
 const BUCKET_URL = SUPA.url + '/storage/v1/object/public/reposicao-data/reposicao/';
-let sb=null, ESTOQUE=null, VENDAS=null;
+let sb=null, ESTOQUE=null, VENDAS=null, PAGOS=null;
 
 async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2'); sb=createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true}}); } return sb; }
 window.toggleDark=()=>{ document.documentElement.classList.toggle('dark'); try{localStorage.setItem('dc_dark',document.documentElement.classList.contains('dark')?'1':'0');}catch(e){} };
@@ -205,6 +230,7 @@ function statusDe(p, limiar){ if(!p.ativo) return 'off'; if((p.saldo||0)<=0) ret
 async function carregar(){
   try{ const r=await fetch(BUCKET_URL+'estoque.json?t='+Date.now()); if(r.ok) ESTOQUE=await r.json(); }catch(e){}
   try{ const r=await fetch(BUCKET_URL+'vendas.json?t='+Date.now()); if(r.ok) VENDAS=await r.json(); }catch(e){}
+  try{ const r=await fetch(BUCKET_URL+'pagos.json?t='+Date.now()); if(r.ok) PAGOS=await r.json(); }catch(e){}
   const at = ESTOQUE?.atualizado_em ? new Date(ESTOQUE.atualizado_em).toLocaleString('pt-BR') : '—';
   document.getElementById('atualizadoInfo').textContent = 'Estoque atualizado: '+at;
   if(ESTOQUE && ESTOQUE.produtos){
@@ -279,6 +305,7 @@ window.atualizarVendas=async()=>{
   if(svg){ svg.classList.add('animate-spin'); }
   try{ await fetch('/api/estoque-sync?run=vendas-recente&_='+Date.now()); }catch(e){}
   try{ const r=await fetch(BUCKET_URL+'vendas.json?t='+Date.now()); if(r.ok) VENDAS=await r.json(); }catch(e){}
+  try{ const r=await fetch(BUCKET_URL+'pagos.json?t='+Date.now()); if(r.ok) PAGOS=await r.json(); }catch(e){}
   if(svg){ svg.classList.remove('animate-spin'); }
   if(b){ b.disabled=false; b.style.opacity=''; }
   renderVendas();
@@ -314,20 +341,95 @@ window.renderVendas=()=>{
   document.getElementById('vTicket').textContent = pagos? BRL(receitaPaga/pagos) : '—';
   const totalDias = Object.keys(VENDAS.dias).length;
   document.getElementById('vendasInfo').textContent = (VENDAS.done?'Backfill completo · ':'Backfill em andamento · ')+totalDias+' dias no histórico';
-  // gráfico
+  renderClientesKPIs(desde, ate);
+  renderChartLinha(dias);
+};
+
+// ===== Indicadores de cliente (a partir do livro-razão de pedidos pagos) =====
+function setKpi(id,v){ const el=document.getElementById(id); if(el) el.textContent=v; }
+function renderClientesKPIs(desde, ate){
+  const ids=['kAtivos','kRecorrentes','kNovos','kCrescimento','kLtv','kFreq'];
+  if(!PAGOS || !PAGOS.pagos){ ids.forEach(i=>setKpi(i,'…')); return; }
+  const P = PAGOS.pagos;
+  // primeira compra (de todo o histórico) por cliente -> base pra "novos" e "crescimento"
+  const firstByC = {};
+  for(const k in P){ const e=P[k]; const c=e.c; if(!c) continue; if(!firstByC[c]||e.d<firstByC[c]) firstByC[c]=e.d; }
+  // agrega dentro do período
+  const byC = {}; let receita=0, ped=0;
+  for(const k in P){ const e=P[k]; if(e.d<desde||e.d>ate) continue; ped++; receita+=(e.r||0); const c=e.c; if(!c) continue; const g=byC[c]||{n:0,r:0}; g.n++; g.r+=(e.r||0); byC[c]=g; }
+  const ativos = Object.keys(byC).length;
+  const recorrentes = Object.values(byC).filter(g=>g.n>=2).length;
+  let novos=0, baseAntes=0;
+  for(const c in firstByC){ const f=firstByC[c]; if(f>=desde && f<=ate) novos++; else if(f<desde) baseAntes++; }
+  const cresc = baseAntes? (novos/baseAntes*100) : (novos?100:0);
+  const ltv = ativos? receita/ativos : 0;
+  const freq = ativos? ped/ativos : 0;
+  setKpi('kAtivos', NUM(ativos));
+  setKpi('kRecorrentes', NUM(recorrentes));
+  setKpi('kNovos', NUM(novos));
+  setKpi('kCrescimento', (cresc>=0?'+':'')+cresc.toFixed(1).replace('.',',')+'%');
+  setKpi('kLtv', ativos? BRL(ltv) : '—');
+  setKpi('kFreq', ativos? freq.toFixed(2).replace('.',',') : '—');
+}
+
+// ===== Gráfico de linha (receita por dia) com tooltip ao passar o mouse =====
+function renderChartLinha(dias){
   const chart=document.getElementById('chart');
+  const tip=document.getElementById('chartTip');
+  if(tip) tip.style.opacity='0';
   if(!dias.length){ chart.innerHTML='<div class="text-slate-400 text-sm py-8 text-center">Sem vendas no período.</div>'; return; }
   const vals = dias.map(d=>VENDAS.dias[d].receita||0);
-  const max = Math.max(1,...vals);
-  const bw = Math.max(6, Math.min(40, Math.floor(880/dias.length)));
-  const gap = 3, W = dias.length*(bw+gap)+40, H=220;
-  let bars='';
-  dias.forEach((d,i)=>{ const h=Math.round((vals[i]/max)*(H-40)); const x=30+i*(bw+gap); const y=H-20-h;
-    bars+=`<rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="2" fill="#ec4899"><title>${d}: ${BRL(vals[i])}</title></rect>`; });
-  const showLbl = dias.length<=31;
-  let lbls=''; if(showLbl) dias.forEach((d,i)=>{ const x=30+i*(bw+gap)+bw/2; lbls+=`<text x="${x}" y="${H-6}" font-size="9" fill="#94a3b8" text-anchor="middle">${d.slice(8)}</text>`; });
-  chart.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="${Math.max(W,600)}" height="${H}"><text x="0" y="14" font-size="10" fill="#94a3b8">${BRL(max)}</text>${bars}${lbls}</svg>`;
-};
+  const n=dias.length;
+  const H=260, padL=52, padR=16, padT=16, padB=34;
+  const stepMin=36; // px por ponto (permite scroll horizontal em períodos longos)
+  const innerW=Math.max((n-1)*stepMin, 560);
+  const W=padL+innerW+padR;
+  const maxV=Math.max(1,...vals);
+  const xOf=i=> padL + (n===1? innerW/2 : (i/(n-1))*innerW);
+  const yOf=v=> padT + (1 - v/maxV)*(H-padT-padB);
+  const pts=vals.map((v,i)=>[xOf(i),yOf(v)]);
+  // linha suave (curva entre pontos)
+  let dPath='';
+  pts.forEach((p,i)=>{ if(i===0){ dPath+=`M${p[0].toFixed(1)},${p[1].toFixed(1)}`; return; } const q=pts[i-1]; const cx=(q[0]+p[0])/2; dPath+=`C${cx.toFixed(1)},${q[1].toFixed(1)} ${cx.toFixed(1)},${p[1].toFixed(1)} ${p[0].toFixed(1)},${p[1].toFixed(1)}`; });
+  // grades + rótulos do eixo Y
+  let grid='', ylab=''; const G=4;
+  const fmtY=v=> maxV>=1000? (v/1000).toFixed(v>=10000?0:1).replace('.',',')+'k' : Math.round(v);
+  for(let g=0;g<=G;g++){ const val=maxV*g/G; const gy=yOf(val); grid+=`<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}" stroke="#e5e7eb" stroke-width="1" stroke-dasharray="3 4"/>`; ylab+=`<text x="${padL-8}" y="${(gy+3).toFixed(1)}" font-size="10" fill="#94a3b8" text-anchor="end">${fmtY(val)}</text>`; }
+  // rótulos do eixo X (espaçados)
+  const stepLbl=Math.max(1,Math.ceil(n/12)); let xlab='';
+  dias.forEach((d,i)=>{ if(i%stepLbl!==0 && i!==n-1) return; xlab+=`<text x="${xOf(i).toFixed(1)}" y="${H-12}" font-size="10" fill="#94a3b8" text-anchor="middle">${d.slice(8)}/${d.slice(5,7)}</text>`; });
+  // área sob a linha
+  const area=`M${pts[0][0].toFixed(1)},${yOf(0).toFixed(1)} `+pts.map(p=>`L${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')+` L${pts[n-1][0].toFixed(1)},${yOf(0).toFixed(1)} Z`;
+  let dots=''; pts.forEach(p=>{ dots+=`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.5" fill="#7c6cf0" stroke="#fff" stroke-width="1.5"/>`; });
+  chart.innerHTML=`<svg id="chartSvg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="max-width:none;display:block">
+    <defs><linearGradient id="gArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7c6cf0" stop-opacity="0.18"/><stop offset="1" stop-color="#7c6cf0" stop-opacity="0"/></linearGradient></defs>
+    ${grid}${ylab}
+    <path d="${area}" fill="url(#gArea)"/>
+    <path d="${dPath}" fill="none" stroke="#7c6cf0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    ${dots}
+    <line id="chartCursor" x1="0" y1="${padT}" x2="0" y2="${H-padB}" stroke="#7c6cf0" stroke-width="1" stroke-dasharray="4 4" opacity="0"/>
+    ${xlab}
+  </svg>`;
+  const svgEl=document.getElementById('chartSvg');
+  const cursor=document.getElementById('chartCursor');
+  function onMove(ev){
+    const rect=svgEl.getBoundingClientRect();
+    const mx=(ev.clientX-rect.left)/rect.width*W;
+    let bi=0,bd=1e9; for(let i=0;i<pts.length;i++){ const dd=Math.abs(pts[i][0]-mx); if(dd<bd){bd=dd;bi=i;} }
+    const pxv=pts[bi][0], pyv=pts[bi][1];
+    cursor.setAttribute('x1',pxv); cursor.setAttribute('x2',pxv); cursor.setAttribute('opacity','1');
+    const d=dias[bi]; const label=`${d.slice(8)}/${d.slice(5,7)}/${d.slice(0,4)}`;
+    const valTxt=(vals[bi]).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+    tip.innerHTML=`<div class="d">${label}</div><div class="v"><i></i>Total em R$: ${valTxt}</div>`;
+    tip.style.opacity='1';
+    const tw=tip.offsetWidth||160;
+    let left=pxv+14; if(left+tw>W) left=pxv-tw-14; if(left<2) left=2;
+    tip.style.left=left+'px';
+    tip.style.top=Math.max(2,pyv-16)+'px';
+  }
+  svgEl.addEventListener('mousemove', onMove);
+  svgEl.addEventListener('mouseleave', ()=>{ tip.style.opacity='0'; cursor.setAttribute('opacity','0'); });
+}
 
 window.rodarSync=async(tipo)=>{
   const btn = (typeof event!=='undefined' && event && event.target) ? event.target.closest('button') : document.querySelector('button[onclick*="rodarSync"]');
