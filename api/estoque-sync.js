@@ -152,7 +152,7 @@ async function storageGet(path) {
   return r.json().catch(() => null);
 }
 
-// Coleta os SKUs que existem na Loja Integrada (só produtos da loja de verdade).
+// Coleta os SKUs que existem e estão ATIVOS na Loja Integrada (ignora inativos/removidos/bloqueados).
 async function coletarSkusLI() {
   const set = new Set();
   let offset = 0;
@@ -162,7 +162,9 @@ async function coletarSkusLI() {
     if (!out.ok || !out.data) break;
     const objs = out.data.objects || [];
     if (!objs.length) break;
-    for (const p of objs) { if (p.sku) set.add(String(p.sku).toLowerCase().trim()); }
+    for (const p of objs) {
+      if (p.sku && p.ativo && !p.removido && !p.bloqueado) set.add(String(p.sku).toLowerCase().trim());
+    }
     if (objs.length < LIMIT) break;
     offset += objs.length;
   }
