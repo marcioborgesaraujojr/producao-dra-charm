@@ -213,6 +213,7 @@ async function runEstoque() {
   const token = await getBlingToken();
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const flat = [];
+  const blingCodigoById = {}; // id -> codigo de TODOS os produtos (mesmo inativos), pra achar o SKU do pai
   let pagina = 1, ignorados = 0;
   const LIMITE = 100, MAX_PAGINAS = 60;
   while (pagina <= MAX_PAGINAS) {
@@ -227,6 +228,7 @@ async function runEstoque() {
     if (!ok || !lista.length) break; // fim de verdade
     for (const p of lista) {
       const sku = p.codigo || String(p.id);
+      blingCodigoById[String(p.id)] = sku; // guarda o codigo de todo produto (pra achar o pai depois)
       if (liSkus.size && !liSkus.has(String(sku).toLowerCase().trim())) { ignorados++; continue; }
       if (isServico(p.nome)) { ignorados++; continue; } // pula acréscimo/embalagem/personalização/etc.
       flat.push({
@@ -242,14 +244,12 @@ async function runEstoque() {
   }
   // Guarda o SKU do produto pai do Bling (bate com o SKU do pai na LI -> foto)
   const temFilhos = new Set(flat.filter(p => p.pai).map(p => String(p.pai)));
-  const codigoPaiById = {};
-  flat.forEach(p => { if (!p.pai && temFilhos.has(String(p.id))) codigoPaiById[String(p.id)] = p.sku; });
   const grupos = {};
   for (const p of flat) {
     if (!p.pai && temFilhos.has(String(p.id))) continue; // é o pai -> ignora como card
     const key = p.pai ? "p" + p.pai : "s" + p.id;
     let g = grupos[key];
-    if (!g) { g = grupos[key] = { nome: limpaNome(p.nome) || p.nome, preco: p.preco, custo: p.custo, imagem: null, sku_base: (p.sku || "").split("-")[0], pai_codigo: p.pai ? (codigoPaiById[String(p.pai)] || null) : p.sku, tamanhos: [] }; }
+    if (!g) { g = grupos[key] = { nome: limpaNome(p.nome) || p.nome, preco: p.preco, custo: p.custo, imagem: null, sku_base: (p.sku || "").split("-")[0], pai_codigo: p.pai ? (blingCodigoById[String(p.pai)] || null) : p.sku, tamanhos: [] }; }
     if (!g.nome) g.nome = limpaNome(p.nome) || p.nome;
     if (!g.preco && p.preco) g.preco = p.preco;
     g.tamanhos.push({ tamanho: tamanhoDe(p), sku: p.sku, saldo: p.saldo, ativo: p.ativo });
