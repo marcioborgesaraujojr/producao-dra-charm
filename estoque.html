@@ -90,9 +90,9 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
   <!-- ====== ESTOQUE ====== -->
   <section id="tab-estoque" data-fade>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-      <div class="card p-3"><div class="text-xs text-slate-500">Produtos</div><div class="text-2xl font-bold mt-0.5" id="mTotal">—</div></div>
-      <div class="card p-3"><div class="text-xs text-slate-500">Zerados (produto)</div><div class="text-2xl font-bold mt-0.5 text-red-500" id="mZero">—</div></div>
-      <div class="card p-3"><div class="text-xs text-slate-500">Grade com furo</div><div class="text-2xl font-bold mt-0.5 text-amber-500" id="mBaixo">—</div></div>
+      <div class="card p-3 cursor-pointer hover:ring-2 hover:ring-pink-400/50 transition" onclick="filtrarStatus('')" title="Ver todos"><div class="text-xs text-slate-500">Produtos</div><div class="text-2xl font-bold mt-0.5" id="mTotal">—</div></div>
+      <div class="card p-3 cursor-pointer hover:ring-2 hover:ring-red-400/50 transition" onclick="filtrarStatus('zero')" title="Filtrar zerados"><div class="text-xs text-slate-500">Zerados (produto)</div><div class="text-2xl font-bold mt-0.5 text-red-500" id="mZero">—</div></div>
+      <div class="card p-3 cursor-pointer hover:ring-2 hover:ring-amber-400/50 transition" onclick="filtrarStatus('furo')" title="Filtrar grade com furo"><div class="text-xs text-slate-500">Grade com furo</div><div class="text-2xl font-bold mt-0.5 text-amber-500" id="mBaixo">—</div></div>
       <div class="card p-3"><div class="text-xs text-slate-500">Unidades em estoque</div><div class="text-2xl font-bold mt-0.5" id="mUnid">—</div></div>
     </div>
 
@@ -218,6 +218,7 @@ window.switchTab=(t)=>{
   document.getElementById('tab-vendas').classList.toggle('hidden', t!=='vendas');
 };
 
+window.filtrarStatus=(v)=>{ const s=document.getElementById('fStatus'); if(s) s.value=v; switchTab('estoque'); renderEstoque(); };
 window.renderEstoque=()=>{
   const grid=document.getElementById('gridEstoque'), vazio=document.getElementById('estoqueVazio');
   if(!ESTOQUE){ grid.innerHTML=''; vazio.classList.remove('hidden'); vazio.textContent='Carregando estoque…'; return; }
