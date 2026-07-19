@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Estoque & Vendas — Sistema Grupo Aragão</title>
-<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="icon" type="image/svg+xml" href="/logo_500x500.svg">
+<link rel="icon" type="image/png" href="/icone-app.png">
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
 tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
@@ -59,12 +60,12 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
 </div>
 
 <div id="appWrap" class="hidden">
-<header class="h-14 flex items-center justify-between px-4 bg-white/95 dark:bg-ink-800/95 border-b border-slate-200 dark:border-ink-600 sticky top-0 z-30 backdrop-blur">
-  <div class="flex items-center gap-3">
-    <button onclick="location.href='/'" title="Voltar à Suíte" class="w-9 h-9 rounded-xl overflow-hidden shadow hover:scale-105 transition"><img src="/icone-app.png" alt="Aragão" class="w-full h-full object-cover"></button>
-    <div class="leading-tight">
-      <div class="text-sm font-semibold">Estoque & Vendas</div>
-      <div class="text-[11px] text-slate-500 dark:text-slate-400">Sistema Grupo Aragão</div>
+<header class="h-14 flex items-center justify-between px-3 sm:px-4 gap-2 bg-white/95 dark:bg-ink-800/95 border-b border-slate-200 dark:border-ink-600 sticky top-0 z-30 backdrop-blur">
+  <div class="flex items-center gap-2.5 min-w-0">
+    <button onclick="location.href='/'" title="Voltar à Suíte" class="w-9 h-9 rounded-xl overflow-hidden shadow hover:scale-105 transition flex-shrink-0"><img src="/icone-app.png" alt="Aragão" class="w-full h-full object-cover"></button>
+    <div class="leading-tight min-w-0">
+      <div class="text-sm font-semibold truncate">Estoque &amp; Vendas</div>
+      <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate">Sistema Grupo Aragão</div>
     </div>
   </div>
   <div class="flex items-center gap-2">
@@ -74,12 +75,12 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
   </div>
 </header>
 
-<div class="max-w-7xl mx-auto px-4 py-5">
+<div class="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-5">
   <!-- Abas -->
-  <div class="flex items-center gap-6 border-b border-slate-200 dark:border-ink-600 mb-5">
+  <div class="tabbar flex items-center gap-5 sm:gap-6 border-b border-slate-200/70 dark:border-ink-600 mb-5">
     <div class="tab flex items-center gap-1.5" data-tab="estoque" data-active="1" onclick="switchTab('estoque')"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8V21H3V8"/><rect x="1" y="3" width="22" height="5" rx="1"/><path d="M10 12h4"/></svg>Estoque / Reposição</div>
     <div class="tab flex items-center gap-1.5" data-tab="vendas" onclick="switchTab('vendas')"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M19 9l-5 5-4-4-4 4"/></svg>Vendas</div>
-    <div class="ml-auto text-[11px] text-slate-400" id="atualizadoInfo"></div>
+    <div class="ml-auto text-[10px] text-slate-500 dark:text-slate-300 bg-white/70 dark:bg-ink-800/70 px-2 py-0.5 rounded-md hidden sm:block" id="atualizadoInfo"></div>
   </div>
 
   <!-- ====== ESTOQUE ====== -->
@@ -92,21 +93,21 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
     </div>
 
     <div class="flex flex-wrap items-center gap-2 mb-3">
-      <input id="busca" class="inp flex-1 min-w-[160px]" placeholder="Buscar por nome ou SKU…" oninput="renderEstoque()">
-      <select id="fTipo" class="inp" onchange="renderEstoque()"><option value="">Todos os tipos</option></select>
-      <select id="fStatus" class="inp" onchange="renderEstoque()">
+      <input id="busca" class="inp w-full sm:flex-1 sm:w-auto sm:min-w-[160px]" placeholder="Buscar por nome ou SKU…" oninput="renderEstoque()">
+      <select id="fTipo" class="inp flex-1 sm:flex-none min-w-0" onchange="renderEstoque()"><option value="">Todos os tipos</option></select>
+      <select id="fStatus" class="inp flex-1 sm:flex-none min-w-0" onchange="renderEstoque()">
         <option value="">Todos</option>
         <option value="zero">Produto zerado</option>
-        <option value="furo">Grade com furo (algum tamanho zerado)</option>
+        <option value="furo">Grade com furo</option>
         <option value="ok">Grade completa</option>
       </select>
-      <select id="fOrder" class="inp" onchange="renderEstoque()">
-        <option value="saldo">Menor estoque primeiro</option>
-        <option value="furo">Mais furos na grade</option>
-        <option value="saldo_desc">Maior estoque primeiro</option>
+      <select id="fOrder" class="inp flex-1 sm:flex-none min-w-0" onchange="renderEstoque()">
+        <option value="saldo">Menor estoque</option>
+        <option value="furo">Mais furos</option>
+        <option value="saldo_desc">Maior estoque</option>
         <option value="nome">Nome (A–Z)</option>
       </select>
-      <button onclick="rodarSync('estoque')" class="text-sm font-semibold text-white bg-pink-500 hover:bg-pink-600 px-3 py-2 rounded-lg flex items-center gap-1"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 22v-6h6M3 12a9 9 0 0 1 15-6.7L21 8M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>Atualizar</button>
+      <button onclick="rodarSync('estoque')" class="text-sm font-semibold text-white bg-pink-500 hover:bg-pink-600 px-3 py-2 rounded-lg flex items-center gap-1 flex-shrink-0"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 22v-6h6M3 12a9 9 0 0 1 15-6.7L21 8M21 12a9 9 0 0 1-15 6.7L3 16"/></svg><span class="hidden sm:inline">Atualizar</span></button>
     </div>
 
     <div id="gridEstoque" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2"></div>
@@ -132,7 +133,7 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
         <span class="text-slate-400 text-sm">até</span>
         <input id="dtAte" type="date" class="inp py-1" onchange="renderVendas()">
       </div>
-      <div class="ml-auto text-[11px] text-slate-400" id="vendasInfo"></div>
+      <div class="ml-auto text-[10px] text-slate-500 dark:text-slate-300 bg-white/70 dark:bg-ink-800/70 px-2 py-0.5 rounded-md" id="vendasInfo"></div>
     </div>
     <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
       <div class="card p-4"><div class="text-xs text-slate-500">Receita</div><div class="text-2xl font-bold mt-1" id="vReceita">—</div></div>
