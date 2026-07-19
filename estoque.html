@@ -194,6 +194,7 @@ function tipoProduto(nome){
 
 const BRL = n => (Number(n)||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const NUM = n => (Number(n)||0).toLocaleString('pt-BR');
+const normTxt = s => (s||'').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
 const hoje = () => new Date().toISOString().slice(0,10);
 function statusDe(p, limiar){ if(!p.ativo) return 'off'; if((p.saldo||0)<=0) return 'zero'; if((p.saldo||0)<=limiar) return 'baixo'; return 'ok'; }
 
@@ -220,7 +221,7 @@ window.switchTab=(t)=>{
 window.renderEstoque=()=>{
   const grid=document.getElementById('gridEstoque'), vazio=document.getElementById('estoqueVazio');
   if(!ESTOQUE){ grid.innerHTML=''; vazio.classList.remove('hidden'); vazio.textContent='Carregando estoque…'; return; }
-  const q = (document.getElementById('busca').value||'').toLowerCase().trim();
+  const qTokens = normTxt(document.getElementById('busca').value).split(/\s+/).filter(Boolean);
   const ft = document.getElementById('fTipo').value;
   const fs = document.getElementById('fStatus').value;
   const ord = document.getElementById('fOrder').value;
@@ -232,7 +233,7 @@ window.renderEstoque=()=>{
   document.getElementById('mBaixo').textContent = NUM(lista.filter(p=>(p.grades_zeradas||0)>0 && (p.saldo_total||0)>0).length);
   document.getElementById('mUnid').textContent = NUM(lista.reduce((s,p)=>s+(p.saldo_total||0),0));
   // filtro
-  if(q) lista=lista.filter(p=>(p.nome||'').toLowerCase().includes(q)||(p.sku_base||'').toLowerCase().includes(q)||(p.tamanhos||[]).some(t=>(t.sku||'').toLowerCase().includes(q)));
+  if(qTokens.length) lista=lista.filter(p=>{ const hay=normTxt((p.nome||'')+' '+(p.sku_base||'')+' '+((p.tamanhos||[]).map(t=>t.sku).join(' '))+' '+tipoProduto(p.nome)); return qTokens.every(t=>hay.includes(t)); });
   if(fs==='zero') lista=lista.filter(p=>(p.saldo_total||0)<=0);
   else if(fs==='furo') lista=lista.filter(p=>(p.grades_zeradas||0)>0 && (p.saldo_total||0)>0);
   else if(fs==='ok') lista=lista.filter(p=>(p.grades_zeradas||0)===0);
