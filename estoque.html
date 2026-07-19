@@ -173,7 +173,7 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
       <div class="card p-4 kpi"><div class="flex items-center gap-1 text-xs text-slate-500">Frequência <i class="ico-i" data-tip="Nº de pedidos pagos ÷ nº de clientes ativos. Em média, quantas vezes cada cliente comprou.">i</i></div><div class="text-2xl font-bold mt-1" id="kFreq">—</div></div>
     </div>
     <div class="card p-4">
-      <div class="text-sm font-semibold mb-3">Receita por dia</div>
+      <div class="text-sm font-semibold mb-3">Receita paga por dia <span class="text-[11px] font-normal text-slate-400">(só pedidos pagos)</span></div>
       <div id="chartWrap" class="w-full overflow-x-auto">
         <div id="chart"></div>
         <div id="chartTip"></div>
@@ -378,7 +378,8 @@ function renderChartLinha(dias){
   const tip=document.getElementById('chartTip');
   if(tip) tip.style.opacity='0';
   if(!dias.length){ chart.innerHTML='<div class="text-slate-400 text-sm py-8 text-center">Sem vendas no período.</div>'; return; }
-  const vals = dias.map(d=>VENDAS.dias[d].receita||0);
+  // Só receita PAGA (cancelado/não pago não conta).
+  const vals = dias.map(d=>VENDAS.dias[d].receita_paga||0);
   const n=dias.length;
   const H=260, padL=52, padR=16, padT=16, padB=34;
   const stepMin=36; // px por ponto (permite scroll horizontal em períodos longos)
@@ -420,7 +421,7 @@ function renderChartLinha(dias){
     cursor.setAttribute('x1',pxv); cursor.setAttribute('x2',pxv); cursor.setAttribute('opacity','1');
     const d=dias[bi]; const label=`${d.slice(8)}/${d.slice(5,7)}/${d.slice(0,4)}`;
     const valTxt=(vals[bi]).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-    tip.innerHTML=`<div class="d">${label}</div><div class="v"><i></i>Total em R$: ${valTxt}</div>`;
+    tip.innerHTML=`<div class="d">${label}</div><div class="v"><i></i>Pago em R$: ${valTxt}</div>`;
     tip.style.opacity='1';
     const tw=tip.offsetWidth||160;
     let left=pxv+14; if(left+tw>W) left=pxv-tw-14; if(left<2) left=2;

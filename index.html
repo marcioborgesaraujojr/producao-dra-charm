@@ -2774,7 +2774,10 @@ document.getElementById('commentInput').addEventListener('input', e => {
   if (match){
     const query = match[1].toLowerCase();
     // Só sugere quem é membro DESTE quadro (não gente de outros boards), e não você mesmo.
-    const matches = profiles.filter(p => p.id !== user.id && currentBoardMemberIds.has(p.id) && (p.full_name||'').toLowerCase().includes(query)).slice(0,6);
+    // Sugere membros do quadro; se a lista de membros ainda não carregou (vazia), cai pra todos os usuários
+    // (assim o menu SEMPRE aparece — antes ficava vazio quando currentBoardMemberIds não tinha carregado).
+    const scope = (currentBoardMemberIds && currentBoardMemberIds.size) ? profiles.filter(p => currentBoardMemberIds.has(p.id)) : profiles;
+    const matches = scope.filter(p => p.id !== user.id && (p.full_name||'').toLowerCase().includes(query)).slice(0,6);
     if (matches.length){
       menu.innerHTML = matches.map(p => `<button class="w-full text-left flex items-center gap-2 p-2 hover:bg-slate-100 dark:hover:bg-ink-700 text-sm" data-slug="${(p.full_name||'').toLowerCase().replace(/\s+/g,'.')}">
         <div class="w-6 h-6 rounded-full text-white text-xs flex items-center justify-center" style="background:${userColor(p)}">${(p.full_name||'?').charAt(0).toUpperCase()}</div>
