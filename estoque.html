@@ -186,7 +186,7 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
 <script type="module">
 const SUPA = { url:'https://wwytzoyeibekhstinott.supabase.co', key:'sb_publishable_uMoCEK4Ed_u8ZIfjVZ7Jrg_tdR4b9bO' };
 const BUCKET_URL = SUPA.url + '/storage/v1/object/public/reposicao-data/reposicao/';
-let sb=null, ESTOQUE=null, VENDAS=null, PAGOS=null;
+let sb=null, ESTOQUE=null, VENDAS=null, KPIS=null;
 
 async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2'); sb=createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true}}); } return sb; }
 window.toggleDark=()=>{ document.documentElement.classList.toggle('dark'); try{localStorage.setItem('dc_dark',document.documentElement.classList.contains('dark')?'1':'0');}catch(e){} };
@@ -230,7 +230,7 @@ function statusDe(p, limiar){ if(!p.ativo) return 'off'; if((p.saldo||0)<=0) ret
 async function carregar(){
   try{ const r=await fetch(BUCKET_URL+'estoque.json?t='+Date.now()); if(r.ok) ESTOQUE=await r.json(); }catch(e){}
   try{ const r=await fetch(BUCKET_URL+'vendas.json?t='+Date.now()); if(r.ok) VENDAS=await r.json(); }catch(e){}
-  try{ const r=await fetch(BUCKET_URL+'pagos.json?t='+Date.now()); if(r.ok) PAGOS=await r.json(); }catch(e){}
+  try{ const r=await fetch(BUCKET_URL+'kpis.json?t='+Date.now()); if(r.ok) KPIS=await r.json(); }catch(e){}
   const at = ESTOQUE?.atualizado_em ? new Date(ESTOQUE.atualizado_em).toLocaleString('pt-BR') : '—';
   document.getElementById('atualizadoInfo').textContent = 'Estoque atualizado: '+at;
   if(ESTOQUE && ESTOQUE.produtos){
@@ -305,7 +305,7 @@ window.atualizarVendas=async()=>{
   if(svg){ svg.classList.add('animate-spin'); }
   try{ await fetch('/api/estoque-sync?run=vendas-recente&_='+Date.now()); }catch(e){}
   try{ const r=await fetch(BUCKET_URL+'vendas.json?t='+Date.now()); if(r.ok) VENDAS=await r.json(); }catch(e){}
-  try{ const r=await fetch(BUCKET_URL+'pagos.json?t='+Date.now()); if(r.ok) PAGOS=await r.json(); }catch(e){}
+  try{ const r=await fetch(BUCKET_URL+'kpis.json?t='+Date.now()); if(r.ok) KPIS=await r.json(); }catch(e){}
   if(svg){ svg.classList.remove('animate-spin'); }
   if(b){ b.disabled=false; b.style.opacity=''; }
   renderVendas();
@@ -341,35 +341,35 @@ window.renderVendas=()=>{
   document.getElementById('vTicket').textContent = pagos? BRL(receitaPaga/pagos) : '—';
   const totalDias = Object.keys(VENDAS.dias).length;
   document.getElementById('vendasInfo').textContent = (VENDAS.done?'Backfill completo · ':'Backfill em andamento · ')+totalDias+' dias no histórico';
-  renderClientesKPIs(desde, ate);
+  renderClientesKPIs(per, desde, ate);
   renderChartLinha(dias);
 };
 
-// ===== Indicadores de cliente (a partir do livro-razão de pedidos pagos) =====
+// ===== Indicadores de cliente (kpis.json pré-calculado no servidor) =====
 function setKpi(id,v){ const el=document.getElementById(id); if(el) el.textContent=v; }
-function renderClientesKPIs(desde, ate){
+function fmtPct(n){ return (n>=0?'+':'')+n.toFixed(1).replace('.',',')+'%'; }
+function renderClientesKPIs(per, desde, ate){
   const ids=['kAtivos','kRecorrentes','kNovos','kCrescimento','kLtv','kFreq'];
-  if(!PAGOS || !PAGOS.pagos){ ids.forEach(i=>setKpi(i,'…')); return; }
-  const P = PAGOS.pagos;
-  // primeira compra (de todo o histórico) por cliente -> base pra "novos" e "crescimento"
-  const firstByC = {};
-  for(const k in P){ const e=P[k]; const c=e.c; if(!c) continue; if(!firstByC[c]||e.d<firstByC[c]) firstByC[c]=e.d; }
-  // agrega dentro do período
-  const byC = {}; let receita=0, ped=0;
-  for(const k in P){ const e=P[k]; if(e.d<desde||e.d>ate) continue; ped++; receita+=(e.r||0); const c=e.c; if(!c) continue; const g=byC[c]||{n:0,r:0}; g.n++; g.r+=(e.r||0); byC[c]=g; }
-  const ativos = Object.keys(byC).length;
-  const recorrentes = Object.values(byC).filter(g=>g.n>=2).length;
-  let novos=0, baseAntes=0;
-  for(const c in firstByC){ const f=firstByC[c]; if(f>=desde && f<=ate) novos++; else if(f<desde) baseAntes++; }
-  const cresc = baseAntes? (novos/baseAntes*100) : (novos?100:0);
-  const ltv = ativos? receita/ativos : 0;
-  const freq = ativos? ped/ativos : 0;
+  if(!KPIS || !KPIS.periods){ ids.forEach(i=>setKpi(i,'…')); return; }
+  const P = KPIS.periods[per];
+  if(!P){
+    // Período personalizado: só dá pra "novos" e "crescimento" (via novosPorDia). Os demais ficam '—'.
+    const npd=KPIS.novosPorDia||{}; let novos=0, base=0;
+    for(const dd in npd){ if(dd>=desde && dd<=ate) novos+=npd[dd]; else if(dd<desde) base+=npd[dd]; }
+    const cresc = base? novos/base*100 : (novos?100:0);
+    setKpi('kAtivos','—'); setKpi('kRecorrentes','—');
+    setKpi('kNovos', NUM(novos)); setKpi('kCrescimento', fmtPct(cresc));
+    setKpi('kLtv','—'); setKpi('kFreq','—');
+    return;
+  }
+  const ativos=P.ativos||0, ped=P.pedidos||0, receita=P.receita||0;
+  const cresc = P.base_antes? (P.novos/P.base_antes*100) : (P.novos?100:0);
   setKpi('kAtivos', NUM(ativos));
-  setKpi('kRecorrentes', NUM(recorrentes));
-  setKpi('kNovos', NUM(novos));
-  setKpi('kCrescimento', (cresc>=0?'+':'')+cresc.toFixed(1).replace('.',',')+'%');
-  setKpi('kLtv', ativos? BRL(ltv) : '—');
-  setKpi('kFreq', ativos? freq.toFixed(2).replace('.',',') : '—');
+  setKpi('kRecorrentes', NUM(P.recorrentes||0));
+  setKpi('kNovos', NUM(P.novos||0));
+  setKpi('kCrescimento', fmtPct(cresc));
+  setKpi('kLtv', ativos? BRL(receita/ativos) : '—');
+  setKpi('kFreq', ativos? (ped/ativos).toFixed(2).replace('.',',') : '—');
 }
 
 // ===== Gráfico de linha (receita por dia) com tooltip ao passar o mouse =====
