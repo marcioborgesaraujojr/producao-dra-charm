@@ -423,7 +423,7 @@ tailwind.config = {
       </div>
     </div>
     <div class="flex items-center gap-2">
-      <button onclick="ensSuiteModal();document.getElementById('suiteBgInput').click()" title="Trocar fundo" class="w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:text-pink-500 hover:bg-slate-100 dark:hover:bg-ink-700"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
+      <button onclick="trocarWallpaper()" title="Trocar fundo" class="w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:text-pink-500 hover:bg-slate-100 dark:hover:bg-ink-700"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
       <button onclick="document.documentElement.classList.toggle('dark');try{localStorage.setItem('dc_dark',document.documentElement.classList.contains('dark')?'1':'0')}catch(e){}" title="Tema" class="w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:text-pink-500 hover:bg-slate-100 dark:hover:bg-ink-700"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
     </div>
   </header>
@@ -3830,6 +3830,7 @@ h.push('<section><h3 class="text-sm font-semibold uppercase tracking-wide text-s
 h.push('</div></div>');
 d.innerHTML=h.join('');document.body.appendChild(d);}
 window.openSuiteSettings=function(){ensSuiteModal();var m=document.getElementById('suiteSettingsModal');m.classList.remove('hidden');m.classList.add('flex');};
+window.trocarWallpaper=function(){ensSuiteModal();var i=document.getElementById('suiteBgInput');if(i)i.click();};
 window.closeSuiteSettings=function(){var m=document.getElementById('suiteSettingsModal');if(m){m.classList.add('hidden');m.classList.remove('flex');}};
 document.addEventListener('click',function(e){if(e.target.closest('#suiteBgBtn'))document.getElementById('suiteBgInput').click();});
 document.addEventListener('click',function(e){if(e.target.closest('#suiteLoginBgBtn'))document.getElementById('loginBgInput').click();});

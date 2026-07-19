@@ -140,7 +140,7 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
         <span class="text-slate-400 text-xs px-0.5">até</span>
         <input id="dtAte" type="date" class="bg-transparent text-sm outline-none border-0 p-0 text-slate-700 dark:text-slate-200" onchange="renderVendas()">
       </div>
-      <button onclick="atualizarVendas()" class="text-sm font-semibold text-white bg-pink-500 hover:bg-pink-600 px-3 py-2 rounded-lg flex items-center gap-1 flex-shrink-0"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 22v-6h6M3 12a9 9 0 0 1 15-6.7L21 8M21 12a9 9 0 0 1-15 6.7L3 16"/></svg><span class="hidden sm:inline">Atualizar hoje</span></button>
+      <button id="btnAtVendas" onclick="atualizarVendas()" class="text-sm font-semibold text-white bg-pink-500 hover:bg-pink-600 px-3 py-2 rounded-lg flex items-center gap-1 flex-shrink-0"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 22v-6h6M3 12a9 9 0 0 1 15-6.7L21 8M21 12a9 9 0 0 1-15 6.7L3 16"/></svg><span class="hidden sm:inline">Atualizar hoje</span></button>
       <div class="ml-auto text-[10px] text-slate-500 dark:text-slate-300 bg-white/70 dark:bg-ink-800/70 px-2 py-0.5 rounded-md" id="vendasInfo"></div>
     </div>
     <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
@@ -272,11 +272,14 @@ window.renderEstoque=()=>{
 
 function janela(dias){ const d=new Date(); d.setDate(d.getDate()-dias+1); return d.toISOString().slice(0,10); }
 window.atualizarVendas=async()=>{
-  const b = (typeof event!=='undefined'&&event&&event.target)?event.target.closest('button'):null;
+  const b = document.getElementById('btnAtVendas');
+  const svg = b?b.querySelector('svg'):null;
   const info=document.getElementById('vendasInfo'); if(info) info.textContent='Atualizando vendas de hoje…';
   if(b){ b.disabled=true; b.style.opacity='.85'; }
+  if(svg){ svg.classList.add('animate-spin'); }
   try{ await fetch('/api/estoque-sync?run=vendas-recente&_='+Date.now()); }catch(e){}
   try{ const r=await fetch(BUCKET_URL+'vendas.json?t='+Date.now()); if(r.ok) VENDAS=await r.json(); }catch(e){}
+  if(svg){ svg.classList.remove('animate-spin'); }
   if(b){ b.disabled=false; b.style.opacity=''; }
   renderVendas();
 };
