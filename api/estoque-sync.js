@@ -161,10 +161,13 @@ function pickImg(pj) {
   if (typeof f === "string") return f;
   return f.grande || f.media || f["380x380"] || f.pequena || f.thumbnail || f["64x64"] || f.url || f.imagem || f.src || f.caminho || null;
 }
-// Coleta SKUs ATIVOS da LI + mapa de id do produto pai por SKU (pra buscar a foto).
+// Coleta SKUs ATIVOS da LI + mapa de id do pai (foto) + status ativo do PAI por SKU.
+// (Ao desativar na LI, o pai fica inativo mas as variações continuam "ativas" — por isso
+//  precisamos checar o pai pra não mostrar produto desativado.)
 async function coletarLI() {
   const skus = new Set();
   const parentIdBySku = {};
+  const paiAtivoByCodigo = {}; // sku(pai, lower) -> boolean (todos os pais, ativos ou não)
   let offset = 0;
   const LIMIT = 100, MAXP = 80;
   for (let i = 0; i < MAXP; i++) {
@@ -173,16 +176,19 @@ async function coletarLI() {
     const objs = out.data.objects || [];
     if (!objs.length) break;
     for (const p of objs) {
-      if (p.sku && p.ativo && !p.removido && !p.bloqueado) {
-        const s = String(p.sku).toLowerCase().trim();
-        skus.add(s);
-        if (p.tipo !== "atributo_opcao") parentIdBySku[s] = p.id; // pai/standalone (tem foto)
+      if (!p.sku) continue;
+      const s = String(p.sku).toLowerCase().trim();
+      const ativoDeVerdade = !!(p.ativo && !p.removido && !p.bloqueado);
+      if (p.tipo !== "atributo_opcao") { // pai/standalone
+        paiAtivoByCodigo[s] = ativoDeVerdade;
+        if (ativoDeVerdade) parentIdBySku[s] = p.id;
       }
+      if (ativoDeVerdade) skus.add(s);
     }
     if (objs.length < LIMIT) break;
     offset += objs.length;
   }
-  return { skus, parentIdBySku };
+  return { skus, parentIdBySku, paiAtivoByCodigo };
 }
 // Ordem canônica dos tamanhos
 const ORDEM_TAM = ["PP", "P", "M", "G", "GG", "XG", "XGG", "EG", "EGG", "U", "UNICO", "ÚNICO"];
@@ -203,7 +209,7 @@ function isServico(nome) {
 }
 // ============ SYNC ESTOQUE (Bling, filtrado pela LI, AGRUPADO por produto pai) ============
 async function runEstoque() {
-  const { skus: liSkus, parentIdBySku } = await coletarLI(); // só ativos + mapa de foto
+  const { skus: liSkus, parentIdBySku, paiAtivoByCodigo } = await coletarLI(); // ativos + foto + status do pai
   const token = await getBlingToken();
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const flat = [];
@@ -253,13 +259,16 @@ async function runEstoque() {
     const saldo_total = g.tamanhos.reduce((s, t) => s + (t.saldo || 0), 0);
     const grades_zeradas = g.tamanhos.filter(t => (t.saldo || 0) <= 0).length;
     return { nome: g.nome, sku_base: g.sku_base, pai_codigo: g.pai_codigo, preco: g.preco, custo: g.custo, imagem: null, saldo_total, grades: g.tamanhos.length, grades_zeradas, tamanhos: g.tamanhos };
-  });
+  })
+  // Remove produtos cujo PAI está inativo na LI (a variação continua "ativa", mas o pai não).
+  .filter(p => paiAtivoByCodigo[String(p.pai_codigo || "").toLowerCase()] !== false);
   // Snapshot anterior (pra merge de fotos e pra trava anti-sobrescrita)
   let prev = null;
   try { prev = await storageGet("reposicao/estoque.json"); } catch (_) {}
-  // TRAVA: se a varredura veio muito menor que o catálogo anterior, foi soluço do Bling -> não sobrescreve.
-  if (prev && prev.total_produtos && produtos.length < prev.total_produtos * 0.5) {
-    return { ok: false, motivo: "varredura parcial (Bling) — mantido o snapshot anterior", agora: produtos.length, anterior: prev.total_produtos, paginas: pagina };
+  // TRAVA: dispara só quando a VARREDURA veio parcial (poucas variações = soluço do Bling),
+  // não quando é só filtro removendo produtos. Assim não sobrescreve o catálogo bom.
+  if (prev && prev.total_variacoes && flat.length < prev.total_variacoes * 0.5) {
+    return { ok: false, motivo: "varredura parcial (Bling) — mantido o snapshot anterior", variacoes_agora: flat.length, variacoes_antes: prev.total_variacoes, paginas: pagina };
   }
   // Reaproveita fotos já buscadas
   if (prev && prev.produtos) {
@@ -357,6 +366,11 @@ export default async function handler(req, res) {
     // ---- sondagem ----
     if (debug === "bling-prod") { const t = await getBlingToken(); const o = await bling("/produtos?pagina=1&limite=" + (req.query.limite || 3), t); return res.json({ status: o.status, amostra: (o.data && o.data.data) || o.data }); }
     if (debug === "li-prod") { const o = await li("/produto/?limit=" + (req.query.limit || 3)); return res.json({ status: o.status, meta: o.data && o.data.meta, amostra: (o.data && o.data.objects) || o.data }); }
+    if (debug === "li-sku") {
+      const out = await li("/produto/?sku=" + encodeURIComponent(req.query.sku || ""));
+      const objs = (out.data && out.data.objects) || [];
+      return res.json({ status: out.status, matches: objs.map(p => ({ sku: p.sku, tipo: p.tipo, ativo: p.ativo, removido: p.removido, bloqueado: p.bloqueado, id: p.id, nome: (p.nome || "").slice(0, 60) })) });
+    }
     if (debug === "li-detail") { const o = await li("/produto/" + req.query.id + "/"); return res.json({ status: o.status, amostra: o.data }); }
     if (debug === "li-img") { const o = await li("/produto_imagem/?produto=" + req.query.id); return res.json({ status: o.status, amostra: (o.data && o.data.objects) || o.data }); }
     if (debug === "li-pedidos") { const o = await li("/pedido/?limit=" + (req.query.limit || 2)); return res.json({ status: o.status, meta: o.data && o.data.meta, amostra: (o.data && o.data.objects) || o.data }); }
