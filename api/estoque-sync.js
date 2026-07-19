@@ -364,10 +364,13 @@ function computeKpis(pagos) {
 async function salvarKpis(pagos) {
   try { await storagePut("reposicao/kpis.json", computeKpis(pagos)); } catch (_) {}
 }
-async function runVendas(maxPages, reset) {
+async function runVendas(maxPages, reset, rewind) {
   maxPages = Math.min(Math.max(parseInt(maxPages) || 20, 1), 60);
   let snap = (reset ? null : await storageGet("reposicao/vendas.json")) || { atualizado_em: null, offset: 0, total_count: 0, dias: {}, done: false, janela_dias: 1095 };
   if (!snap.dias) snap.dias = {};
+  // rewind: volta a varrer do pedido mais novo SEM apagar dias/pagos (só re-registra, idempotente).
+  // Serve pra preencher o livro-razão de pagos numa faixa que já foi varrida antes de existir o pagos.json.
+  if (rewind) { snap.offset = 0; snap.done = false; }
   const LIMIT = 100;
   const corte = diasAtras(snap.janela_dias || 365); // 'YYYY-MM-DD'
   const modo = snap.done ? "incremental" : "backfill";
@@ -435,7 +438,7 @@ export default async function handler(req, res) {
   const { run, debug } = req.query;
   try {
     if (run === "estoque") return res.json(await runEstoque());
-    if (run === "vendas") return res.json(await runVendas(req.query.pages, req.query.reset === "1"));
+    if (run === "vendas") return res.json(await runVendas(req.query.pages, req.query.reset === "1", req.query.rewind === "1"));
     if (run === "vendas-recente") return res.json(await runVendasRecente());
     if (run === "kpis") { const pg = await storageGet("reposicao/pagos.json"); if (!pg || !pg.pagos) return res.json({ ok: false, motivo: "pagos.json ainda não existe" }); const k = computeKpis(pg.pagos); await storagePut("reposicao/kpis.json", k); return res.json({ ok: true, pagos: Object.keys(pg.pagos).length, periods: Object.keys(k.periods).length }); }
     if (run === "status") {
