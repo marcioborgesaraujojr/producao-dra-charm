@@ -330,6 +330,40 @@ async function salvarPagos(pg, corte) {
   pg.atualizado_em = new Date().toISOString();
   await storagePut("reposicao/pagos.json", pg);
 }
+// Períodos padrão (mesmas chaves do <select> do front). Datas em UTC (igual ao front).
+function periodosPadrao() {
+  const hj = new Date().toISOString().slice(0, 10);
+  const y = parseInt(hj.slice(0, 4));
+  const d = (n) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
+  return {
+    hoje: [hj, hj], ontem: [d(1), d(1)],
+    "7": [d(6), hj], mes: [hj.slice(0, 7) + "-01", hj], "30": [d(29), hj],
+    ano_atual: [y + "-01-01", hj], ano_passado: [(y - 1) + "-01-01", (y - 1) + "-12-31"],
+    "90": [d(89), hj], "365": [d(364), hj], "730": [d(729), hj], "1095": [d(1094), hj],
+  };
+}
+// Pré-calcula os indicadores de cliente pra cada período padrão (o livro-razão fica só no servidor;
+// o front recebe só este JSON pequeno). novosPorDia serve pra períodos personalizados (novos/crescimento).
+function computeKpis(pagos) {
+  const firstByC = {};
+  for (const k in pagos) { const e = pagos[k]; const c = e.c; if (!c) continue; if (!firstByC[c] || e.d < firstByC[c]) firstByC[c] = e.d; }
+  const novosPorDia = {};
+  for (const c in firstByC) { const dd = firstByC[c]; novosPorDia[dd] = (novosPorDia[dd] || 0) + 1; }
+  const pers = periodosPadrao();
+  const out = {};
+  for (const key in pers) {
+    const de = pers[key][0], ate = pers[key][1];
+    const byC = {}; let receita = 0, ped = 0;
+    for (const k in pagos) { const e = pagos[k]; if (e.d < de || e.d > ate) continue; ped++; receita += (e.r || 0); const c = e.c; if (!c) continue; byC[c] = (byC[c] || 0) + 1; }
+    let ativos = 0, recor = 0; for (const c in byC) { ativos++; if (byC[c] >= 2) recor++; }
+    let novos = 0, base = 0; for (const c in firstByC) { const f = firstByC[c]; if (f >= de && f <= ate) novos++; else if (f < de) base++; }
+    out[key] = { ativos, recorrentes: recor, novos, base_antes: base, receita: Math.round(receita * 100) / 100, pedidos: ped };
+  }
+  return { atualizado_em: new Date().toISOString(), periods: out, novosPorDia };
+}
+async function salvarKpis(pagos) {
+  try { await storagePut("reposicao/kpis.json", computeKpis(pagos)); } catch (_) {}
+}
 async function runVendas(maxPages, reset) {
   maxPages = Math.min(Math.max(parseInt(maxPages) || 20, 1), 60);
   let snap = (reset ? null : await storageGet("reposicao/vendas.json")) || { atualizado_em: null, offset: 0, total_count: 0, dias: {}, done: false, janela_dias: 1095 };
@@ -364,6 +398,7 @@ async function runVendas(maxPages, reset) {
   snap.atualizado_em = new Date().toISOString();
   await storagePut("reposicao/vendas.json", snap);
   await salvarPagos(pg, corte);
+  await salvarKpis(pg.pagos);
   return { ok: true, modo, processados, offset: snap.offset, total_count: snap.total_count, done: snap.done, dias: Object.keys(snap.dias).length, pagos: pg.total, li_ok: ultOk };
 }
 
@@ -391,6 +426,7 @@ async function runVendasRecente() {
   snap.atualizado_em = new Date().toISOString();
   await storagePut("reposicao/vendas.json", snap);
   await salvarPagos(pg, null);
+  await salvarKpis(pg.pagos);
   return { ok: true, processados, dias: Object.keys(snap.dias).length, pagos: pg.total };
 }
 
@@ -401,6 +437,7 @@ export default async function handler(req, res) {
     if (run === "estoque") return res.json(await runEstoque());
     if (run === "vendas") return res.json(await runVendas(req.query.pages, req.query.reset === "1"));
     if (run === "vendas-recente") return res.json(await runVendasRecente());
+    if (run === "kpis") { const pg = await storageGet("reposicao/pagos.json"); if (!pg || !pg.pagos) return res.json({ ok: false, motivo: "pagos.json ainda não existe" }); const k = computeKpis(pg.pagos); await storagePut("reposicao/kpis.json", k); return res.json({ ok: true, pagos: Object.keys(pg.pagos).length, periods: Object.keys(k.periods).length }); }
     if (run === "status") {
       const e = await storageGet("reposicao/estoque.json");
       const v = await storageGet("reposicao/vendas.json");
