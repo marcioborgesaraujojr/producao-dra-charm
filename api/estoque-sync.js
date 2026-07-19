@@ -307,6 +307,29 @@ function agregaPedido(dias, p) {
   d.receita += Number(p.valor_total || 0);
   dias[dia] = d;
 }
+// Extrai o ID do cliente da URI ("/api/v1/cliente/36583578" -> "36583578"). Só o ID (sem nome/email).
+function cidFromURI(u) { const m = String(u || "").match(/cliente\/(\d+)/); return m ? m[1] : null; }
+// Livro-razão de pedidos PAGOS, idempotente por id do pedido: pagos[id] = { c: clienteId, r: valor, d: dia }.
+// Reprocessar o mesmo pedido só reescreve a mesma chave (sem duplicar). Se deixou de ser pago, remove.
+function regPago(pagos, p) {
+  const dia = diaISO(p.data_criacao); if (!dia) return;
+  const sit = p.situacao || {};
+  const pago = !!sit.aprovado && !sit.cancelado;
+  const id = String(p.id);
+  if (pago) pagos[id] = { c: cidFromURI(p.cliente), r: Number(p.valor_total || 0), d: dia };
+  else if (pagos[id]) delete pagos[id];
+}
+async function lerPagos(reset, janela) {
+  const pg = (reset ? null : await storageGet("reposicao/pagos.json")) || { atualizado_em: null, janela_dias: janela || 1095, pagos: {} };
+  if (!pg.pagos) pg.pagos = {};
+  return pg;
+}
+async function salvarPagos(pg, corte) {
+  if (corte) { for (const k of Object.keys(pg.pagos)) if (pg.pagos[k].d < corte) delete pg.pagos[k]; } // poda além da janela
+  pg.total = Object.keys(pg.pagos).length;
+  pg.atualizado_em = new Date().toISOString();
+  await storagePut("reposicao/pagos.json", pg);
+}
 async function runVendas(maxPages, reset) {
   maxPages = Math.min(Math.max(parseInt(maxPages) || 20, 1), 60);
   let snap = (reset ? null : await storageGet("reposicao/vendas.json")) || { atualizado_em: null, offset: 0, total_count: 0, dias: {}, done: false, janela_dias: 1095 };
@@ -314,9 +337,10 @@ async function runVendas(maxPages, reset) {
   const LIMIT = 100;
   const corte = diasAtras(snap.janela_dias || 365); // 'YYYY-MM-DD'
   const modo = snap.done ? "incremental" : "backfill";
+  const pg = await lerPagos(reset, snap.janela_dias || 1095); // livro-razão de pagos por cliente
   // Mais NOVO primeiro (order_by=-data_criacao): offset 0 = pedidos mais recentes.
   let offset = (modo === "backfill") ? (snap.offset || 0) : 0;
-  if (modo === "incremental") { const inc = diasAtras(3); for (const k of Object.keys(snap.dias)) if (k >= inc) delete snap.dias[k]; }
+  if (modo === "incremental") { const inc = diasAtras(3); for (const k of Object.keys(snap.dias)) if (k >= inc) delete snap.dias[k]; for (const k of Object.keys(pg.pagos)) if (pg.pagos[k].d >= inc) delete pg.pagos[k]; }
   let processados = 0, ultOk = false;
   for (let i = 0; i < maxPages; i++) {
     const out = await li("/pedido/?limit=" + LIMIT + "&offset=" + offset + "&order_by=-data_criacao");
@@ -328,7 +352,7 @@ async function runVendas(maxPages, reset) {
     let passouDoCorte = false;
     for (const p of objs) {
       const dia = diaISO(p.data_criacao);
-      if (dia && dia >= corte) { agregaPedido(snap.dias, p); processados++; }
+      if (dia && dia >= corte) { agregaPedido(snap.dias, p); regPago(pg.pagos, p); processados++; }
       else if (dia) { passouDoCorte = true; }
     }
     offset += objs.length;
@@ -339,7 +363,8 @@ async function runVendas(maxPages, reset) {
   if (modo === "backfill") snap.offset = snap.done ? 0 : offset;
   snap.atualizado_em = new Date().toISOString();
   await storagePut("reposicao/vendas.json", snap);
-  return { ok: true, modo, processados, offset: snap.offset, total_count: snap.total_count, done: snap.done, dias: Object.keys(snap.dias).length, li_ok: ultOk };
+  await salvarPagos(pg, corte);
+  return { ok: true, modo, processados, offset: snap.offset, total_count: snap.total_count, done: snap.done, dias: Object.keys(snap.dias).length, pagos: pg.total, li_ok: ultOk };
 }
 
 // Atualiza SÓ os últimos dias (inclui hoje) sem mexer no backfill — pra o "Hoje" vir na hora.
@@ -349,6 +374,8 @@ async function runVendasRecente() {
   const LIMIT = 100;
   const inc = diasAtras(4); // últimos ~3-4 dias
   for (const k of Object.keys(snap.dias)) if (k >= inc) delete snap.dias[k]; // recontar do zero esses dias
+  const pg = await lerPagos(false, snap.janela_dias || 1095);
+  for (const k of Object.keys(pg.pagos)) if (pg.pagos[k].d >= inc) delete pg.pagos[k]; // idem no livro-razão
   let offset = 0, processados = 0;
   for (let i = 0; i < 8; i++) {
     const out = await li("/pedido/?limit=" + LIMIT + "&offset=" + offset + "&order_by=-data_criacao");
@@ -357,13 +384,14 @@ async function runVendasRecente() {
     const objs = out.data.objects || [];
     if (!objs.length) break;
     let passou = false;
-    for (const p of objs) { const dia = diaISO(p.data_criacao); if (dia && dia >= inc) { agregaPedido(snap.dias, p); processados++; } else if (dia) { passou = true; } }
+    for (const p of objs) { const dia = diaISO(p.data_criacao); if (dia && dia >= inc) { agregaPedido(snap.dias, p); regPago(pg.pagos, p); processados++; } else if (dia) { passou = true; } }
     offset += objs.length;
     if (passou || objs.length < LIMIT) break;
   }
   snap.atualizado_em = new Date().toISOString();
   await storagePut("reposicao/vendas.json", snap);
-  return { ok: true, processados, dias: Object.keys(snap.dias).length };
+  await salvarPagos(pg, null);
+  return { ok: true, processados, dias: Object.keys(snap.dias).length, pagos: pg.total };
 }
 
 export default async function handler(req, res) {
@@ -376,9 +404,11 @@ export default async function handler(req, res) {
     if (run === "status") {
       const e = await storageGet("reposicao/estoque.json");
       const v = await storageGet("reposicao/vendas.json");
+      const pg = await storageGet("reposicao/pagos.json");
       return res.json({
         estoque: e ? { atualizado_em: e.atualizado_em, total: e.total } : null,
         vendas: v ? { atualizado_em: v.atualizado_em, dias: v.dias ? Object.keys(v.dias).length : 0, done: v.done, total_count: v.total_count, offset: v.offset } : null,
+        pagos: pg ? { atualizado_em: pg.atualizado_em, total: pg.total || (pg.pagos ? Object.keys(pg.pagos).length : 0) } : null,
       });
     }
     // ---- teste isolado da gravação no Storage ----
