@@ -308,11 +308,15 @@ window.renderVendas=()=>{
 };
 
 window.rodarSync=async(tipo)=>{
-  const btnTxt = event?.target?.closest('button'); if(btnTxt) btnTxt.disabled=true;
-  try{ await fetch('/api/estoque-sync?run='+tipo+'&_='+Date.now()); }catch(e){}
-  await new Promise(r=>setTimeout(r,1500));
+  const btn = (typeof event!=='undefined' && event && event.target) ? event.target.closest('button') : document.querySelector('button[onclick*="rodarSync"]');
+  const orig = btn ? btn.innerHTML : '';
+  if(btn){ btn.disabled=true; btn.style.opacity='.85'; btn.innerHTML='<svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.2-8.5"/></svg><span class="hidden sm:inline">Atualizando…</span>'; }
+  const info=document.getElementById('atualizadoInfo'); if(info) info.textContent='Atualizando estoque (até ~1 min)…';
+  let ok=false;
+  try{ const r=await fetch('/api/estoque-sync?run='+tipo+'&_='+Date.now()); const j=await r.json().catch(()=>null); ok=!!(j&&j.ok); }catch(e){}
   await carregar();
-  if(btnTxt) btnTxt.disabled=false;
+  if(btn){ btn.disabled=false; btn.style.opacity=''; btn.innerHTML=orig; }
+  if(info && !ok) info.textContent='Falha/parcial ao atualizar — tente de novo';
 };
 
 (async()=>{
