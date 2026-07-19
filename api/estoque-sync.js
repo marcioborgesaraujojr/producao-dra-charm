@@ -389,7 +389,7 @@ async function runVendas(maxPages, reset, rewind) {
     let passouDoCorte = false;
     for (const p of objs) {
       const dia = diaISO(p.data_criacao);
-      if (dia && dia >= corte) { agregaPedido(snap.dias, p); regPago(pg.pagos, p); processados++; }
+      if (dia && dia >= corte) { if (!rewind) agregaPedido(snap.dias, p); regPago(pg.pagos, p); processados++; }
       else if (dia) { passouDoCorte = true; }
     }
     offset += objs.length;
