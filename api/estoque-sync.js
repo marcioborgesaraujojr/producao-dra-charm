@@ -342,12 +342,37 @@ async function runVendas(maxPages, reset) {
   return { ok: true, modo, processados, offset: snap.offset, total_count: snap.total_count, done: snap.done, dias: Object.keys(snap.dias).length, li_ok: ultOk };
 }
 
+// Atualiza SÓ os últimos dias (inclui hoje) sem mexer no backfill — pra o "Hoje" vir na hora.
+async function runVendasRecente() {
+  let snap = (await storageGet("reposicao/vendas.json")) || { atualizado_em: null, offset: 0, total_count: 0, dias: {}, done: false, janela_dias: 1095 };
+  if (!snap.dias) snap.dias = {};
+  const LIMIT = 100;
+  const inc = diasAtras(4); // últimos ~3-4 dias
+  for (const k of Object.keys(snap.dias)) if (k >= inc) delete snap.dias[k]; // recontar do zero esses dias
+  let offset = 0, processados = 0;
+  for (let i = 0; i < 8; i++) {
+    const out = await li("/pedido/?limit=" + LIMIT + "&offset=" + offset + "&order_by=-data_criacao");
+    if (!out.ok || !out.data) break;
+    if (out.data.meta && out.data.meta.total_count) snap.total_count = out.data.meta.total_count;
+    const objs = out.data.objects || [];
+    if (!objs.length) break;
+    let passou = false;
+    for (const p of objs) { const dia = diaISO(p.data_criacao); if (dia && dia >= inc) { agregaPedido(snap.dias, p); processados++; } else if (dia) { passou = true; } }
+    offset += objs.length;
+    if (passou || objs.length < LIMIT) break;
+  }
+  snap.atualizado_em = new Date().toISOString();
+  await storagePut("reposicao/vendas.json", snap);
+  return { ok: true, processados, dias: Object.keys(snap.dias).length };
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   const { run, debug } = req.query;
   try {
     if (run === "estoque") return res.json(await runEstoque());
     if (run === "vendas") return res.json(await runVendas(req.query.pages, req.query.reset === "1"));
+    if (run === "vendas-recente") return res.json(await runVendasRecente());
     if (run === "status") {
       const e = await storageGet("reposicao/estoque.json");
       const v = await storageGet("reposicao/vendas.json");
