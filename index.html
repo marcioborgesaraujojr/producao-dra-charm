@@ -1796,15 +1796,6 @@ function divergenciaQuadro(c){
   const txt = det.slice(0,2).map(d => `${d.dif<0?'faltam':'sobram'} ${Math.abs(d.dif)} no ${d.tam}`).join(' · ');
   return { pct, assin, msg: `Grade ${pct.toFixed(1).replace('.',',')}% · ${txt}` };
 }
-window.darOkQuadro = async (id, assin) => {
-  if (!ehAdmin()) return;
-  try{
-    await sb.from('activity_log').insert({ card_id: id, actor_id: user.id, action: 'grade_ok', meta: { etapa: 'oficina', assinatura: assin } });
-    gradeOksSet.add(assin);
-    toast('Divergência aprovada');
-    renderBoard();
-  }catch(e){ toast('Não deu pra aprovar'); }
-};
 
 function renderCard(c, compact){
   const el = document.createElement('div');
@@ -1885,20 +1876,18 @@ function renderCard(c, compact){
     ${!compact && icons.length ? `<div class="flex flex-wrap gap-2 mt-1.5">${icons.join('')}</div>`:''}
     ${cmembs.length ? `<div class="flex -space-x-1 mt-1">${memAvatars}${cmembs.length>3?`<div class="w-5 h-5 rounded-full bg-slate-400 text-white text-[9px] flex items-center justify-center">+${cmembs.length-3}</div>`:''}</div>`:''}
   `;
-  // Divergência de grade: pinta o card (só admin, só produção, acima do limiar)
-  let gradeAviso = '';
+  // Divergência de grade: só pinta o fundo do card (sem borda, sem texto, sem botão).
+  // O detalhe e o "dar ok" ficam dentro do card. Só admin, só no quadro de produção.
   if (bType === 'producao' && ehAdmin()){
     const dv = divergenciaQuadro(c);
     if (dv && dv.pct >= LIMIAR_QUADRO){
       const grave = dv.pct >= LIMIAR_GRAVE;
-      el.classList.add('relative','ring-2', grave ? 'ring-red-400' : 'ring-amber-400');
-      el.style.background = grave ? 'rgba(239,68,68,.07)' : 'rgba(245,158,11,.09)';
-      gradeAviso = `<div class="flex items-center gap-1 mt-1 text-[10px] ${grave?'text-red-700 dark:text-red-300':'text-amber-700 dark:text-amber-300'}">
-        <span class="flex-1 truncate" title="${escapeHtml(dv.msg)}">${escapeHtml(dv.msg)}</span>
-        <button onclick="event.stopPropagation();darOkQuadro('${c.id}','${escapeHtml(dv.assin)}')" class="px-1.5 py-0.5 rounded border border-current hover:bg-white/60 dark:hover:bg-black/20 shrink-0">dar ok</button>
-      </div>`;
+      const dark = document.documentElement.classList.contains('dark');
+      el.style.background = grave ? (dark ? '#43201f' : '#fde8e8') : (dark ? '#3d3117' : '#fdf1d6');
+      el.title = dv.msg;
     }
   }
+  const gradeAviso = '';
   el.innerHTML = `<div class="flex gap-2 items-center"><div class="relative shrink-0 flex items-center">${cover}${bordadoBadge}</div><div class="flex-1 min-w-0">${bodyInner}${gradeAviso}</div></div>`;
   el.addEventListener('dragstart', (ev) => {
     draggingCardId = c.id;
