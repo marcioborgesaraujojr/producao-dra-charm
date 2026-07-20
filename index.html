@@ -1589,7 +1589,7 @@ async function criarCardPedidoManual(list, listCards){
       pedido_numero: String(data.numero), pedido_cliente: data.cliente || null, pedido_produtos: data.produtos || []
     }).select().single();
     if (error){ toast('Erro ao criar card: '+error.message); return; }
-    if (nc){ cards.push(nc); cardLabels[nc.id]=[]; cardMembers[nc.id]=[]; renderBoard(); openCard(nc.id); toast('Card criado! Preencha o bordado e escolha o produto.'); }
+    if (nc){ cards.push(nc); cardLabels[nc.id]=[]; cardMembers[nc.id]=[]; renderBoard(); puxarFotoDoSite(nc); openCard(nc.id); toast('Card criado! Preencha o bordado e escolha o produto.'); }
   } finally {
     criarCardPedidoManual._busy = false;
   }
@@ -1644,7 +1644,7 @@ function renderBoard(){
         try {
           const maxPos = Math.max(0, ...listCards.map(c=>c.position||0));
           const { data: nc } = await sb.from('cards').insert({list_id: list.id, title: t, position: maxPos+16384, created_by: user.id}).select().single();
-          if (nc){ cards.push(nc); cardLabels[nc.id]=[]; cardMembers[nc.id]=[]; renderBoard(); }
+          if (nc){ cards.push(nc); cardLabels[nc.id]=[]; cardMembers[nc.id]=[]; renderBoard(); puxarFotoDoSite(nc); }
         } finally { _addBtn.dataset.busy = '0'; _addBtn.disabled = false; }
       }
     };
@@ -1794,6 +1794,51 @@ function divergenciaQuadro(c){
   if (gradeOksSet.has(assin)) return null;   // você já deu ok nessa exata divergência
   const txt = det.slice(0,2).map(d => `${d.dif<0?'faltam':'sobram'} ${Math.abs(d.dif)} no ${d.tam}`).join(' · ');
   return { pct, assin, msg: `Grade ${pct.toFixed(1).replace('.',',')}% · ${txt}` };
+}
+
+// ===== Foto do produto puxada do site (Loja Integrada) pelo nome do card =====
+// Evita upload manual: o card guarda só a URL do CDN, sem ocupar Storage.
+let _catSite = null;
+async function catalogoSite(){
+  if (_catSite) return _catSite;
+  const norm = s => (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+  const STOP = new Set(['scrub','colete','jaleco','blusa','calca','conjunto','touca','gorro','avental','manga','longa','curta','com','de','da','do','e']);
+  try{
+    const r = await fetch('https://wwytzoyeibekhstinott.supabase.co/storage/v1/object/public/reposicao-data/reposicao/estoque.json');
+    const j = await r.json();
+    const prods = (j.produtos||[]).filter(p=>p.imagem).map(p=>({ img:p.imagem, toks: norm(p.nome).split(' ').filter(t=>t && !STOP.has(t)) }));
+    const conhecidas = new Set(); prods.forEach(p=>p.toks.forEach(t=>conhecidas.add(t)));
+    _catSite = { prods, conhecidas, norm, STOP };
+  }catch(e){ _catSite = { prods:[], conhecidas:new Set(), norm, STOP }; }
+  return _catSite;
+}
+async function fotoDoSite(titulo){
+  const cat = await catalogoSite();
+  if (!cat.prods.length) return null;
+  const base = cat.norm(titulo).replace(/\boc\s*l?\s*\d+\b/g,'').trim();
+  const toks = base.split(' ').filter(t => t && !cat.STOP.has(t));
+  if (!toks.length) return null;
+  let cands = cat.prods.filter(p => toks.every(t => p.toks.includes(t)));
+  // Palavra que não existe em nenhum produto (ex.: "soft") não distingue nada — tenta sem ela.
+  if (!cands.length){ const t2 = toks.filter(t => cat.conhecidas.has(t)); if (t2.length) cands = cat.prods.filter(p => t2.every(t => p.toks.includes(t))); }
+  if (!cands.length) return null;
+  if (cands.length === 1) return cands[0].img;
+  // Entre vários, vence o nome mais curto ("Ava Branco" e não "Ava Branco Off"). Empate = não chuta.
+  const min = Math.min(...cands.map(p => p.toks.length));
+  const curtos = cands.filter(p => p.toks.length === min);
+  return curtos.length === 1 ? curtos[0].img : null;
+}
+async function puxarFotoDoSite(card){
+  try{
+    if (!card || card.cover_url) return;
+    if (boardType(currentBoardId) !== 'producao') return;
+    const img = await fotoDoSite(card.title);
+    if (!img) return;
+    card.cover_url = img;
+    await sb.from('cards').update({ cover_url: img }).eq('id', card.id);
+    renderBoard();
+    if (activeCardId === card.id) renderCardCover(card);
+  }catch(e){}
 }
 
 function renderCard(c, compact){
@@ -3636,7 +3681,7 @@ document.addEventListener('keydown', e => {
     uiPrompt('Nome do card', {title:'Novo card'}).then(t => {
       if (!t){ window.__novoCardBusy = false; return; }
       sb.from('cards').insert({list_id: lists[0].id, title: t, position: 0, created_by: user.id}).select().single().then(({data}) => {
-        if (data) { cards.push(data); cardLabels[data.id]=[]; cardMembers[data.id]=[]; renderBoard(); }
+        if (data) { cards.push(data); cardLabels[data.id]=[]; cardMembers[data.id]=[]; renderBoard(); puxarFotoDoSite(data); }
       }).finally(() => { window.__novoCardBusy = false; });
     }).catch(() => { window.__novoCardBusy = false; });
   }
