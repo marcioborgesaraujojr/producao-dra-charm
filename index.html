@@ -3068,7 +3068,9 @@ function comparaGrade(fnEsperado, fnFeito){
     const esp = fnEsperado(t), feito = fnFeito(t);
     espTotal += esp;
     const d = feito - esp;
-    if (esp > 0 && d !== 0){ difTotal += Math.abs(d); detalhes.push({ tam:t, dif:d }); }
+    // Só FALTA gera alerta. Sobra (feito > esperado) não acusa — normalmente é erro de digitação,
+    // e o mais comum na operação é faltar peça, não sobrar (decisão do Marcio 2026-07-20).
+    if (esp > 0 && d < 0){ difTotal += Math.abs(d); detalhes.push({ tam:t, dif:d }); }
   });
   const pct = espTotal > 0 ? (difTotal / espTotal) * 100 : 0;
   return { detalhes, pct, sev: severidade(pct, difTotal), difTotal, espTotal };
@@ -3147,23 +3149,24 @@ function celulaGrade(etapa, tam){
   // Divergência só acende depois que a etapa começou (senão o "não iniciado" ficava todo amarelo).
   const acabIniciado = (gradeTotalEtapa('acabamento') + gradeTotalEtapa('falha')) > 0;
   const estoqueIniciado = gradeTotalEtapa('estoque') > 0;
+  // Só FALTA (feito < esperado) acende borda. Sobra não acusa (ver comparaGrade).
   if (etapa === 'oficina'){
     // Borda de divergência na oficina x cortada, só quando a oficina já começou a ser preenchida.
     const esp = gradeCortada(tam);
-    if (baseOficinaPreenchida() && esp > 0 && v !== esp) extra = v < esp ? 'border-amber-400' : 'border-red-400';
+    if (baseOficinaPreenchida() && esp > 0 && v < esp) extra = 'border-amber-400';
   } else if (etapa === 'acabamento' && acabIniciado){
     const esp = baseAcab(tam), feito = v + gradeTotal('falha', tam);
-    if (esp > 0 && feito !== esp) extra = feito < esp ? 'border-amber-400' : 'border-red-400';
+    if (esp > 0 && feito < esp) extra = 'border-amber-400';
   } else if (etapa === 'estoque' && estoqueIniciado){
     const esp = gradeTotal('acabamento', tam);
-    if (esp > 0 && v !== esp) extra = v < esp ? 'border-amber-400' : 'border-red-400';
+    if (esp > 0 && v < esp) extra = 'border-amber-400';
   }
   const h = etapa === 'falha' ? 'py-1' : 'py-1.5';
   const bg = CELL_BG[etapa] || 'bg-slate-50 dark:bg-ink-700';
   const bord = extra || CELL_BORDER[etapa] || 'border-slate-200 dark:border-ink-600';
   return `<div>
     <div class="text-[10px] text-center text-slate-500 mb-0.5">${tam}</div>
-    <button type="button" onclick="abrirLanc('${etapa}','${tam}')" class="w-full ${h} rounded-lg ${bg} border ${bord} ${ring} ${HOVER_ETAPA[etapa]} text-sm text-center">${v || '<span class="text-slate-300 dark:text-slate-600">—</span>'}</button>
+    <button type="button" onclick="abrirLanc('${etapa}','${tam}')" class="grade-cell w-full ${h} rounded-lg ${bg} border ${bord} ${ring} ${HOVER_ETAPA[etapa]} text-sm text-center">${v || '<span class="text-slate-300 dark:text-slate-600">—</span>'}</button>
   </div>`;
 }
 
@@ -3213,6 +3216,14 @@ window.abrirLanc = (etapa, tam) => {
     const i = document.getElementById('lancQtd'); if (i) i.focus();
   }
 };
+
+// Clicar fora da caixa (e fora de uma célula da grade) fecha o "+ peças".
+document.addEventListener('click', (e) => {
+  if (!lancAtual) return;
+  if (e.target.closest && (e.target.closest('#lancBox') || e.target.closest('.grade-cell'))) return;
+  lancAtual = null;
+  renderGrades();
+});
 
 function renderLancBox(){
   const box = document.getElementById('lancBox');
