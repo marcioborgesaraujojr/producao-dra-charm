@@ -150,6 +150,10 @@ tailwind.config = {
   .dark .mention-menu{background:#1f2937;border-color:#374151}
   /* Quebra-linha usada só no mobile (força "Confortável" e "Alertas" pra linha própria) */
   .mob-break{display:none}
+  /* Scroll estilo Trello (vale p/ todos os kanbans): o quadro ocupa a altura da tela, as
+     COLUNAS ficam travadas e só rola por dentro a lista que está sob o mouse. */
+  #app:not(.hidden){display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
+  #board{flex:1 1 0;min-height:0;overflow-y:hidden}
 
   /* ============ MOBILE (<768px) ============ */
   @media (max-width: 767px){
@@ -588,7 +592,7 @@ tailwind.config = {
     <div id="faccaoFilterBar" class="hidden px-4 pb-3 flex flex-wrap gap-1.5"></div>
   </header>
 
-  <main id="board" class="board-scroll flex gap-3 overflow-x-auto items-start p-4" style="min-height:calc(100vh - 60px)"></main>
+  <main id="board" class="board-scroll flex gap-3 overflow-x-auto items-start p-4"></main>
 </div>
 
 <div id="bellDropdown" class="hidden fixed right-4 top-14 z-40 bg-white dark:bg-ink-800 rounded-xl shadow-2xl border border-slate-200 dark:border-ink-700 w-80 max-h-96 overflow-y-auto">
