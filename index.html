@@ -945,6 +945,10 @@
                 <svg id="cardProdutosChevron" class="ml-auto w-4 h-4 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
               <div id="cardProdutosList" class="mt-2 space-y-2"></div>
+              <button type="button" id="cardReSyncProdutos" onclick="reSyncProdutos(this)" class="hidden mt-2 w-full text-[11px] flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-slate-200 dark:border-ink-600 text-slate-500 hover:text-pink-600 hover:border-pink-300 dark:hover:border-pink-700 transition-colors" title="Rebusca os produtos e bordados na Loja Integrada (corrige pedido com 2 bordados diferentes no mesmo produto)">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+                Atualizar da Loja Integrada
+              </button>
             </div>
           </div>
           <div id="cardDescBox">
@@ -2292,6 +2296,8 @@ async function openCard(id){
   window.renderCardProdutos = function(c){
   const prodBox = document.getElementById('cardProdutosBox');
   const prodList = document.getElementById('cardProdutosList');
+  const _rsBtn = document.getElementById('cardReSyncProdutos');
+  if (_rsBtn) _rsBtn.classList.toggle('hidden', !(c.pedido_numero && canEditBoard));
   if (prodBox && prodList){
     const produtos = c.pedido_produtos || [];
     const countEl = document.getElementById('cardProdutosCount');
@@ -2337,6 +2343,7 @@ async function openCard(id){
   };
   window.renderCardProdutos(c);
   setCorFio(c.bordado_cor_nome, c.bordado_cor_hex);
+  // (handler do botão "Atualizar da Loja Integrada" definido uma vez, fora daqui)
   preencherProdutoBordado(c);
   preencherSelectBordado('cardBordadoFonte', FONTE_OPTS, c.bordado_fonte);
   preencherSelectBordado('cardBordadoLado', LADO_OPTS, c.bordado_lado);
@@ -2523,6 +2530,32 @@ function renderCardCover(c){
   else { plus.classList.remove('hidden'); }
 }
 // Popula o seletor "Produto do bordado" com os produtos do pedido; pré-seleciona o que já está marcado
+// Rebusca os produtos/bordados do pedido na Loja Integrada e regrava pedido_produtos.
+// Serve pra corrigir cards antigos "colapsados" (mesmo SKU com 2+ bordados que tinham virado 1 produto só).
+window.reSyncProdutos = async (btn) => {
+  const c = cards.find(x => x.id === activeCardId);
+  if (!c || !c.pedido_numero || !canEditBoard) return;
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Buscando na Loja Integrada...';
+  try{
+    const { data:{ session } } = await sb.auth.getSession();
+    const r = await fetch('/api/personalizacao-sync?lookup=1&numero=' + encodeURIComponent(c.pedido_numero), { headers:{ Authorization:'Bearer ' + (session && session.access_token) } });
+    const j = await r.json();
+    const produtos = (j && j.produtos) || [];
+    if (!produtos.length){ toast('Nada retornado da Loja Integrada'); btn.disabled = false; btn.textContent = orig; return; }
+    const { error } = await sb.from('cards').update({ pedido_produtos: produtos }).eq('id', c.id);
+    if (error){ toast('Não deu pra atualizar'); btn.disabled = false; btn.textContent = orig; return; }
+    c.pedido_produtos = produtos;
+    _heroIdx = 0;
+    window.renderCardProdutos(c);
+    renderCardCover(c);
+    const bd = bordadosDoCard(c); if (bd.length) fillBordadoFields(bd[0].info);
+    if (typeof renderBoard === 'function') renderBoard();
+    toast('Produtos atualizados: ' + produtos.length + (produtos.length>1?' bordados':''));
+    btn.textContent = 'Atualizado ✓';
+    setTimeout(() => { btn.disabled = false; btn.textContent = orig; }, 2500);
+  }catch(e){ toast('Erro: ' + e.message); btn.disabled = false; btn.textContent = orig; }
+};
 function preencherProdutoBordado(c){
   const sel = document.getElementById('cardBordadoProduto');
   const box = document.getElementById('cardBordadoProdutoBox');
