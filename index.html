@@ -805,7 +805,7 @@ tailwind.config = {
               </div>
               <div id="gradeEstoque" class="mt-1 grid grid-cols-6 gap-1"></div>
             </div>
-            <div id="lancBox" class="hidden rounded-lg border border-pink-300 dark:border-pink-700 bg-pink-50/40 dark:bg-pink-900/10 p-2"></div>
+            <div id="lancBox" class="hidden rounded-lg border border-slate-200 dark:border-ink-600 bg-slate-50 dark:bg-ink-700/50 p-2 mt-1"></div>
           </div>
           <div id="totaisGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div class="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/25 border border-emerald-200 dark:border-emerald-800">
@@ -1614,11 +1614,14 @@ async function switchBoard(boardId){
     (atR.data||[]).forEach(r => attachmentCounts[r.card_id] = (attachmentCounts[r.card_id]||0) + 1);
     // Soma Acabamento/Estoque por card. PAGINADO: o activity_log passa de 1000 linhas (limite do
     // Supabase) — sem paginar, só alguns cards recebiam o total e o resto ficava só com Cortada/Oficina.
+    // IMPORTANTE: .order('id') estável é obrigatório na paginação por .range() — sem ordem fixa o Postgres
+    // devolve as linhas em ordem imprevisível entre as páginas, então algumas linhas caíam no "vão" entre
+    // uma página e outra e nunca eram somadas (só alguns cards mostravam o ícone de Acabamento/Estoque).
     let _from = 0; const _PG = 1000;
-    for (let _guard = 0; _guard < 60; _guard++){
+    for (let _guard = 0; _guard < 120; _guard++){
       const { data: page } = await sb.from('activity_log')
         .select('card_id, meta').eq('action','grade')
-        .in('card_id', cardIds).range(_from, _from + _PG - 1);
+        .in('card_id', cardIds).order('id', { ascending: true }).range(_from, _from + _PG - 1);
       if (!page || !page.length) break;
       page.forEach(r => {
         const m = r.meta||{}; const et = m.etapa; if (et !== 'acabamento' && et !== 'estoque') return;
@@ -3216,6 +3219,11 @@ function renderLancBox(){
   if (!box) return;
   if (!lancAtual){ box.classList.add('hidden'); box.innerHTML=''; return; }
   const { etapa, tam } = lancAtual;
+  // Move a caixa pra logo ABAIXO da grade da etapa clicada (senão clicar numa célula da Cortada
+  // abria o campo lá embaixo, depois do Estoque — ficava estranho).
+  const GRID_OF = { cortada:'gradeCortada', oficina:'gradeOficina', acabamento:'gradeAcab', falha:'gradeFalha', estoque:'gradeEstoque' };
+  const grid = document.getElementById(GRID_OF[etapa]);
+  if (grid && grid.parentNode && grid.nextSibling !== box){ grid.parentNode.insertBefore(box, grid.nextSibling); }
   const isCol = (etapa === 'cortada' || etapa === 'oficina');
   const parciais = gradeRows.filter(r => (r.meta||{}).etapa===etapa && (r.meta||{}).tam===tam);
   const somaParc = parciais.reduce((s,r)=>s+Number((r.meta||{}).qtd||0),0);
