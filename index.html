@@ -2837,7 +2837,12 @@ function listaAtualNome(){
   const l = c && lists.find(x=>x.id===c.list_id);
   return (l && l.name) || '';
 }
-function cardFechado(){ return /fechad|finaliz|dado entrada/i.test(listaAtualNome()); }
+function cardFechado(){
+  const n = listaAtualNome();
+  // "Faltando Finalizar Acabamento (consertos)" NÃO é card fechado — ainda entra peça.
+  if (/faltando/i.test(n)) return false;
+  return /fechada|finalizado|dado entrada/i.test(n);
+}
 
 function pintaAlerta(el, cmp, etapa, iniciado){
   if (!el) return;
