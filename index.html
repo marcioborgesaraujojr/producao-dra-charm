@@ -689,8 +689,17 @@ tailwind.config = {
       <button onclick="closeCard()" class="absolute top-3 right-3 bg-white/95 hover:bg-white text-slate-700 rounded-lg w-9 h-9 flex items-center justify-center shadow-md" title="Fechar">
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
       </button>
-      <div class="px-5 py-3">
-        <input id="cardTitle" class="w-full text-lg font-semibold bg-transparent outline-none border-b border-transparent focus:border-pink-500"/>
+      <div class="px-5 py-3 flex items-center gap-3">
+        <input id="cardTitle" class="flex-1 min-w-0 text-lg font-semibold bg-transparent outline-none border-b border-transparent focus:border-pink-500"/>
+        <div id="faccaoField" class="relative flex-shrink-0" style="width:200px">
+          <button id="cardFaccaoBtn" type="button" class="w-full px-2 py-1.5 rounded-lg bg-slate-100 dark:bg-ink-700 text-xs text-left flex items-center gap-2 hover:bg-slate-200 dark:hover:bg-ink-600">
+            <span id="cardFaccaoDot" class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:#94a3b8"></span>
+            <span id="cardFaccaoLabel" class="flex-1 truncate">— etiqueta —</span>
+            <svg class="w-3 h-3 text-slate-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div id="cardFaccaoMenu" class="hidden absolute right-0 mt-1 w-64 max-h-64 overflow-y-auto bg-white dark:bg-ink-800 rounded-lg shadow-2xl border border-slate-200 dark:border-ink-700 z-50"></div>
+          <input type="hidden" id="cardFaccao">
+        </div>
       </div>
     </div>
     <div class="flex border-b border-slate-200 dark:border-ink-700 px-5">
@@ -717,7 +726,11 @@ tailwind.config = {
             </div>
           </div>
           <div>
+            <div class="flex items-center gap-2">
             <label class="text-xs font-medium uppercase text-amber-600 dark:text-amber-400 inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>Grade entregue oficina</label>
+              <span class="ml-auto text-[10px] uppercase tracking-wide text-slate-400">Coleta</span>
+              <input id="cardDataColeta" type="date" class="w-[130px] px-1.5 py-1 rounded-md bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-[11px]"/>
+            </div>
             <div class="mt-1 grid grid-cols-6 gap-1">
               <div><div class="text-[10px] text-center text-slate-500 mb-0.5">PP</div><input id="cardTamPPOf" type="number" min="0" class="w-full p-1.5 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-amber-500 text-sm text-center oficina-input"/></div>
               <div><div class="text-[10px] text-center text-slate-500 mb-0.5">P</div><input id="cardTamPOf" type="number" min="0" class="w-full p-1.5 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-amber-500 text-sm text-center oficina-input"/></div>
@@ -727,7 +740,31 @@ tailwind.config = {
               <div><div class="text-[10px] text-center text-slate-500 mb-0.5">XG</div><input id="cardTamXGOf" type="number" min="0" class="w-full p-1.5 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-amber-500 text-sm text-center oficina-input"/></div>
             </div>
           </div>
-          <div class="grid grid-cols-2 gap-2">
+          <div id="gradesExtras" class="hidden space-y-3">
+            <div id="alertaOficina" class="hidden text-[11px] rounded-md px-2 py-1"></div>
+            <div>
+              <div class="flex items-center gap-2">
+                <label class="text-xs font-medium uppercase text-blue-600 dark:text-blue-400 inline-flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>Acabamento</label>
+                <span id="alertaAcab" class="ml-auto text-[10px]"></span>
+              </div>
+              <div id="gradeAcab" class="mt-1 grid grid-cols-6 gap-1"></div>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <label class="text-xs font-medium uppercase text-red-600 dark:text-red-400 inline-flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>Falhas</label>
+              </div>
+              <div id="gradeFalha" class="mt-1 grid grid-cols-6 gap-1"></div>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <label class="text-xs font-medium uppercase text-violet-600 dark:text-violet-400 inline-flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V8l9-5 9 5v13"/><path d="M3 21h18"/><path d="M9 21v-6h6v6"/></svg>Estoque</label>
+                <span id="alertaEstoque" class="ml-auto text-[10px]"></span>
+              </div>
+              <div id="gradeEstoque" class="mt-1 grid grid-cols-6 gap-1"></div>
+            </div>
+            <div id="lancBox" class="hidden rounded-lg border border-pink-300 dark:border-pink-700 bg-pink-50/40 dark:bg-pink-900/10 p-2"></div>
+          </div>
+          <div id="totaisGrid" class="grid grid-cols-2 gap-2">
             <div class="p-3 rounded-lg bg-slate-50 dark:bg-ink-700 border-l-4 border-emerald-500">
               <div class="text-[11px] uppercase tracking-wide text-slate-500">Total cortada</div>
               <div class="text-xl font-bold text-emerald-600 dark:text-emerald-400"><span id="cardTotalCortada">0</span> <span class="text-xs font-normal text-slate-500">peças</span></div>
@@ -736,8 +773,16 @@ tailwind.config = {
               <div class="text-[11px] uppercase tracking-wide text-slate-500">Total oficina</div>
               <div class="text-xl font-bold text-amber-600 dark:text-amber-400"><span id="cardTotalOficina">0</span> <span class="text-xs font-normal text-slate-500">peças</span></div>
             </div>
+            <div id="boxTotalAcab" class="hidden p-3 rounded-lg bg-slate-50 dark:bg-ink-700 border-l-4 border-blue-500">
+              <div class="text-[11px] uppercase tracking-wide text-slate-500">Acabamento</div>
+              <div class="text-xl font-bold text-blue-600 dark:text-blue-400"><span id="cardTotalAcab">0</span> <span class="text-xs font-normal text-slate-500">+<span id="cardTotalFalha">0</span>f</span></div>
+            </div>
+            <div id="boxTotalEstoque" class="hidden p-3 rounded-lg bg-slate-50 dark:bg-ink-700 border-l-4 border-violet-500">
+              <div class="text-[11px] uppercase tracking-wide text-slate-500">Estoque</div>
+              <div class="text-xl font-bold text-violet-600 dark:text-violet-400"><span id="cardTotalEstoque">0</span> <span class="text-xs font-normal text-slate-500">peças</span></div>
+            </div>
           </div>
-          <div class="grid grid-cols-2 gap-2">
+          <div id="boasFalhasBox" class="grid grid-cols-2 gap-2">
             <div>
               <label class="text-xs font-medium uppercase text-emerald-700 dark:text-emerald-400">Boas</label>
               <input id="cardPcsBoas" type="number" min="0" placeholder="—" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-emerald-500 text-sm"/>
@@ -748,28 +793,12 @@ tailwind.config = {
             </div>
           </div>
           <div id="cardOficinaAlerta" class="hidden text-xs p-2 rounded bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200"></div>
-          <div class="grid grid-cols-3 gap-2 items-end">
-            <div>
-              <label class="text-xs font-medium uppercase text-slate-500">Situação</label>
-              <select id="cardSituacao" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm">
-                <option value="">—</option>
-                <option>Aguardando corte</option>
-                <option>Cortada</option>
-                <option>Em costura</option>
-                <option>Costurada</option>
-                <option>Em acabamento</option>
-                <option>Finalizada</option>
-                <option>Refazer</option>
-              </select>
-            </div>
-            <div>
-              <label class="text-xs font-medium uppercase text-slate-500">Data coleta oficina</label>
-              <input id="cardDataColeta" type="date" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"/>
-            </div>
-            <label class="flex items-center gap-2 p-2 rounded-lg bg-slate-50 dark:bg-ink-700 cursor-pointer text-sm select-none">
+          <div class="flex items-center gap-2">
+            <label class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 dark:bg-ink-700 cursor-pointer text-sm select-none">
               <input id="cardPagoCostura" type="checkbox" class="accent-pink-500">
               Pago costura
             </label>
+            <select id="cardSituacao" class="hidden"><option value=""></option></select>
           </div>
           </div>
           <div id="corteFields" class="hidden space-y-4">
@@ -897,28 +926,14 @@ tailwind.config = {
             <div id="cardChecklist" class="mt-2 space-y-1"></div>
             <button onclick="addChecklistItem()" class="mt-2 text-xs text-pink-600 hover:underline">+ item</button>
           </div>
-          <div>
-            <label class="text-xs font-medium uppercase text-slate-500">Membros do card</label>
+          <div class="hidden">
             <div id="cardMembers" class="flex flex-wrap gap-1 mt-2"></div>
-            <button onclick="openMemberPicker()" class="mt-2 text-xs text-pink-600 hover:underline">+ atribuir alguém</button>
           </div>
         </div>
         <div class="space-y-3 min-w-0">
           <div>
             <label class="text-xs font-medium uppercase text-slate-500">Lista</label>
             <select id="cardList" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"></select>
-          </div>
-          <div id="faccaoField">
-            <label class="text-xs font-medium uppercase text-slate-500">Etiqueta</label>
-            <div class="relative mt-1">
-              <button id="cardFaccaoBtn" type="button" class="w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm text-left flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-ink-600">
-                <span id="cardFaccaoDot" class="w-3 h-3 rounded-full flex-shrink-0" style="background:#94a3b8"></span>
-                <span id="cardFaccaoLabel" class="flex-1 truncate">— nenhuma —</span>
-                <svg class="w-3 h-3 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
-              </button>
-              <div id="cardFaccaoMenu" class="hidden absolute right-0 left-0 mt-1 max-h-64 overflow-y-auto bg-white dark:bg-ink-800 rounded-lg shadow-2xl border border-slate-200 dark:border-ink-700 z-50"></div>
-            </div>
-            <input type="hidden" id="cardFaccao">
           </div>
           <div id="tecidoField">
             <label class="text-xs font-medium uppercase text-slate-500">Tecido consumido</label>
@@ -929,8 +944,9 @@ tailwind.config = {
             </div>
           </div>
           <div>
-            <label class="text-xs font-medium uppercase text-slate-500">Data prevista</label>
+            <label class="text-xs font-medium uppercase text-slate-500">Data limite</label>
             <input id="cardDue" type="date" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"/>
+            <div id="cardDueHint" class="text-[10px] text-slate-400 mt-0.5"></div>
           </div>
           <!-- FEED: COMENTÁRIOS + ATIVIDADES -->
           <div class="pt-3 border-t border-slate-200 dark:border-ink-700">
@@ -946,7 +962,13 @@ tailwind.config = {
               <div id="mentionMenu" class="mention-menu hidden"></div>
               <button onclick="postComment()" class="mt-1 px-3 py-1.5 rounded-lg bg-pink-500 text-white text-xs font-medium hover:bg-pink-600">Comentar</button>
             </div>
-            <div id="feedList" class="space-y-2 mt-3 overflow-y-auto pr-1" style="max-height:320px"></div>
+            <div id="feedWrap" class="relative mt-3">
+              <div id="feedList" data-open="0" class="space-y-2 overflow-y-auto pr-1" style="max-height:96px;transition:max-height .18s ease"></div>
+              <div id="feedFadeBg" class="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-white dark:from-ink-800 to-transparent pointer-events-none rounded-b-lg"></div>
+              <div class="absolute inset-x-0 bottom-0 flex justify-center pointer-events-none">
+                <button id="feedToggle" onclick="toggleFeed()" class="pointer-events-auto text-[11px] px-3 py-1 rounded-full bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 shadow-sm">Desça para ver mais histórico ↓</button>
+              </div>
+            </div>
             <div id="commentsList" class="hidden"></div>
             <span id="commentCountInline" class="hidden">0</span>
           </div>
@@ -1232,6 +1254,15 @@ function calcPrazoBordado(tipo){
     if (dw !== 0 && dw !== 6) adicionados++;
   }
   const yyyy = d.getFullYear(), mm = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+// Data limite da produção: 45 dias corridos a partir da criação do card
+function calcDataLimite45(createdAt){
+  const base = createdAt ? new Date(createdAt) : new Date();
+  if (isNaN(base.getTime())) return '';
+  base.setDate(base.getDate() + 45);
+  const yyyy = base.getFullYear(), mm = String(base.getMonth()+1).padStart(2,'0'), dd = String(base.getDate()).padStart(2,'0');
   return `${yyyy}-${mm}-${dd}`;
 }
 
@@ -1960,6 +1991,15 @@ async function openCard(id){
     }
   }
   document.getElementById('producaoFields').classList.toggle('hidden', bType !== 'producao');
+  // Grades de acabamento/falhas/estoque: só na Produção
+  const _ehProd = bType === 'producao';
+  document.getElementById('gradesExtras').classList.toggle('hidden', !_ehProd);
+  document.getElementById('boasFalhasBox').classList.toggle('hidden', _ehProd);
+  document.getElementById('boxTotalAcab').classList.toggle('hidden', !_ehProd);
+  document.getElementById('boxTotalEstoque').classList.toggle('hidden', !_ehProd);
+  document.getElementById('totaisGrid').className = _ehProd ? 'grid grid-cols-4 gap-2' : 'grid grid-cols-2 gap-2';
+  lancAtual = null;
+  if (_ehProd){ loadGrades(c.id).then(renderGrades); } else { gradeRows = []; gradeOks = []; }
   document.getElementById('corteFields').classList.toggle('hidden', bType !== 'corte');
   document.getElementById('marketingFields').classList.toggle('hidden', bType !== 'marketing');
   document.getElementById('bordadoFields').classList.toggle('hidden', bType !== 'bordado');
@@ -1977,7 +2017,14 @@ async function openCard(id){
     // Salva no banco pra não recalcular
     sb.from('cards').update({due_date: dueVal}).eq('id', c.id).then(() => { c.due_date = dueVal; });
   }
+  // Produção: data limite = 45 dias corridos da criação do card (preenche sozinho na 1ª abertura)
+  if (bType === 'producao' && !dueVal){
+    dueVal = calcDataLimite45(c.created_at);
+    sb.from('cards').update({due_date: dueVal}).eq('id', c.id).then(() => { c.due_date = dueVal; });
+  }
   document.getElementById('cardDue').value = dueVal;
+  const _dueHint = document.getElementById('cardDueHint');
+  if (_dueHint) _dueHint.textContent = (bType === 'producao' && dueVal) ? '45 dias da criação do card' : '';
   document.getElementById('cardTecidoQtd').value = c.tecido_qtd || '';
   document.getElementById('cardTamPP').value = c.tam_pp || '';
   document.getElementById('cardTamP').value = c.tam_p || '';
@@ -2175,6 +2222,14 @@ function updateOficinaAlerta(){
 document.addEventListener('input', e => {
   if (e.target.classList.contains('grade-input') || e.target.classList.contains('oficina-input') || ['cardPcsBoas','cardPcsFalhas'].includes(e.target.id)) {
     updateOficinaAlerta();
+    // As grades novas comparam com a cortada/oficina — redesenha os avisos ao digitar.
+    const c = cards.find(x=>x.id===activeCardId);
+    if (c){
+      const map = { cardTamPP:'tam_pp', cardTamP:'tam_p', cardTamM:'tam_m', cardTamG:'tam_g', cardTamGG:'tam_gg', cardTamXG:'tam_xg',
+                    cardTamPPOf:'tam_pp_of', cardTamPOf:'tam_p_of', cardTamMOf:'tam_m_of', cardTamGOf:'tam_g_of', cardTamGGOf:'tam_gg_of', cardTamXGOf:'tam_xg_of' };
+      if (map[e.target.id]) c[map[e.target.id]] = e.target.value === '' ? null : Number(e.target.value);
+    }
+    if (typeof renderGrades === 'function') renderGrades();
   }
 });
 
@@ -2700,6 +2755,8 @@ function renderFeed(){
       if (a.action === 'created') msg = 'criou o card';
       else if (a.action === 'deleted') msg = 'excluiu o card';
       else if (a.action === 'moved') { msg = 'moveu'; detail = ` de <b>${escapeHtml(listName(a.meta?.from_list))}</b> pra <b>${escapeHtml(listName(a.meta?.to_list))}</b>`; }
+      else if (a.action === 'grade') { msg = 'lançou'; detail = ` <b>+${Number(a.meta?.qtd||0)}</b> no <b>${escapeHtml(a.meta?.tam||'')}</b> do ${escapeHtml(a.meta?.etapa||'')}`; }
+      else if (a.action === 'grade_ok') { msg = 'aprovou a divergência'; detail = ` do ${escapeHtml(a.meta?.etapa||'')}`; }
       else if (a.action === 'edited' && a.meta){
         const partes = activityEditParts(a.meta);
         if (!partes.length){ msg = 'reordenou'; detail = ''; }
@@ -2714,6 +2771,7 @@ function renderFeed(){
       </div>`;
     }
   }).join('');
+  resetFeedCollapse();
 }
 document.addEventListener('click', e => {
   if (e.target.id === 'toggleDetalhes'){
@@ -2722,6 +2780,230 @@ document.addEventListener('click', e => {
     renderFeed();
   }
 });
+
+// ===================== GRADES DA PRODUÇÃO (acabamento / falhas / estoque) =====================
+// Os lançamentos parciais ("+20", "+40"...) ficam no activity_log como action='grade',
+// meta = {etapa, tam, qtd}. Assim já vem com autor e data, e aparece no Log/Atividade.
+const TAMS = ['PP','P','M','G','GG','XG'];
+const ETAPAS = { acabamento:{cor:'blue', rot:'Acabamento'}, falha:{cor:'red', rot:'Falhas'}, estoque:{cor:'violet', rot:'Estoque'} };
+let gradeRows = [];        // lançamentos do card aberto
+let gradeOks = [];         // "dar ok" registrados
+let lancAtual = null;      // {etapa, tam} da caixa aberta
+
+async function loadGrades(cardId){
+  gradeRows = []; gradeOks = [];
+  try{
+    const { data } = await sb.from('activity_log').select('*').eq('card_id', cardId).in('action', ['grade','grade_ok']).order('created_at');
+    (data||[]).forEach(r => { if (r.action === 'grade') gradeRows.push(r); else gradeOks.push(r); });
+  }catch(e){ console.warn('grades:', e); }
+}
+function gradeTotal(etapa, tam){
+  let s = 0;
+  gradeRows.forEach(r => { const m = r.meta||{}; if (m.etapa===etapa && m.tam===tam) s += Number(m.qtd||0); });
+  return s;
+}
+function gradeTotalEtapa(etapa){ return TAMS.reduce((s,t)=>s+gradeTotal(etapa,t), 0); }
+function gradeCortada(tam){ const c = cards.find(x=>x.id===activeCardId)||{}; return Number(c['tam_'+tam.toLowerCase()]||0); }
+function gradeOficina(tam){ const c = cards.find(x=>x.id===activeCardId)||{}; return Number(c['tam_'+tam.toLowerCase()+'_of']||0); }
+// Base do acabamento: a grade entregue pela oficina; se ainda não preenchida, cai pra cortada.
+function baseOficinaPreenchida(){ return TAMS.some(t => gradeOficina(t) > 0); }
+function baseAcab(tam){ return baseOficinaPreenchida() ? gradeOficina(tam) : gradeCortada(tam); }
+
+// Severidade pela % de divergência: <1% discreto, 1-2% âmbar, >=2% vermelho.
+function severidade(pct){ if (pct <= 0) return 'ok'; if (pct < 1) return 'leve'; if (pct < 2) return 'medio'; return 'grave'; }
+function comparaGrade(fnEsperado, fnFeito){
+  let difTotal = 0, espTotal = 0; const detalhes = [];
+  TAMS.forEach(t => {
+    const esp = fnEsperado(t), feito = fnFeito(t);
+    espTotal += esp;
+    const d = feito - esp;
+    if (esp > 0 && d !== 0){ difTotal += Math.abs(d); detalhes.push({ tam:t, dif:d }); }
+  });
+  const pct = espTotal > 0 ? (difTotal / espTotal) * 100 : 0;
+  return { detalhes, pct, sev: severidade(pct), difTotal, espTotal };
+}
+function textoDivergencia(cmp){
+  if (!cmp.detalhes.length) return '';
+  const p = cmp.detalhes.slice(0,3).map(d => `${d.dif<0?'faltam':'sobram'} ${Math.abs(d.dif)} no ${d.tam}`).join(' · ');
+  return `${p} · ${cmp.pct.toFixed(1).replace('.',',')}%`;
+}
+function assinaturaCmp(etapa, cmp){ return etapa + ':' + cmp.detalhes.map(d=>d.tam+d.dif).join(','); }
+function temOk(etapa, cmp){ const a = assinaturaCmp(etapa, cmp); return gradeOks.some(r => (r.meta||{}).assinatura === a); }
+
+function pintaAlerta(el, cmp, etapa){
+  if (!el) return;
+  if (!cmp.detalhes.length){ el.textContent = ''; el.className = 'ml-auto text-[10px] text-emerald-600'; el.textContent = 'confere'; return; }
+  const ok = temOk(etapa, cmp);
+  const txt = textoDivergencia(cmp);
+  if (ok){ el.className = 'ml-auto text-[10px] text-slate-400'; el.textContent = txt + ' · ok'; return; }
+  if (cmp.sev === 'leve'){ el.className = 'ml-auto text-[10px] text-slate-500'; el.textContent = txt; return; }
+  const cor = cmp.sev === 'medio' ? 'text-amber-600' : 'text-red-600 font-semibold';
+  el.className = 'ml-auto text-[10px] flex items-center gap-1 ' + cor;
+  el.innerHTML = `<span>${escapeHtml(txt)}</span>` + (canEditBoard ? `<button onclick="darOkGrade('${etapa}')" class="px-1.5 py-0.5 rounded border border-current text-[9px]">dar ok</button>` : '');
+}
+
+window.darOkGrade = async (etapa) => {
+  const cmp = etapa === 'acabamento'
+    ? comparaGrade(baseAcab, t => gradeTotal('acabamento',t) + gradeTotal('falha',t))
+    : comparaGrade(t => gradeTotal('acabamento',t), t => gradeTotal('estoque',t));
+  try{
+    const { data } = await sb.from('activity_log').insert({ card_id: activeCardId, actor_id: user.id, action:'grade_ok', meta:{ etapa, assinatura: assinaturaCmp(etapa, cmp) } }).select().single();
+    if (data) gradeOks.push(data);
+    toast('Divergência aprovada');
+    renderGrades();
+  }catch(e){ toast('Não deu pra registrar o ok'); }
+};
+
+// Classes fixas (o Tailwind do CDN não gera nomes montados em tempo de execução)
+const RING_ETAPA = { acabamento:'ring-2 ring-blue-400', falha:'ring-2 ring-red-400', estoque:'ring-2 ring-violet-400' };
+const HOVER_ETAPA = { acabamento:'hover:border-blue-400', falha:'hover:border-red-400', estoque:'hover:border-violet-400' };
+function celulaGrade(etapa, tam){
+  const v = gradeTotal(etapa, tam);
+  const aberto = lancAtual && lancAtual.etapa===etapa && lancAtual.tam===tam;
+  const ring = aberto ? RING_ETAPA[etapa] : '';
+  let extra = '';
+  if (etapa === 'acabamento'){
+    const esp = baseAcab(tam), feito = v + gradeTotal('falha', tam);
+    if (esp > 0 && feito !== esp) extra = feito < esp ? 'border-amber-400' : 'border-red-400';
+  } else if (etapa === 'estoque'){
+    const esp = gradeTotal('acabamento', tam);
+    if (esp > 0 && v !== esp) extra = v < esp ? 'border-amber-400' : 'border-red-400';
+  }
+  const h = etapa === 'falha' ? 'py-1' : 'py-1.5';
+  return `<div>
+    <div class="text-[10px] text-center text-slate-500 mb-0.5">${tam}</div>
+    <button type="button" onclick="abrirLanc('${etapa}','${tam}')" class="w-full ${h} rounded-lg bg-slate-50 dark:bg-ink-700 border ${extra||'border-slate-200 dark:border-ink-600'} ${ring} ${HOVER_ETAPA[etapa]} text-sm text-center">${v || '<span class="text-slate-300 dark:text-slate-600">—</span>'}</button>
+  </div>`;
+}
+
+window.renderGrades = () => {
+  const box = document.getElementById('gradesExtras');
+  if (!box || box.classList.contains('hidden')) return;
+  document.getElementById('gradeAcab').innerHTML = TAMS.map(t=>celulaGrade('acabamento',t)).join('');
+  document.getElementById('gradeFalha').innerHTML = TAMS.map(t=>celulaGrade('falha',t)).join('');
+  document.getElementById('gradeEstoque').innerHTML = TAMS.map(t=>celulaGrade('estoque',t)).join('');
+  // Totais
+  const tAcab = gradeTotalEtapa('acabamento'), tFal = gradeTotalEtapa('falha'), tEst = gradeTotalEtapa('estoque');
+  document.getElementById('cardTotalAcab').textContent = tAcab;
+  document.getElementById('cardTotalFalha').textContent = tFal;
+  document.getElementById('cardTotalEstoque').textContent = tEst;
+  // Alerta da oficina (contra a cortada)
+  const elOf = document.getElementById('alertaOficina');
+  if (baseOficinaPreenchida()){
+    const cmpOf = comparaGrade(gradeCortada, gradeOficina);
+    if (cmpOf.detalhes.length){
+      elOf.classList.remove('hidden');
+      const cor = cmpOf.sev === 'leve' ? 'bg-slate-100 dark:bg-ink-700 text-slate-600 dark:text-slate-300'
+                : cmpOf.sev === 'medio' ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300'
+                : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 font-semibold';
+      elOf.className = 'text-[11px] rounded-md px-2 py-1 ' + cor;
+      elOf.textContent = 'Oficina x cortada: ' + textoDivergencia(cmpOf);
+    } else elOf.classList.add('hidden');
+  } else elOf.classList.add('hidden');
+  // Acabamento + falhas x oficina
+  pintaAlerta(document.getElementById('alertaAcab'), comparaGrade(baseAcab, t => gradeTotal('acabamento',t) + gradeTotal('falha',t)), 'acabamento');
+  // Estoque x acabamento
+  pintaAlerta(document.getElementById('alertaEstoque'), comparaGrade(t => gradeTotal('acabamento',t), t => gradeTotal('estoque',t)), 'estoque');
+  renderLancBox();
+};
+
+window.abrirLanc = (etapa, tam) => {
+  lancAtual = (lancAtual && lancAtual.etapa===etapa && lancAtual.tam===tam) ? null : { etapa, tam };
+  renderGrades();
+  if (lancAtual){ const i = document.getElementById('lancQtd'); if (i) i.focus(); }
+};
+
+function renderLancBox(){
+  const box = document.getElementById('lancBox');
+  if (!box) return;
+  if (!lancAtual){ box.classList.add('hidden'); box.innerHTML=''; return; }
+  const { etapa, tam } = lancAtual;
+  const parciais = gradeRows.filter(r => (r.meta||{}).etapa===etapa && (r.meta||{}).tam===tam);
+  const soma = parciais.reduce((s,r)=>s+Number((r.meta||{}).qtd||0),0);
+  const conta = parciais.map(r => Number((r.meta||{}).qtd||0)).join(' + ') || '0';
+  const linhas = parciais.slice(-6).map(r => {
+    const p = profiles.find(x=>x.id===r.actor_id);
+    return `<div class="flex items-center justify-between text-[10px] text-slate-500">
+      <span>+${Number((r.meta||{}).qtd||0)} · ${escapeHtml(p?.full_name||'—')}</span>
+      <span>${timeAgo(r.created_at)}${canEditBoard?` · <button onclick="apagarLanc('${r.id}')" class="text-red-500 hover:underline">tirar</button>`:''}</span>
+    </div>`;
+  }).join('');
+  box.classList.remove('hidden');
+  box.innerHTML = `
+    <div class="flex items-center justify-between mb-1">
+      <span class="text-[10px] uppercase tracking-wide text-slate-500">${ETAPAS[etapa].rot} · tamanho ${tam}</span>
+      <button onclick="abrirLanc('${etapa}','${tam}')" class="text-[10px] text-slate-400 hover:text-slate-600">fechar</button>
+    </div>
+    <div class="text-[11px] text-slate-600 dark:text-slate-300 mb-1">${escapeHtml(conta)} = <b>${soma}</b></div>
+    ${linhas ? `<div class="space-y-0.5 mb-2">${linhas}</div>` : ''}
+    ${canEditBoard ? `<div class="flex gap-1">
+      <input id="lancQtd" type="number" placeholder="+ peças" class="flex-1 p-1.5 rounded-lg bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm" onkeydown="if(event.key==='Enter'){event.preventDefault();addLanc();}">
+      <button onclick="addLanc()" class="px-3 rounded-lg bg-pink-500 text-white text-xs font-medium hover:bg-pink-600">Adicionar</button>
+    </div>` : ''}`;
+}
+
+window.addLanc = async () => {
+  if (!lancAtual || !canEditBoard) return;
+  const i = document.getElementById('lancQtd');
+  const q = parseInt(i && i.value, 10);
+  if (!q){ return; }
+  try{
+    const { data } = await sb.from('activity_log').insert({ card_id: activeCardId, actor_id: user.id, action:'grade', meta:{ etapa:lancAtual.etapa, tam:lancAtual.tam, qtd:q } }).select().single();
+    if (data) gradeRows.push(data);
+    if (i) i.value = '';
+    await sincronizaBoasFalhas();
+    renderGrades();
+    const f = document.getElementById('lancQtd'); if (f) f.focus();
+  }catch(e){ toast('Não deu pra lançar'); }
+};
+
+window.apagarLanc = async (id) => {
+  if (!canEditBoard) return;
+  try{
+    await sb.from('activity_log').delete().eq('id', id);
+    gradeRows = gradeRows.filter(r => r.id !== id);
+    await sincronizaBoasFalhas();
+    renderGrades();
+  }catch(e){ toast('Não deu pra tirar'); }
+};
+
+// Mantém os campos antigos (boas/falhas) em dia — outros painéis ainda leem eles.
+async function sincronizaBoasFalhas(){
+  const boas = gradeTotalEtapa('acabamento'), falhas = gradeTotalEtapa('falha');
+  const c = cards.find(x=>x.id===activeCardId);
+  if (c){ c.qtd_pcs_boas = boas; c.qtd_pcs_falhas = falhas; }
+  const eb = document.getElementById('cardPcsBoas'), ef = document.getElementById('cardPcsFalhas');
+  if (eb) eb.value = boas || ''; if (ef) ef.value = falhas || '';
+  try{ await sb.from('cards').update({ qtd_pcs_boas: boas || null, qtd_pcs_falhas: falhas || null }).eq('id', activeCardId); }catch(e){}
+}
+
+// Histórico recolhido (estilo checkout): mostra só o mais recente e expande no clique.
+window.toggleFeed = () => {
+  const l = document.getElementById('feedList');
+  const b = document.getElementById('feedToggle');
+  const f = document.getElementById('feedFadeBg');
+  if (!l) return;
+  const aberto = l.dataset.open === '1';
+  l.dataset.open = aberto ? '0' : '1';
+  l.style.maxHeight = aberto ? '96px' : '340px';
+  if (b) b.textContent = aberto ? 'Desça para ver mais histórico ↓' : 'Recolher ↑';
+  if (f) f.classList.toggle('hidden', !aberto);
+};
+function resetFeedCollapse(){
+  const l = document.getElementById('feedList');
+  const b = document.getElementById('feedToggle');
+  const f = document.getElementById('feedFadeBg');
+  const w = document.getElementById('feedWrap');
+  if (!l) return;
+  l.dataset.open = '0'; l.style.maxHeight = '96px';
+  if (b) b.textContent = 'Desça para ver mais histórico ↓';
+  if (f) f.classList.remove('hidden');
+  // Se couber tudo na altura recolhida, não mostra a pílula nem o esmaecido.
+  requestAnimationFrame(() => {
+    const cabe = l.scrollHeight <= 100;
+    if (w) w.querySelectorAll('#feedToggle, #feedFadeBg').forEach(el => el.classList.toggle('hidden', cabe));
+  });
+}
 
 function renderMentions(text){
   return escapeHtml(text).replace(/@([\w.]+)/g, (match, name) => {
@@ -2943,6 +3225,10 @@ async function renderLogGeral(){
     else if (a.action === 'deleted') msg = 'excluiu';
     else if (a.action === 'moved') {
       msg = 'moveu'; detail = ` de <b>${escapeHtml(nomeLista(a.meta?.from_list))}</b> pra <b>${escapeHtml(nomeLista(a.meta?.to_list))}</b>`;
+    } else if (a.action === 'grade') {
+      msg = 'lançou'; detail = ` <b>+${Number(a.meta?.qtd||0)}</b> no <b>${escapeHtml(a.meta?.tam||'')}</b> do ${escapeHtml(a.meta?.etapa||'')}`;
+    } else if (a.action === 'grade_ok') {
+      msg = 'aprovou a divergência'; detail = ` do ${escapeHtml(a.meta?.etapa||'')}`;
     } else if (a.action === 'edited' && a.meta){
       const partes = activityEditParts(a.meta, nomeLista);
       if (!partes.length){ msg = 'reordenou'; detail = ''; }
