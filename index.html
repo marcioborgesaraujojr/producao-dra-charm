@@ -3330,7 +3330,9 @@ document.getElementById('commentInput').addEventListener('input', e => {
     // Só sugere quem é membro DESTE quadro (não gente de outros boards), e não você mesmo.
     // Sugere membros do quadro; se a lista de membros ainda não carregou (vazia), cai pra todos os usuários
     // (assim o menu SEMPRE aparece — antes ficava vazio quando currentBoardMemberIds não tinha carregado).
-    const scope = (currentBoardMemberIds && currentBoardMemberIds.size) ? profiles.filter(p => currentBoardMemberIds.has(p.id)) : profiles;
+    // Sugere TODOS os usuários (antes só membros do quadro — e no modo leitura o board_members
+    // vinha só com a própria pessoa, deixando o @ vazio). Mencionar qualquer colega é ok num app interno.
+    const scope = profiles;
     const matches = scope.filter(p => p.id !== user.id && (p.full_name||'').toLowerCase().includes(query)).slice(0,6);
     if (matches.length){
       menu.innerHTML = matches.map(p => `<button class="w-full text-left flex items-center gap-2 p-2 hover:bg-slate-100 dark:hover:bg-ink-700 text-sm" data-slug="${(p.full_name||'').toLowerCase().replace(/\s+/g,'.')}">
