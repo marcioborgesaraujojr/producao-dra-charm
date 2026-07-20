@@ -3066,11 +3066,13 @@ function pintaAlerta(el, cmp, etapa, iniciado){
   if (ok){ el.className = 'ml-auto text-[10px] text-slate-400'; el.textContent = txt + ' · ok'; return; }
   // Enquanto o card não foi finalizado, no máximo âmbar (está em andamento).
   const sev = (!cardFechado() && cmp.sev === 'grave') ? 'medio' : cmp.sev;
+  // "Dar OK": só admin e SÓ quando o alerta é amarelo (médio) ou vermelho (grave).
+  const okBtn = ehAdmin() ? `<button onclick="darOkGrade('${etapa}')" class="px-1.5 py-0.5 rounded border border-current text-[9px] shrink-0">Dar OK</button>` : '';
   if (sev === 'leve'){ el.className = 'ml-auto text-[10px] text-slate-500'; el.textContent = txt; return; }
-  if (sev === 'medio'){ el.className = 'ml-auto text-[10px] text-amber-600'; el.textContent = txt + (cardFechado()?'':' · em andamento'); return; }
+  if (sev === 'medio'){ el.className = 'ml-auto text-[10px] flex items-center gap-1 text-amber-600'; el.innerHTML = `<span>${escapeHtml(txt + (cardFechado()?'':' · em andamento'))}</span>` + okBtn; return; }
   el.className = 'ml-auto text-[10px] flex items-center gap-1 text-red-600 font-semibold';
   // A equipe VÊ o aviso (ajuda a corrigir na origem), mas só o admin aprova.
-  el.innerHTML = `<span>${escapeHtml(txt)}</span>` + (ehAdmin() ? `<button onclick="darOkGrade('${etapa}')" class="px-1.5 py-0.5 rounded border border-current text-[9px]">dar ok</button>` : '');
+  el.innerHTML = `<span>${escapeHtml(txt)}</span>` + okBtn;
 }
 
 window.darOkGrade = async (etapa) => {
@@ -3136,8 +3138,9 @@ window.renderGrades = () => {
                 : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 font-semibold';
       elOf.className = 'text-[11px] rounded-md px-2 py-1 flex items-center gap-2 ' + cor;
       const txtOf = 'OFICINA X CORTADA: ' + textoDivergencia(cmpOf) + (okOf ? ' · ok' : '');
+      const mostrarOkOf = !okOf && ehAdmin() && (cmpOf.sev === 'medio' || cmpOf.sev === 'grave');
       elOf.innerHTML = `<span class="flex-1">${escapeHtml(txtOf)}</span>` +
-        ((!okOf && ehAdmin()) ? `<button onclick="darOkGrade('oficina')" class="px-1.5 py-0.5 rounded border border-current text-[9px] shrink-0">dar ok</button>` : '');
+        (mostrarOkOf ? `<button onclick="darOkGrade('oficina')" class="px-1.5 py-0.5 rounded border border-current text-[9px] shrink-0">Dar OK</button>` : '');
     } else elOf.classList.add('hidden');
   } else elOf.classList.add('hidden');
   // Acabamento + falhas x oficina
