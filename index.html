@@ -1510,6 +1510,8 @@ async function switchBoard(boardId){
   document.getElementById('board').innerHTML = '<div class="text-center p-8 text-slate-500">Carregando...</div>';
   const b = boards.find(x => x.id === boardId);
   applyBoardBackground(b?.background_url);
+  // Divergências já aprovadas por mim (pra não repintar card que eu já dei ok)
+  if (profile && profile.role === 'admin') await loadGradeOksBoard();
   // Permissão de edição do usuário atual neste quadro (admin sempre edita)
   if (profile && profile.role === 'admin') { canEditBoard = true; boardLabelFilter = []; }
   else {
@@ -1755,6 +1757,46 @@ async function dropCardAt(cardId, listId, clientY){
   return true;
 }
 
+// ===== Alerta de divergência de grade NO QUADRO (só o admin vê e só ele aprova) =====
+// Compara a grade entregue pela oficina com a grade cortada — os dois dados já vêm no card,
+// então não custa consulta nenhuma. As outras conferências ficam dentro do card.
+const LIMIAR_QUADRO = 10;   // % a partir do qual o card é pintado
+const LIMIAR_GRAVE  = 20;   // % a partir do qual vira vermelho
+let gradeOksSet = new Set();
+async function loadGradeOksBoard(){
+  gradeOksSet = new Set();
+  try{
+    const { data } = await sb.from('activity_log').select('meta').eq('action','grade_ok');
+    (data||[]).forEach(r => { const m = r.meta||{}; if (m.assinatura) gradeOksSet.add(m.assinatura); });
+  }catch(e){}
+}
+function ehAdmin(){ return !!(profile && profile.role === 'admin'); }
+function divergenciaQuadro(c){
+  const T = ['pp','p','m','g','gg','xg'];
+  if (!T.some(t => Number(c['tam_'+t+'_of']||0) > 0)) return null;  // oficina ainda não preencheu
+  let esp = 0, dif = 0; const det = [];
+  T.forEach(t => {
+    const e = Number(c['tam_'+t]||0), r = Number(c['tam_'+t+'_of']||0);
+    esp += e; const d = r - e;
+    if (e > 0 && d !== 0){ dif += Math.abs(d); det.push({ tam: t.toUpperCase(), dif: d }); }
+  });
+  if (!det.length || esp <= 0) return null;
+  const pct = dif / esp * 100;
+  const assin = 'oficina:' + det.map(d => d.tam + d.dif).join(',');
+  if (gradeOksSet.has(assin)) return null;   // você já deu ok nessa exata divergência
+  const txt = det.slice(0,2).map(d => `${d.dif<0?'faltam':'sobram'} ${Math.abs(d.dif)} no ${d.tam}`).join(' · ');
+  return { pct, assin, msg: `Grade ${pct.toFixed(1).replace('.',',')}% · ${txt}` };
+}
+window.darOkQuadro = async (id, assin) => {
+  if (!ehAdmin()) return;
+  try{
+    await sb.from('activity_log').insert({ card_id: id, actor_id: user.id, action: 'grade_ok', meta: { etapa: 'oficina', assinatura: assin } });
+    gradeOksSet.add(assin);
+    toast('Divergência aprovada');
+    renderBoard();
+  }catch(e){ toast('Não deu pra aprovar'); }
+};
+
 function renderCard(c, compact){
   const el = document.createElement('div');
   const clbls = cardLabels[c.id] || [];
@@ -1834,7 +1876,21 @@ function renderCard(c, compact){
     ${!compact && icons.length ? `<div class="flex flex-wrap gap-2 mt-1.5">${icons.join('')}</div>`:''}
     ${cmembs.length ? `<div class="flex -space-x-1 mt-1">${memAvatars}${cmembs.length>3?`<div class="w-5 h-5 rounded-full bg-slate-400 text-white text-[9px] flex items-center justify-center">+${cmembs.length-3}</div>`:''}</div>`:''}
   `;
-  el.innerHTML = `<div class="flex gap-2 items-center"><div class="relative shrink-0 flex items-center">${cover}${bordadoBadge}</div><div class="flex-1 min-w-0">${bodyInner}</div></div>`;
+  // Divergência de grade: pinta o card (só admin, só produção, acima do limiar)
+  let gradeAviso = '';
+  if (bType === 'producao' && ehAdmin()){
+    const dv = divergenciaQuadro(c);
+    if (dv && dv.pct >= LIMIAR_QUADRO){
+      const grave = dv.pct >= LIMIAR_GRAVE;
+      el.classList.add('relative','ring-2', grave ? 'ring-red-400' : 'ring-amber-400');
+      el.style.background = grave ? 'rgba(239,68,68,.07)' : 'rgba(245,158,11,.09)';
+      gradeAviso = `<div class="flex items-center gap-1 mt-1 text-[10px] ${grave?'text-red-700 dark:text-red-300':'text-amber-700 dark:text-amber-300'}">
+        <span class="flex-1 truncate" title="${escapeHtml(dv.msg)}">${escapeHtml(dv.msg)}</span>
+        <button onclick="event.stopPropagation();darOkQuadro('${c.id}','${escapeHtml(dv.assin)}')" class="px-1.5 py-0.5 rounded border border-current hover:bg-white/60 dark:hover:bg-black/20 shrink-0">dar ok</button>
+      </div>`;
+    }
+  }
+  el.innerHTML = `<div class="flex gap-2 items-center"><div class="relative shrink-0 flex items-center">${cover}${bordadoBadge}</div><div class="flex-1 min-w-0">${bodyInner}${gradeAviso}</div></div>`;
   el.addEventListener('dragstart', (ev) => {
     draggingCardId = c.id;
     el.classList.add('opacity-50');
@@ -2854,7 +2910,8 @@ function pintaAlerta(el, cmp, etapa, iniciado){
   if (sev === 'leve'){ el.className = 'ml-auto text-[10px] text-slate-500'; el.textContent = txt; return; }
   if (sev === 'medio'){ el.className = 'ml-auto text-[10px] text-amber-600'; el.textContent = txt + (cardFechado()?'':' · em andamento'); return; }
   el.className = 'ml-auto text-[10px] flex items-center gap-1 text-red-600 font-semibold';
-  el.innerHTML = `<span>${escapeHtml(txt)}</span>` + (canEditBoard ? `<button onclick="darOkGrade('${etapa}')" class="px-1.5 py-0.5 rounded border border-current text-[9px]">dar ok</button>` : '');
+  // A equipe VÊ o aviso (ajuda a corrigir na origem), mas só o admin aprova.
+  el.innerHTML = `<span>${escapeHtml(txt)}</span>` + (ehAdmin() ? `<button onclick="darOkGrade('${etapa}')" class="px-1.5 py-0.5 rounded border border-current text-[9px]">dar ok</button>` : '');
 }
 
 window.darOkGrade = async (etapa) => {
