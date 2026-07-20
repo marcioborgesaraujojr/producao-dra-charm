@@ -96,6 +96,8 @@ tailwind.config = {
   body.board-readonly #cardBordadoImagemUrl,
   body.board-readonly #cardBordadoImagemLink,
   body.board-readonly #cardPedidoLink{pointer-events:auto}
+  /* Modo leitura ainda pode COMENTAR e marcar @ (a designer usa o quadro de Personalização) */
+  body.board-readonly #feedSection{pointer-events:auto}
   body.board-readonly #cardTitle{pointer-events:none;background:transparent}
   body.board-readonly .card-drag{cursor:default}
   body.board-readonly #autosaveStatus{display:none}
@@ -985,7 +987,7 @@ tailwind.config = {
             <div id="cardDueHint" class="text-[10px] text-slate-400 mt-0.5"></div>
           </div>
           <!-- FEED: COMENTÁRIOS + ATIVIDADES -->
-          <div class="pt-3 border-t border-slate-200 dark:border-ink-700">
+          <div id="feedSection" class="pt-3 border-t border-slate-200 dark:border-ink-700">
             <div class="flex items-center justify-between mb-2">
               <label class="text-xs font-medium uppercase text-slate-500 flex items-center gap-2">
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
