@@ -2303,10 +2303,17 @@ async function openCard(id){
       const chev = document.getElementById('cardProdutosChevron');
       if (chev) chev.style.transform = 'rotate(180deg)';
       const _bordsCor = bordadosDoCard(c);
-      const corPorSku = {}; _bordsCor.forEach(b => { if (b.sku) corPorSku[String(b.sku).toLowerCase()] = b.cor; });
+      // Vínculo produto→bordado por ORDEM (não por SKU): 2 produtos do MESMO sku com bordados
+      // diferentes precisam apontar pra bordados diferentes. bordadosDoCard mantém a mesma ordem.
+      const _perProd = produtos.some(p => p.bordado && p.bordadoInfo);
+      let _bi = -1;
       prodList.innerHTML = produtos.map(p => {
-        const _cor = p.bordado ? (corPorSku[String(p.sku||'').toLowerCase()] || BORDADO_PALETTE[0]) : null;
-        const _bidx = p.bordado ? _bordsCor.findIndex(b => String(b.sku||'').toLowerCase() === String(p.sku||'').toLowerCase()) : -1;
+        let _bidx = -1;
+        if (p.bordado){
+          if (_perProd){ if (p.bordadoInfo){ _bi++; _bidx = _bi; } }
+          else { _bidx = 0; } // dados antigos: bordado único do card
+        }
+        const _cor = _bidx>=0 ? ((_bordsCor[_bidx] && _bordsCor[_bidx].cor) || BORDADO_PALETTE[_bidx % BORDADO_PALETTE.length]) : (p.bordado ? BORDADO_PALETTE[0] : null);
         const _sel = _bidx>=0 && _bidx===_heroIdx;
         return `
         <div class="produto-item p-2 rounded-lg ${p.bordado ? 'produto-bordado' : 'bg-slate-50 dark:bg-ink-700 border-slate-200 dark:border-ink-600'} border flex gap-3 items-center relative" ${_bidx>=0?`data-bordidx="${_bidx}" data-bordcor="${_cor}" style="cursor:pointer;box-shadow:0 0 0 ${_sel?3:2}px ${_cor}"`:''}>
