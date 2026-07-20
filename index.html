@@ -592,6 +592,22 @@ tailwind.config = {
     <div class="text-xs text-slate-500 mb-1.5">Minha cor</div>
     <div id="colorPalette" class="flex flex-wrap gap-1.5"></div>
   </div>
+  <div id="limiarBox" class="hidden px-3 pb-2">
+    <div class="border-t border-slate-200 dark:border-ink-700 pt-2">
+      <div class="text-xs text-slate-500 mb-1.5">Alerta de grade (Produção)</div>
+      <div class="flex items-center gap-2 mb-1">
+        <span class="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0"></span>
+        <input id="limAmarelo" type="number" min="0" step="0.5" class="w-14 p-1 rounded border border-slate-200 dark:border-ink-600 bg-slate-50 dark:bg-ink-700 text-xs text-center">
+        <span class="text-[11px] text-slate-500 flex-1">% <span id="cntAmarelo" class="text-slate-400"></span></span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0"></span>
+        <input id="limVermelho" type="number" min="0" step="0.5" class="w-14 p-1 rounded border border-slate-200 dark:border-ink-600 bg-slate-50 dark:bg-ink-700 text-xs text-center">
+        <span class="text-[11px] text-slate-500 flex-1">% <span id="cntVermelho" class="text-slate-400"></span></span>
+      </div>
+      <div class="text-[10px] text-slate-400 mt-1.5">Diferença menor que ${'3'} peças nunca acende.</div>
+    </div>
+  </div>
   <div class="border-t border-slate-200 dark:border-ink-700 my-1"></div>
   <div class="p-1">
     <button onclick="openLogGeral()" class="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-slate-100 dark:hover:bg-ink-700 flex items-center gap-2">
@@ -1759,8 +1775,12 @@ async function dropCardAt(cardId, listId, clientY){
 // ===== Alerta de divergência de grade NO QUADRO (só o admin vê e só ele aprova) =====
 // Compara a grade entregue pela oficina com a grade cortada — os dois dados já vêm no card,
 // então não custa consulta nenhuma. As outras conferências ficam dentro do card.
-const LIMIAR_QUADRO = 10;   // % a partir do qual o card é pintado
-const LIMIAR_GRAVE  = 20;   // % a partir do qual vira vermelho
+// Base: metade das OCs fecha exato e o desvio típico da casa é 0,2%–0,4%.
+// Por isso 2% já é "fora do padrão" e 5% é erro. O piso de peças evita que
+// OC pequena (20 peças) acenda vermelha por causa de 1 unidade.
+const MIN_PECAS_ALERTA = 3;
+let LIMIAR_QUADRO = Number(localStorage.getItem('dc_lim_amarelo') || 2);
+let LIMIAR_GRAVE  = Number(localStorage.getItem('dc_lim_vermelho') || 5);
 let gradeOksSet = new Set();
 async function loadGradeOksBoard(){
   gradeOksSet = new Set();
@@ -1770,6 +1790,40 @@ async function loadGradeOksBoard(){
   }catch(e){}
 }
 function ehAdmin(){ return !!(profile && profile.role === 'admin'); }
+// Seletor dos limiares (só admin): mostra ao vivo quantos cards acendem em cada faixa.
+window.aplicarLimiares = () => {
+  const a = document.getElementById('limAmarelo'), v = document.getElementById('limVermelho');
+  if (!a || !v) return;
+  const na = Math.max(0, Number(a.value)||0), nv = Math.max(0, Number(v.value)||0);
+  LIMIAR_QUADRO = na; LIMIAR_GRAVE = nv;
+  try{ localStorage.setItem('dc_lim_amarelo', na); localStorage.setItem('dc_lim_vermelho', nv); }catch(e){}
+  contarLimiares();
+  renderBoard();
+};
+function contarLimiares(){
+  const ca = document.getElementById('cntAmarelo'), cv = document.getElementById('cntVermelho');
+  if (!ca || !cv) return;
+  if (boardType(currentBoardId) !== 'producao'){ ca.textContent=''; cv.textContent='(abra o quadro de Produção)'; return; }
+  let am = 0, vm = 0;
+  cards.forEach(c => {
+    const d = divergenciaQuadro(c);
+    if (!d) return;
+    if (d.pct >= LIMIAR_GRAVE) vm++;
+    else if (d.pct >= LIMIAR_QUADRO) am++;
+  });
+  ca.textContent = '· ' + am + ' cards';
+  cv.textContent = '· ' + vm + ' cards';
+}
+window.abrirLimiares = () => {
+  const box = document.getElementById('limiarBox');
+  if (!box) return;
+  box.classList.toggle('hidden', !ehAdmin());
+  if (!ehAdmin()) return;
+  const a = document.getElementById('limAmarelo'), v = document.getElementById('limVermelho');
+  a.value = LIMIAR_QUADRO; v.value = LIMIAR_GRAVE;
+  a.oninput = aplicarLimiares; v.oninput = aplicarLimiares;
+  contarLimiares();
+};
 // Só faz sentido cobrar a grade da oficina depois que a peça voltou da facção.
 // Em "Cortadas / Costurando / Caseado / Lavanderia / Aguardando Coleta" a devolução ainda é parcial.
 function etapaJaVoltouDaFaccao(c){
@@ -1789,6 +1843,7 @@ function divergenciaQuadro(c){
     if (e > 0 && d !== 0){ dif += Math.abs(d); det.push({ tam: t.toUpperCase(), dif: d }); }
   });
   if (!det.length || esp <= 0) return null;
+  if (dif < MIN_PECAS_ALERTA) return null;   // diferença de 1–2 peças não acende nada
   const pct = dif / esp * 100;
   const assin = 'oficina:' + det.map(d => d.tam + d.dif).join(',');
   if (gradeOksSet.has(assin)) return null;   // você já deu ok nessa exata divergência
@@ -2911,7 +2966,14 @@ function baseOficinaPreenchida(){ return TAMS.some(t => gradeOficina(t) > 0); }
 function baseAcab(tam){ return baseOficinaPreenchida() ? gradeOficina(tam) : gradeCortada(tam); }
 
 // Severidade pela % de divergência: <1% discreto, 1-2% âmbar, >=2% vermelho.
-function severidade(pct){ if (pct <= 0) return 'ok'; if (pct < 1) return 'leve'; if (pct < 2) return 'medio'; return 'grave'; }
+// Mesma régua do quadro: abaixo do amarelo é ruído normal da operação.
+function severidade(pct, dif){
+  if (pct <= 0) return 'ok';
+  if (typeof dif === 'number' && dif < MIN_PECAS_ALERTA) return 'leve';
+  if (pct < LIMIAR_QUADRO) return 'leve';
+  if (pct < LIMIAR_GRAVE) return 'medio';
+  return 'grave';
+}
 function comparaGrade(fnEsperado, fnFeito){
   let difTotal = 0, espTotal = 0; const detalhes = [];
   TAMS.forEach(t => {
@@ -2921,7 +2983,7 @@ function comparaGrade(fnEsperado, fnFeito){
     if (esp > 0 && d !== 0){ difTotal += Math.abs(d); detalhes.push({ tam:t, dif:d }); }
   });
   const pct = espTotal > 0 ? (difTotal / espTotal) * 100 : 0;
-  return { detalhes, pct, sev: severidade(pct), difTotal, espTotal };
+  return { detalhes, pct, sev: severidade(pct, difTotal), difTotal, espTotal };
 }
 function textoDivergencia(cmp){
   if (!cmp.detalhes.length) return '';
@@ -3651,6 +3713,7 @@ function _positionUserMenuUnder(btn){
   }
   menu.classList.toggle('hidden');
   document.getElementById('bellDropdown').classList.add('hidden');
+  if (!menu.classList.contains('hidden') && typeof abrirLimiares === 'function') abrirLimiares();
 }
 document.getElementById('userMenuBtn').onclick = () => _positionUserMenuUnder(document.getElementById('userMenuBtn'));
 const _hubUserMenuBtn = document.getElementById('hubUserMenuBtn');
