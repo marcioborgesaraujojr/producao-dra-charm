@@ -1882,8 +1882,9 @@ function renderCard(c, compact){
     const dv = divergenciaQuadro(c);
     if (dv && dv.pct >= LIMIAR_QUADRO){
       const grave = dv.pct >= LIMIAR_GRAVE;
-      const dark = document.documentElement.classList.contains('dark');
-      el.style.background = grave ? (dark ? '#43201f' : '#fde8e8') : (dark ? '#3d3117' : '#fdf1d6');
+      // Fundo branco normal — só a borda colorida marca a divergência.
+      el.style.borderColor = grave ? '#ef4444' : '#f59e0b';
+      el.style.borderWidth = '2px';
       el.title = dv.msg;
     }
   }
@@ -2273,13 +2274,8 @@ function updateOficinaAlerta(){
 document.addEventListener('input', e => {
   if (e.target.classList.contains('grade-input') || e.target.classList.contains('oficina-input') || ['cardPcsBoas','cardPcsFalhas'].includes(e.target.id)) {
     updateOficinaAlerta();
-    // As grades novas comparam com a cortada/oficina — redesenha os avisos ao digitar.
-    const c = cards.find(x=>x.id===activeCardId);
-    if (c){
-      const map = { cardTamPP:'tam_pp', cardTamP:'tam_p', cardTamM:'tam_m', cardTamG:'tam_g', cardTamGG:'tam_gg', cardTamXG:'tam_xg',
-                    cardTamPPOf:'tam_pp_of', cardTamPOf:'tam_p_of', cardTamMOf:'tam_m_of', cardTamGOf:'tam_g_of', cardTamGGOf:'tam_gg_of', cardTamXGOf:'tam_xg_of' };
-      if (map[e.target.id]) c[map[e.target.id]] = e.target.value === '' ? null : Number(e.target.value);
-    }
+    // Redesenha os avisos das grades ao digitar. NÃO alterar o objeto do card aqui:
+    // o autosave usa ele como referência do "antes" e deixaria de salvar a edição.
     if (typeof renderGrades === 'function') renderGrades();
   }
 });
@@ -2854,8 +2850,18 @@ function gradeTotal(etapa, tam){
   return s;
 }
 function gradeTotalEtapa(etapa){ return TAMS.reduce((s,t)=>s+gradeTotal(etapa,t), 0); }
-function gradeCortada(tam){ const c = cards.find(x=>x.id===activeCardId)||{}; return Number(c['tam_'+tam.toLowerCase()]||0); }
-function gradeOficina(tam){ const c = cards.find(x=>x.id===activeCardId)||{}; return Number(c['tam_'+tam.toLowerCase()+'_of']||0); }
+// Lê direto do campo na tela (assim o aviso reage enquanto digita) e cai pro card se não achar.
+// IMPORTANTE: não mexer no objeto do card aqui — o autosave compara com ele pra saber o que mudou.
+function gradeCortada(tam){
+  const el = document.getElementById('cardTam'+tam);
+  if (el) return Number(el.value||0);
+  const c = cards.find(x=>x.id===activeCardId)||{}; return Number(c['tam_'+tam.toLowerCase()]||0);
+}
+function gradeOficina(tam){
+  const el = document.getElementById('cardTam'+tam+'Of');
+  if (el) return Number(el.value||0);
+  const c = cards.find(x=>x.id===activeCardId)||{}; return Number(c['tam_'+tam.toLowerCase()+'_of']||0);
+}
 // Base do acabamento: a grade entregue pela oficina; se ainda não preenchida, cai pra cortada.
 function baseOficinaPreenchida(){ return TAMS.some(t => gradeOficina(t) > 0); }
 function baseAcab(tam){ return baseOficinaPreenchida() ? gradeOficina(tam) : gradeCortada(tam); }
