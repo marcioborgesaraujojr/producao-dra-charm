@@ -1771,8 +1771,17 @@ async function loadGradeOksBoard(){
   }catch(e){}
 }
 function ehAdmin(){ return !!(profile && profile.role === 'admin'); }
+// Só faz sentido cobrar a grade da oficina depois que a peça voltou da facção.
+// Em "Cortadas / Costurando / Caseado / Lavanderia / Aguardando Coleta" a devolução ainda é parcial.
+function etapaJaVoltouDaFaccao(c){
+  const l = lists.find(x => x.id === c.list_id);
+  const n = (l && l.name) || '';
+  if (/coleta/i.test(n)) return false;                       // ainda aguardando a coleta
+  return /acabamento|fechad|finalizado|dado entrada|estoque/i.test(n);
+}
 function divergenciaQuadro(c){
   const T = ['pp','p','m','g','gg','xg'];
+  if (!etapaJaVoltouDaFaccao(c)) return null;
   if (!T.some(t => Number(c['tam_'+t+'_of']||0) > 0)) return null;  // oficina ainda não preencheu
   let esp = 0, dif = 0; const det = [];
   T.forEach(t => {
