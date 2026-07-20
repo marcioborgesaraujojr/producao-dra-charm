@@ -952,7 +952,6 @@ tailwind.config = {
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                 Comentários e atividade
               </label>
-              <button id="toggleDetalhes" class="text-[11px] px-2 py-1 rounded border border-amber-400 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20">Mostrar detalhes</button>
             </div>
             <div class="relative">
               <textarea id="commentInput" rows="2" placeholder="Escreva um comentário... use @ pra mencionar" class="w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 outline-none focus:border-pink-500 text-sm resize-y"></textarea>
@@ -2919,14 +2918,19 @@ function pintaAlerta(el, cmp, etapa, iniciado){
 }
 
 window.darOkGrade = async (etapa) => {
-  const cmp = etapa === 'acabamento'
-    ? comparaGrade(baseAcab, t => gradeTotal('acabamento',t) + gradeTotal('falha',t))
-    : comparaGrade(t => gradeTotal('acabamento',t), t => gradeTotal('estoque',t));
+  const cmp = etapa === 'oficina'
+    ? comparaGrade(gradeCortada, gradeOficina)
+    : etapa === 'acabamento'
+      ? comparaGrade(baseAcab, t => gradeTotal('acabamento',t) + gradeTotal('falha',t))
+      : comparaGrade(t => gradeTotal('acabamento',t), t => gradeTotal('estoque',t));
   try{
     const { data } = await sb.from('activity_log').insert({ card_id: activeCardId, actor_id: user.id, action:'grade_ok', meta:{ etapa, assinatura: assinaturaCmp(etapa, cmp) } }).select().single();
     if (data) gradeOks.push(data);
+    // Mantém o quadro em dia: a borda do card some assim que você aprova.
+    try{ gradeOksSet.add(assinaturaCmp(etapa, cmp)); }catch(_){}
     toast('Divergência aprovada');
     renderGrades();
+    if (typeof renderBoard === 'function') renderBoard();
   }catch(e){ toast('Não deu pra registrar o ok'); }
 };
 
@@ -2968,12 +2972,16 @@ window.renderGrades = () => {
   if (baseOficinaPreenchida()){
     const cmpOf = comparaGrade(gradeCortada, gradeOficina);
     if (cmpOf.detalhes.length){
+      const okOf = temOk('oficina', cmpOf);
       elOf.classList.remove('hidden');
-      const cor = cmpOf.sev === 'leve' ? 'bg-slate-100 dark:bg-ink-700 text-slate-600 dark:text-slate-300'
+      const cor = okOf ? 'bg-slate-100 dark:bg-ink-700 text-slate-400'
+                : cmpOf.sev === 'leve' ? 'bg-slate-100 dark:bg-ink-700 text-slate-600 dark:text-slate-300'
                 : cmpOf.sev === 'medio' ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300'
                 : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 font-semibold';
-      elOf.className = 'text-[11px] rounded-md px-2 py-1 ' + cor;
-      elOf.textContent = 'Oficina x cortada: ' + textoDivergencia(cmpOf);
+      elOf.className = 'text-[11px] rounded-md px-2 py-1 flex items-center gap-2 ' + cor;
+      const txtOf = 'OFICINA X CORTADA: ' + textoDivergencia(cmpOf) + (okOf ? ' · ok' : '');
+      elOf.innerHTML = `<span class="flex-1">${escapeHtml(txtOf)}</span>` +
+        ((!okOf && ehAdmin()) ? `<button onclick="darOkGrade('oficina')" class="px-1.5 py-0.5 rounded border border-current text-[9px] shrink-0">dar ok</button>` : '');
     } else elOf.classList.add('hidden');
   } else elOf.classList.add('hidden');
   // Acabamento + falhas x oficina
