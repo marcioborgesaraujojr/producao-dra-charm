@@ -63,7 +63,9 @@ function buildBordado(tipoOrder, obs){
   b.tipo = tipoOrder;
   return b;
 }
-// Bordado de CADA SKU: mapa sku(minúsculo) -> objeto bordado, parseando o bloco "** sku [..] **" de cada um
+// Bordado de CADA SKU: mapa sku(minúsculo) -> LISTA de bordados (um por bloco "** sku [..] **").
+// É lista (não 1 objeto) porque o MESMO sku pode aparecer várias vezes com bordados diferentes
+// (ex: 1 produto, 2 unidades, 2 nomes distintos). Antes o 2º bloco sobrescrevia o 1º e sumia 1 bordado.
 function parseBordadoBySku(obs){
   const map={};
   const block=String(obs||'');
@@ -75,7 +77,7 @@ function parseBordadoBySku(obs){
     const content=block.slice(start,end);
     const f=parseFields(content);
     if(Object.keys(f).length===0) continue; // bloco sem bordado
-    map[sku]=buildBordadoFromFields(f, content);
+    (map[sku] || (map[sku]=[])).push(buildBordadoFromFields(f, content));
   }
   return map;
 }
@@ -122,7 +124,8 @@ function pickImg(pj){
 async function buildProdutos(itens, cache, obs){
   const out=[]; let dbg=null;
   const bset=computeBordadoSkus(obs);
-  const bySku=parseBordadoBySku(obs);
+  const bySku=parseBordadoBySku(obs);      // sku -> [bordado, ...]
+  const expandido=new Set();               // evita expandir o mesmo sku 2x (caso venha em 2 linhas)
   for(const it of (itens||[])){
     if(!it || isSkipItem(it)) continue;
     const ref = it.produto_pai || it.produto;
@@ -136,15 +139,19 @@ async function buildProdutos(itens, cache, obs){
     }
     if(!dbg) dbg={ ref: ref||null, keys };
     const skuLc=String(it.sku||'').toLowerCase();
-    out.push({
-      qtd: Math.round(parseFloat(it.quantidade||'1'))||1,
-      sku: it.sku||null,
-      nome: it.nome||'',
-      bordado: bset.has(skuLc),
-      tamanho: tamanhoOf(it.variacao),
-      imagem_url,
-      bordadoInfo: bySku[skuLc] || null
-    });
+    const qtd=Math.round(parseFloat(it.quantidade||'1'))||1;
+    const blocks=bySku[skuLc]||[];
+    const base={ sku: it.sku||null, nome: it.nome||'', bordado: bset.has(skuLc), tamanho: tamanhoOf(it.variacao), imagem_url };
+    // Mesmo SKU com VÁRIOS bordados (ex: 2 unidades, 2 nomes diferentes) => 1 produto por bordado,
+    // dividindo a quantidade. Assim o card mostra as 2 personalizações e os 2 produtos.
+    if(blocks.length>=2 && !expandido.has(skuLc)){
+      expandido.add(skuLc);
+      const N=blocks.length, per=Math.floor(qtd/N), rem=qtd-per*N;
+      for(let k=0;k<N;k++){ out.push({ ...base, qtd: Math.max(1, per+(k<rem?1:0)), bordadoInfo: blocks[k] }); }
+    } else {
+      // 1 bloco (ou sku já expandido numa linha anterior): comportamento normal.
+      out.push({ ...base, qtd, bordadoInfo: expandido.has(skuLc) ? null : (blocks[0]||null) });
+    }
   }
   return { produtos: out, dbg };
 }
