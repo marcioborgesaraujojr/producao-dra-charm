@@ -92,6 +92,10 @@ tailwind.config = {
   .bord-stack{position:relative}
   /* Modo só leitura (usuário sem permissão de edição no quadro) */
   body.board-readonly #tab-details{pointer-events:none}
+  /* ...mas ainda deixa VER/selecionar a URL e BAIXAR a imagem/abrir o pedido no modo leitura */
+  body.board-readonly #cardBordadoImagemUrl,
+  body.board-readonly #cardBordadoImagemLink,
+  body.board-readonly #cardPedidoLink{pointer-events:auto}
   body.board-readonly #cardTitle{pointer-events:none;background:transparent}
   body.board-readonly .card-drag{cursor:default}
   body.board-readonly #autosaveStatus{display:none}
@@ -2308,7 +2312,7 @@ async function openCard(id){
   preencherProdutoBordado(c);
   preencherSelectBordado('cardBordadoFonte', FONTE_OPTS, c.bordado_fonte);
   preencherSelectBordado('cardBordadoLado', LADO_OPTS, c.bordado_lado);
-  const biuEl = document.getElementById('cardBordadoImagemUrl'); if (biuEl) biuEl.value = c.bordado_imagem_url || '';
+  const biuEl = document.getElementById('cardBordadoImagemUrl'); if (biuEl){ biuEl.value = c.bordado_imagem_url || ''; biuEl.readOnly = !canEditBoard; }
   const bdEl = document.getElementById('cardBordadoDetalhes'); if (bdEl) bdEl.value = c.bordado_detalhes || '';
   toggleBordadoCampos(c.bordado_tipo);
   const pedidoLink = document.getElementById('cardPedidoLink');
@@ -3228,7 +3232,9 @@ window.toggleFeed = () => {
   if (!l) return;
   const aberto = l.dataset.open === '1';
   l.dataset.open = aberto ? '0' : '1';
-  l.style.maxHeight = aberto ? '96px' : '340px';
+  l.style.maxHeight = aberto ? '96px' : '420px';
+  // Expandido: espaço no rodapé pra última linha não ficar escondida atrás do botão "Recolher".
+  l.style.paddingBottom = aberto ? '' : '44px';
   if (b) b.textContent = aberto ? 'Desça para ver mais histórico ↓' : 'Recolher ↑';
   if (f) f.classList.toggle('hidden', !aberto);
 };
@@ -3238,7 +3244,7 @@ function resetFeedCollapse(){
   const f = document.getElementById('feedFadeBg');
   const w = document.getElementById('feedWrap');
   if (!l) return;
-  l.dataset.open = '0'; l.style.maxHeight = '96px';
+  l.dataset.open = '0'; l.style.maxHeight = '96px'; l.style.paddingBottom = '';
   if (b) b.textContent = 'Desça para ver mais histórico ↓';
   if (f) f.classList.remove('hidden');
   // Se couber tudo na altura recolhida, não mostra a pílula nem o esmaecido.
