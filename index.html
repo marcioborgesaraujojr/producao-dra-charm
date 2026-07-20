@@ -2830,15 +2830,28 @@ function textoDivergencia(cmp){
 function assinaturaCmp(etapa, cmp){ return etapa + ':' + cmp.detalhes.map(d=>d.tam+d.dif).join(','); }
 function temOk(etapa, cmp){ const a = assinaturaCmp(etapa, cmp); return gradeOks.some(r => (r.meta||{}).assinatura === a); }
 
-function pintaAlerta(el, cmp, etapa){
+// O card só "fecha" a conferência quando sai pra uma lista de finalização —
+// antes disso a grade está naturalmente incompleta e não faz sentido acusar erro.
+function listaAtualNome(){
+  const c = cards.find(x=>x.id===activeCardId);
+  const l = c && lists.find(x=>x.id===c.list_id);
+  return (l && l.name) || '';
+}
+function cardFechado(){ return /fechad|finaliz|dado entrada/i.test(listaAtualNome()); }
+
+function pintaAlerta(el, cmp, etapa, iniciado){
   if (!el) return;
-  if (!cmp.detalhes.length){ el.textContent = ''; el.className = 'ml-auto text-[10px] text-emerald-600'; el.textContent = 'confere'; return; }
+  // Ainda não lançaram nada nessa etapa: fica quieto.
+  if (!iniciado){ el.className = 'ml-auto text-[10px] text-slate-300 dark:text-slate-600'; el.textContent = 'não iniciado'; return; }
+  if (!cmp.detalhes.length){ el.className = 'ml-auto text-[10px] text-emerald-600'; el.textContent = 'confere'; return; }
   const ok = temOk(etapa, cmp);
   const txt = textoDivergencia(cmp);
   if (ok){ el.className = 'ml-auto text-[10px] text-slate-400'; el.textContent = txt + ' · ok'; return; }
-  if (cmp.sev === 'leve'){ el.className = 'ml-auto text-[10px] text-slate-500'; el.textContent = txt; return; }
-  const cor = cmp.sev === 'medio' ? 'text-amber-600' : 'text-red-600 font-semibold';
-  el.className = 'ml-auto text-[10px] flex items-center gap-1 ' + cor;
+  // Enquanto o card não foi finalizado, no máximo âmbar (está em andamento).
+  const sev = (!cardFechado() && cmp.sev === 'grave') ? 'medio' : cmp.sev;
+  if (sev === 'leve'){ el.className = 'ml-auto text-[10px] text-slate-500'; el.textContent = txt; return; }
+  if (sev === 'medio'){ el.className = 'ml-auto text-[10px] text-amber-600'; el.textContent = txt + (cardFechado()?'':' · em andamento'); return; }
+  el.className = 'ml-auto text-[10px] flex items-center gap-1 text-red-600 font-semibold';
   el.innerHTML = `<span>${escapeHtml(txt)}</span>` + (canEditBoard ? `<button onclick="darOkGrade('${etapa}')" class="px-1.5 py-0.5 rounded border border-current text-[9px]">dar ok</button>` : '');
 }
 
@@ -2901,9 +2914,9 @@ window.renderGrades = () => {
     } else elOf.classList.add('hidden');
   } else elOf.classList.add('hidden');
   // Acabamento + falhas x oficina
-  pintaAlerta(document.getElementById('alertaAcab'), comparaGrade(baseAcab, t => gradeTotal('acabamento',t) + gradeTotal('falha',t)), 'acabamento');
+  pintaAlerta(document.getElementById('alertaAcab'), comparaGrade(baseAcab, t => gradeTotal('acabamento',t) + gradeTotal('falha',t)), 'acabamento', (tAcab + tFal) > 0);
   // Estoque x acabamento
-  pintaAlerta(document.getElementById('alertaEstoque'), comparaGrade(t => gradeTotal('acabamento',t), t => gradeTotal('estoque',t)), 'estoque');
+  pintaAlerta(document.getElementById('alertaEstoque'), comparaGrade(t => gradeTotal('acabamento',t), t => gradeTotal('estoque',t)), 'estoque', tEst > 0);
   renderLancBox();
 };
 
