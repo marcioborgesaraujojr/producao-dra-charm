@@ -757,13 +757,14 @@ tailwind.config = {
           <div id="producaoFields" class="space-y-4">
           <div>
             <label class="text-xs font-medium uppercase text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/></svg>Grade cortada</label>
-            <div class="mt-1 grid grid-cols-6 gap-1">
-              <div><div class="text-[10px] text-center text-slate-500 mb-0.5">PP</div><input id="cardTamPP" type="number" min="0" class="w-full p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 focus:border-emerald-500 text-sm text-center grade-input"/></div>
-              <div><div class="text-[10px] text-center text-slate-500 mb-0.5">P</div><input id="cardTamP" type="number" min="0" class="w-full p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 focus:border-emerald-500 text-sm text-center grade-input"/></div>
-              <div><div class="text-[10px] text-center text-slate-500 mb-0.5">M</div><input id="cardTamM" type="number" min="0" class="w-full p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 focus:border-emerald-500 text-sm text-center grade-input"/></div>
-              <div><div class="text-[10px] text-center text-slate-500 mb-0.5">G</div><input id="cardTamG" type="number" min="0" class="w-full p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 focus:border-emerald-500 text-sm text-center grade-input"/></div>
-              <div><div class="text-[10px] text-center text-slate-500 mb-0.5">GG</div><input id="cardTamGG" type="number" min="0" class="w-full p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 focus:border-emerald-500 text-sm text-center grade-input"/></div>
-              <div><div class="text-[10px] text-center text-slate-500 mb-0.5">XG</div><input id="cardTamXG" type="number" min="0" class="w-full p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 focus:border-emerald-500 text-sm text-center grade-input"/></div>
+            <div id="gradeCortada" class="mt-1 grid grid-cols-6 gap-1"></div>
+            <div class="hidden" aria-hidden="true">
+              <input id="cardTamPP" type="number" min="0" class="grade-input"/>
+              <input id="cardTamP" type="number" min="0" class="grade-input"/>
+              <input id="cardTamM" type="number" min="0" class="grade-input"/>
+              <input id="cardTamG" type="number" min="0" class="grade-input"/>
+              <input id="cardTamGG" type="number" min="0" class="grade-input"/>
+              <input id="cardTamXG" type="number" min="0" class="grade-input"/>
             </div>
           </div>
           <div>
@@ -772,13 +773,14 @@ tailwind.config = {
               <span class="ml-auto text-[10px] uppercase tracking-wide text-slate-400">Coleta</span>
               <input id="cardDataColeta" type="date" class="w-[130px] px-1.5 py-1 rounded-md bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-[11px]"/>
             </div>
-            <div class="mt-1 grid grid-cols-6 gap-1">
-              <div><div class="text-[10px] text-center text-slate-500 mb-0.5">PP</div><input id="cardTamPPOf" type="number" min="0" class="w-full p-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 focus:border-amber-500 text-sm text-center oficina-input"/></div>
-              <div><div class="text-[10px] text-center text-slate-500 mb-0.5">P</div><input id="cardTamPOf" type="number" min="0" class="w-full p-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 focus:border-amber-500 text-sm text-center oficina-input"/></div>
-              <div><div class="text-[10px] text-center text-slate-500 mb-0.5">M</div><input id="cardTamMOf" type="number" min="0" class="w-full p-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 focus:border-amber-500 text-sm text-center oficina-input"/></div>
-              <div><div class="text-[10px] text-center text-slate-500 mb-0.5">G</div><input id="cardTamGOf" type="number" min="0" class="w-full p-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 focus:border-amber-500 text-sm text-center oficina-input"/></div>
-              <div><div class="text-[10px] text-center text-slate-500 mb-0.5">GG</div><input id="cardTamGGOf" type="number" min="0" class="w-full p-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 focus:border-amber-500 text-sm text-center oficina-input"/></div>
-              <div><div class="text-[10px] text-center text-slate-500 mb-0.5">XG</div><input id="cardTamXGOf" type="number" min="0" class="w-full p-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 focus:border-amber-500 text-sm text-center oficina-input"/></div>
+            <div id="gradeOficina" class="mt-1 grid grid-cols-6 gap-1"></div>
+            <div class="hidden" aria-hidden="true">
+              <input id="cardTamPPOf" type="number" min="0" class="oficina-input"/>
+              <input id="cardTamPOf" type="number" min="0" class="oficina-input"/>
+              <input id="cardTamMOf" type="number" min="0" class="oficina-input"/>
+              <input id="cardTamGOf" type="number" min="0" class="oficina-input"/>
+              <input id="cardTamGGOf" type="number" min="0" class="oficina-input"/>
+              <input id="cardTamXGOf" type="number" min="0" class="oficina-input"/>
             </div>
           </div>
           <div id="gradesExtras" class="hidden space-y-3">
@@ -3008,7 +3010,13 @@ document.addEventListener('click', e => {
 // Os lançamentos parciais ("+20", "+40"...) ficam no activity_log como action='grade',
 // meta = {etapa, tam, qtd}. Assim já vem com autor e data, e aparece no Log/Atividade.
 const TAMS = ['PP','P','M','G','GG','XG'];
-const ETAPAS = { acabamento:{cor:'blue', rot:'Acabamento'}, falha:{cor:'red', rot:'Falhas'}, estoque:{cor:'violet', rot:'Estoque'} };
+const ETAPAS = { cortada:{cor:'emerald', rot:'Cortada'}, oficina:{cor:'amber', rot:'Entregue oficina'}, acabamento:{cor:'blue', rot:'Acabamento'}, falha:{cor:'red', rot:'Falhas'}, estoque:{cor:'violet', rot:'Estoque'} };
+// Cortada/Oficina são ancoradas na COLUNA do card (tam_pp.../tam_pp_of...). O "+" incrementa a coluna
+// (via os inputs escondidos + autosave) e registra o lançamento no histórico. Assim divergência/Painel/sync
+// (que leem as colunas) continuam funcionando.
+const COL_ETAPA = { cortada:'', oficina:'Of' };
+function inputColuna(etapa, tam){ return document.getElementById('cardTam'+tam+(COL_ETAPA[etapa]||'')); }
+function valorColuna(etapa, tam){ const el = inputColuna(etapa, tam); return el ? Number(el.value||0) : 0; }
 let gradeRows = [];        // lançamentos do card aberto
 let gradeOks = [];         // "dar ok" registrados
 let lancAtual = null;      // {etapa, tam} da caixa aberta
@@ -3121,20 +3129,26 @@ window.darOkGrade = async (etapa) => {
 };
 
 // Classes fixas (o Tailwind do CDN não gera nomes montados em tempo de execução)
-const RING_ETAPA = { acabamento:'ring-2 ring-blue-400', falha:'ring-2 ring-red-400', estoque:'ring-2 ring-violet-400' };
-const HOVER_ETAPA = { acabamento:'hover:border-blue-400', falha:'hover:border-red-400', estoque:'hover:border-violet-400' };
+const RING_ETAPA = { cortada:'ring-2 ring-emerald-400', oficina:'ring-2 ring-amber-400', acabamento:'ring-2 ring-blue-400', falha:'ring-2 ring-red-400', estoque:'ring-2 ring-violet-400' };
+const HOVER_ETAPA = { cortada:'hover:border-emerald-400', oficina:'hover:border-amber-400', acabamento:'hover:border-blue-400', falha:'hover:border-red-400', estoque:'hover:border-violet-400' };
 // Cor de fundo suave por etapa (identidade da linha). Classes literais p/ o Tailwind CDN gerar.
-const CELL_BG = { acabamento:'bg-blue-50 dark:bg-blue-900/20', falha:'bg-red-50 dark:bg-red-900/20', estoque:'bg-violet-50 dark:bg-violet-900/20' };
-const CELL_BORDER = { acabamento:'border-blue-200 dark:border-blue-800', falha:'border-red-200 dark:border-red-800', estoque:'border-violet-200 dark:border-violet-800' };
+const CELL_BG = { cortada:'bg-emerald-50 dark:bg-emerald-900/20', oficina:'bg-amber-50 dark:bg-amber-900/20', acabamento:'bg-blue-50 dark:bg-blue-900/20', falha:'bg-red-50 dark:bg-red-900/20', estoque:'bg-violet-50 dark:bg-violet-900/20' };
+const CELL_BORDER = { cortada:'border-emerald-200 dark:border-emerald-800', oficina:'border-amber-200 dark:border-amber-800', acabamento:'border-blue-200 dark:border-blue-800', falha:'border-red-200 dark:border-red-800', estoque:'border-violet-200 dark:border-violet-800' };
 function celulaGrade(etapa, tam){
-  const v = gradeTotal(etapa, tam);
+  // Cortada/Oficina leem a COLUNA (fonte da verdade); as demais somam o histórico (activity_log).
+  const isCol = (etapa === 'cortada' || etapa === 'oficina');
+  const v = isCol ? valorColuna(etapa, tam) : gradeTotal(etapa, tam);
   const aberto = lancAtual && lancAtual.etapa===etapa && lancAtual.tam===tam;
   const ring = aberto ? RING_ETAPA[etapa] : '';
   let extra = '';
   // Divergência só acende depois que a etapa começou (senão o "não iniciado" ficava todo amarelo).
   const acabIniciado = (gradeTotalEtapa('acabamento') + gradeTotalEtapa('falha')) > 0;
   const estoqueIniciado = gradeTotalEtapa('estoque') > 0;
-  if (etapa === 'acabamento' && acabIniciado){
+  if (etapa === 'oficina'){
+    // Borda de divergência na oficina x cortada, só quando a oficina já começou a ser preenchida.
+    const esp = gradeCortada(tam);
+    if (baseOficinaPreenchida() && esp > 0 && v !== esp) extra = v < esp ? 'border-amber-400' : 'border-red-400';
+  } else if (etapa === 'acabamento' && acabIniciado){
     const esp = baseAcab(tam), feito = v + gradeTotal('falha', tam);
     if (esp > 0 && feito !== esp) extra = feito < esp ? 'border-amber-400' : 'border-red-400';
   } else if (etapa === 'estoque' && estoqueIniciado){
@@ -3153,6 +3167,8 @@ function celulaGrade(etapa, tam){
 window.renderGrades = () => {
   const box = document.getElementById('gradesExtras');
   if (!box || box.classList.contains('hidden')) return;
+  const gcE = document.getElementById('gradeCortada'); if (gcE) gcE.innerHTML = TAMS.map(t=>celulaGrade('cortada',t)).join('');
+  const goE = document.getElementById('gradeOficina'); if (goE) goE.innerHTML = TAMS.map(t=>celulaGrade('oficina',t)).join('');
   document.getElementById('gradeAcab').innerHTML = TAMS.map(t=>celulaGrade('acabamento',t)).join('');
   document.getElementById('gradeFalha').innerHTML = TAMS.map(t=>celulaGrade('falha',t)).join('');
   document.getElementById('gradeEstoque').innerHTML = TAMS.map(t=>celulaGrade('estoque',t)).join('');
@@ -3189,7 +3205,10 @@ window.renderGrades = () => {
 window.abrirLanc = (etapa, tam) => {
   lancAtual = (lancAtual && lancAtual.etapa===etapa && lancAtual.tam===tam) ? null : { etapa, tam };
   renderGrades();
-  if (lancAtual){ const i = document.getElementById('lancQtd'); if (i) i.focus(); }
+  if (lancAtual){
+    const b = document.getElementById('lancBox'); if (b) b.scrollIntoView({ block:'nearest' });
+    const i = document.getElementById('lancQtd'); if (i) i.focus();
+  }
 };
 
 function renderLancBox(){
@@ -3197,8 +3216,11 @@ function renderLancBox(){
   if (!box) return;
   if (!lancAtual){ box.classList.add('hidden'); box.innerHTML=''; return; }
   const { etapa, tam } = lancAtual;
+  const isCol = (etapa === 'cortada' || etapa === 'oficina');
   const parciais = gradeRows.filter(r => (r.meta||{}).etapa===etapa && (r.meta||{}).tam===tam);
-  const soma = parciais.reduce((s,r)=>s+Number((r.meta||{}).qtd||0),0);
+  const somaParc = parciais.reduce((s,r)=>s+Number((r.meta||{}).qtd||0),0);
+  // Cortada/Oficina: o total é o valor da COLUNA (fonte da verdade). As demais somam o histórico.
+  const soma = isCol ? valorColuna(etapa, tam) : somaParc;
   const conta = parciais.map(r => Number((r.meta||{}).qtd||0)).join(' + ') || '0';
   const linhas = parciais.slice(-6).map(r => {
     const p = profiles.find(x=>x.id===r.actor_id);
@@ -3213,7 +3235,7 @@ function renderLancBox(){
       <span class="text-[10px] uppercase tracking-wide text-slate-500">${ETAPAS[etapa].rot} · tamanho ${tam}</span>
       <button onclick="abrirLanc('${etapa}','${tam}')" class="text-[10px] text-slate-400 hover:text-slate-600">fechar</button>
     </div>
-    <div class="text-[11px] text-slate-600 dark:text-slate-300 mb-1">${escapeHtml(conta)} = <b>${soma}</b></div>
+    <div class="text-[11px] text-slate-600 dark:text-slate-300 mb-1">${isCol ? `total na grade: <b>${soma}</b>` : `${escapeHtml(conta)} = <b>${soma}</b>`}</div>
     ${linhas ? `<div class="space-y-0.5 mb-2">${linhas}</div>` : ''}
     ${canEditBoard ? `<div class="flex gap-1">
       <input id="lancQtd" type="number" placeholder="+ peças" class="flex-1 p-1.5 rounded-lg bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm" onkeydown="if(event.key==='Enter'){event.preventDefault();addLanc();}">
@@ -3226,11 +3248,20 @@ window.addLanc = async () => {
   const i = document.getElementById('lancQtd');
   const q = parseInt(i && i.value, 10);
   if (!q){ return; }
+  const { etapa, tam } = lancAtual;
+  const isCol = (etapa === 'cortada' || etapa === 'oficina');
   try{
-    const { data } = await sb.from('activity_log').insert({ card_id: activeCardId, actor_id: user.id, action:'grade', meta:{ etapa:lancAtual.etapa, tam:lancAtual.tam, qtd:q } }).select().single();
-    if (data){ gradeRows.push(data); const g = gradeTotalsByCard[activeCardId] || (gradeTotalsByCard[activeCardId] = {}); g[lancAtual.etapa] = (g[lancAtual.etapa]||0) + q; }
+    const { data } = await sb.from('activity_log').insert({ card_id: activeCardId, actor_id: user.id, action:'grade', meta:{ etapa, tam, qtd:q } }).select().single();
+    if (data) gradeRows.push(data);
+    if (isCol){
+      // Fonte da verdade é a COLUNA: incrementa o input escondido e dispara o autosave (saveCard).
+      const el = inputColuna(etapa, tam);
+      if (el){ el.value = Math.max(0, Number(el.value||0) + q); el.dispatchEvent(new Event('input', { bubbles:true })); }
+    } else {
+      const g = gradeTotalsByCard[activeCardId] || (gradeTotalsByCard[activeCardId] = {}); g[etapa] = (g[etapa]||0) + q;
+      await sincronizaBoasFalhas();
+    }
     if (i) i.value = '';
-    await sincronizaBoasFalhas();
     renderGrades();
     const f = document.getElementById('lancQtd'); if (f) f.focus();
   }catch(e){ toast('Não deu pra lançar'); }
@@ -3238,10 +3269,19 @@ window.addLanc = async () => {
 
 window.apagarLanc = async (id) => {
   if (!canEditBoard) return;
+  const row = gradeRows.find(r => r.id === id);
+  const m = (row && row.meta) || {};
+  const isCol = (m.etapa === 'cortada' || m.etapa === 'oficina');
   try{
     await sb.from('activity_log').delete().eq('id', id);
     gradeRows = gradeRows.filter(r => r.id !== id);
-    await sincronizaBoasFalhas();
+    if (isCol){
+      // Desfaz o parcial na COLUNA (fonte da verdade) e re-salva.
+      const el = inputColuna(m.etapa, m.tam);
+      if (el){ el.value = Math.max(0, Number(el.value||0) - Number(m.qtd||0)); el.dispatchEvent(new Event('input', { bubbles:true })); }
+    } else {
+      await sincronizaBoasFalhas();
+    }
     renderGrades();
   }catch(e){ toast('Não deu pra tirar'); }
 };
