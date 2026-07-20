@@ -1604,19 +1604,28 @@ async function switchBoard(boardId){
   const cardIds = cards.map(c=>c.id);
   commentCounts = {}; attachmentCounts = {}; gradeTotalsByCard = {};
   if (cardIds.length){
-    const [cmR, atR, grR] = await Promise.all([
+    const [cmR, atR] = await Promise.all([
       sb.from('comments').select('card_id').in('card_id', cardIds),
       sb.from('attachments').select('card_id').in('card_id', cardIds),
-      // Lançamentos de grade (acabamento/estoque/falha) pra somar por card e mostrar no card do quadro
-      sb.from('activity_log').select('card_id, meta').eq('action','grade').in('card_id', cardIds),
     ]);
     (cmR.data||[]).forEach(r => commentCounts[r.card_id] = (commentCounts[r.card_id]||0) + 1);
     (atR.data||[]).forEach(r => attachmentCounts[r.card_id] = (attachmentCounts[r.card_id]||0) + 1);
-    (grR.data||[]).forEach(r => {
-      const m = r.meta||{}; const et = m.etapa; if (!et) return;
-      const g = gradeTotalsByCard[r.card_id] || (gradeTotalsByCard[r.card_id] = {});
-      g[et] = (g[et]||0) + Number(m.qtd||0);
-    });
+    // Soma Acabamento/Estoque por card. PAGINADO: o activity_log passa de 1000 linhas (limite do
+    // Supabase) — sem paginar, só alguns cards recebiam o total e o resto ficava só com Cortada/Oficina.
+    let _from = 0; const _PG = 1000;
+    for (let _guard = 0; _guard < 60; _guard++){
+      const { data: page } = await sb.from('activity_log')
+        .select('card_id, meta').eq('action','grade')
+        .in('card_id', cardIds).range(_from, _from + _PG - 1);
+      if (!page || !page.length) break;
+      page.forEach(r => {
+        const m = r.meta||{}; const et = m.etapa; if (et !== 'acabamento' && et !== 'estoque') return;
+        const g = gradeTotalsByCard[r.card_id] || (gradeTotalsByCard[r.card_id] = {});
+        g[et] = (g[et]||0) + Number(m.qtd||0);
+      });
+      if (page.length < _PG) break;
+      _from += _PG;
+    }
   }
   renderBoard();
 }
