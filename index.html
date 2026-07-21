@@ -71,6 +71,9 @@
   .dark .login-with-bg::before{background:rgba(15,23,42,.75)}
   .login-with-bg > *{position:relative;z-index:1}
   .hub-card{position:relative;display:flex;align-items:flex-start;gap:14px;padding:18px;background:#fff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 1px 2px rgba(15,23,42,.04);cursor:pointer;transition:all .18s ease;text-decoration:none;color:inherit}
+  /* CRÍTICO: .hub-card tem display:flex que vencia o .hidden do Tailwind (mesma especificidade) —
+     por isso o controle de acesso do hub não escondia card nenhum. Esta regra faz o hidden valer. */
+  .hub-card.hidden{display:none !important}
   .dark .hub-card{background:#1e293b;border-color:#334155}
   .hub-card:hover:not([disabled]){transform:translateY(-2px);box-shadow:0 8px 24px rgba(15,23,42,.10);border-color:#94a3b8}
   .hub-card-icon{flex-shrink:0;width:52px;height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.10)}
@@ -1334,8 +1337,9 @@ async function initAuth(){
   else showLogin();
   sb.auth.onAuthStateChange((_e, s) => {
     if (_e === 'PASSWORD_RECOVERY'){ showRecovery(); return; }
-    if (s && !user){ user = s.user; afterLogin(); }
-    if (!s && user){ user = null; showLogin(); }
+    // Re-carrega quando NÃO havia ninguém OU quando trocou de conta (id diferente) sem recarregar a página.
+    if (s && (!user || user.id !== s.user.id)){ user = s.user; profile = null; afterLogin(); }
+    else if (!s && user){ user = null; profile = null; showLogin(); }
   });
 }
 function showRecovery(){
@@ -4316,14 +4320,12 @@ function showHub(){
   applySuiteBg();
   const em = document.getElementById('hubUserEmail');
   if (em && typeof user !== 'undefined' && user) em.textContent = user.email || '';
+  const _admEmail = (typeof user !== 'undefined' && user && (user.email||'').toLowerCase() === 'marcioborgesaraujojr@gmail.com');
+  // toggle (não só remove): re-esconde pra quem NÃO é admin, mesmo trocando de conta sem recarregar
   const painelCard = document.getElementById('hubPainelCard');
-  if (painelCard && typeof user !== 'undefined' && user && (user.email||'').toLowerCase() === 'marcioborgesaraujojr@gmail.com'){
-    painelCard.classList.remove('hidden');
-  }
+  if (painelCard) painelCard.classList.toggle('hidden', !_admEmail);
   const settingsCard = document.getElementById('hubSettingsCard');
-  if (settingsCard && typeof user !== 'undefined' && user && (user.email||'').toLowerCase() === 'marcioborgesaraujojr@gmail.com'){
-    settingsCard.classList.remove('hidden');
-  }
+  if (settingsCard) settingsCard.classList.toggle('hidden', !_admEmail);
   /* "Trocar fundo do login" agora fica em Configurações da Suíte (não mais no menu do usuário) */
   // Permissões: quem não é admin vê só os sistemas liberados em profile.access.
   const _isAdm = (typeof user !== 'undefined' && user && (user.email||'').toLowerCase() === 'marcioborgesaraujojr@gmail.com');
