@@ -8,6 +8,8 @@
 //   ?run=status               -> mostra o progresso atual (lê os JSON)
 //   ?debug=bling-prod | li-prod | li-pedidos | li-img&id= ...   (sondagem)
 
+import { getLIKeys } from '../lib/licfg.js';
+
 // ============ Bling (OAuth, mesmo esquema do api/pedidos.js) ============
 const PROJ = "prj_ErH4xc9FokreQHv0utp1xJ2eGvdO";
 const TEAM = "team_Hv0Wqku1l7HhDDiJZmR2u5Ze";
@@ -109,8 +111,9 @@ async function bling(path, token) {
 async function li(path) {
   const base = process.env.LI_BASE_URL || "https://api.awsli.com.br/v1";
   const u = new URL(path.startsWith("http") ? path : base + path);
-  u.searchParams.set("chave_api", process.env.LI_CHAVE_API || "");
-  u.searchParams.set("chave_aplicacao", process.env.LI_CHAVE_APLICACAO || "");
+  const _k = await getLIKeys();
+  u.searchParams.set("chave_api", _k.api || "");
+  u.searchParams.set("chave_aplicacao", _k.app || "");
   const r = await fetch(u.toString(), { headers: { Accept: "application/json" } });
   const d = await r.json().catch(() => null);
   return { ok: r.ok, status: r.status, data: d };
