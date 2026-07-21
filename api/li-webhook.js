@@ -42,23 +42,24 @@ function preencher(msg, ctx) {
 }
 
 // Quando o pedido vira "enviado"/"entregue", move o card do quadro de Personalização
-// pra coluna "Bordado Expedido" (assim a expedição não precisa mover na mão).
+// pra coluna "Bordado Concluído" (assim a expedição não precisa mover na mão).
+// (A mesma regra também roda na sync do board — personalizacao-sync — de forma retroativa.)
 async function moverParaExpedido(pedido) {
   if (!pedido) return { moved: false, motivo: 'sem pedido' };
   const boards = await sb('boards?select=id&name=ilike.*personaliza*&limit=1');
   const boardId = Array.isArray(boards) && boards[0] && boards[0].id;
   if (!boardId) return { moved: false, motivo: 'board Personalização não encontrado' };
-  const listas = await sb('lists?select=id&board_id=eq.' + boardId + '&name=ilike.*expedido*&limit=1');
-  const expId = Array.isArray(listas) && listas[0] && listas[0].id;
-  if (!expId) return { moved: false, motivo: 'coluna "Bordado Expedido" não encontrada' };
-  const todasListas = await sb('lists?select=id&board_id=eq.' + boardId);
+  const todasListas = await sb('lists?select=id,name&board_id=eq.' + boardId + '&archived=eq.false');
+  const lista = (todasListas || []).find(l => /conclu/i.test(l.name)) || (todasListas || []).find(l => /expedid/i.test(l.name));
+  const expId = lista && lista.id;
+  if (!expId) return { moved: false, motivo: 'coluna "Bordado Concluído" não encontrada' };
   const listIds = (todasListas || []).map(l => l.id);
   const cards = await sb('cards?select=id,list_id&archived=eq.false&pedido_numero=eq.' + encodeURIComponent(String(pedido)));
   const card = (cards || []).find(c => listIds.includes(c.list_id)) || (cards || [])[0];
   if (!card) return { moved: false, motivo: 'card não encontrado pro pedido ' + pedido };
-  if (card.list_id === expId) return { moved: false, motivo: 'já estava em Bordado Expedido' };
+  if (card.list_id === expId) return { moved: false, motivo: 'já estava em ' + lista.name };
   await sb('cards?id=eq.' + card.id, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ list_id: expId, position: Date.now() }) });
-  return { moved: true, card_id: card.id };
+  return { moved: true, card_id: card.id, para: lista.name };
 }
 
 // núcleo: registra evento, acha gatilho ativo e enfileira

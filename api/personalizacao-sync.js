@@ -324,9 +324,47 @@ export default async function handler(req,res){
         if(up.status>=200&&up.status<300){ updated++; } else { updErr=up.j; }
       }
     }
+    // ===== Regra: pedido ENVIADO/ENTREGUE na LI => move o card pra "Bordado Concluído" =====
+    // Roda a cada sync (retroativo). Antes só existia no webhook, que dependia de evento novo da LI
+    // e ainda procurava uma coluna "Expedido" que não existe no board (por isso pedidos enviados
+    // como o 238862 ficavam parados na coluna de bordado).
+    const enviadoRx = s => /enviad|entreg|despach|transito|trânsito|transporte|postad/i.test(String(s||'').toLowerCase());
+    let movedConcluido=0, moveErr=null, concluidoListId=null, moveDbg=null;
+    try{
+      const pl = await sbREST('GET','lists?select=board_id&id=eq.'+PERSO_LIST);
+      const persoBoardId = (pl.j && pl.j[0] && pl.j[0].board_id) || null;
+      if(persoBoardId){
+        const cl = await sbREST('GET','lists?select=id,name&board_id=eq.'+persoBoardId+'&archived=eq.false');
+        const persoLists = cl.j || [];
+        const concl = persoLists.find(l=>/conclu/i.test(l.name)) || persoLists.find(l=>/expedid/i.test(l.name));
+        concluidoListId = concl ? concl.id : null;
+        moveDbg = { board:persoBoardId, colConcluido: concl?concl.name:null };
+        if(concluidoListId){
+          const listIdSet = new Set(persoLists.map(l=>l.id));
+          const enviadoNums = [...new Set(candidatos.filter(c=>enviadoRx(c.situacao) && existSet.has(c.numero)).map(c=>c.numero))];
+          if(enviadoNums.length){
+            const cr = await sbREST('GET','cards?select=id,list_id,pedido_numero&archived=eq.false&pedido_numero=in.('+enviadoNums.join(',')+')');
+            const cardsE = cr.j || [];
+            const byNum={};
+            cardsE.forEach(x=>{ const cur=byNum[x.pedido_numero]; if(!cur || (listIdSet.has(x.list_id) && !listIdSet.has(cur.list_id))) byNum[x.pedido_numero]=x; });
+            for(const num of enviadoNums){
+              const card = byNum[num]; if(!card) continue;
+              if(!listIdSet.has(card.list_id)) continue;      // card não é do board de Personalização
+              if(card.list_id === concluidoListId) continue;   // já está em Concluído
+              if(commit){
+                const mv = await sbREST('PATCH','cards?id=eq.'+card.id, { list_id:concluidoListId, position:Date.now() });
+                if(mv.status>=200&&mv.status<300) movedConcluido++; else moveErr=mv.j;
+              } else { movedConcluido++; }
+            }
+          }
+        }
+      }
+    }catch(e){ moveErr=String(e.message||e); }
+
     const jaExistem=[...new Set(candidatos.filter(c=>existSet.has(c.numero)).map(c=>c.numero))].length;
     res.status(200).json({
       dryrun:!commit, varridos:scanned, comBordado:candidatos.length, comBordadoValidos, criaria:toCreate.length, apagaria:toDelete.length, atualizaria:toUpdate.length, jaExistem, inserted, deleted, updated, insErr, delErr, updErr,
+      moveuConcluido:movedConcluido, moveErr, moveDbg,
       amostraCriar: toCreate.slice(0,5).map(c=>({numero:c.numero, situacao:c.situacao, tipo:c.b.tipo, fonte:c.b.fonte, produtosCount:(c.produtos||[]).length, produtoSample:(c.produtos||[])[0], imgDbg:c._dbg})),
       amostraApagar: toDelete.slice(0,10)
     });
