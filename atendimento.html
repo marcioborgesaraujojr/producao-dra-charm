@@ -195,6 +195,12 @@ async function bootstrap(){
   const c = await getSb();
   const { data:{ session } } = await c.auth.getSession();
   if(!session){ document.getElementById('authGate').classList.remove('hidden'); return; }
+  // Checa acesso ao módulo (não basta estar logado — precisa ter 'atendimento' liberado)
+  const _em=(session.user.email||'').toLowerCase();
+  if(_em!=='marcioborgesaraujojr@gmail.com'){
+    const { data:_pf } = await c.from('profiles').select('access').eq('id',session.user.id).maybeSingle();
+    if(!(_pf && _pf.access && _pf.access.atendimento===true)){ window.location.href='/'; return; }
+  }
   document.getElementById('appWrap').classList.remove('hidden');
   // identidade do atendente
   ATEND_ID = session.user.id;
