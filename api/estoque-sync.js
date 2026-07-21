@@ -421,14 +421,14 @@ async function runVendasRecente() {
   let snap = (await storageGet("reposicao/vendas.json")) || { atualizado_em: null, offset: 0, total_count: 0, dias: {}, done: false, janela_dias: 1095 };
   if (!snap.dias) snap.dias = {};
   const LIMIT = 100;
-  const inc = diasAtras(4); // últimos ~3-4 dias
+  const inc = diasAtras(7); // últimos ~7 dias (janela ampla: auto-corrige qualquer dia recente com problema)
   for (const k of Object.keys(snap.dias)) if (k >= inc) delete snap.dias[k]; // recontar do zero esses dias
   const pg = await lerPagos(false, snap.janela_dias || 1095);
   for (const k of Object.keys(pg.pagos)) if (pg.pagos[k].d >= inc) delete pg.pagos[k]; // idem no livro-razão
   let offset = 0, processados = 0;
-  // Teto de 20 páginas (~2000 pedidos): apaga 4 dias, então o re-scan precisa cobrir >=4 dias de pedidos
-  // (com ~250/dia, 8 páginas não bastavam e o dia mais antigo da janela sumia). Para ao passar de 'inc'.
-  for (let i = 0; i < 20; i++) {
+  // Teto de 30 páginas (~3000 pedidos / ~12 dias com ~250/dia): apaga 7 dias, então o re-scan precisa cobrir
+  // >=7 dias de pedidos. Para ao passar de 'inc'.
+  for (let i = 0; i < 30; i++) {
     const out = await li("/pedido/?limit=" + LIMIT + "&offset=" + offset + "&order_by=-data_criacao");
     if (!out.ok || !out.data) break;
     if (out.data.meta && out.data.meta.total_count) snap.total_count = out.data.meta.total_count;
