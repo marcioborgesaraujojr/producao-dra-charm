@@ -395,9 +395,13 @@ async function runVendas(maxPages, reset, rewind) {
     let passouDoCorte = false, passouInc = false;
     for (const p of objs) {
       const dia = diaISO(p.data_criacao);
-      if (dia && dia >= corte) { if (!rewind) agregaPedido(snap.dias, p); regPago(pg.pagos, p); processados++; }
-      else if (dia) { passouDoCorte = true; }
-      if (dia && inc && dia < inc) passouInc = true; // já chegou num pedido anterior à janela apagada
+      if (!dia) continue;
+      // Incremental só RE-AGREGA a janela que apagou (>= inc). Se agregasse dias < inc (que NÃO foram
+      // apagados), somava em cima do que já existe = contagem dobrada. Backfill agrega toda a janela do ano.
+      const agregaEste = (modo === "incremental") ? (dia >= inc) : (dia >= corte);
+      if (agregaEste) { if (!rewind) agregaPedido(snap.dias, p); regPago(pg.pagos, p); processados++; }
+      if (dia < corte) passouDoCorte = true;              // saiu da janela do ano (break do backfill)
+      if (modo === "incremental" && dia < inc) passouInc = true; // saiu da janela apagada (break do incremental)
     }
     offset += objs.length;
     if (objs.length < LIMIT) { snap.done = true; break; }
