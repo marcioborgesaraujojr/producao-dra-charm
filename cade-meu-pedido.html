@@ -185,6 +185,15 @@ async function boot(){
   const s=readSession();
   if(!s||!s.tok){ document.getElementById('login').style.display='block'; return; }
   TOKEN=s.tok; USER=s.user;
+  // Checa acesso ao módulo (painel interno — não basta estar logado, precisa ter 'cade_pedido' liberado)
+  try{
+    const _em=((USER&&USER.email)||'').toLowerCase();
+    if(_em!=='marcioborgesaraujojr@gmail.com'){
+      const _r=await fetch('https://'+SUPABASE_REF+'.supabase.co/rest/v1/profiles?select=access&id=eq.'+(USER&&USER.id),{headers:{apikey:'sb_publishable_uMoCEK4Ed_u8ZIfjVZ7Jrg_tdR4b9bO',Authorization:'Bearer '+TOKEN}});
+      const _j=await _r.json(); const _acc=(_j&&_j[0]&&_j[0].access)||{};
+      if(_acc.cade_pedido!==true){ window.location.href='/'; return; }
+    }
+  }catch(e){ window.location.href='/'; return; }
   document.getElementById('app').style.display='flex';
   document.getElementById('icAtu').innerHTML=IC.refresh;
   document.getElementById('meNome').textContent=(USER&&(USER.user_metadata?.name||USER.email))||'Equipe Dra. Charm';

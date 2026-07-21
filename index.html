@@ -4358,10 +4358,11 @@ window.openUsers = async () => {
     const labelsByBoard = {}; (allLabelsRows||[]).forEach(l => { (labelsByBoard[l.board_id] = labelsByBoard[l.board_id] || []).push(l); });
     const systems = [
       {key:'quadros', label:'Quadros'},
+      {key:'estoque', label:'Estoque & Vendas'},
       {key:'cep', label:'CEP'},
       {key:'atendimento', label:'Atendimento'},
+      {key:'cade_pedido', label:'Rastreio de Pedido'},
       {key:'marketing', label:'Marketing'},
-      {key:'cade_pedido', label:'Cadê Pedido'},
       {key:'painel', label:'Painel'},
     ];
     window.__uc = { users, boards: boardsList||[], memberSet, memberEdit, memberLabelFilter, labelsByBoard, systems };
