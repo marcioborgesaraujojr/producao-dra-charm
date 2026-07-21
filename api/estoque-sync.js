@@ -379,7 +379,11 @@ async function runVendas(maxPages, reset, rewind) {
   const pg = await lerPagos(reset, snap.janela_dias || 1095); // livro-razão de pagos por cliente
   // Mais NOVO primeiro (order_by=-data_criacao): offset 0 = pedidos mais recentes.
   let offset = (modo === "backfill") ? (snap.offset || 0) : 0;
-  if (modo === "incremental") { const inc = diasAtras(3); for (const k of Object.keys(snap.dias)) if (k >= inc) delete snap.dias[k]; for (const k of Object.keys(pg.pagos)) if (pg.pagos[k].d >= inc) delete pg.pagos[k]; }
+  // Incremental: apaga os últimos N dias e RECONTA eles do zero. O re-scan tem que cobrir toda essa janela,
+  // senão apaga dias que não volta a preencher (era o bug: apagava 3 dias mas só varria ~1,3 dia de pedidos,
+  // então os dias 2-3 atrás sumiam). Agora varre até passar de 'inc' (achar pedido mais antigo que a janela).
+  const inc = (modo === "incremental") ? diasAtras(3) : null;
+  if (modo === "incremental") { for (const k of Object.keys(snap.dias)) if (k >= inc) delete snap.dias[k]; for (const k of Object.keys(pg.pagos)) if (pg.pagos[k].d >= inc) delete pg.pagos[k]; }
   let processados = 0, ultOk = false;
   for (let i = 0; i < maxPages; i++) {
     const out = await li("/pedido/?limit=" + LIMIT + "&offset=" + offset + "&order_by=-data_criacao");
@@ -388,16 +392,17 @@ async function runVendas(maxPages, reset, rewind) {
     if (out.data.meta && out.data.meta.total_count) snap.total_count = out.data.meta.total_count;
     const objs = out.data.objects || [];
     if (!objs.length) { snap.done = true; break; }
-    let passouDoCorte = false;
+    let passouDoCorte = false, passouInc = false;
     for (const p of objs) {
       const dia = diaISO(p.data_criacao);
       if (dia && dia >= corte) { if (!rewind) agregaPedido(snap.dias, p); regPago(pg.pagos, p); processados++; }
       else if (dia) { passouDoCorte = true; }
+      if (dia && inc && dia < inc) passouInc = true; // já chegou num pedido anterior à janela apagada
     }
     offset += objs.length;
     if (objs.length < LIMIT) { snap.done = true; break; }
     if (passouDoCorte && modo === "backfill") { snap.done = true; break; } // já entrou em pedidos com +1 ano
-    if (modo === "incremental" && i >= 2) break; // incremental só varre as primeiras páginas (recentes)
+    if (modo === "incremental" && passouInc) break; // cobriu TODOS os dias apagados (não para antes)
   }
   if (modo === "backfill") snap.offset = snap.done ? 0 : offset;
   snap.atualizado_em = new Date().toISOString();
@@ -417,7 +422,9 @@ async function runVendasRecente() {
   const pg = await lerPagos(false, snap.janela_dias || 1095);
   for (const k of Object.keys(pg.pagos)) if (pg.pagos[k].d >= inc) delete pg.pagos[k]; // idem no livro-razão
   let offset = 0, processados = 0;
-  for (let i = 0; i < 8; i++) {
+  // Teto de 20 páginas (~2000 pedidos): apaga 4 dias, então o re-scan precisa cobrir >=4 dias de pedidos
+  // (com ~250/dia, 8 páginas não bastavam e o dia mais antigo da janela sumia). Para ao passar de 'inc'.
+  for (let i = 0; i < 20; i++) {
     const out = await li("/pedido/?limit=" + LIMIT + "&offset=" + offset + "&order_by=-data_criacao");
     if (!out.ok || !out.data) break;
     if (out.data.meta && out.data.meta.total_count) snap.total_count = out.data.meta.total_count;
