@@ -38,15 +38,24 @@ function buildBordadoFromFields(f, raw){
     else corNome=f['cores'];
   }
   let imgUrl = f['fazer upload da imagem'] || null;
-  if(!imgUrl){ const m=String(raw||'').match(/https?:\/\/[^\s\n]+\.(?:jpg|jpeg|png|pdf|svg|gif)/i); if(m) imgUrl=m[0]; }
+  if(!imgUrl){ const m=String(raw||'').match(/https?:\/\/[^\s\n\])]+\.(?:jpg|jpeg|png|pdf|svg|gif)/i); if(m) imgUrl=m[0]; }
   const linha1 = f['linha 1'] || null;
   const linha2 = f['linha 2'] || f['linha 3'] || null;
   const hasLinhas = !!(linha1 || linha2);
-  // Tipo inferido do próprio bloco: imagem => logomarca; linhas => nome_profissao; os dois => ambos
+  // Opção que o cliente escolheu/PAGOU (ex: "Sim (Nome, Profissão e Logomarca)"). É o sinal mais confiável
+  // do tipo do que a imagem — o upload do logo às vezes não vem (bug de cache), mas a opção fica registrada.
+  let opTxt = '';
+  for(const k in f){ if(/^op[çc]/i.test(k)) opTxt += ' ' + f[k]; }
+  const optLogo = /logo/i.test(opTxt);
+  const optNome = /nome|profiss/i.test(opTxt);
+  const wantLogo = optLogo || !!imgUrl;
+  const wantNome = optNome || hasLinhas;
   let tipo = null;
-  if(imgUrl && hasLinhas) tipo='ambos';
-  else if(imgUrl) tipo='logomarca';
-  else if(hasLinhas) tipo='nome_profissao';
+  if(wantLogo && wantNome) tipo='ambos';
+  else if(wantLogo) tipo='logomarca';
+  else if(wantNome) tipo='nome_profissao';
+  // Pagou/escolheu logo mas a imagem não veio no pedido => precisa confirmar com o cliente e anexar a logo.
+  const logoPendente = wantLogo && !imgUrl;
   return {
     tipo,
     linha1, linha2,
@@ -54,6 +63,7 @@ function buildBordadoFromFields(f, raw){
     fonte: f['tipo de letra'] || null,
     lado: f['lados'] || f['lado'] || null,
     imagem: imgUrl,
+    logoPendente,
     detalhes: f['detalhes do bordado (opcional)'] || f['detalhes do bordado'] || null
   };
 }
