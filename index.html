@@ -53,13 +53,16 @@
   .board-scroll::-webkit-scrollbar-thumb{background:#94a3b8;border-radius:8px}
   .dark .board-scroll::-webkit-scrollbar-thumb{background:#475569}
   .card-drag{cursor:grab}
-  /* Loading: spinner girando + texto pulsando (substitui o "Carregando..." em texto) */
-  .dc-load{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:64px 16px}
-  .dc-spinner{width:38px;height:38px;border-radius:9999px;border:3px solid #e2e8f0;border-top-color:#ec4899;animation:dc-spin .7s linear infinite}
-  .dark .dc-spinner{border-color:#334155;border-top-color:#ec4899}
+  /* Loading: logo "A" da Aragão pulsando dentro de um aro girando (azul da marca) */
+  .dc-load{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:64px 16px}
+  .dc-logo-wrap{position:relative;width:66px;height:66px;display:flex;align-items:center;justify-content:center}
+  .dc-logo-img{width:42px;height:42px;object-fit:contain;animation:dc-breathe 1.5s ease-in-out infinite}
+  @keyframes dc-breathe{0%,100%{opacity:.5;transform:scale(.9)}50%{opacity:1;transform:scale(1)}}
+  .dc-logo-ring{position:absolute;inset:0;border-radius:9999px;border:3px solid #dbe3f0;border-top-color:#3f66ab;border-right-color:#3f66ab;animation:dc-spin .8s linear infinite}
+  .dark .dc-logo-ring{border-color:#334155;border-top-color:#6b8fd1;border-right-color:#6b8fd1}
   @keyframes dc-spin{to{transform:rotate(360deg)}}
   .dc-load-lbl{font-size:13px;letter-spacing:.04em;color:#94a3b8;animation:dc-pulse 1.3s ease-in-out infinite}
-  @keyframes dc-pulse{0%,100%{opacity:.35}50%{opacity:1}}
+  @keyframes dc-pulse{0%,100%{opacity:.4}50%{opacity:1}}
   /* Logo do sistema (A) clicável pra voltar pra home do suíte (no hub e no quadro) */
   #hubScreen .system-logo, #app .system-logo{cursor:pointer;transition:transform .12s ease, box-shadow .12s ease}
   #hubScreen .system-logo:hover, #app .system-logo:hover{transform:scale(1.06);box-shadow:0 3px 10px rgba(0,0,0,.15)}
@@ -2051,14 +2054,14 @@ function renderCard(c, compact){
   const compactChips = [];
   if (bType === 'bordado'){
     if (c.pedido_numero) compactChips.push(`<span class="inline-flex items-center gap-1 text-[11px] font-extrabold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">#${escapeHtml(c.pedido_numero)}</span>`);
-    if (c.due_date) compactChips.push(`<span class="inline-flex items-center gap-0.5 text-[10px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-ink-600 px-1.5 py-0.5 rounded"><svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>${escapeHtml(c.due_date.slice(5))}</span>`);
+    if (c.due_date) compactChips.push(`<span class="inline-flex items-center gap-0.5 text-[10px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-ink-600 px-1.5 py-0.5 rounded"><svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>${escapeHtml(brDia(c.due_date))}</span>`);
   }
   const cCount = commentCounts[c.id] || 0;
   const aCount = attachmentCounts[c.id] || 0;
   const icons = [];
   if (cCount) icons.push(`<span class="inline-flex items-center gap-0.5 text-[11px] text-slate-500" title="Comentários"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>${cCount}</span>`);
   if (aCount) icons.push(`<span class="inline-flex items-center gap-0.5 text-[11px] text-slate-500" title="Anexos"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>${cCount ? '' : ''}${aCount}</span>`);
-  if (c.due_date && bType !== 'producao') icons.push(`<span class="inline-flex items-center gap-0.5 text-[11px] text-slate-500" title="Data prevista"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>${escapeHtml(c.due_date.slice(5))}</span>`);
+  if (c.due_date && bType !== 'producao') icons.push(`<span class="inline-flex items-center gap-0.5 text-[11px] text-slate-500" title="Data prevista"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>${escapeHtml(brDia(c.due_date))}</span>`);
   const bodyInner = `
     ${(!hasPhoto && labelChips) ? `<div class="flex flex-wrap gap-1 mb-1">${labelChips}</div>` : ''}
     <div class="font-semibold leading-tight break-words">${escapeHtml(c.title)}</div>
@@ -2990,6 +2993,7 @@ function activityEditParts(meta, listResolver){
     if (k === 'tecido_id') return `Tecido: <span class="text-slate-400 line-through">${escapeHtml(tecidoNome(v?.from))}</span> → <span class="text-emerald-600 font-medium">${escapeHtml(tecidoNome(v?.to))}</span>`;
     if (k === 'cover_url') return 'Foto atualizada';
     if (k === 'bordado_imagem_url') return 'Link da logo atualizado';
+    if (k === 'due_date' || k === 'data_coleta_oficina'){ const fD = x => (x===null||x===''||x===undefined) ? '—' : brData(x); return `${humanizeCampo(k)}: <span class="text-slate-400 line-through">${escapeHtml(fD(v?.from))}</span> → <span class="text-emerald-600 font-medium">${escapeHtml(fD(v?.to))}</span>`; }
     return `${humanizeCampo(k)}: <span class="text-slate-400 line-through">${escapeHtml(fmt(v?.from))}</span> → <span class="text-emerald-600 font-medium">${escapeHtml(fmt(v?.to))}</span>`;
   }).filter(Boolean);
 }
@@ -4049,7 +4053,10 @@ window.uiAlert = (message, opts={}) => uiDialog({ message, okText: opts.okText||
 
 function escapeHtml(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]); }
 // Spinner de carregamento (girando) + texto pulsando. Uso: el.innerHTML = dcLoad();
-function dcLoad(label){ return '<div class="dc-load"><div class="dc-spinner"></div><div class="dc-load-lbl">'+(label||'Carregando')+'</div></div>'; }
+function dcLoad(label){ return '<div class="dc-load"><div class="dc-logo-wrap"><img src="/aragao-180.png" class="dc-logo-img" alt="" onerror="this.style.display=\'none\'"><div class="dc-logo-ring"></div></div><div class="dc-load-lbl">'+(label||'Carregando')+'</div></div>'; }
+// Datas em formato brasileiro a partir de ISO 'yyyy-mm-dd'
+function brData(iso){ var s=(iso==null?'':iso)+''; var m=s.slice(0,10).match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? (m[3]+'/'+m[2]+'/'+m[1]) : s; }
+function brDia(iso){ var s=(iso==null?'':iso)+''; var m=s.slice(0,10).match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? (m[3]+'/'+m[2]) : s; }
 function timeAgo(t){
   const d = new Date(t); const s = (Date.now()-d.getTime())/1000;
   if (s<60) return 'agora'; if (s<3600) return Math.floor(s/60)+'m atrás';
@@ -4115,7 +4122,7 @@ window.openSyncBordado = async function(){
     try{
       var sess=(await window.sb.auth.getSession()).data.session;
       // Fase 1: buscar pedidos novos na LI (uma chamada — barra sobe até ~30% enquanto espera)
-      _pgSet('Buscando pedidos novos na Loja Integrada...', 8, 'Analisando o período '+de+' → '+ate);
+      _pgSet('Buscando pedidos novos na Loja Integrada...', 8, 'Analisando o período '+brData(de)+' → '+brData(ate));
       var _p1=6; var _p1t=setInterval(function(){ _p1=Math.min(28,_p1+2); _pgSet(null,_p1,null); },500);
       var r=await fetch('/api/personalizacao-sync?commit=1&data_inicio='+de+'&data_fim='+ate,{headers:{Authorization:'Bearer '+sess.access_token}});
       var j=await r.json();
@@ -5064,7 +5071,7 @@ initAuth().catch(function(e){ console.error('initAuth falhou:', e); if(window.mo
       <button onclick="closePainel()" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 text-xl">×</button>
     </div>
     <div class="flex-1 overflow-y-auto p-6 space-y-6" id="painelBody">
-      <div class="dc-load"><div class="dc-spinner"></div><div class="dc-load-lbl">Carregando</div></div>
+      <div class="dc-load"><div class="dc-logo-wrap"><img src="/aragao-180.png" class="dc-logo-img" alt=""><div class="dc-logo-ring"></div></div><div class="dc-load-lbl">Carregando</div></div>
     </div>
   </div>
 </div>
