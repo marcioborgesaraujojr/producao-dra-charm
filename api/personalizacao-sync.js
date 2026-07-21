@@ -231,8 +231,8 @@ export default async function handler(req,res){
       if(!boardId) return res.status(200).json({movershipped:true, erro:'board de Personalização não encontrado'});
       const cl = await sbREST('GET','lists?select=id,name&board_id=eq.'+boardId+'&archived=eq.false');
       const persoLists=cl.j||[];
-      const concl = persoLists.find(l=>/conclu/i.test(l.name)) || persoLists.find(l=>/expedid/i.test(l.name));
-      if(!concl) return res.status(200).json({movershipped:true, erro:'coluna "Bordado Concluído" não encontrada', colunas:persoLists.map(l=>l.name)});
+      const concl = persoLists.find(l=>/expedid|finaliz/i.test(l.name)) || persoLists.find(l=>/conclu/i.test(l.name));
+      if(!concl) return res.status(200).json({movershipped:true, erro:'coluna "Expedido/Finalizado" não encontrada', colunas:persoLists.map(l=>l.name)});
       const outrasIds = persoLists.filter(l=>l.id!==concl.id).map(l=>l.id);
       if(!outrasIds.length) return res.status(200).json({movershipped:true, checked:0, shipped:0, moved:0, nextOffset:0, restam:0, coluna:concl.name});
       const sel = await sbREST('GET','cards?select=id,pedido_numero,list_id&archived=eq.false&pedido_numero=not.is.null&list_id=in.('+outrasIds.join(',')+')&order=pedido_numero.desc&limit='+lim+'&offset='+off);
@@ -379,7 +379,7 @@ export default async function handler(req,res){
       if(persoBoardId){
         const cl = await sbREST('GET','lists?select=id,name&board_id=eq.'+persoBoardId+'&archived=eq.false');
         const persoLists = cl.j || [];
-        const concl = persoLists.find(l=>/conclu/i.test(l.name)) || persoLists.find(l=>/expedid/i.test(l.name));
+        const concl = persoLists.find(l=>/expedid|finaliz/i.test(l.name)) || persoLists.find(l=>/conclu/i.test(l.name));
         concluidoListId = concl ? concl.id : null;
         moveDbg = { board:persoBoardId, colConcluido: concl?concl.name:null };
         if(concluidoListId){

@@ -42,7 +42,7 @@ function preencher(msg, ctx) {
 }
 
 // Quando o pedido vira "enviado"/"entregue", move o card do quadro de Personalização
-// pra coluna "Bordado Concluído" (assim a expedição não precisa mover na mão).
+// pra coluna "Expedido/Finalizado" (assim a expedição não precisa mover na mão).
 // (A mesma regra também roda na sync do board — personalizacao-sync — de forma retroativa.)
 async function moverParaExpedido(pedido) {
   if (!pedido) return { moved: false, motivo: 'sem pedido' };
@@ -50,9 +50,9 @@ async function moverParaExpedido(pedido) {
   const boardId = Array.isArray(boards) && boards[0] && boards[0].id;
   if (!boardId) return { moved: false, motivo: 'board Personalização não encontrado' };
   const todasListas = await sb('lists?select=id,name&board_id=eq.' + boardId + '&archived=eq.false');
-  const lista = (todasListas || []).find(l => /conclu/i.test(l.name)) || (todasListas || []).find(l => /expedid/i.test(l.name));
+  const lista = (todasListas || []).find(l => /expedid|finaliz/i.test(l.name)) || (todasListas || []).find(l => /conclu/i.test(l.name));
   const expId = lista && lista.id;
-  if (!expId) return { moved: false, motivo: 'coluna "Bordado Concluído" não encontrada' };
+  if (!expId) return { moved: false, motivo: 'coluna "Expedido/Finalizado" não encontrada' };
   const listIds = (todasListas || []).map(l => l.id);
   const cards = await sb('cards?select=id,list_id&archived=eq.false&pedido_numero=eq.' + encodeURIComponent(String(pedido)));
   const card = (cards || []).find(c => listIds.includes(c.list_id)) || (cards || [])[0];
