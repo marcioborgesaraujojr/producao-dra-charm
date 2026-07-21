@@ -61,6 +61,27 @@ async function testarLI(api, app) {
   } catch (e) { return { ok: false, motivo: 'Não deu pra validar as chaves agora (' + e.message + ').' }; }
 }
 
+// Testa a chave da Anthropic com uma chamada mínima (max_tokens:1). Não guarda nada.
+async function testarAnthropic(key) {
+  try {
+    const c = new AbortController(); const t = setTimeout(() => c.abort(), 10000);
+    let r;
+    try {
+      r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        body: JSON.stringify({ model: process.env.ANTHROPIC_MODEL || 'claude-opus-4-8', max_tokens: 1, messages: [{ role: 'user', content: 'oi' }] }),
+        signal: c.signal,
+      });
+    } finally { clearTimeout(t); }
+    if (r.ok) return { ok: true };
+    let msg = 'Anthropic respondeu ' + r.status + '.';
+    if (r.status === 401) msg = 'Chave rejeitada pela Anthropic (401). Confira se copiou certo.';
+    else { try { const j = await r.json(); if (j && j.error && j.error.message) msg = 'Anthropic: ' + j.error.message.slice(0, 140); } catch (_) {} }
+    return { ok: false, motivo: msg };
+  } catch (e) { return { ok: false, motivo: 'Não deu pra validar a chave agora (' + e.message + ').' }; }
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -77,6 +98,17 @@ export default async function handler(req, res) {
   if (typeof body === 'string') { try { body = JSON.parse(body); } catch (_) { body = {}; } }
   body = body || {};
   const acao = body.acao;
+
+  if (acao === 'set_anthropic') {
+    const key = (body.api_key || '').trim();
+    if (!key) return res.status(400).json({ error: 'Cole a chave da Anthropic.' });
+    if (!/^sk-ant-/.test(key)) return res.status(400).json({ error: 'Isso não parece uma chave da Anthropic (começa com sk-ant-).' });
+    const teste = await testarAnthropic(key);
+    if (!teste.ok) return res.status(400).json({ error: teste.motivo });
+    const grav = await edgeUpsert({ anthropic_api_key: key });
+    if (!grav.ok) return res.status(500).json({ error: 'Chave válida, mas falhou ao salvar: ' + grav.motivo });
+    return res.status(200).json({ ok: true, msg: 'Chave da Anthropic validada e salva. O Assistente IA já está ativo (pode levar até 1 min).' });
+  }
 
   if (acao === 'set_li') {
     const api = (body.chave_api || '').trim();

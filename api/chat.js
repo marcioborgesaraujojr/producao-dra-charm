@@ -6,11 +6,12 @@
 // Env necessárias (Vercel): SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (já existem),
 // ANTHROPIC_API_KEY (nova). Opcional: ANTHROPIC_MODEL (default claude-opus-4-8).
 
+import { getAnthropicKey } from '../lib/licfg.js';
+
 export const config = { maxDuration: 60 };
 
 const SB_URL = process.env.SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-8';
 const STORAGE = SB_URL + '/storage/v1/object/public/reposicao-data/reposicao/';
 const ADMIN_EMAIL = 'marcioborgesaraujojr@gmail.com';
@@ -137,7 +138,8 @@ export default async function handler(req, res) {
     const acc = (pf && pf[0] && pf[0].access) || {};
     if (acc.assistente !== true) return res.status(403).json({ error: 'sem acesso ao assistente' });
   }
-  if (!ANTHROPIC_KEY) return res.status(200).json({ reply: '⚠️ O assistente ainda não está ativado. Falta configurar a variável ANTHROPIC_API_KEY nas variáveis de ambiente da Vercel (Settings → Environment Variables). Depois de adicionar e refazer o deploy, ele funciona.' });
+  const ANTHROPIC_KEY = await getAnthropicKey();
+  if (!ANTHROPIC_KEY) return res.status(200).json({ reply: '⚠️ O assistente ainda não está ativado. Cole sua chave da Anthropic em Configurações da Suíte → Conexões & Integrações → Claude / Anthropic → "Colar chave" (ou configure ANTHROPIC_API_KEY na Vercel).' });
 
   let body = req.body; if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = {}; } }
   const incoming = Array.isArray(body.messages) ? body.messages : [];

@@ -2,7 +2,7 @@
 // Nunca retorna segredos: só se está configurado, um indicador de saúde e um "final" mascarado.
 // Só admin acessa. O check do Bling NÃO faz refresh (evita rotacionar/quebrar o token).
 
-import { getLIKeys } from '../lib/licfg.js';
+import { getLIKeys, getAnthropicKey } from '../lib/licfg.js';
 
 const SB_URL = process.env.SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -65,13 +65,16 @@ export default async function handler(req, res) {
   if ((user.email || '').toLowerCase() !== ADMIN_EMAIL) return res.status(403).json({ error: 'só o admin' });
 
   try {
-    const [bling, li] = await Promise.all([statusBling(), statusLI()]);
+    const [bling, li, antKey] = await Promise.all([statusBling(), statusLI(), getAnthropicKey()]);
+    const anthropic = antKey
+      ? { nome: 'Claude / Anthropic (Assistente IA)', tipo: 'Chave de API', configurado: true, status: 'conectado', detalhe: 'Chave presente — assistente ativo.', hint: fim4(antKey) }
+      : { nome: 'Claude / Anthropic (Assistente IA)', tipo: 'Chave de API', configurado: false, status: 'nao_configurado', detalhe: 'Cole sua chave em "Colar chave" (ou defina ANTHROPIC_API_KEY na Vercel).' };
     const integracoes = [
       bling,
       li,
       presenca('Correios (rastreio)', 'Usuário/Senha CWS', !!(process.env.CORREIOS_CWS_USUARIO && process.env.CORREIOS_CWS_SENHA), 'usuário/senha CWS', process.env.CORREIOS_CARTAO_POSTAGEM ? ('cartão ' + fim4(process.env.CORREIOS_CARTAO_POSTAGEM)) : null),
       presenca('WhatsApp (mensagens)', 'API oficial', !!(process.env.WA_ACCESS_TOKEN && process.env.WA_PHONE_NUMBER_ID), 'token/phone id', process.env.WA_PHONE_NUMBER_ID ? ('phone ' + fim4(process.env.WA_PHONE_NUMBER_ID)) : null),
-      presenca('Claude / Anthropic (Assistente IA)', 'Chave de API', !!process.env.ANTHROPIC_API_KEY, 'ANTHROPIC_API_KEY', process.env.ANTHROPIC_API_KEY ? fim4(process.env.ANTHROPIC_API_KEY) : null),
+      anthropic,
       presenca('OpenAI', 'Chave de API', !!process.env.OPENAI_API_KEY, 'OPENAI_API_KEY', process.env.OPENAI_API_KEY ? fim4(process.env.OPENAI_API_KEY) : null),
     ];
     return res.status(200).json({ integracoes, obs: 'As chaves ficam nas variáveis de ambiente da Vercel e nunca aparecem aqui — só o status.' });
