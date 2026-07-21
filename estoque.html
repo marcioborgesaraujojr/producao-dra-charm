@@ -179,7 +179,7 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
       <div class="card p-4 kpi"><div class="flex items-center gap-1 text-xs text-slate-500">Frequência <i class="ico-i" data-tip="Nº de pedidos pagos ÷ nº de clientes ativos. Em média, quantas vezes cada cliente comprou.">i</i></div><div class="text-2xl font-bold mt-1" id="kFreq">—</div></div>
     </div>
     <div class="card p-4">
-      <div class="text-sm font-semibold mb-3">Receita paga por dia <span class="text-[11px] font-normal text-slate-400">(só pedidos pagos)</span></div>
+      <div class="text-sm font-semibold mb-3">Receita paga <span id="chartGran">por dia</span> <span class="text-[11px] font-normal text-slate-400">(só pedidos pagos)</span></div>
       <div id="chartWrap" class="w-full overflow-x-auto">
         <div id="chart"></div>
         <div id="chartTip"></div>
@@ -356,7 +356,18 @@ window.renderVendas=()=>{
   const totalDias = Object.keys(VENDAS.dias).length;
   document.getElementById('vendasInfo').textContent = (VENDAS.done?'Backfill completo · ':'Backfill em andamento · ')+totalDias+' dias no histórico';
   renderClientesKPIs(per, desde, ate);
-  renderChartLinha(dias);
+  // Período longo (>2 meses / 62 dias): agrega por MÊS pra leitura melhor; caso contrário, por dia.
+  const _MES=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const porMes = dias.length > 62;
+  let pontos;
+  if(porMes){
+    const agg={}; dias.forEach(d=>{ const m=d.slice(0,7); agg[m]=(agg[m]||0)+(VENDAS.dias[d].receita_paga||0); });
+    pontos = Object.keys(agg).sort().map(m=>({ v:agg[m], xl:_MES[+m.slice(5,7)-1]+'/'+m.slice(2,4), tl:_MES[+m.slice(5,7)-1]+'/'+m.slice(0,4) }));
+  } else {
+    pontos = dias.map(d=>({ v:VENDAS.dias[d].receita_paga||0, xl:d.slice(8)+'/'+d.slice(5,7), tl:d.slice(8)+'/'+d.slice(5,7)+'/'+d.slice(0,4) }));
+  }
+  const _g=document.getElementById('chartGran'); if(_g) _g.textContent = porMes ? 'por mês' : 'por dia';
+  renderChartLinha(pontos);
 };
 
 // ===== Indicadores de cliente (kpis.json pré-calculado no servidor) =====
@@ -387,14 +398,14 @@ function renderClientesKPIs(per, desde, ate){
 }
 
 // ===== Gráfico de linha (receita por dia) com tooltip ao passar o mouse =====
-function renderChartLinha(dias){
+function renderChartLinha(pontos){
   const chart=document.getElementById('chart');
   const tip=document.getElementById('chartTip');
   if(tip) tip.style.opacity='0';
-  if(!dias.length){ chart.innerHTML='<div class="text-slate-400 text-sm py-8 text-center">Sem vendas no período.</div>'; return; }
-  // Só receita PAGA (cancelado/não pago não conta).
-  const vals = dias.map(d=>VENDAS.dias[d].receita_paga||0);
-  const n=dias.length;
+  if(!pontos.length){ chart.innerHTML='<div class="text-slate-400 text-sm py-8 text-center">Sem vendas no período.</div>'; return; }
+  // Cada ponto: {v: valor pago, xl: rótulo do eixo X, tl: rótulo do tooltip}. Por dia ou por mês (períodos longos).
+  const vals = pontos.map(p=>p.v);
+  const n=pontos.length;
   const H=260, padL=52, padR=16, padT=16, padB=34;
   const stepMin=36; // px por ponto (permite scroll horizontal em períodos longos)
   const innerW=Math.max((n-1)*stepMin, 560);
@@ -412,7 +423,7 @@ function renderChartLinha(dias){
   for(let g=0;g<=G;g++){ const val=maxV*g/G; const gy=yOf(val); grid+=`<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}" stroke="#e5e7eb" stroke-width="1" stroke-dasharray="3 4"/>`; ylab+=`<text x="${padL-8}" y="${(gy+3).toFixed(1)}" font-size="10" fill="#94a3b8" text-anchor="end">${fmtY(val)}</text>`; }
   // rótulos do eixo X (espaçados)
   const stepLbl=Math.max(1,Math.ceil(n/12)); let xlab='';
-  dias.forEach((d,i)=>{ if(i%stepLbl!==0 && i!==n-1) return; xlab+=`<text x="${xOf(i).toFixed(1)}" y="${H-12}" font-size="10" fill="#94a3b8" text-anchor="middle">${d.slice(8)}/${d.slice(5,7)}</text>`; });
+  pontos.forEach((p,i)=>{ if(i%stepLbl!==0 && i!==n-1) return; xlab+=`<text x="${xOf(i).toFixed(1)}" y="${H-12}" font-size="10" fill="#94a3b8" text-anchor="middle">${p.xl}</text>`; });
   // área sob a linha
   const area=`M${pts[0][0].toFixed(1)},${yOf(0).toFixed(1)} `+pts.map(p=>`L${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')+` L${pts[n-1][0].toFixed(1)},${yOf(0).toFixed(1)} Z`;
   let dots=''; pts.forEach(p=>{ dots+=`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.5" fill="#7c6cf0" stroke="#fff" stroke-width="1.5"/>`; });
@@ -433,7 +444,7 @@ function renderChartLinha(dias){
     let bi=0,bd=1e9; for(let i=0;i<pts.length;i++){ const dd=Math.abs(pts[i][0]-mx); if(dd<bd){bd=dd;bi=i;} }
     const pxv=pts[bi][0], pyv=pts[bi][1];
     cursor.setAttribute('x1',pxv); cursor.setAttribute('x2',pxv); cursor.setAttribute('opacity','1');
-    const d=dias[bi]; const label=`${d.slice(8)}/${d.slice(5,7)}/${d.slice(0,4)}`;
+    const label=pontos[bi].tl;
     const valTxt=(vals[bi]).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
     tip.innerHTML=`<div class="d">${label}</div><div class="v"><i></i>Pago em R$: ${valTxt}</div>`;
     tip.style.opacity='1';
