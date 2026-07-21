@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Validador de CEP — Sistema Grupo Aragão</title>
+<link rel="icon" type="image/svg+xml" href="/logo_500x500.svg">
+<link rel="icon" type="image/png" href="/icone-app.png">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
+  ink:{900:'#0b1220',800:'#111827',700:'#1f2937',600:'#374151'}, accent:{DEFAULT:'#e91e63',600:'#db2777'} }}}};
+</script>
+<style>
+  html{background:#f1f5f9}html.dark{background:#0b1220}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0;background-color:transparent}
+  /* Fundo (wallpaper) igual ao kanban */
+  #appBg{position:fixed;inset:0;width:100vw;height:100vh;z-index:-1;background-size:cover;background-position:center;background-repeat:no-repeat;pointer-events:none}
+  body.has-bg #appBg::after{content:'';position:absolute;inset:0;background:rgba(15,23,42,.35);pointer-events:none}
+  .dark body.has-bg #appBg::after{background:rgba(0,0,0,.5)}
+  body.has-bg::before{content:'';position:fixed;inset:0;background:rgba(255,255,255,.30);pointer-events:none;z-index:0}
+  body.has-bg #appWrap{position:relative;z-index:1}
+  body.has-bg header{background:rgba(255,255,255,.85)!important;backdrop-filter:blur(12px)}
+  body.has-bg.dark header{background:rgba(17,24,39,.85)!important}
+  /* CEP-specific (extraído do index.html) */
+  body.has-bg #cepHeader{background:rgba(255,255,255,.85)!important;backdrop-filter:blur(12px)}
+  body.has-bg.dark #cepHeader{background:rgba(17,24,39,.85)!important}
+  ::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px}.dark ::-webkit-scrollbar-thumb{background:#475569}
+</style>
+</head>
+<body class="text-slate-800 dark:text-slate-100">
+<div id="appBg"></div>
+<input type="file" id="bgInput" accept="image/*" class="hidden">
+
+<div id="authGate" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-50 dark:bg-ink-900">
+  <div class="text-center">
+    <div class="w-14 h-14 mx-auto rounded-2xl overflow-hidden mb-4"><img src="/icone-app.png" alt="Aragão" class="w-full h-full object-cover"></div>
+    <div class="font-semibold mb-1">Validador de CEP</div>
+    <div class="text-sm text-slate-500 mb-4">Você precisa estar logado na Suíte para acessar.</div>
+    <a href="/" class="inline-block text-sm font-semibold text-white bg-pink-500 hover:bg-pink-600 px-4 py-2 rounded-lg">Ir para o login da Suíte</a>
+  </div>
+</div>
+
+<div id="appWrap" class="hidden min-h-screen bg-gradient-to-br from-pink-50 via-white to-slate-50 dark:from-ink-900 dark:via-ink-800 dark:to-ink-900">
+  <header id="cepHeader" class="h-14 flex items-center justify-between px-3 sm:px-4 gap-2 bg-white/95 dark:bg-ink-800/95 border-b border-slate-200 dark:border-ink-600 sticky top-0 z-30 backdrop-blur">
+    <div class="flex items-center gap-2.5 min-w-0">
+      <a href="/" title="Voltar à Suíte" class="w-9 h-9 rounded-xl overflow-hidden shadow hover:scale-105 transition flex-shrink-0 block"><img src="/icone-app.png" alt="Aragão" class="w-full h-full object-cover"></a>
+      <div class="leading-tight min-w-0">
+        <div class="text-sm font-semibold truncate">Validador de CEP</div>
+        <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate">Sistema Grupo Aragão</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="document.getElementById('bgInput').click()" title="Trocar fundo" class="w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:text-pink-500 hover:bg-slate-100 dark:hover:bg-ink-700"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
+      <button onclick="toggleDark()" title="Tema" class="w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:text-pink-500 hover:bg-slate-100 dark:hover:bg-ink-700"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+      <div id="userAvatar" class="w-8 h-8 rounded-full bg-pink-500 text-white flex items-center justify-center font-bold text-sm">?</div>
+    </div>
+  </header>
+  <div class="max-w-7xl mx-auto px-4 py-6">
+
+    <div class="bg-white dark:bg-ink-800 rounded-2xl border border-slate-200 dark:border-ink-700 p-4 mb-5 flex flex-wrap items-end gap-3">
+      <div class="flex-1 min-w-[140px]">
+        <label class="block text-xs font-medium text-slate-500 mb-1">Data inicial</label>
+        <input id="cepDtI" type="date" class="w-full p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm">
+      </div>
+      <div class="flex-1 min-w-[140px]">
+        <label class="block text-xs font-medium text-slate-500 mb-1">Data final</label>
+        <input id="cepDtF" type="date" class="w-full p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm">
+      </div>
+      <div class="w-full sm:w-auto">
+        <label class="block text-xs font-medium text-slate-500 mb-1">Situação</label>
+        <select id="cepSit" class="w-full sm:w-auto p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm sm:min-w-[170px]"><option value="">Todas as situações</option></select>
+      </div>
+      <button id="cepBuscar" onclick="cepBuscar()" class="w-full sm:w-auto justify-center px-5 py-2.5 rounded-lg bg-pink-600 text-white text-sm font-medium hover:bg-pink-700 inline-flex items-center gap-2">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        Buscar pedidos
+      </button>
+      <button onclick="cepHoje()" class="w-full sm:w-auto px-4 py-2.5 rounded-lg border border-slate-300 dark:border-ink-600 text-sm hover:bg-slate-50 dark:hover:bg-ink-700">Só hoje</button>
+      <label class="w-full sm:w-auto sm:ml-auto flex items-center justify-center sm:justify-start gap-2 text-sm text-slate-600 dark:text-slate-300 cursor-pointer select-none py-1">
+        <input type="checkbox" id="cepSoDiv" checked class="w-4 h-4 rounded accent-pink-600"> Só divergências
+      </label>
+      <button onclick="cepExport()" class="w-full sm:w-auto justify-center px-4 py-2.5 rounded-lg border border-slate-300 dark:border-ink-600 text-sm hover:bg-slate-50 dark:hover:bg-ink-700 inline-flex items-center gap-2">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Exportar
+      </button>
+    </div>
+
+    <div id="cepKpis" class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
+      <button data-kpi="all" class="cep-kpi rounded-2xl border border-slate-200 dark:border-ink-700 bg-white dark:bg-ink-800 p-4 text-left transition"><div class="text-2xl font-bold text-slate-800 dark:text-slate-100" id="kpi-all">0</div><div class="text-xs text-slate-500 mt-0.5">Total</div></button>
+      <button data-kpi="ok" class="cep-kpi rounded-2xl border border-slate-200 dark:border-ink-700 bg-white dark:bg-ink-800 p-4 text-left transition"><div class="text-2xl font-bold text-emerald-600" id="kpi-ok">0</div><div class="text-xs text-slate-500 mt-0.5">OK</div></button>
+      <button data-kpi="divergencia" class="cep-kpi rounded-2xl border border-slate-200 dark:border-ink-700 bg-white dark:bg-ink-800 p-4 text-left transition"><div class="text-2xl font-bold text-amber-600" id="kpi-divergencia">0</div><div class="text-xs text-slate-500 mt-0.5">Divergência cidade</div></button>
+      <button data-kpi="atencao_rua" class="cep-kpi rounded-2xl border border-slate-200 dark:border-ink-700 bg-white dark:bg-ink-800 p-4 text-left transition"><div class="text-2xl font-bold text-orange-500" id="kpi-atencao_rua">0</div><div class="text-xs text-slate-500 mt-0.5">Atenção rua</div></button>
+      <button data-kpi="invalido" class="cep-kpi rounded-2xl border border-slate-200 dark:border-ink-700 bg-white dark:bg-ink-800 p-4 text-left transition"><div class="text-2xl font-bold text-red-600" id="kpi-invalido">0</div><div class="text-xs text-slate-500 mt-0.5">Inválido</div></button>
+    </div>
+
+    <div id="cepProg" class="hidden mb-4">
+      <div class="flex items-center justify-between text-xs text-slate-500 mb-1"><span id="cepProgTxt">Validando...</span></div>
+      <div class="h-2 rounded-full bg-slate-200 dark:bg-ink-700 overflow-hidden"><div id="cepProgBar" class="h-full bg-pink-600 transition-all" style="width:0%"></div></div>
+    </div>
+
+    <div id="cepMsg" class="text-sm text-slate-500 dark:text-slate-400 mb-3">Selecione o período e clique em Buscar pedidos.</div>
+
+    <div class="bg-white dark:bg-ink-800 rounded-2xl border border-slate-200 dark:border-ink-700 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-slate-200 dark:border-ink-700 text-left text-xs uppercase tracking-wide text-slate-500">
+              <th class="px-4 py-3 font-semibold">Pedido</th>
+              <th class="px-4 py-3 font-semibold">Cliente</th>
+              <th class="px-4 py-3 font-semibold">CEP</th>
+              <th class="px-4 py-3 font-semibold">Cidade / UF</th>
+              <th class="px-4 py-3 font-semibold">Situação</th>
+              <th class="px-4 py-3 font-semibold">Status</th>
+              <th class="px-4 py-3 font-semibold text-right">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="cepTb"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+const SUPA = { url:'https://wwytzoyeibekhstinott.supabase.co', key:'sb_publishable_uMoCEK4Ed_u8ZIfjVZ7Jrg_tdR4b9bO' };
+let sb=null;
+
+async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2'); sb=createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true}}); } return sb; }
+window.toggleDark=()=>{ document.documentElement.classList.toggle('dark'); try{localStorage.setItem('dc_dark',document.documentElement.classList.contains('dark')?'1':'0');}catch(e){} };
+try{ if(localStorage.getItem('dc_dark')==='1') document.documentElement.classList.add('dark'); }catch(e){}
+
+// Wallpaper (mesmo do kanban: system-assets/suite-bg.jpg)
+function applyBg(){
+  const url = SUPA.url + '/storage/v1/object/public/system-assets/suite-bg.jpg?t=' + Date.now();
+  const img = new Image();
+  img.onload = () => { const el=document.getElementById('appBg'); if(el) el.style.backgroundImage="url('"+url+"')"; document.body.classList.add('has-bg'); };
+  img.onerror = () => { document.body.classList.remove('has-bg'); };
+  img.src = url;
+}
+document.addEventListener('change', async (e)=>{
+  if(e.target && e.target.id==='bgInput' && e.target.files[0]){
+    const f = e.target.files[0];
+    if(!/^image\//.test(f.type||'')){ alert('Envie uma imagem.'); return; }
+    if(f.size > 5*1024*1024){ alert('Imagem muito grande (máximo 5MB).'); return; }
+    const c = await getSb();
+    const { error } = await c.storage.from('system-assets').upload('suite-bg.jpg', f, {upsert:true, contentType:f.type});
+    if(error){ alert('Erro ao enviar fundo: '+error.message); return; }
+    applyBg(); e.target.value='';
+  }
+});
+
+/* ===== Validador de CEP (extraído do index.html — lógica verbatim) ===== */
+var cepPedidos=[], cepSitMap={}, cepCache={}, cepKpi='all', cepLoaded=false;
+function cepClean(s){ s=((s==null?'':s)+''); var o=''; for(var i=0;i<s.length;i++){ var c=s[i]; if(c>='0'&&c<='9') o+=c; } return o; }
+function cepNorm(s){ s=((s==null?'':s)+'').toLowerCase().normalize('NFD'); var o=''; for(var i=0;i<s.length;i++){ var c=s[i], k=s.charCodeAt(i); if(k>=768&&k<=879) continue; if((c>='a'&&c<='z')||(c>='0'&&c<='9')||c===' ') o+=c; } return o.trim(); }
+function cepWords(s){ return cepNorm(s).split(' ').filter(function(w){ return w; }); }
+function cepSim(a,b){ var wa=cepWords(a), wb=cepWords(b); if(!wa.length||!wb.length) return 0; var common=wa.filter(function(w){ return wb.indexOf(w)>=0; }).length; return common/Math.max(wa.length,wb.length); }
+function cepFmt(c){ c=cepClean(c); return c.length===8 ? c.slice(0,5)+'-'+c.slice(5) : (c||'—'); }
+function cepEsc(s){ return ((s==null?'':s)+'').split('&').join('&amp;').split('<').join('&lt;').split('>').join('&gt;'); }
+function cepValLocal(cep){ cep=cepClean(cep); if(cep.length!==8) return {s:'invalido', m:'CEP ausente ou incompleto'}; var same=true; for(var i=1;i<8;i++){ if(cep[i]!==cep[0]) same=false; } if(same) return {s:'invalido', m:'CEP invalido (sequencia invalida)'}; return {s:'ok', m:''}; }
+async function cepValViaCep(cep, cidadeEsp, estadoEsp, ruaEsp){
+  cep=cepClean(cep);
+  if(cepCache[cep]) return cepCache[cep];
+  var res;
+  try{
+    var r=await fetch('https://viacep.com.br/ws/'+cep+'/json/');
+    var d=await r.json();
+    if(d.erro){ res={s:'invalido', m:'CEP nao existe na base dos Correios', cidade:'', estado:'', rua:'', bairro:'', cep:cep}; }
+    else{
+      var cidadeVC=d.localidade||'', estadoVC=d.uf||'', ruaVC=d.logradouro||'', bairroVC=d.bairro||'';
+      var s='ok', m='';
+      if(cidadeEsp && cidadeVC && cepNorm(cidadeVC)!==cepNorm(cidadeEsp)){ s='divergencia'; m='CEP aponta '+cidadeVC+'/'+estadoVC+', pedido tem '+cidadeEsp+(estadoEsp?'/'+estadoEsp:''); }
+      if(s==='ok' && ruaEsp && ruaVC && cepSim(ruaVC, ruaEsp)<0.4){ s='atencao_rua'; m='CEP aponta '+ruaVC+', pedido tem '+ruaEsp; }
+      res={s:s, m:m, cidade:cidadeVC, estado:estadoVC, rua:ruaVC, bairro:bairroVC, cep:cep};
+    }
+  }catch(_){ res={s:'invalido', m:'Erro ao consultar ViaCEP', cidade:'', estado:'', rua:'', bairro:'', cep:cep}; }
+  cepCache[cep]=res; return res;
+}
+async function cepCarregarSituacoes(){
+  try{
+    var r=await fetch('/api/situacoes'); var d=await r.json();
+    var arr=d.situacoes||d||[]; var sel=document.getElementById('cepSit');
+    var html='<option value=' + String.fromCharCode(34) + String.fromCharCode(34) + '>Todas as situacoes</option>';
+    arr.forEach(function(s){ cepSitMap[s.id]=s.nome; html+='<option value=' + String.fromCharCode(34) + s.id + String.fromCharCode(34) + '>'+cepEsc(s.nome)+'</option>'; });
+    if(sel) sel.innerHTML=html;
+  }catch(e){}
+}
+function cepSetMsg(m){ var el=document.getElementById('cepMsg'); if(el) el.textContent=m; }
+window.cepHoje=function(){ var hoje=new Date().toISOString().slice(0,10); document.getElementById('cepDtI').value=hoje; document.getElementById('cepDtF').value=hoje; cepBuscar(); };
+window.cepBuscar=async function(){
+  var di=document.getElementById('cepDtI').value, df=document.getElementById('cepDtF').value, sit=document.getElementById('cepSit').value, sd=document.getElementById('cepSoDiv').checked;
+  if(!di||!df){ cepSetMsg('Informe as datas.'); return; }
+  try{ localStorage.setItem('dc_cep_filter', JSON.stringify({di:di,df:df,sit:sit,sd:sd})); }catch(e){}
+  var btn=document.getElementById('cepBuscar'); btn.disabled=true;
+  cepPedidos=[]; document.getElementById('cepTb').innerHTML=''; cepKpi='all'; cepHighlightKpi(); cepUpdateStats(); cepSetMsg('Buscando pedidos...');
+  try{
+    var pagina=1, all=[], guard=0;
+    while(true){
+      guard++; if(guard>120) break;
+      var url='/api/pedidos?data_inicio='+di+'&data_fim='+df+'&pagina='+pagina+(sit?'&situacao_id='+sit:'');
+      var d=null, lote=[];
+      for(var att=1; att<=3; att++){
+        try{ var r=await fetch(url); if(r.ok){ d=await r.json(); lote=d.pedidos||[]; } else { d=null; } }catch(e){ d=null; }
+        if(d && lote.length>0) break;
+        if(d && d.hasMore===false) break;
+        cepSetMsg('Reconsultando pagina '+pagina+' (token do Bling rotacionando)...');
+        await new Promise(function(res){ setTimeout(res, 700*att); });
+      }
+      if(!d || !lote.length) break;
+      lote.forEach(function(p){ all.push(p); });
+      if(!d.hasMore) break; pagina++;
+    }
+    cepPedidos=all;
+    if(!all.length){ cepSetMsg('Nenhum pedido no periodo/situacao.'); btn.disabled=false; cepUpdateStats(); return; }
+    cepSetMsg(all.length+' pedidos encontrados. Validando enderecos...');
+    await cepProcessar(all);
+    cepSetMsg(all.length+' pedidos validados.');
+  }catch(e){ cepSetMsg('Erro: '+e.message); }
+  btn.disabled=false;
+};
+async function cepDet(id, tent){
+  tent=tent||1;
+  try{
+    var r=await fetch('/api/pedidos?id='+id);
+    if(r.status===429 && tent<=4){ await new Promise(function(res){ setTimeout(res, 800*tent); }); return cepDet(id, tent+1); }
+    if(!r.ok) return null; return await r.json();
+  }catch(_){ return null; }
+}
+async function cepProcessar(lista){
+  var done=0; var prog=document.getElementById('cepProg'); prog.classList.remove('hidden');
+  for(var i=0;i<lista.length;i+=4){
+    await Promise.all(lista.slice(i,i+4).map(async function(p){
+      var det=await cepDet(p.id);
+      p.cep=det?(det.cep||''):''; p.cidade=det?(det.cidade||''):''; p.estado=det?(det.estado||''):''; p.rua=det?(det.endereco||''):'';
+      var loc=cepValLocal(p.cep);
+      if(loc.s==='invalido'){ p.cep_s=loc.s; p.cep_m=loc.m; p.vc=null; }
+      else{ var vc=await cepValViaCep(p.cep, p.cidade, p.estado, p.rua); p.cep_s=vc.s; p.cep_m=vc.m||''; p.vc=vc; if(vc.cidade && !p.cidade){ p.cidade=vc.cidade; p.estado=vc.estado; } }
+      done++;
+      var pct=Math.round((done/lista.length)*100);
+      document.getElementById('cepProgBar').style.width=pct+'%';
+      document.getElementById('cepProgTxt').textContent='Validando '+done+' / '+lista.length;
+      cepRenderRow(p); cepUpdateStats();
+    }));
+  }
+  prog.classList.add('hidden'); cepApplyFilter();
+}
+function cepBadge(s){
+  var map={ ok:['OK','bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'], divergencia:['Divergencia cidade','bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'], atencao_rua:['Atencao rua','bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300'], invalido:['Invalido','bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'], carregando:['Validando...','bg-slate-100 text-slate-500'] };
+  var b=map[s]||map.carregando;
+  return '<span class=' + String.fromCharCode(34) + 'inline-block px-2 py-0.5 rounded-md text-xs font-medium '+b[1] + String.fromCharCode(34) + '>'+b[0]+'</span>';
+}
+function cepBadgeLabel(s){ var m={ok:'OK',divergencia:'Divergencia cidade',atencao_rua:'Atencao rua',invalido:'Invalido'}; return m[s]||s||''; }
+function cepRenderRow(p){
+  var Q=String.fromCharCode(34);
+  var id='cr-'+p.id, row=document.getElementById(id);
+  if(!row){ row=document.createElement('tr'); row.id=id; row.className='border-b border-slate-100 dark:border-ink-700/50 align-top'; document.getElementById('cepTb').appendChild(row); }
+  row.setAttribute('data-status', p.cep_s||'carregando');
+  var num='<b>'+cepEsc(p.numero||'')+'</b>'+(p.numeroLI?'<br><span class='+Q+'text-[10px] text-slate-400'+Q+'>LI '+cepEsc(p.numeroLI)+'</span>':'');
+  var cuf=p.cidade?cepEsc(p.cidade+(p.estado?' / '+p.estado:'')):'—';
+  var sit=(p.situacao_id&&cepSitMap[p.situacao_id])?cepEsc(cepSitMap[p.situacao_id]):'';
+  var corr='';
+  if((p.cep_s==='divergencia'||p.cep_s==='atencao_rua') && p.vc){
+    var certo = p.cep_s==='divergencia' ? cepEsc((p.vc.cidade||'')+(p.vc.estado?'/'+p.vc.estado:'')) : cepEsc(p.vc.rua||((p.vc.cidade||'')+'/'+(p.vc.estado||'')));
+    corr='<div class='+Q+'mt-1 text-xs'+Q+'><span class='+Q+'text-slate-400'+Q+'>Correto (CEP): </span><span class='+Q+'text-emerald-600 dark:text-emerald-400 font-medium'+Q+'>'+certo+'</span></div>';
+  }
+  var acoes='';
+  if(p.vc && (p.cep_s==='divergencia'||p.cep_s==='atencao_rua')){ acoes+='<button onclick=' + Q + 'cepCopiar(' + String.fromCharCode(39) + p.id + String.fromCharCode(39) + ')' + Q + ' class=' + Q + 'text-xs px-2 py-1 rounded-md border border-slate-300 dark:border-ink-600 hover:bg-slate-50 dark:hover:bg-ink-700 mr-1' + Q + '>Copiar correto</button>'; }
+  acoes+='<a href=' + Q + 'https://www.bling.com.br/vendas.php#edit/'+p.id + Q + ' target=' + Q + '_blank' + Q + ' class=' + Q + 'text-xs px-2 py-1 rounded-md border border-slate-300 dark:border-ink-600 hover:bg-slate-50 dark:hover:bg-ink-700 inline-block' + Q + '>Abrir no Bling</a>';
+  var msg=p.cep_m?'<div class='+Q+'text-xs text-slate-400 mt-0.5'+Q+'>'+cepEsc(p.cep_m)+'</div>':'';
+  row.innerHTML='<td class='+Q+'px-4 py-3 whitespace-nowrap'+Q+'>'+num+'</td>'+
+    '<td class='+Q+'px-4 py-3 max-w-[180px] truncate'+Q+'>'+cepEsc(p.cliente||'')+'</td>'+
+    '<td class='+Q+'px-4 py-3 font-mono text-xs'+Q+'>'+cepFmt(p.cep)+'</td>'+
+    '<td class='+Q+'px-4 py-3'+Q+'>'+cuf+corr+'</td>'+
+    '<td class='+Q+'px-4 py-3 text-xs text-slate-500'+Q+'>'+sit+'</td>'+
+    '<td class='+Q+'px-4 py-3'+Q+'>'+cepBadge(p.cep_s)+msg+'</td>'+
+    '<td class='+Q+'px-4 py-3 text-right whitespace-nowrap'+Q+'>'+acoes+'</td>';
+  cepApplyFilterRow(row);
+}
+window.cepCopiar=function(id){
+  var p=null; for(var i=0;i<cepPedidos.length;i++){ if(String(cepPedidos[i].id)===String(id)){ p=cepPedidos[i]; break; } }
+  if(!p||!p.vc) return; var v=p.vc;
+  var txt=(v.rua||'')+(v.bairro?', '+v.bairro:'')+' - '+(v.cidade||'')+'/'+(v.estado||'')+' - CEP '+cepFmt(v.cep);
+  if(navigator.clipboard) navigator.clipboard.writeText(txt);
+  if(typeof toast==='function') toast('Endereco correto copiado');
+};
+function cepUpdateStats(){
+  var c={all:0, ok:0, divergencia:0, atencao_rua:0, invalido:0};
+  cepPedidos.forEach(function(p){ c.all++; if(p.cep_s&&c[p.cep_s]!=null) c[p.cep_s]++; });
+  ['all','ok','divergencia','atencao_rua','invalido'].forEach(function(k){ var el=document.getElementById('kpi-'+k); if(el) el.textContent=c[k]; });
+}
+function cepIsDiv(s){ return s==='divergencia'||s==='atencao_rua'||s==='invalido'; }
+function cepApplyFilterRow(row){
+  var s=row.getAttribute('data-status');
+  var sdEl=document.getElementById('cepSoDiv'); var soDiv=sdEl?sdEl.checked:true;
+  var show=true;
+  if(cepKpi!=='all'){ show=(s===cepKpi); } else if(soDiv){ show=cepIsDiv(s); }
+  row.style.display=show?'':'none';
+}
+function cepApplyFilter(){ var rows=document.getElementById('cepTb').children; for(var i=0;i<rows.length;i++) cepApplyFilterRow(rows[i]); }
+window.cepApplyFilter=cepApplyFilter;
+function cepHighlightKpi(){ var cards=document.querySelectorAll('#cepKpis .cep-kpi'); cards.forEach(function(c){ if(c.getAttribute('data-kpi')===cepKpi){ c.classList.add('ring-2','ring-pink-500'); } else { c.classList.remove('ring-2','ring-pink-500'); } }); }
+document.addEventListener('click', function(e){ var k=e.target.closest?e.target.closest('#cepKpis .cep-kpi'):null; if(k){ cepKpi=k.getAttribute('data-kpi'); cepHighlightKpi(); cepApplyFilter(); } });
+document.addEventListener('change', function(e){ if(e.target && e.target.id==='cepSoDiv'){ cepApplyFilter(); } });
+window.cepExport=function(){
+  var NL=String.fromCharCode(10), Q=String.fromCharCode(34);
+  function cell(v){ v=((v==null?'':v)+'').split(Q).join(Q+Q); return Q+v+Q; }
+  var rows=[['Pedido','Cliente','CEP','Cidade informada','UF','Status','Correto (CEP)','Detalhe'].map(cell).join(',')];
+  cepPedidos.forEach(function(p){ if(!cepIsDiv(p.cep_s)) return; var correto=p.vc?((p.vc.rua||'')+' - '+(p.vc.cidade||'')+'/'+(p.vc.estado||'')):''; rows.push([p.numero||'', p.cliente||'', cepFmt(p.cep), p.cidade||'', p.estado||'', cepBadgeLabel(p.cep_s), correto, p.cep_m||''].map(cell).join(',')); });
+  var csv=rows.join(NL); var blob=new Blob([csv], {type:'text/csv;charset=utf-8'});
+  var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='divergencias-cep.csv'; a.click();
+};
+
+// Inicialização (só a parte de init do antigo enterCep — sem toggle de telas)
+function initCep(){
+  if(!cepLoaded){ cepCarregarSituacoes(); cepLoaded=true; }
+  try{
+    var f=JSON.parse(localStorage.getItem('dc_cep_filter')||'{}');
+    var dtI=document.getElementById('cepDtI'), dtF=document.getElementById('cepDtF'), sit=document.getElementById('cepSit'), sd=document.getElementById('cepSoDiv');
+    var hoje=new Date().toISOString().slice(0,10);
+    if(dtI) dtI.value=f.di||hoje; if(dtF) dtF.value=f.df||hoje;
+    if(sit && f.sit!=null){ setTimeout(function(){ sit.value=f.sit; }, 400); }
+    if(sd && typeof f.sd==='boolean') sd.checked=f.sd;
+  }catch(e){}
+}
+
+(async()=>{
+  const c=await getSb();
+  const { data:{ session } } = await c.auth.getSession();
+  if(!session){ window.location.href='/'; return; }
+  document.getElementById('appWrap').classList.remove('hidden');
+  const em=(session.user.email||'?'); document.getElementById('userAvatar').textContent=em.charAt(0).toUpperCase();
+  applyBg();
+  initCep();
+})();
+</script>
+</body>
+</html>

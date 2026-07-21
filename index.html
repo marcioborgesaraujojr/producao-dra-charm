@@ -4484,7 +4484,7 @@ document.addEventListener('click', e => {
   if (target === 'quadros'){ enterQuadros(); }
   else if (target === 'settings'){ openSuiteSettings(); }
   else if (target === 'painel'){ if (typeof openPainel === 'function') openPainel(); }
-  else if (target === 'cep'){ enterCep(); }
+  else if (target === 'cep'){ window.location.href = '/validadordecep.html'; }  // CEP agora é página própria
 });
 document.addEventListener('click', e => {
   if (e.target.closest('#hubLogoutBtn')){
