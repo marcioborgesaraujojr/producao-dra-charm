@@ -1,6 +1,5 @@
 // api/estoque-sync.js
-// Sistema de Análise de Estoque e Vendas — sync do Bling (estoque) + Loja Integrada (vendas/fotos).
-// Guarda os resultados como JSON no Storage do Supabase (bucket system-assets/reposicao/*),
+// Sistema de Análise de Estoque e Vendas — sync do Bling (estoque) + Loja Integrada (vendas/fotos).// Guarda os resultados como JSON no Storage do Supabase (bucket system-assets/reposicao/*),
 // então NÃO precisa de tabelas novas no banco. O front lê esses JSON públicos.
 //
 // Rotas:
