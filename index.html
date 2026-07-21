@@ -78,6 +78,8 @@
      a MESMA cor. Compensa clareando só o sino (fora do hover), pra os 3 ficarem visualmente iguais. */
   #hubBellBtn:not(:hover), #bellBtn:not(:hover){color:#7c8899}
   .dark #hubBellBtn:not(:hover), .dark #bellBtn:not(:hover){color:#94a3b8}
+  /* No hover o sino também parecia mais forte (densidade) — usa um rosa um tico mais claro pra bater com a lua/logout. */
+  #hubBellBtn:hover, #bellBtn:hover{color:#f472b6}
   .dark .hub-card{background:#1e293b;border-color:#334155}
   .hub-card:hover:not([disabled]){transform:translateY(-2px);box-shadow:0 8px 24px rgba(15,23,42,.10);border-color:#94a3b8}
   .hub-card-icon{flex-shrink:0;width:52px;height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.10)}
@@ -342,7 +344,7 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div id="hubGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       <!-- Quadros de Produção -->
       <button class="hub-card group text-left hidden" data-hub-open="quadros" data-access="quadros">
         <div class="hub-card-icon bg-gradient-to-br from-pink-500 to-rose-500 text-white">
@@ -357,8 +359,8 @@
 
       <!-- Assistente IA -->
       <button type="button" onclick="location.href='/assistente.html'" data-access="assistente" class="hub-card group text-left hidden">
-        <div class="hub-card-icon bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white">
-          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+        <div class="hub-card-icon text-white" style="background:linear-gradient(135deg,#8b5cf6,#d946ef)">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.6 1.8L21.5 17.5l-1.9.7L19 20l-.6-1.8L16.5 17.5l1.9-.7z"/></svg>
         </div>
         <div class="hub-card-body">
           <div class="hub-card-title">Assistente IA</div>
@@ -4355,6 +4357,39 @@ function showHub(){
     const key = card.getAttribute('data-access');
     const allowed = _isAdm || _acc[key] === true;
     card.classList.toggle('hidden', !allowed);
+  });
+  applyHubOrder(); initHubDrag();
+}
+// ===== Reordenar os cards do hub arrastando (segurar o clique e mover) — salva por navegador =====
+function hubCardKey(el){ return el.getAttribute('data-access') || el.getAttribute('data-hub-open') || ''; }
+function applyHubOrder(){
+  const grid = document.getElementById('hubGrid'); if(!grid) return;
+  let order=[]; try{ order=JSON.parse(localStorage.getItem('dc_hub_order')||'[]'); }catch(e){}
+  if(!Array.isArray(order) || !order.length) return;
+  const byKey={}; grid.querySelectorAll('.hub-card').forEach(c=>{ byKey[hubCardKey(c)]=c; });
+  order.forEach(k=>{ if(byKey[k]) grid.appendChild(byKey[k]); });   // reposiciona na ordem salva; cards novos ficam no fim
+}
+function saveHubOrder(){
+  const grid = document.getElementById('hubGrid'); if(!grid) return;
+  const keys=[...grid.querySelectorAll('.hub-card')].map(hubCardKey).filter(Boolean);
+  try{ localStorage.setItem('dc_hub_order', JSON.stringify(keys)); }catch(e){}
+}
+function initHubDrag(){
+  const grid = document.getElementById('hubGrid'); if(!grid || grid._dragInit) return; grid._dragInit=true;
+  let dragEl=null, moved=false;
+  grid.querySelectorAll('.hub-card').forEach(card=>{
+    card.setAttribute('draggable','true');
+    card.addEventListener('dragstart', e=>{ dragEl=card; moved=false; card.style.opacity='.35'; try{ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',''); }catch(_){} });
+    card.addEventListener('dragend', ()=>{ card.style.opacity=''; if(moved) saveHubOrder(); dragEl=null; });
+  });
+  grid.addEventListener('dragover', e=>{
+    if(!dragEl) return; e.preventDefault();
+    const target = e.target.closest('.hub-card');
+    if(!target || target===dragEl) return;
+    const r=target.getBoundingClientRect();
+    const antes = (e.clientY - r.top) < r.height/2;
+    grid.insertBefore(dragEl, antes ? target : target.nextSibling);
+    moved=true;
   });
 }
 window.enterQuadros = function(){
