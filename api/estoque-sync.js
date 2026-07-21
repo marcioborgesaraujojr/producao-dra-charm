@@ -118,6 +118,38 @@ async function li(path) {
   const d = await r.json().catch(() => null);
   return { ok: r.ok, status: r.status, data: d };
 }
+// Detalhe do pedido: resource_uri vem como "/api/v1/pedido/{id}" -> fetch no HOST (sem /v1 do base).
+async function liDet(uri) {
+  const _k = await getLIKeys();
+  const u = new URL("https://api.awsli.com.br" + (uri.endsWith("/") ? uri : uri + "/"));
+  u.searchParams.set("chave_api", _k.api || "");
+  u.searchParams.set("chave_aplicacao", _k.app || "");
+  const r = await fetch(u.toString(), { headers: { Accept: "application/json" } });
+  const d = await r.json().catch(() => null);
+  return { ok: r.ok, status: r.status, data: d };
+}
+// Normaliza o "tipo" do pagamento em categorias amigáveis (pt-BR).
+function tipoPagamento(pg) {
+  const t = String(pg && (pg.pagamento_tipo || "") || "").toLowerCase();
+  const cod = String((pg && pg.forma_pagamento && pg.forma_pagamento.codigo) || "").toLowerCase();
+  const s = t + " " + cod;
+  if (/pix/.test(s)) return "pix";
+  if (/boleto/.test(s)) return "boleto";
+  if (/credit|cartao|cartão|card/.test(s)) return "credito";
+  if (/debit/.test(s)) return "debito";
+  if (/entrega/.test(s)) return "na_entrega";
+  return "outro";
+}
+// Faixa de parcelas: 1..12 e "12+" pra caudas longas.
+function faixaParcelas(n) { n = parseInt(n) || 1; if (n <= 1) return "1"; if (n >= 12) return "12+"; return String(n); }
+// SKUs de acréscimo/embalagem que NÃO contam como produto vendido.
+const SKU_IGNORAR = /acr[eé]scimo|embalagem|personaliza|_hidden/i;
+function ehProdutoReal(it) {
+  const sku = String(it.sku || "").toUpperCase();
+  if (sku === "QGH2F6NFR" || sku === "U4UDXDTVP") return false;
+  if (SKU_IGNORAR.test(String(it.sku || "")) || SKU_IGNORAR.test(String(it.nome || ""))) return false;
+  return true;
+}
 
 // ============ Storage do Supabase (grava/le JSON via service_role) ============
 const SB_URL = () => (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
@@ -448,6 +480,84 @@ async function runVendasRecente() {
   return { ok: true, processados, dias: Object.keys(snap.dias).length, pagos: pg.total };
 }
 
+// ============ PAGAMENTOS + PRODUTOS (detalhe por pedido pago) ============
+function _inc(o, k) { if (!k) k = "n/d"; o[k] = (o[k] || 0) + 1; }
+function novoSnapPag() {
+  const ano = hojeBR().slice(0, 4);
+  return { atualizado_em: null, janela_ini: ano + "-01-01", offset: 0, done: false, processados: {}, meses: {} };
+}
+function agregaPagamento(snap, prod, d) {
+  const dia = diaISO(d.data_criacao); if (!dia) return;
+  const mes = dia.slice(0, 7);
+  const id = d.id;
+  if (snap.processados[id]) return;
+  const pg = (d.pagamentos || [])[0] || {};
+  const valor = Number(d.valor_total || pg.valor_pago || pg.valor || 0);
+  const m = snap.meses[mes] || (snap.meses[mes] = { pedidos: 0, receita: 0, tipo: {}, parcelas: {}, gateway: {}, bandeira: {} });
+  m.pedidos++; m.receita += valor;
+  const tp = tipoPagamento(pg); _inc(m.tipo, tp);
+  const par = tp === "credito" ? faixaParcelas(pg.parcelamento && pg.parcelamento.numero_parcelas) : "1";
+  _inc(m.parcelas, par);
+  _inc(m.gateway, (pg.forma_pagamento && pg.forma_pagamento.nome) || "n/d");
+  if (pg.bandeira) _inc(m.bandeira, pg.bandeira);
+  for (const it of (d.itens || [])) {
+    if (!ehProdutoReal(it)) continue;
+    const sku = it.sku || "n/d";
+    const s = prod.skus[sku] || (prod.skus[sku] = { nome: it.nome || sku, qtd: 0, receita: 0, pedidos: 0 });
+    s.nome = it.nome || s.nome;
+    s.qtd += Math.round(parseFloat(it.quantidade || "1")) || 1;
+    s.receita += Number(it.preco_subtotal || it.preco_venda || 0);
+    s.pedidos += 1;
+  }
+  snap.processados[id] = mes;
+}
+// Varre pedidos PAGOS da janela (ano atual), busca o detalhe de cada (1x, via ledger) e agrega
+// meios de pagamento/parcelas + produtos vendidos. Cap de detalhes por run pra caber nos 60s.
+async function runPagamentos(maxDetails, reset) {
+  maxDetails = Math.min(Math.max(parseInt(maxDetails) || 220, 20), 300);
+  let snap = (reset ? null : await storageGet("reposicao/pagamentos.json")) || novoSnapPag();
+  if (!snap.processados) snap.processados = {}; if (!snap.meses) snap.meses = {};
+  let prod = (reset ? null : await storageGet("reposicao/produtos.json")) || { atualizado_em: null, skus: {} };
+  if (!prod.skus) prod.skus = {};
+  const LIMIT = 100;
+  const modo = snap.done ? "incremental" : "backfill";
+  let offset = modo === "incremental" ? 0 : (snap.offset || 0);
+  let feitos = 0, cap = false, ult = false;
+  const maxPages = modo === "incremental" ? 15 : 40;
+  for (let i = 0; i < maxPages && !cap; i++) {
+    const out = await li("/pedido/?limit=" + LIMIT + "&offset=" + offset + "&order_by=-data_criacao");
+    if (!out.ok || !out.data) break;
+    ult = true;
+    const objs = out.data.objects || [];
+    if (!objs.length) { if (modo === "backfill") snap.done = true; break; }
+    let passou = false;
+    for (const p of objs) {
+      const dia = diaISO(p.data_criacao);
+      if (dia && dia < snap.janela_ini) { passou = true; continue; }
+      const sit = p.situacao || {};
+      if (!(sit.aprovado && !sit.cancelado)) continue;
+      if (snap.processados[p.id]) continue;
+      const det = await liDet(p.resource_uri || ("/api/v1/pedido/" + p.id));
+      feitos++;
+      if (det.ok && det.data) agregaPagamento(snap, prod, det.data);
+      if (feitos >= maxDetails) { cap = true; break; }
+    }
+    if (!cap) offset += objs.length;         // só avança a página se terminou de varrê-la
+    if (objs.length < LIMIT) { if (modo === "backfill") snap.done = true; break; }
+    if (passou && modo === "backfill") { snap.done = true; break; }  // saiu da janela do ano = backfill completo
+    if (passou && modo === "incremental") break;
+  }
+  if (modo === "backfill") snap.offset = snap.done ? 0 : offset;
+  // arredonda receitas
+  for (const k in snap.meses) snap.meses[k].receita = Math.round(snap.meses[k].receita * 100) / 100;
+  for (const k in prod.skus) prod.skus[k].receita = Math.round(prod.skus[k].receita * 100) / 100;
+  snap.atualizado_em = new Date().toISOString();
+  prod.atualizado_em = snap.atualizado_em;
+  await storagePut("reposicao/pagamentos.json", snap);
+  await storagePut("reposicao/produtos.json", prod);
+  return { ok: true, modo, detalhes_lidos: feitos, offset: snap.offset, done: snap.done, pedidos_agregados: Object.keys(snap.processados).length, meses: Object.keys(snap.meses).length, skus: Object.keys(prod.skus).length, li_ok: ult };
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   const { run, debug } = req.query;
@@ -455,6 +565,7 @@ export default async function handler(req, res) {
     if (run === "estoque") return res.json(await runEstoque());
     if (run === "vendas") return res.json(await runVendas(req.query.pages, req.query.reset === "1", req.query.rewind === "1"));
     if (run === "vendas-recente") return res.json(await runVendasRecente());
+    if (run === "pagamentos") return res.json(await runPagamentos(req.query.details, req.query.reset === "1"));
     // AUDITORIA (só leitura, não grava): re-lê os últimos N dias DIRETO da LI e compara com o gravado.
     if (run === "audit") {
       const nDias = Math.min(Math.max(parseInt(req.query.dias || "14", 10), 1), 60);

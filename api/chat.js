@@ -41,6 +41,8 @@ const TOOLS = [
   { name: 'buscar_cards', description: 'Busca os cards (ordens de corte) de um quadro. Retorna por card: título, pedido, cliente, facção, coluna/etapa, grade cortada (PP..XG), grade entregue pela oficina (PP..XG), qtd na oficina, peças boas/falhas, data de coleta e prazo (due_date). Filtra por facção e/ou por coluna. Por padrão traz só os NÃO finalizados. Use para saber o que cada facção tem em produção e em que etapa está.', input_schema: { type: 'object', properties: { quadro: { type: 'string' }, faccao: { type: 'string', description: 'nome (ou parte) da facção/etiqueta' }, coluna: { type: 'string', description: 'nome (ou parte) da coluna/etapa' }, incluir_finalizados: { type: 'boolean' } }, required: ['quadro'] } },
   { name: 'consultar_estoque', description: 'Consulta o estoque atual (Bling). Retorna produtos com saldo total, quantas grades/tamanhos estão zerados (furo) e o saldo por tamanho. Filtra por busca (nome/sku) e por tipo (Scrub/Jaleco/Touca...). apenas_furos=true traz só os que têm algum tamanho zerado. Use para saber o que precisa repor.', input_schema: { type: 'object', properties: { busca: { type: 'string' }, tipo: { type: 'string' }, apenas_furos: { type: 'boolean' }, limite: { type: 'number' } } } },
   { name: 'resumo_vendas', description: 'Resumo de vendas por período a partir do painel de vendas (Loja Integrada). Retorna faturamento total e por dia no intervalo. Datas no formato AAAA-MM-DD. Se não passar datas, usa os últimos 30 dias.', input_schema: { type: 'object', properties: { de: { type: 'string' }, ate: { type: 'string' } } } },
+  { name: 'analise_pagamentos', description: 'Meios de pagamento e SHARE DE PARCELAMENTO dos pedidos PAGOS, agregados dos detalhes reais da Loja Integrada. Retorna, no período: distribuição por tipo (pix/crédito/boleto), share por número de parcelas (1x,2x,...,12+), gateways e bandeiras, com nº de pedidos e %. Também retorna a "cobertura" (quantos pedidos já foram agregados e se o backfill do ano terminou) — use pra ser honesto sobre completude. Datas em AAAA-MM-DD (filtra por mês). Sem datas = ano corrente. Use para "share de parcelamento", "quantos parcelam", "pix vs cartão".', input_schema: { type: 'object', properties: { de: { type: 'string' }, ate: { type: 'string' } } } },
+  { name: 'produtos_mais_vendidos', description: 'Produtos (peças) mais vendidos, agregados dos itens dos pedidos pagos da Loja Integrada (ignora acréscimos/embalagem/personalização). Retorna por SKU: nome, quantidade vendida, receita e nº de pedidos. Ordena por quantidade (padrão) ou receita. Cobre a janela do ano em backfill — retorna também atualizado_em e total de SKUs. Use para "peças que mais vendem", "produtos campeões".', input_schema: { type: 'object', properties: { limite: { type: 'number' }, ordenar_por: { type: 'string', description: "'qtd' (padrão) ou 'receita'" } } } },
 ];
 
 async function execTool(name, input) {
@@ -111,6 +113,42 @@ async function execTool(name, input) {
     dentro.forEach(k => { const d = dias[k] || {}; const fat = Number(d.faturamento || d.valor || d.total || 0); const ped = Number(d.pedidos || d.qtd || 0); total += fat; pedidos += ped; porDia[k] = { faturamento: fat, pedidos: ped }; });
     return { periodo: { de: de || dentro[0], ate: ate || dentro[dentro.length - 1] }, faturamento_total: Math.round(total * 100) / 100, pedidos_total: pedidos, dias: porDia };
   }
+  if (name === 'analise_pagamentos') {
+    let pg = null; try { const r = await fetch(STORAGE + 'pagamentos.json?t=' + Date.now()); if (r.ok) pg = await r.json(); } catch (e) {}
+    if (!pg || !pg.meses) return { indisponivel: true, motivo: 'Ainda não há dados de pagamento agregados. O backfill roda no módulo Estoque & Vendas e leva um tempo pra varrer o ano.' };
+    const anoAtual = new Date().toISOString().slice(0, 4);
+    const de = (input.de || (anoAtual + '-01-01')).slice(0, 7);
+    const ate = (input.ate || '9999-12').slice(0, 7);
+    const acc = { pedidos: 0, receita: 0, tipo: {}, parcelas: {}, gateway: {}, bandeira: {} };
+    const somaMapa = (dst, src) => { for (const k in (src || {})) dst[k] = (dst[k] || 0) + src[k]; };
+    let mesesUsados = [];
+    for (const mes in pg.meses) {
+      if (mes < de || mes > ate) continue;
+      mesesUsados.push(mes);
+      const m = pg.meses[mes];
+      acc.pedidos += m.pedidos || 0; acc.receita += m.receita || 0;
+      somaMapa(acc.tipo, m.tipo); somaMapa(acc.parcelas, m.parcelas); somaMapa(acc.gateway, m.gateway); somaMapa(acc.bandeira, m.bandeira);
+    }
+    const tot = acc.pedidos || 1;
+    const ranking = (obj) => Object.keys(obj).map(k => ({ chave: k, pedidos: obj[k], pct: Math.round(obj[k] / tot * 1000) / 10 })).sort((a, b) => b.pedidos - a.pedidos);
+    const ordParc = (arr) => arr.sort((a, b) => (a.chave === '12+' ? 99 : parseInt(a.chave)) - (b.chave === '12+' ? 99 : parseInt(b.chave)));
+    return {
+      periodo: { de, ate: ate === '9999-12' ? mesesUsados.sort().slice(-1)[0] : ate }, meses: mesesUsados.sort(),
+      pedidos_pagos: acc.pedidos, receita_total: Math.round(acc.receita * 100) / 100,
+      meios_pagamento: ranking(acc.tipo),
+      share_parcelamento: ordParc(ranking(acc.parcelas)),
+      gateways: ranking(acc.gateway), bandeiras: ranking(acc.bandeira),
+      cobertura: { pedidos_agregados_total: Object.keys(pg.processados || {}).length, backfill_do_ano_completo: !!pg.done, atualizado_em: pg.atualizado_em },
+    };
+  }
+  if (name === 'produtos_mais_vendidos') {
+    let pr = null; try { const r = await fetch(STORAGE + 'produtos.json?t=' + Date.now()); if (r.ok) pr = await r.json(); } catch (e) {}
+    if (!pr || !pr.skus) return { indisponivel: true, motivo: 'Ainda não há produtos agregados. O backfill roda no módulo Estoque & Vendas e leva um tempo.' };
+    const lim = Math.min(Math.max(parseInt(input.limite) || 20, 1), 100);
+    const por = (input.ordenar_por === 'receita') ? 'receita' : 'qtd';
+    const arr = Object.keys(pr.skus).map(sku => ({ sku, ...pr.skus[sku] })).sort((a, b) => b[por] - a[por]);
+    return { ordenado_por: por, total_skus: arr.length, atualizado_em: pr.atualizado_em, produtos: arr.slice(0, lim) };
+  }
   return { erro: 'ferramenta desconhecida: ' + name };
 }
 
@@ -123,6 +161,8 @@ Contexto do fluxo:
 - O estoque é o saldo de produtos acabados no Bling; "furo"/"grades zeradas" indica tamanhos que precisam repor.
 
 Ao recomendar uma sequência/ordem de produção por facção, considere e explique: prazos (due_date) mais próximos primeiro; furos de estoque (produtos zerados que precisam de reposição urgente); o que já está mais adiantado nas etapas; e o volume/carga de cada facção. Seja prático e priorize itens acionáveis (o que começar primeiro e por quê).
+
+Vendas/pagamentos: para "share de parcelamento", meios de pagamento (pix/cartão/boleto), parcelas (1x,2x,...) e bandeiras, use analise_pagamentos. Para peças/produtos mais vendidos, use produtos_mais_vendidos. Esses dados vêm de um agregado que varre os pedidos pagos do ano aos poucos (backfill) — SEMPRE olhe o campo "cobertura"/"atualizado_em" e, se o backfill do ano ainda não terminou (backfill_do_ano_completo=false), deixe claro que o share é baseado nos N pedidos já processados até agora (parcial), não no ano fechado.
 
 Responda em português do Brasil, claro e direto. Use listas ou tabelas quando ajudar a leitura. Se algum dado necessário não estiver disponível nas ferramentas, diga isso honestamente em vez de inventar.`;
 
