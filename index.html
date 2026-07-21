@@ -53,6 +53,13 @@
   .board-scroll::-webkit-scrollbar-thumb{background:#94a3b8;border-radius:8px}
   .dark .board-scroll::-webkit-scrollbar-thumb{background:#475569}
   .card-drag{cursor:grab}
+  /* Loading: spinner girando + texto pulsando (substitui o "Carregando..." em texto) */
+  .dc-load{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:64px 16px}
+  .dc-spinner{width:38px;height:38px;border-radius:9999px;border:3px solid #e2e8f0;border-top-color:#ec4899;animation:dc-spin .7s linear infinite}
+  .dark .dc-spinner{border-color:#334155;border-top-color:#ec4899}
+  @keyframes dc-spin{to{transform:rotate(360deg)}}
+  .dc-load-lbl{font-size:13px;letter-spacing:.04em;color:#94a3b8;animation:dc-pulse 1.3s ease-in-out infinite}
+  @keyframes dc-pulse{0%,100%{opacity:.35}50%{opacity:1}}
   /* Logo do sistema (A) clicável pra voltar pra home do suíte (no hub e no quadro) */
   #hubScreen .system-logo, #app .system-logo{cursor:pointer;transition:transform .12s ease, box-shadow .12s ease}
   #hubScreen .system-logo:hover, #app .system-logo:hover{transform:scale(1.06);box-shadow:0 3px 10px rgba(0,0,0,.15)}
@@ -1562,7 +1569,7 @@ async function switchBoard(boardId){
   filters.faccao.clear();
   filters.alerta = 'todos';
   { const _af = document.getElementById('alertaFilter'); if (_af) _af.value = 'todos'; }
-  document.getElementById('board').innerHTML = '<div class="text-center p-8 text-slate-500">Carregando...</div>';
+  document.getElementById('board').innerHTML = dcLoad();
   const b = boards.find(x => x.id === boardId);
   applyBoardBackground(b?.background_url);
   // Divergências já aprovadas por mim (pra não repintar card que eu já dei ok)
@@ -3571,7 +3578,7 @@ window.closeLogGeral = () => {
 };
 async function renderLogGeral(){
   const box = document.getElementById('logGeralList');
-  box.innerHTML = '<div class="text-center text-slate-400 p-8">Carregando...</div>';
+  box.innerHTML = dcLoad();
   const pessoa = document.getElementById('logGeralPessoa').value;
   const acao = document.getElementById('logGeralAcao').value;
   const boardId = document.getElementById('logGeralBoard').value;
@@ -3729,7 +3736,7 @@ async function loadAppSettings(){
 window.openArchived = async () => {
   document.getElementById('userMenu').classList.add('hidden');
   const box = document.getElementById('archivedList');
-  box.innerHTML = '<div class="text-center text-slate-400 p-4">Carregando...</div>';
+  box.innerHTML = dcLoad();
   document.getElementById('archivedModal').classList.remove('hidden');
   document.getElementById('archivedModal').classList.add('flex');
   const [colsR, archsR] = await Promise.all([
@@ -4041,6 +4048,8 @@ window.uiPrompt = (message, opts={}) => uiDialog({ message, input:true, placehol
 window.uiAlert = (message, opts={}) => uiDialog({ message, okText: opts.okText||'OK', noCancel:true, title: opts.title });
 
 function escapeHtml(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]); }
+// Spinner de carregamento (girando) + texto pulsando. Uso: el.innerHTML = dcLoad();
+function dcLoad(label){ return '<div class="dc-load"><div class="dc-spinner"></div><div class="dc-load-lbl">'+(label||'Carregando')+'</div></div>'; }
 function timeAgo(t){
   const d = new Date(t); const s = (Date.now()-d.getTime())/1000;
   if (s<60) return 'agora'; if (s<3600) return Math.floor(s/60)+'m atrás';
@@ -4325,7 +4334,7 @@ window.openUsers = async () => {
   document.getElementById('usersModal').classList.remove('hidden');
   document.getElementById('usersModal').classList.add('flex');
   const body = document.getElementById('usersBody');
-  body.innerHTML = '<div class="text-center text-slate-400 py-12">Carregando usuários...</div>';
+  body.innerHTML = dcLoad('Carregando usuários');
   try {
     const { data: users, error } = await sb.from('profiles').select('id, email, full_name, access, role').order('email');
     if (error) throw error;
@@ -5055,7 +5064,7 @@ initAuth().catch(function(e){ console.error('initAuth falhou:', e); if(window.mo
       <button onclick="closePainel()" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 text-xl">×</button>
     </div>
     <div class="flex-1 overflow-y-auto p-6 space-y-6" id="painelBody">
-      <div class="text-center text-slate-400 py-12">Carregando...</div>
+      <div class="dc-load"><div class="dc-spinner"></div><div class="dc-load-lbl">Carregando</div></div>
     </div>
   </div>
 </div>
