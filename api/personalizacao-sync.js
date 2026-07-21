@@ -216,6 +216,49 @@ export default async function handler(req,res){
   const ateT = ate ? Date.parse(ate+'T23:59:59') : null;
   const usaData = (deT!==null || ateT!==null);
 
+  // ===== Varredura "mover enviados": guiada pelos CARDS (não pela data de criação) =====
+  // Pega os cards parados nas colunas de bordado, consulta a situação ATUAL de cada pedido na LI
+  // e move os enviados/entregues pra "Bordado Concluído". Cobre pedidos antigos (o pedido é
+  // enviado dias depois de criado, então a varredura por data de criação não os alcança).
+  // Paginado (offset/limit) pra não estourar o tempo da função nem o rate limit da LI.
+  if(q.movershipped==='1'){
+    try{
+      const off=parseInt(q.offset||'0',10);
+      const lim=Math.min(parseInt(q.limit||'25',10),40);
+      const enviadoRx = s => /enviad|entreg|despach|transito|trânsito|transporte|postad/i.test(String(s||'').toLowerCase());
+      const pl = await sbREST('GET','lists?select=board_id&id=eq.'+PERSO_LIST);
+      const boardId=(pl.j&&pl.j[0]&&pl.j[0].board_id)||null;
+      if(!boardId) return res.status(200).json({movershipped:true, erro:'board de Personalização não encontrado'});
+      const cl = await sbREST('GET','lists?select=id,name&board_id=eq.'+boardId+'&archived=eq.false');
+      const persoLists=cl.j||[];
+      const concl = persoLists.find(l=>/conclu/i.test(l.name)) || persoLists.find(l=>/expedid/i.test(l.name));
+      if(!concl) return res.status(200).json({movershipped:true, erro:'coluna "Bordado Concluído" não encontrada', colunas:persoLists.map(l=>l.name)});
+      const outrasIds = persoLists.filter(l=>l.id!==concl.id).map(l=>l.id);
+      if(!outrasIds.length) return res.status(200).json({movershipped:true, checked:0, shipped:0, moved:0, nextOffset:0, restam:0, coluna:concl.name});
+      const sel = await sbREST('GET','cards?select=id,pedido_numero,list_id&archived=eq.false&pedido_numero=not.is.null&list_id=in.('+outrasIds.join(',')+')&order=pedido_numero.desc&limit='+lim+'&offset='+off);
+      const cards=sel.j||[];
+      let checked=0, shipped=0, moved=0, err=null; const amostra=[];
+      for(const cd of cards){
+        checked++;
+        const num=String(cd.pedido_numero); let sitTxt='';
+        try{
+          const r=await liGet('/v1/pedido/?numero='+encodeURIComponent(num)+'&limit=1');
+          const o=(r.j&&r.j.objects&&r.j.objects[0])||null; let d=null;
+          if(o&&o.resource_uri){ const dd=await liGet(o.resource_uri); d=dd.j||o; }
+          else { const dr=await liGet('/v1/pedido/'+num+'/'); if(dr.status>=200&&dr.status<300) d=dr.j; }
+          if(d){ const sit=d.situacao; if(sit){ if(typeof sit==='string'){ try{ const sd=await liGet(sit); sitTxt=((sd.j&&(sd.j.codigo||sd.j.nome))||''); }catch(e){} } else sitTxt=(sit.codigo||sit.nome||sit.situacao||''); } }
+        }catch(e){}
+        if(enviadoRx(sitTxt)){
+          shipped++;
+          if(commit){ const mv=await sbREST('PATCH','cards?id=eq.'+cd.id,{list_id:concl.id, position:Date.now()}); if(mv.status>=200&&mv.status<300) moved++; else err=mv.j; }
+          else moved++;
+          if(amostra.length<12) amostra.push({num, situacao:sitTxt});
+        }
+      }
+      return res.status(200).json({movershipped:true, dryrun:!commit, coluna:concl.name, offset:off, checked, shipped, moved, nextOffset:off+cards.length, temMais:cards.length===lim, err, amostra});
+    }catch(e){ return res.status(500).json({movershipped:true, error:e.message, stack:String(e.stack||'').slice(0,300)}); }
+  }
+
   // Backfill completo: percorre os cards de personalização que ainda estão SEM produtos,
   // busca o pedido na LI pelo número e preenche pedido_produtos (cobre pedidos antigos).
   if(q.fullbackfill==='1'){
