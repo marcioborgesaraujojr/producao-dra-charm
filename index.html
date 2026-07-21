@@ -4053,7 +4053,7 @@ window.uiAlert = (message, opts={}) => uiDialog({ message, okText: opts.okText||
 
 function escapeHtml(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]); }
 // Spinner de carregamento (girando) + texto pulsando. Uso: el.innerHTML = dcLoad();
-function dcLoad(label){ return '<div class="dc-load"><div class="dc-logo-wrap"><img src="/aragao-180.png" class="dc-logo-img" alt="" onerror="this.style.display=\'none\'"><div class="dc-logo-ring"></div></div><div class="dc-load-lbl">'+(label||'Carregando')+'</div></div>'; }
+function dcLoad(label){ return '<div class="dc-load"><div class="dc-logo-wrap"><img src="/aragao-loading.png" class="dc-logo-img" alt="" onerror="this.style.display=\'none\'"><div class="dc-logo-ring"></div></div><div class="dc-load-lbl">'+(label||'Carregando')+'</div></div>'; }
 // Datas em formato brasileiro a partir de ISO 'yyyy-mm-dd'
 function brData(iso){ var s=(iso==null?'':iso)+''; var m=s.slice(0,10).match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? (m[3]+'/'+m[2]+'/'+m[1]) : s; }
 function brDia(iso){ var s=(iso==null?'':iso)+''; var m=s.slice(0,10).match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? (m[3]+'/'+m[2]) : s; }
@@ -4140,7 +4140,7 @@ window.openSyncBordado = async function(){
         });
       }catch(me){ /* não derruba o resultado da sync */ }
       _pgSet('Concluído', 100, null);
-      stat.innerHTML='<div class="mt-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 text-emerald-700 dark:text-emerald-300 text-sm"><div class="font-semibold inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Sincronização concluída</div><div class="mt-1 text-xs">'+j.varridos+' pedidos analisados · '+((j.comBordadoValidos!=null)?j.comBordadoValidos:j.comBordado)+' com bordado válido</div><div class="mt-1 flex gap-3 text-xs flex-wrap"><span><b>'+novos+'</b> criados</span><span><b>'+existentes+'</b> já existiam</span><span><b>'+(mv.moved||0)+'</b> movidos p/ Expedido/Finalizado</span></div></div>';
+      stat.innerHTML='<div class="mt-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 text-emerald-700 dark:text-emerald-300 text-sm"><div class="font-semibold inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Sincronização concluída</div><div class="mt-1 text-xs">'+j.varridos+' pedidos analisados · '+((j.comBordadoValidos!=null)?j.comBordadoValidos:j.comBordado)+' com bordado válido</div><div class="mt-1 flex gap-3 text-xs flex-wrap justify-center"><span><b>'+novos+'</b> criados</span><span><b>'+existentes+'</b> já existiam</span><span><b>'+(mv.moved||0)+'</b> movidos p/ Expedido/Finalizado</span></div></div>';
       lbl.textContent='Sincronizar novamente';
       if(typeof loadCards==='function') loadCards();
       else if(typeof switchBoard==='function' && typeof currentBoardId!=='undefined') switchBoard(currentBoardId);
@@ -5071,7 +5071,7 @@ initAuth().catch(function(e){ console.error('initAuth falhou:', e); if(window.mo
       <button onclick="closePainel()" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 text-xl">×</button>
     </div>
     <div class="flex-1 overflow-y-auto p-6 space-y-6" id="painelBody">
-      <div class="dc-load"><div class="dc-logo-wrap"><img src="/aragao-180.png" class="dc-logo-img" alt=""><div class="dc-logo-ring"></div></div><div class="dc-load-lbl">Carregando</div></div>
+      <div class="dc-load"><div class="dc-logo-wrap"><img src="/aragao-loading.png" class="dc-logo-img" alt=""><div class="dc-logo-ring"></div></div><div class="dc-load-lbl">Carregando</div></div>
     </div>
   </div>
 </div>
