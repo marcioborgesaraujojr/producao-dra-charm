@@ -234,7 +234,10 @@ export default async function handler(req,res){
       const concl = persoLists.find(l=>/expedid|finaliz/i.test(l.name)) || persoLists.find(l=>/conclu/i.test(l.name));
       if(!concl) return res.status(200).json({movershipped:true, erro:'coluna "Expedido/Finalizado" não encontrada', colunas:persoLists.map(l=>l.name)});
       const outrasIds = persoLists.filter(l=>l.id!==concl.id).map(l=>l.id);
-      if(!outrasIds.length) return res.status(200).json({movershipped:true, checked:0, shipped:0, moved:0, nextOffset:0, restam:0, coluna:concl.name});
+      if(!outrasIds.length) return res.status(200).json({movershipped:true, checked:0, shipped:0, moved:0, nextOffset:0, temMais:false, total:0, coluna:concl.name});
+      // total de cards a conferir (só na 1ª página, pra alimentar a barra de progresso)
+      let total=null;
+      if(off===0){ const tc=await sbREST('GET','cards?select=id&archived=eq.false&pedido_numero=not.is.null&list_id=in.('+outrasIds.join(',')+')&limit=2000'); total=(tc.j||[]).length; }
       const sel = await sbREST('GET','cards?select=id,pedido_numero,list_id&archived=eq.false&pedido_numero=not.is.null&list_id=in.('+outrasIds.join(',')+')&order=pedido_numero.desc&limit='+lim+'&offset='+off);
       const cards=sel.j||[];
       let checked=0, shipped=0, moved=0, err=null; const amostra=[];
@@ -255,7 +258,7 @@ export default async function handler(req,res){
           if(amostra.length<12) amostra.push({num, situacao:sitTxt});
         }
       }
-      return res.status(200).json({movershipped:true, dryrun:!commit, coluna:concl.name, offset:off, checked, shipped, moved, nextOffset:off+cards.length, temMais:cards.length===lim, err, amostra});
+      return res.status(200).json({movershipped:true, dryrun:!commit, coluna:concl.name, offset:off, total, checked, shipped, moved, nextOffset:off+cards.length, temMais:cards.length===lim, err, amostra});
     }catch(e){ return res.status(500).json({movershipped:true, error:e.message, stack:String(e.stack||'').slice(0,300)}); }
   }
 
