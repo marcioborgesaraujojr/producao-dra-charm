@@ -4068,52 +4068,63 @@ window.openSyncBordado = async function(){
   var stat=document.getElementById('_syncStatus');
   var icon=document.getElementById('_syncIcon');
   var lbl=document.getElementById('_syncLabel');
-  // Botão extra: varre os cards parados nas colunas de bordado e move os ENVIADOS pra "Bordado Concluído".
-  // (Independe da data de criação — pega pedidos antigos que já foram enviados na Loja Integrada.)
-  (function(){
-    var host=document.querySelector('#syncBordadoModal .space-y-5'); if(!host || document.getElementById('_moveShipBtn')) return;
-    var wrap=document.createElement('div');
-    wrap.innerHTML='<div class="mt-1 pt-4 border-t border-slate-200 dark:border-ink-600"><button id="_moveShipBtn" class="w-full py-2.5 rounded-lg border border-emerald-300 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-sm font-medium flex items-center justify-center gap-2 transition-colors"><svg id="_moveShipIcon" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg><span id="_moveShipLbl">Mover pedidos enviados → Expedido/Finalizado</span></button><div class="text-[11px] text-slate-400 mt-1.5 text-center">Confere na Loja Integrada quais cards já foram enviados e move automaticamente. Pega até os antigos.</div><div id="_moveShipStatus" class="text-sm text-center min-h-[20px] mt-1"></div></div>';
-    host.appendChild(wrap);
-    var mb=document.getElementById('_moveShipBtn'), mi=document.getElementById('_moveShipIcon'), ml=document.getElementById('_moveShipLbl'), ms=document.getElementById('_moveShipStatus');
-    mb.onclick=async function(){
-      mb.disabled=true; mb.classList.add('cursor-not-allowed','opacity-70'); mi.classList.add('spin');
-      var off=0, movedTot=0, checkedTot=0, shippedTot=0, guard=0;
-      try{
-        var sess=(await window.sb.auth.getSession()).data.session;
-        while(guard++ < 200){
-          ml.textContent='Verificando... ('+checkedTot+' conferidos, '+movedTot+' movidos)';
-          var r=await fetch('/api/personalizacao-sync?movershipped=1&commit=1&offset='+off+'&limit=25',{headers:{Authorization:'Bearer '+sess.access_token}});
-          var j=await r.json();
-          if(!r.ok) throw new Error(j.error||('HTTP '+r.status));
-          if(j.erro) throw new Error(j.erro);
-          checkedTot+=(j.checked||0); movedTot+=(j.moved||0); shippedTot+=(j.shipped||0);
-          off=j.nextOffset||off;
-          if(!j.temMais) break;
-        }
-        ms.innerHTML='<div class="mt-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 text-emerald-700 dark:text-emerald-300 text-sm"><div class="font-semibold">Pronto</div><div class="mt-1 text-xs">'+checkedTot+' cards conferidos · <b>'+movedTot+'</b> movidos pra Concluído</div></div>';
-        ml.textContent='Mover enviados novamente';
-        if(typeof switchBoard==='function' && typeof currentBoardId!=='undefined') switchBoard(currentBoardId);
-      }catch(e){
-        ms.innerHTML='<div class="mt-2 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 text-red-600 text-sm">Erro: '+e.message+'</div>';
-        ml.textContent='Tentar de novo';
-      }
-      finally{ mb.disabled=false; mb.classList.remove('cursor-not-allowed','opacity-70'); mi.classList.remove('spin'); }
-    };
-  })();
+  // Barra de progresso (fase + porcentagem + subtexto). Renderiza dentro do #_syncStatus.
+  function _pgRender(){
+    stat.innerHTML='<div class="mt-3"><div class="flex justify-between items-center text-xs mb-1"><span id="_pgPhase" class="text-slate-600 dark:text-slate-300 font-medium">Iniciando...</span><span id="_pgPct" class="text-slate-400">0%</span></div><div class="w-full h-2.5 rounded-full bg-slate-200 dark:bg-ink-700 overflow-hidden"><div id="_pgBar" class="h-full bg-pink-500 rounded-full" style="width:0%;transition:width .35s ease"></div></div><div id="_pgSub" class="text-[11px] text-slate-400 mt-1.5 text-center min-h-[14px]"></div></div>';
+  }
+  function _pgSet(phase, pct, sub){
+    var p=document.getElementById('_pgPhase'), b=document.getElementById('_pgBar'), pc=document.getElementById('_pgPct'), s=document.getElementById('_pgSub');
+    if(p&&phase!=null) p.textContent=phase;
+    if(b&&pct!=null){ b.style.width=Math.max(0,Math.min(100,pct))+'%'; }
+    if(pc&&pct!=null) pc.textContent=Math.round(Math.max(0,Math.min(100,pct)))+'%';
+    if(s&&sub!=null) s.textContent=sub;
+  }
+  // Varre os cards parados nas colunas de bordado e move os ENVIADOS pra "Expedido/Finalizado".
+  // (Independe da data de criação — pega pedidos antigos já enviados na Loja Integrada.)
+  // Roda JUNTO com a sincronização (paginado, pra não estourar o tempo da função).
+  async function _moveEnviados(sess, onProgress){
+    var off=0, movedTot=0, checkedTot=0, total=null, guard=0;
+    while(guard++ < 400){
+      var r=await fetch('/api/personalizacao-sync?movershipped=1&commit=1&offset='+off+'&limit=20',{headers:{Authorization:'Bearer '+sess.access_token}});
+      var j=await r.json();
+      if(!r.ok) throw new Error(j.error||('HTTP '+r.status));
+      if(j.erro) throw new Error(j.erro);
+      if(total===null && typeof j.total==='number') total=j.total;
+      checkedTot+=(j.checked||0); movedTot+=(j.moved||0);
+      off=j.nextOffset||off;
+      if(onProgress) onProgress(checkedTot, movedTot, total);
+      if(!j.temMais) break;
+    }
+    return { checked:checkedTot, moved:movedTot, total:total };
+  }
   goBtn.onclick=async function(){
     var de=document.getElementById('_syncDe').value, ate=document.getElementById('_syncAte').value;
     if(!de||!ate){ stat.innerHTML='<span class=\"text-red-500\">Preencha as duas datas</span>'; return; }
     goBtn.disabled=true; goBtn.classList.add('cursor-not-allowed');
     icon.classList.add('spin'); lbl.textContent='Sincronizando...';
-    stat.innerHTML='';
+    _pgRender();
     try{
       var sess=(await window.sb.auth.getSession()).data.session;
+      // Fase 1: buscar pedidos novos na LI (uma chamada — barra sobe até ~30% enquanto espera)
+      _pgSet('Buscando pedidos novos na Loja Integrada...', 8, 'Analisando o período '+de+' → '+ate);
+      var _p1=6; var _p1t=setInterval(function(){ _p1=Math.min(28,_p1+2); _pgSet(null,_p1,null); },500);
       var r=await fetch('/api/personalizacao-sync?commit=1&data_inicio='+de+'&data_fim='+ate,{headers:{Authorization:'Bearer '+sess.access_token}});
       var j=await r.json();
+      clearInterval(_p1t);
       if(!r.ok){ throw new Error(j.error||'HTTP '+r.status); }
       var novos=j.inserted||0, existentes=j.jaExistem||0;
-      stat.innerHTML='<div class="mt-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 text-emerald-700 dark:text-emerald-300 text-sm"><div class="font-semibold inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Sincronização concluída</div><div class="mt-1 text-xs">'+j.varridos+' pedidos analisados · '+((j.comBordadoValidos!=null)?j.comBordadoValidos:j.comBordado)+' com bordado válido</div><div class="mt-1 flex gap-3 text-xs"><span><b>'+novos+'</b> criados</span><span><b>'+existentes+'</b> já existiam</span></div></div>';
+      _pgSet('Pedidos novos sincronizados', 32, novos+' criados · '+existentes+' já existiam');
+      // Fase 2: mover os enviados pra Expedido/Finalizado (mesmo clique, com barra determinada)
+      lbl.textContent='Movendo enviados...';
+      var mv={checked:0, moved:0, total:null};
+      try{
+        mv=await _moveEnviados(sess, function(ch,mo,tot){
+          var pct = (tot && tot>0) ? (32 + (ch/tot)*66) : 40;
+          _pgSet('Conferindo pedidos enviados...', pct, ch+(tot?(' de '+tot):'')+' conferidos · '+mo+' movidos');
+        });
+      }catch(me){ /* não derruba o resultado da sync */ }
+      _pgSet('Concluído', 100, null);
+      stat.innerHTML='<div class="mt-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 text-emerald-700 dark:text-emerald-300 text-sm"><div class="font-semibold inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Sincronização concluída</div><div class="mt-1 text-xs">'+j.varridos+' pedidos analisados · '+((j.comBordadoValidos!=null)?j.comBordadoValidos:j.comBordado)+' com bordado válido</div><div class="mt-1 flex gap-3 text-xs flex-wrap"><span><b>'+novos+'</b> criados</span><span><b>'+existentes+'</b> já existiam</span><span><b>'+(mv.moved||0)+'</b> movidos p/ Expedido/Finalizado</span></div></div>';
       lbl.textContent='Sincronizar novamente';
       if(typeof loadCards==='function') loadCards();
       else if(typeof switchBoard==='function' && typeof currentBoardId!=='undefined') switchBoard(currentBoardId);
