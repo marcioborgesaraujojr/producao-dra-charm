@@ -11,6 +11,10 @@
     {
       "path": "/api/estoque-sync?run=vendas&pages=40",
       "schedule": "*/20 * * * *"
+    },
+    {
+      "path": "/api/estoque-sync?run=pagamentos&details=260",
+      "schedule": "8,28,48 * * * *"
     }
   ],
   "functions": {
