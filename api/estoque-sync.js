@@ -294,7 +294,9 @@ async function runEstoque() {
 
 // ============ SYNC VENDAS (LI, cabeçalhos) — backfill + diário ============
 function diaISO(dt) { return (dt || "").slice(0, 10); }
-function diasAtras(n) { return new Date(Date.now() - n * 864e5).toISOString().slice(0, 10); }
+// Data de hoje no fuso de Brasília (a LI devolve data_criacao em BRT, então os "dias" são BRT).
+function hojeBR() { return new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }); }
+function diasAtras(n) { const d = new Date(hojeBR() + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() - n); return d.toISOString().slice(0, 10); }
 function agregaPedido(dias, p) {
   const dia = diaISO(p.data_criacao);
   if (!dia) return;
@@ -330,11 +332,11 @@ async function salvarPagos(pg, corte) {
   pg.atualizado_em = new Date().toISOString();
   await storagePut("reposicao/pagos.json", pg);
 }
-// Períodos padrão (mesmas chaves do <select> do front). Datas em UTC (igual ao front).
+// Períodos padrão (mesmas chaves do <select> do front). Datas no fuso de Brasília (igual ao front).
 function periodosPadrao() {
-  const hj = new Date().toISOString().slice(0, 10);
+  const hj = hojeBR();
   const y = parseInt(hj.slice(0, 4));
-  const d = (n) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
+  const d = (n) => diasAtras(n);
   return {
     hoje: [hj, hj], ontem: [d(1), d(1)],
     "7": [d(6), hj], mes: [hj.slice(0, 7) + "-01", hj], "30": [d(29), hj],
