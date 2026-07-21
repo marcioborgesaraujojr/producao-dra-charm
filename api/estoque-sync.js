@@ -516,22 +516,32 @@ export default async function handler(req, res) {
     if (debug === "li-detail") { const o = await li("/produto/" + req.query.id + "/"); return res.json({ status: o.status, amostra: o.data }); }
     if (debug === "li-img") { const o = await li("/produto_imagem/?produto=" + req.query.id); return res.json({ status: o.status, amostra: (o.data && o.data.objects) || o.data }); }
     if (debug === "li-pedidos") { const o = await li("/pedido/?limit=" + (req.query.limit || 2)); return res.json({ status: o.status, meta: o.data && o.data.meta, amostra: (o.data && o.data.objects) || o.data }); }
-    // Sondagem do meio de pagamento: pega um pedido recente PAGO, abre o detalhe e tenta várias fontes de pagamento.
+    // Sondagem do meio de pagamento: pega um pedido recente PAGO, abre o detalhe correto e caça pagamento/parcelas.
     if (debug === "li-pag") {
+      // liAbs: resource_uri vem como "/api/v1/..." — fetch no HOST (sem o /v1 do base).
+      const liAbs = async (uri) => {
+        const _k = await getLIKeys();
+        const u = new URL("https://api.awsli.com.br" + uri);
+        u.searchParams.set("chave_api", _k.api || ""); u.searchParams.set("chave_aplicacao", _k.app || "");
+        const r = await fetch(u.toString(), { headers: { Accept: "application/json" } });
+        let d = null; try { d = await r.json(); } catch (_) {}
+        return { ok: r.ok, status: r.status, data: d };
+      };
       const lst = await li("/pedido/?limit=20&order_by=-data_criacao");
       const objs = (lst.data && lst.data.objects) || [];
       const alvo = objs.find(p => p.situacao && p.situacao.aprovado && !p.situacao.cancelado) || objs[0];
       if (!alvo) return res.json({ ok: false, motivo: "sem pedidos" });
-      const out = { numero: alvo.numero, id: alvo.id, campos_lista: Object.keys(alvo) };
-      const det = await li((alvo.resource_uri || ("/pedido/" + alvo.id)) + (String(alvo.resource_uri||"").endsWith("/") ? "" : "/"));
+      const out = { numero: alvo.numero, id: alvo.id };
+      const det = await liAbs(alvo.resource_uri.endsWith("/") ? alvo.resource_uri : alvo.resource_uri + "/");
       const d = (det.data) || {};
       out.detalhe_status = det.status;
       out.detalhe_campos = Object.keys(d);
-      out.pagamentos_inline = d.pagamentos || d.pagamento || null;
-      // sub-recursos possíveis
-      for (const p of ["/pedido_pagamento/?pedido=" + alvo.id, "/pagamento/?pedido=" + alvo.id, "/pedido/" + alvo.id + "/pagamentos/"]) {
-        const r = await li(p);
-        if (r.ok && r.data) { out.sub = { endpoint: p, amostra: (r.data.objects || r.data) }; break; }
+      // devolve o objeto inteiro do detalhe (truncado) pra eu ver TODOS os campos de pagamento/parcela
+      out.detalhe = JSON.parse(JSON.stringify(d));
+      // tenta sub-recursos de transação de pagamento do pedido
+      for (const p of ["/pedido/" + alvo.id + "/pagamento/", "/pedido/" + alvo.id + "/pagamentos/", "/pedido_pagamento/?pedido__id=" + alvo.id, "/transacao/?pedido=" + alvo.id]) {
+        const r = await liAbs("/api/v1" + p);
+        if (r.ok && r.data && (r.data.objects || Object.keys(r.data).length)) { out.sub = { endpoint: p, amostra: (r.data.objects || r.data) }; break; }
       }
       return res.json(out);
     }
