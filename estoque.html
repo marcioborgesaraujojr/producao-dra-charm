@@ -48,6 +48,12 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
   [data-fade]{animation:fade .18s ease}@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
   /* Indicadores de cliente + tooltip do "i" */
   .kpi{position:relative;overflow:visible}
+  /* Mobile: filtros com fonte menor pra caber os 3 lendo; valores dos KPIs de venda não cortam mais */
+  @media (max-width:640px){
+    #fTipo, #fStatus, #fOrder{ font-size:12px; padding-left:8px; padding-right:8px }
+    .card.kpi{ padding:12px }
+    .kpi > div:last-child{ font-size:1rem; line-height:1.3 }
+  }
   .ico-i{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:999px;border:1px solid #cbd5e1;color:#94a3b8;font-size:9px;font-weight:800;font-style:normal;cursor:help;flex-shrink:0;line-height:1}
   .dark .ico-i{border-color:#475569;color:#94a3b8}
   .ico-i:hover{border-color:#ec4899;color:#ec4899}
@@ -236,9 +242,15 @@ async function carregar(){
   const at = ESTOQUE?.atualizado_em ? new Date(ESTOQUE.atualizado_em).toLocaleString('pt-BR') : '—';
   document.getElementById('atualizadoInfo').textContent = 'Estoque atualizado: '+at;
   if(ESTOQUE && ESTOQUE.produtos){
-    const tipos=[...new Set(ESTOQUE.produtos.map(p=>tipoProduto(p.nome)))].sort();
+    // Ordem pedida: Scrub, Jaleco, Touca primeiro; depois os demais tipos; "Outros" e "Todos" no fim.
+    const PRIOR=['Scrub','Jaleco','Touca'];
+    const presentes=[...new Set(ESTOQUE.produtos.map(p=>tipoProduto(p.nome)))];
+    const prio=PRIOR.filter(t=>presentes.includes(t));
+    const resto=presentes.filter(t=>!PRIOR.includes(t)&&t!=='Outros').sort();
+    const outros=presentes.includes('Outros')?['Outros']:[];
+    const ordenados=[...prio,...resto,...outros];
     const sel=document.getElementById('fTipo'); const cur=sel.value;
-    sel.innerHTML='<option value="">Todos os tipos</option>'+tipos.map(t=>`<option value="${t}">${t}</option>`).join('');
+    sel.innerHTML=ordenados.map(t=>`<option value="${t}">${t}</option>`).join('')+'<option value="">Todos os tipos</option>';
     sel.value=cur;
   }
   renderEstoque(); renderVendas();

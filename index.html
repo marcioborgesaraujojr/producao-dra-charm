@@ -175,8 +175,10 @@
     #filterFaccaoBtn, #zoom{padding:6px 10px;font-size:12px;height:34px;border-radius:8px}
     #statsLine{display:none}
     /* "Ocultar finalizados" volta a aparecer no mobile (espaço liberado pela lupa) */
-    header label.flex.items-center.gap-2{display:flex;padding:6px 8px;font-size:12px}
-    #zoom, #alertaFilter{font-size:12px;padding:6px 8px}
+    /* Ocultar / Zoom / Alertas: mesma altura de caixa (34px). Antes o #alertaFilter não tinha height fixo
+       (só o #zoom tinha, linha do #filterFaccaoBtn), então o Alertas ficava mais baixo que os outros 2. */
+    header label.flex.items-center.gap-2{display:flex;align-items:center;padding:6px 8px;font-size:12px;height:34px;box-sizing:border-box}
+    #zoom, #alertaFilter{font-size:12px;padding:6px 8px;height:34px;box-sizing:border-box}
     #filterFaccaoBtn{padding:6px 8px;font-size:12px}
     #search{font-size:14px}
     /* Busca já aberta, porém compacta (divide a 1a linha com avatares + "Ocultar finalizados") */
@@ -3495,7 +3497,8 @@ function renderNotifications(){
     if (badge){ if (unread > 0){ badge.textContent = unread; badge.classList.remove('hidden'); } else badge.classList.add('hidden'); }
     const btn = document.getElementById(btnId);
     const svg = btn && btn.querySelector('svg');
-    if (svg){ svg.style.color = unread > 0 ? '#ef4444' : ''; svg.style.strokeWidth = unread > 0 ? '2.4' : ''; }
+    // O sino mantém o mesmo cinza dos outros ícones (não fica vermelho/grosso) — o badge com o número já sinaliza o não-lido.
+    if (svg){ svg.style.color = ''; svg.style.strokeWidth = ''; }
   });
   const list = document.getElementById('notifList');
   if (notifications.length === 0){ list.innerHTML = '<div class="p-4 text-sm text-slate-500 text-center">Sem notificações</div>'; return; }
