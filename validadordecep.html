@@ -19,7 +19,7 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
   body.has-bg #appBg::after{content:'';position:absolute;inset:0;background:rgba(15,23,42,.35);pointer-events:none}
   .dark body.has-bg #appBg::after{background:rgba(0,0,0,.5)}
   body.has-bg::before{content:'';position:fixed;inset:0;background:rgba(255,255,255,.30);pointer-events:none;z-index:0}
-  body.has-bg #appWrap{position:relative;z-index:1}
+  body.has-bg #appWrap{position:relative;z-index:1;background:transparent !important;background-image:none !important}
   body.has-bg header{background:rgba(255,255,255,.85)!important;backdrop-filter:blur(12px)}
   body.has-bg.dark header{background:rgba(17,24,39,.85)!important}
   /* CEP-specific (extraído do index.html) */

@@ -3736,7 +3736,18 @@ window.openArchived = async () => {
     sb.from('lists').select('id, name, board_id, boards(name)').eq('archived', true).order('name'),
     sb.from('cards').select('id, title, updated_at, list_id, lists(name, board_id, boards(name))').eq('archived', true).order('updated_at', {ascending: false}),
   ]);
-  const cols = colsR.data || [], archs = archsR.data || [];
+  // Permissões: mostra só arquivados dos quadros que o usuário acessa;
+  // Restaurar/Excluir só nos quadros onde ele pode editar (read-only não age).
+  const isAdm = !!(profile && profile.role === 'admin');
+  const boardEdit = {};
+  (boards || []).forEach(b => {
+    const m = Array.isArray(b.board_members) ? b.board_members[0] : null;
+    boardEdit[b.id] = isAdm ? true : (m ? (m.can_edit !== false) : false);
+  });
+  const canSeeBoard = (bid) => isAdm || Object.prototype.hasOwnProperty.call(boardEdit, bid);
+  const canActBoard = (bid) => isAdm || boardEdit[bid] === true;
+  const cols = (colsR.data || []).filter(l => canSeeBoard(l.board_id));
+  const archs = (archsR.data || []).filter(a => canSeeBoard(a.lists?.board_id));
   if (!cols.length && !archs.length){
     box.innerHTML = '<div class="text-center text-slate-500 p-8 text-sm">Nada arquivado.</div>';
     return;
@@ -3749,6 +3760,7 @@ window.openArchived = async () => {
     h.textContent = 'Colunas arquivadas';
     box.appendChild(h);
     cols.forEach(l => {
+      const actC = canActBoard(l.board_id);
       const row = document.createElement('div');
       row.className = 'flex items-center gap-2 p-3 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 mb-2';
       row.innerHTML = `
@@ -3756,8 +3768,9 @@ window.openArchived = async () => {
           <div class="font-medium text-sm truncate">${escapeHtml(l.name)}</div>
           <div class="text-xs text-slate-500">${escapeHtml(l.boards?.name||'')} · coluna</div>
         </div>
-        <button class="restore text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-medium">Restaurar</button>
-        <button class="delete text-xs px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-red-50 hover:border-red-200 hover:text-red-600 font-medium transition-colors">Excluir</button>`;
+        ${actC ? `<button class="restore text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-medium">Restaurar</button>
+        <button class="delete text-xs px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-red-50 hover:border-red-200 hover:text-red-600 font-medium transition-colors">Excluir</button>` : '<span class="text-[11px] text-slate-400 italic">somente leitura</span>'}`;
+      if (actC){
       row.querySelector('.restore').onclick = async () => {
         await sb.from('lists').update({archived:false}).eq('id', l.id);
         await sb.from('cards').update({archived:false}).eq('list_id', l.id);
@@ -3771,6 +3784,7 @@ window.openArchived = async () => {
         await sb.from('lists').delete().eq('id', l.id);
         row.remove(); toast('Coluna excluída definitivamente');
       };
+      }
       box.appendChild(row);
     });
     const hc = document.createElement('div');
@@ -3779,6 +3793,7 @@ window.openArchived = async () => {
     box.appendChild(hc);
   }
   archs.forEach(a => {
+    const actA = canActBoard(a.lists?.board_id);
     const row = document.createElement('div');
     row.className = 'flex items-center gap-2 p-3 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600';
     row.innerHTML = `
@@ -3786,9 +3801,10 @@ window.openArchived = async () => {
         <div class="font-medium text-sm truncate">${escapeHtml(a.title)}</div>
         <div class="text-xs text-slate-500">${escapeHtml(a.lists?.boards?.name||'')} · ${escapeHtml(a.lists?.name||'')}</div>
       </div>
-      <button class="restore text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-medium">Restaurar</button>
-      <button class="delete text-xs px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-red-50 hover:border-red-200 hover:text-red-600 font-medium transition-colors">Excluir</button>
+      ${actA ? `<button class="restore text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-medium">Restaurar</button>
+      <button class="delete text-xs px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-red-50 hover:border-red-200 hover:text-red-600 font-medium transition-colors">Excluir</button>` : '<span class="text-[11px] text-slate-400 italic">somente leitura</span>'}
     `;
+    if (actA){
     row.querySelector('.restore').onclick = async () => {
       await sb.from('cards').update({archived: false}).eq('id', a.id);
       row.remove();
@@ -3802,6 +3818,7 @@ window.openArchived = async () => {
       row.remove();
       toast('Excluído definitivamente');
     };
+    }
     box.appendChild(row);
   });
 };
