@@ -449,6 +449,41 @@ export default async function handler(req, res) {
     if (run === "estoque") return res.json(await runEstoque());
     if (run === "vendas") return res.json(await runVendas(req.query.pages, req.query.reset === "1", req.query.rewind === "1"));
     if (run === "vendas-recente") return res.json(await runVendasRecente());
+    // AUDITORIA (só leitura, não grava): re-lê os últimos N dias DIRETO da LI e compara com o gravado.
+    if (run === "audit") {
+      const nDias = Math.min(Math.max(parseInt(req.query.dias || "14", 10), 1), 60);
+      const inc = diasAtras(nDias);
+      const fresh = {}; let offset = 0, pages = 0, liOk = false;
+      for (let i = 0; i < 40; i++) {
+        const out = await li("/pedido/?limit=100&offset=" + offset + "&order_by=-data_criacao");
+        if (!out.ok || !out.data) break;
+        liOk = true;
+        const objs = out.data.objects || [];
+        if (!objs.length) break;
+        pages++;
+        let passou = false;
+        for (const p of objs) {
+          const dia = diaISO(p.data_criacao);
+          if (dia && dia >= inc) {
+            const sit = p.situacao || {}; const pago = !!sit.aprovado && !sit.cancelado;
+            const d = fresh[dia] || (fresh[dia] = { pedidos: 0, pagos: 0, receita: 0, receita_paga: 0 });
+            d.pedidos++; d.receita += Number(p.valor_total || 0);
+            if (pago) { d.pagos++; d.receita_paga += Number(p.valor_total || 0); }
+          } else if (dia) passou = true;
+        }
+        offset += objs.length;
+        if (passou || objs.length < 100) break;
+      }
+      const snap = (await storageGet("reposicao/vendas.json")) || { dias: {} };
+      const comparacao = Object.keys(fresh).sort().map((dia) => {
+        const s = snap.dias[dia] || {}; const li = fresh[dia];
+        const okPed = (s.pedidos || 0) === li.pedidos;
+        const okPago = Math.abs((s.receita_paga || 0) - li.receita_paga) < 1;
+        return { dia, li_ped: li.pedidos, arm_ped: s.pedidos || 0, li_pago: Math.round(li.receita_paga * 100) / 100, arm_pago: Math.round((s.receita_paga || 0) * 100) / 100, bate: okPed && okPago };
+      });
+      const ks = Object.keys(snap.dias || {}).sort();
+      return res.json({ ok: true, li_ok: liOk, pages, dias_auditados: nDias, todos_batem: comparacao.every((c) => c.bate), comparacao, cobertura: { primeiro: ks[0], ultimo: ks[ks.length - 1], dias: ks.length, janela_dias: snap.janela_dias, total_count_LI: snap.total_count } });
+    }
     if (run === "kpis") { const pg = await storageGet("reposicao/pagos.json"); if (!pg || !pg.pagos) return res.json({ ok: false, motivo: "pagos.json ainda não existe" }); const k = computeKpis(pg.pagos); await storagePut("reposicao/kpis.json", k); return res.json({ ok: true, pagos: Object.keys(pg.pagos).length, periods: Object.keys(k.periods).length }); }
     if (run === "status") {
       const e = await storageGet("reposicao/estoque.json");
