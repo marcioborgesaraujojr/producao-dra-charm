@@ -41,8 +41,9 @@ function buildBordadoFromFields(f, raw){
   let imgUrl = f['fazer upload da imagem'] || null;
   if(!imgUrl){ const m=String(raw||'').match(/https?:\/\/[^\s\n\])]+\.(?:jpg|jpeg|png|pdf|svg|gif)/i); if(m) imgUrl=m[0]; }
   const linha1 = f['linha 1'] || null;
-  const linha2 = f['linha 2'] || f['linha 3'] || null;
-  const hasLinhas = !!(linha1 || linha2);
+  const linha2 = f['linha 2'] || null;
+  const linha3 = f['linha 3'] || null;
+  const hasLinhas = !!(linha1 || linha2 || linha3);
   // Opção que o cliente escolheu/PAGOU (ex: "Sim (Nome, Profissão e Logomarca)"). É o sinal mais confiável
   // do tipo do que a imagem — o upload do logo às vezes não vem (bug de cache), mas a opção fica registrada.
   let opTxt = '';
@@ -59,7 +60,7 @@ function buildBordadoFromFields(f, raw){
   const logoPendente = wantLogo && !imgUrl;
   return {
     tipo,
-    linha1, linha2,
+    linha1, linha2, linha3,
     corHex, corNome,
     fonte: f['tipo de letra'] || null,
     lado: f['lados'] || f['lado'] || null,
