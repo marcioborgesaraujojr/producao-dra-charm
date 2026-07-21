@@ -355,6 +355,18 @@
         <span class="hub-card-badge bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">Ativo</span>
       </button>
 
+      <!-- Assistente IA -->
+      <button type="button" onclick="location.href='/assistente.html'" data-access="assistente" class="hub-card group text-left hidden">
+        <div class="hub-card-icon bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+        </div>
+        <div class="hub-card-body">
+          <div class="hub-card-title">Assistente IA</div>
+          <div class="hub-card-desc">Converse com a IA sobre produção, estoque e vendas — com seus dados reais</div>
+        </div>
+        <span class="hub-card-badge bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">Ativo</span>
+      </button>
+
       <!-- Validador de CEP -->
       <button data-hub-open="cep" data-access="cep" class="hub-card group text-left hidden">
         <div class="hub-card-icon bg-gradient-to-br from-blue-500 to-cyan-500 text-white">
@@ -4369,6 +4381,7 @@ window.openUsers = async () => {
     const labelsByBoard = {}; (allLabelsRows||[]).forEach(l => { (labelsByBoard[l.board_id] = labelsByBoard[l.board_id] || []).push(l); });
     const systems = [
       {key:'quadros', label:'Quadros'},
+      {key:'assistente', label:'Assistente IA'},
       {key:'estoque', label:'Estoque & Vendas'},
       {key:'cep', label:'CEP'},
       {key:'atendimento', label:'Atendimento'},

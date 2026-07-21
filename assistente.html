@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Assistente IA — Sistema Grupo Aragão</title>
+<link id="faviconLink" rel="icon" type="image/png" href="/favicon.png">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{ ink:{600:'#475569',700:'#334155',800:'#1e293b',900:'#0f172a'} } } } };
+</script>
+<style>
+  html{background:#f1f5f9}html.dark{background:#0b1220}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0;background-color:transparent}
+  #appBg{position:fixed;inset:0;width:100vw;height:100vh;z-index:-1;background-size:cover;background-position:center;background-repeat:no-repeat;pointer-events:none}
+  body.has-bg #appBg::after{content:'';position:absolute;inset:0;background:rgba(15,23,42,.35);pointer-events:none}
+  .dark body.has-bg #appBg::after{background:rgba(0,0,0,.5)}
+  body.has-bg::before{content:'';position:fixed;inset:0;background:rgba(255,255,255,.30);pointer-events:none;z-index:0}
+  body.has-bg #appWrap{position:relative;z-index:1}
+  body.has-bg header{background:rgba(255,255,255,.9)!important;backdrop-filter:blur(12px)}
+  body.has-bg.dark header{background:rgba(17,24,39,.9)!important}
+  ::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px}.dark ::-webkit-scrollbar-thumb{background:#475569}
+  /* markdown básico das respostas */
+  .msg-ai h3{font-weight:700;font-size:15px;margin:10px 0 4px}
+  .msg-ai ul{margin:6px 0;padding-left:18px;list-style:disc}
+  .msg-ai ol{margin:6px 0;padding-left:20px;list-style:decimal}
+  .msg-ai li{margin:2px 0}
+  .msg-ai p{margin:6px 0}
+  .msg-ai code{background:rgba(148,163,184,.25);padding:1px 5px;border-radius:5px;font-size:.9em}
+  .msg-ai table{border-collapse:collapse;margin:8px 0;font-size:13px}
+  .msg-ai th,.msg-ai td{border:1px solid #cbd5e1;padding:4px 8px;text-align:left}
+  .dark .msg-ai th,.dark .msg-ai td{border-color:#334155}
+  .dots span{animation:bl 1s infinite}.dots span:nth-child(2){animation-delay:.2s}.dots span:nth-child(3){animation-delay:.4s}
+  @keyframes bl{0%,100%{opacity:.3}50%{opacity:1}}
+</style>
+</head>
+<body class="text-slate-800 dark:text-slate-100">
+<div id="appBg"></div>
+
+<div id="authGate" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-50 dark:bg-ink-900">
+  <div class="text-center p-8"><div class="text-lg font-semibold mb-2">Precisa estar logado</div><a href="/" class="text-pink-600 hover:underline">Ir para a Suíte</a></div>
+</div>
+
+<div id="appWrap" class="hidden min-h-screen flex flex-col bg-gradient-to-br from-pink-50 via-white to-slate-50 dark:from-ink-900 dark:via-ink-800 dark:to-ink-900">
+  <header id="topHeader" class="h-14 flex items-center justify-between px-3 sm:px-4 gap-2 bg-white/95 dark:bg-ink-800/95 border-b border-slate-200 dark:border-ink-600 sticky top-0 z-30 backdrop-blur shrink-0">
+    <div class="flex items-center gap-2.5 min-w-0">
+      <a href="/" title="Voltar à Suíte" class="w-9 h-9 rounded-xl overflow-hidden shadow hover:scale-105 transition flex-shrink-0 block"><img src="/icone-app.png" alt="Aragão" class="w-full h-full object-cover"></a>
+      <div class="min-w-0">
+        <div class="font-bold text-sm sm:text-base leading-tight truncate">Assistente IA</div>
+        <div class="text-[11px] text-slate-500 dark:text-slate-400 leading-tight truncate">Sistema Grupo Aragão</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="novaConversa()" title="Nova conversa" class="w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:text-pink-500 hover:bg-slate-100 dark:hover:bg-ink-700"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
+      <button onclick="toggleDark()" title="Tema" class="w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:text-pink-500 hover:bg-slate-100 dark:hover:bg-ink-700"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+      <div id="userAvatar" class="w-8 h-8 rounded-full bg-pink-500 text-white flex items-center justify-center font-bold text-sm">?</div>
+    </div>
+  </header>
+
+  <main class="flex-1 overflow-y-auto" id="chatScroll">
+    <div class="max-w-3xl mx-auto px-4 py-6 space-y-4" id="chatList">
+      <div id="welcome" class="text-center py-10">
+        <div class="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white shadow-lg mb-4">
+          <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+        </div>
+        <div class="text-lg font-bold">Como posso ajudar?</div>
+        <div class="text-sm text-slate-500 dark:text-slate-400 mt-1 mb-5">Pergunte sobre produção, facções, oficina, estoque e vendas — eu busco nos seus dados reais.</div>
+        <div class="grid sm:grid-cols-2 gap-2 max-w-xl mx-auto text-left">
+          <button class="suggestion text-sm p-3 rounded-xl border border-slate-200 dark:border-ink-700 bg-white/70 dark:bg-ink-800/70 hover:border-pink-400 transition">Baseado nos quadros, oficina e estoque, qual sequência cada facção deve começar a produzir?</button>
+          <button class="suggestion text-sm p-3 rounded-xl border border-slate-200 dark:border-ink-700 bg-white/70 dark:bg-ink-800/70 hover:border-pink-400 transition">Quais produtos estão com furo de estoque (tamanhos zerados) que preciso repor?</button>
+          <button class="suggestion text-sm p-3 rounded-xl border border-slate-200 dark:border-ink-700 bg-white/70 dark:bg-ink-800/70 hover:border-pink-400 transition">Qual facção está com mais carga em produção agora?</button>
+          <button class="suggestion text-sm p-3 rounded-xl border border-slate-200 dark:border-ink-700 bg-white/70 dark:bg-ink-800/70 hover:border-pink-400 transition">Qual foi meu faturamento nos últimos 30 dias?</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="border-t border-slate-200 dark:border-ink-700 bg-white/95 dark:bg-ink-800/95 backdrop-blur shrink-0">
+    <div class="max-w-3xl mx-auto px-4 py-3">
+      <form id="chatForm" class="flex items-end gap-2">
+        <textarea id="chatInput" rows="1" placeholder="Pergunte algo sobre produção, estoque, vendas..." class="flex-1 resize-none max-h-40 p-3 rounded-xl border border-slate-300 dark:border-ink-600 bg-slate-50 dark:bg-ink-900 text-sm focus:border-pink-500 outline-none"></textarea>
+        <button id="sendBtn" type="submit" class="w-11 h-11 shrink-0 rounded-xl bg-pink-600 hover:bg-pink-700 text-white flex items-center justify-center disabled:opacity-50" title="Enviar">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+        </button>
+      </form>
+      <div class="text-[10px] text-slate-400 text-center mt-1.5">O assistente usa seus dados reais. Confira números críticos antes de decisões importantes.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPA = { url:'https://wwytzoyeibekhstinott.supabase.co', key:'sb_publishable_uMoCEK4Ed_u8ZIfjVZ7Jrg_tdR4b9bO' };
+let sb=null;
+async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2'); sb=createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true}}); } return sb; }
+window.toggleDark=()=>{ document.documentElement.classList.toggle('dark'); try{localStorage.setItem('dc_dark',document.documentElement.classList.contains('dark')?'1':'0');}catch(e){} };
+try{ if(localStorage.getItem('dc_dark')==='1') document.documentElement.classList.add('dark'); }catch(e){}
+
+function applyBg(){
+  const url = SUPA.url + '/storage/v1/object/public/system-assets/suite-bg.jpg?t=' + Date.now();
+  const img = new Image();
+  img.onload = () => { const el=document.getElementById('appBg'); if(el) el.style.backgroundImage="url('"+url+"')"; document.body.classList.add('has-bg'); };
+  img.onerror = () => { document.body.classList.remove('has-bg'); };
+  img.src = url;
+}
+
+// ===== Chat =====
+let historico = [];   // [{role:'user'|'assistant', content:'texto'}]
+let enviando = false;
+
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+// markdown mínimo -> html
+function md(t){
+  let s = esc(t);
+  // tabelas simples (linhas com |)
+  s = s.replace(/(^\|.*\|\s*$\n?)+/gm, block=>{
+    const rows = block.trim().split('\n').filter(r=>r.trim());
+    let html='<table>'; rows.forEach((r,i)=>{ if(/^\|[\s\-:|]+\|$/.test(r.trim())) return; const cells=r.split('|').slice(1,-1).map(c=>c.trim()); const tag=i===0?'th':'td'; html+='<tr>'+cells.map(c=>'<'+tag+'>'+c+'</'+tag+'>').join('')+'</tr>'; });
+    return html+'</table>';
+  });
+  s = s.replace(/`([^`]+)`/g,'<code>$1</code>');
+  s = s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+  s = s.replace(/^\s*###\s+(.+)$/gm,'<h3>$1</h3>');
+  // listas
+  s = s.replace(/(?:^\s*(?:[-*•])\s+.+$\n?)+/gm, block=>{ const items=block.trim().split('\n').map(l=>l.replace(/^\s*[-*•]\s+/,'')); return '<ul>'+items.map(i=>'<li>'+i+'</li>').join('')+'</ul>'; });
+  s = s.replace(/(?:^\s*\d+\.\s+.+$\n?)+/gm, block=>{ const items=block.trim().split('\n').map(l=>l.replace(/^\s*\d+\.\s+/,'')); return '<ol>'+items.map(i=>'<li>'+i+'</li>').join('')+'</ol>'; });
+  // parágrafos das linhas soltas
+  s = s.split(/\n{2,}/).map(p=> /^\s*<(ul|ol|table|h3)/.test(p) ? p : '<p>'+p.replace(/\n/g,'<br>')+'</p>').join('');
+  return s;
+}
+
+function addMsg(role, text){
+  document.getElementById('welcome')?.remove();
+  const list = document.getElementById('chatList');
+  const wrap = document.createElement('div');
+  if(role==='user'){
+    wrap.className='flex justify-end';
+    wrap.innerHTML='<div class="max-w-[85%] px-4 py-2.5 rounded-2xl rounded-br-md bg-pink-600 text-white text-sm whitespace-pre-wrap">'+esc(text)+'</div>';
+  } else {
+    wrap.className='flex justify-start';
+    wrap.innerHTML='<div class="msg-ai max-w-[92%] px-4 py-3 rounded-2xl rounded-bl-md bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-700 text-sm shadow-sm">'+md(text)+'</div>';
+  }
+  list.appendChild(wrap);
+  document.getElementById('chatScroll').scrollTop = 1e9;
+  return wrap;
+}
+function addLoading(){
+  document.getElementById('welcome')?.remove();
+  const list = document.getElementById('chatList');
+  const wrap = document.createElement('div');
+  wrap.className='flex justify-start'; wrap.id='loadingMsg';
+  wrap.innerHTML='<div class="px-4 py-3 rounded-2xl rounded-bl-md bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-700 text-sm text-slate-400 dots">Consultando seus dados <span>.</span><span>.</span><span>.</span></div>';
+  list.appendChild(wrap);
+  document.getElementById('chatScroll').scrollTop = 1e9;
+}
+
+async function enviar(texto){
+  texto = (texto||'').trim();
+  if(!texto || enviando) return;
+  enviando = true; document.getElementById('sendBtn').disabled = true;
+  addMsg('user', texto);
+  historico.push({role:'user', content:texto});
+  const inp = document.getElementById('chatInput'); inp.value=''; inp.style.height='auto';
+  addLoading();
+  try{
+    const sess = (await (await getSb()).auth.getSession()).data.session;
+    const r = await fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json', Authorization:'Bearer '+(sess&&sess.access_token)}, body: JSON.stringify({ messages: historico }) });
+    const j = await r.json();
+    document.getElementById('loadingMsg')?.remove();
+    const reply = j.reply || j.error || 'Não consegui responder agora.';
+    addMsg('assistant', reply);
+    historico.push({role:'assistant', content:reply});
+  }catch(e){
+    document.getElementById('loadingMsg')?.remove();
+    addMsg('assistant', 'Erro de conexão: '+e.message);
+  }
+  enviando = false; document.getElementById('sendBtn').disabled = false;
+  inp.focus();
+}
+
+window.novaConversa = ()=>{ historico=[]; document.getElementById('chatList').innerHTML=''; location.reload(); };
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  const inp = document.getElementById('chatInput');
+  inp.addEventListener('input', ()=>{ inp.style.height='auto'; inp.style.height=Math.min(inp.scrollHeight,160)+'px'; });
+  inp.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); enviar(inp.value); } });
+  document.getElementById('chatForm').addEventListener('submit', e=>{ e.preventDefault(); enviar(inp.value); });
+  document.querySelectorAll('.suggestion').forEach(b=> b.addEventListener('click', ()=> enviar(b.textContent)));
+});
+
+(async()=>{
+  const c = await getSb();
+  const { data:{ session } } = await c.auth.getSession();
+  if(!session){ window.location.href='/'; return; }
+  // acesso ao módulo
+  const em=(session.user.email||'').toLowerCase();
+  if(em!=='marcioborgesaraujojr@gmail.com'){
+    const { data:_pf } = await c.from('profiles').select('access').eq('id',session.user.id).maybeSingle();
+    if(!(_pf && _pf.access && _pf.access.assistente===true)){ window.location.href='/'; return; }
+  }
+  document.getElementById('appWrap').classList.remove('hidden');
+  document.getElementById('userAvatar').textContent = (session.user.email||'?').charAt(0).toUpperCase();
+  applyBg();
+})();
+</script>
+</body>
+</html>
