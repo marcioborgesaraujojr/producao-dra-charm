@@ -2,6 +2,8 @@
 // Nunca retorna segredos: só se está configurado, um indicador de saúde e um "final" mascarado.
 // Só admin acessa. O check do Bling NÃO faz refresh (evita rotacionar/quebrar o token).
 
+import { getLIKeys } from '../lib/licfg.js';
+
 const SB_URL = process.env.SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ADMIN_EMAIL = 'marcioborgesaraujojr@gmail.com';
@@ -34,7 +36,8 @@ async function statusBling() {
 }
 
 async function statusLI() {
-  const api = process.env.LI_CHAVE_API, app = process.env.LI_CHAVE_APLICACAO;
+  const _k = await getLIKeys();
+  const api = _k.api, app = _k.app;
   if (!api || !app) return { nome: 'Loja Integrada', tipo: 'Chave de API', configurado: false, status: 'nao_configurado', detalhe: 'Faltam LI_CHAVE_API / LI_CHAVE_APLICACAO.' };
   const base = process.env.LI_BASE_URL || 'https://api.awsli.com.br/v1';
   let status = 'configurado', detalhe = 'Chaves presentes.';

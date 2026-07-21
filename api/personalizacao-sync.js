@@ -1,3 +1,4 @@
+import { getLIKeys } from '../lib/licfg.js';
 const LI = 'https://api.awsli.com.br';
 const PERSO_LIST = '7c4cd407-c2b0-4a16-b802-acd29f996ca8';
 // SKUs dos "acréscimos" de personalização (igual à extensão)
@@ -6,7 +7,7 @@ const SKU_PERSONALIZACAO = 'QGH2F6NFR';
 const SKIP_SKUS = new Set([SKU_LOGOMARCA, SKU_PERSONALIZACAO]);
 
 async function liGet(path){
-  const app=process.env.LI_CHAVE_APLICACAO, api=process.env.LI_CHAVE_API;
+  const _k=await getLIKeys(); const app=_k.app, api=_k.api;
   const u=new URL(path.startsWith('http')?path:LI+path);
   u.searchParams.set('chave_api',api); u.searchParams.set('chave_aplicacao',app);
   const r=await fetch(u.toString(),{headers:{Accept:'application/json'}});

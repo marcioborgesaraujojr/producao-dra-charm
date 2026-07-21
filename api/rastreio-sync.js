@@ -4,6 +4,7 @@ import { runCycle, processOrder } from '../lib/engine.js';
 import * as sb from '../lib/supabase.js';
 import * as li from '../lib/li.js';
 import { carrierKey } from '../lib/statusmap.js';
+import { getLIKeys } from '../lib/licfg.js';
 
 export const config = { maxDuration: 60 };
 
@@ -350,8 +351,9 @@ async function disableTimeRules() {
 const LI_HOST = 'https://api.awsli.com.br';
 async function liDetGet(path) {
   const u = new URL(path.startsWith('http') ? path : LI_HOST + path);
-  u.searchParams.set('chave_api', process.env.LI_CHAVE_API || '');
-  u.searchParams.set('chave_aplicacao', process.env.LI_CHAVE_APLICACAO || '');
+  const _k = await getLIKeys();
+  u.searchParams.set('chave_api', _k.api || '');
+  u.searchParams.set('chave_aplicacao', _k.app || '');
   const r = await fetch(u.toString(), { headers: { Accept: 'application/json' } });
   let j = null; try { j = await r.json(); } catch {}
   return { status: r.status, j };
@@ -627,8 +629,9 @@ async function bordadoLink(limite = 1500) {
 async function liGet(path) {
   const base = process.env.LI_BASE_URL || 'https://api.awsli.com.br/v1';
   const u = new URL(path.startsWith('http') ? path : base + path);
-  u.searchParams.set('chave_api', process.env.LI_CHAVE_API || '');
-  u.searchParams.set('chave_aplicacao', process.env.LI_CHAVE_APLICACAO || '');
+  const _k = await getLIKeys();
+  u.searchParams.set('chave_api', _k.api || '');
+  u.searchParams.set('chave_aplicacao', _k.app || '');
   const r = await fetch(u.toString(), { headers: { Accept: 'application/json' } });
   let j = null; try { j = await r.json(); } catch {}
   return { status: r.status, json: j };
@@ -691,8 +694,9 @@ async function probeLI(numero) {
   if (numero) return probeOrder(numero);
   const base = process.env.LI_BASE_URL || 'https://api.awsli.com.br/v1';
   const u = new URL(base + '/pedido/');
-  u.searchParams.set('chave_api', process.env.LI_CHAVE_API || '');
-  u.searchParams.set('chave_aplicacao', process.env.LI_CHAVE_APLICACAO || '');
+  const _k = await getLIKeys();
+  u.searchParams.set('chave_api', _k.api || '');
+  u.searchParams.set('chave_aplicacao', _k.app || '');
   u.searchParams.set('limit', '20');
   const out = {};
   const r = await fetch(u.toString(), { headers: { Accept: 'application/json' } });
