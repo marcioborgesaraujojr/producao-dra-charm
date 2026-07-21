@@ -9,8 +9,6 @@
 //   ?run=status               -> mostra o progresso atual (lê os JSON)
 //   ?debug=bling-prod | li-prod | li-pedidos | li-img&id= ...   (sondagem)
 
-import { getLIKeys } from '../lib/licfg.js';
-
 // ============ Bling (OAuth, mesmo esquema do api/pedidos.js) ============
 const PROJ = "prj_ErH4xc9FokreQHv0utp1xJ2eGvdO";
 const TEAM = "team_Hv0Wqku1l7HhDDiJZmR2u5Ze";
@@ -112,9 +110,8 @@ async function bling(path, token) {
 async function li(path) {
   const base = process.env.LI_BASE_URL || "https://api.awsli.com.br/v1";
   const u = new URL(path.startsWith("http") ? path : base + path);
-  const _k = await getLIKeys();
-  u.searchParams.set("chave_api", _k.api || "");
-  u.searchParams.set("chave_aplicacao", _k.app || "");
+  u.searchParams.set("chave_api", process.env.LI_CHAVE_API || "");
+  u.searchParams.set("chave_aplicacao", process.env.LI_CHAVE_APLICACAO || "");
   const r = await fetch(u.toString(), { headers: { Accept: "application/json" } });
   const d = await r.json().catch(() => null);
   return { ok: r.ok, status: r.status, data: d };
@@ -520,6 +517,25 @@ export default async function handler(req, res) {
     if (debug === "li-detail") { const o = await li("/produto/" + req.query.id + "/"); return res.json({ status: o.status, amostra: o.data }); }
     if (debug === "li-img") { const o = await li("/produto_imagem/?produto=" + req.query.id); return res.json({ status: o.status, amostra: (o.data && o.data.objects) || o.data }); }
     if (debug === "li-pedidos") { const o = await li("/pedido/?limit=" + (req.query.limit || 2)); return res.json({ status: o.status, meta: o.data && o.data.meta, amostra: (o.data && o.data.objects) || o.data }); }
+    // Sondagem do meio de pagamento: pega um pedido recente PAGO, abre o detalhe e tenta várias fontes de pagamento.
+    if (debug === "li-pag") {
+      const lst = await li("/pedido/?limit=20&order_by=-data_criacao");
+      const objs = (lst.data && lst.data.objects) || [];
+      const alvo = objs.find(p => p.situacao && p.situacao.aprovado && !p.situacao.cancelado) || objs[0];
+      if (!alvo) return res.json({ ok: false, motivo: "sem pedidos" });
+      const out = { numero: alvo.numero, id: alvo.id, campos_lista: Object.keys(alvo) };
+      const det = await li((alvo.resource_uri || ("/pedido/" + alvo.id)) + (String(alvo.resource_uri||"").endsWith("/") ? "" : "/"));
+      const d = (det.data) || {};
+      out.detalhe_status = det.status;
+      out.detalhe_campos = Object.keys(d);
+      out.pagamentos_inline = d.pagamentos || d.pagamento || null;
+      // sub-recursos possíveis
+      for (const p of ["/pedido_pagamento/?pedido=" + alvo.id, "/pagamento/?pedido=" + alvo.id, "/pedido/" + alvo.id + "/pagamentos/"]) {
+        const r = await li(p);
+        if (r.ok && r.data) { out.sub = { endpoint: p, amostra: (r.data.objects || r.data) }; break; }
+      }
+      return res.json(out);
+    }
     return res.json({ ok: true, uso: ["?run=estoque", "?run=vendas&pages=20", "?run=status", "?debug=bling-prod", "?debug=li-prod", "?debug=li-detail&id=", "?debug=li-img&id=", "?debug=li-pedidos"] });
   } catch (err) {
     return res.status(500).json({ erro: err.message });
