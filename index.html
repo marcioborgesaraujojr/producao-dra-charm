@@ -4068,6 +4068,39 @@ window.openSyncBordado = async function(){
   var stat=document.getElementById('_syncStatus');
   var icon=document.getElementById('_syncIcon');
   var lbl=document.getElementById('_syncLabel');
+  // Botão extra: varre os cards parados nas colunas de bordado e move os ENVIADOS pra "Bordado Concluído".
+  // (Independe da data de criação — pega pedidos antigos que já foram enviados na Loja Integrada.)
+  (function(){
+    var host=document.querySelector('#syncBordadoModal .space-y-5'); if(!host || document.getElementById('_moveShipBtn')) return;
+    var wrap=document.createElement('div');
+    wrap.innerHTML='<div class="mt-1 pt-4 border-t border-slate-200 dark:border-ink-600"><button id="_moveShipBtn" class="w-full py-2.5 rounded-lg border border-emerald-300 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-sm font-medium flex items-center justify-center gap-2 transition-colors"><svg id="_moveShipIcon" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg><span id="_moveShipLbl">Mover pedidos enviados → Bordado Concluído</span></button><div class="text-[11px] text-slate-400 mt-1.5 text-center">Confere na Loja Integrada quais cards já foram enviados e move automaticamente. Pega até os antigos.</div><div id="_moveShipStatus" class="text-sm text-center min-h-[20px] mt-1"></div></div>';
+    host.appendChild(wrap);
+    var mb=document.getElementById('_moveShipBtn'), mi=document.getElementById('_moveShipIcon'), ml=document.getElementById('_moveShipLbl'), ms=document.getElementById('_moveShipStatus');
+    mb.onclick=async function(){
+      mb.disabled=true; mb.classList.add('cursor-not-allowed','opacity-70'); mi.classList.add('spin');
+      var off=0, movedTot=0, checkedTot=0, shippedTot=0, guard=0;
+      try{
+        var sess=(await window.sb.auth.getSession()).data.session;
+        while(guard++ < 200){
+          ml.textContent='Verificando... ('+checkedTot+' conferidos, '+movedTot+' movidos)';
+          var r=await fetch('/api/personalizacao-sync?movershipped=1&commit=1&offset='+off+'&limit=25',{headers:{Authorization:'Bearer '+sess.access_token}});
+          var j=await r.json();
+          if(!r.ok) throw new Error(j.error||('HTTP '+r.status));
+          if(j.erro) throw new Error(j.erro);
+          checkedTot+=(j.checked||0); movedTot+=(j.moved||0); shippedTot+=(j.shipped||0);
+          off=j.nextOffset||off;
+          if(!j.temMais) break;
+        }
+        ms.innerHTML='<div class="mt-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 text-emerald-700 dark:text-emerald-300 text-sm"><div class="font-semibold">Pronto</div><div class="mt-1 text-xs">'+checkedTot+' cards conferidos · <b>'+movedTot+'</b> movidos pra Concluído</div></div>';
+        ml.textContent='Mover enviados novamente';
+        if(typeof switchBoard==='function' && typeof currentBoardId!=='undefined') switchBoard(currentBoardId);
+      }catch(e){
+        ms.innerHTML='<div class="mt-2 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 text-red-600 text-sm">Erro: '+e.message+'</div>';
+        ml.textContent='Tentar de novo';
+      }
+      finally{ mb.disabled=false; mb.classList.remove('cursor-not-allowed','opacity-70'); mi.classList.remove('spin'); }
+    };
+  })();
   goBtn.onclick=async function(){
     var de=document.getElementById('_syncDe').value, ate=document.getElementById('_syncAte').value;
     if(!de||!ate){ stat.innerHTML='<span class=\"text-red-500\">Preencha as duas datas</span>'; return; }
