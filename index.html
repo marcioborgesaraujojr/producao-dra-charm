@@ -215,6 +215,11 @@
     #tab-details{grid-template-columns:1fr !important;padding:12px !important;gap:16px !important}
     #cardTitle{font-size:16px !important}
     #feedList{max-height:280px !important}
+    /* Cabeçalho: título e etiqueta empilhados (a etiqueta 200px estava comendo o nome) */
+    #cardHeadRow{flex-wrap:wrap}
+    #cardHeadRow #faccaoField{width:100% !important}
+    /* Nº do pedido e Cliente empilhados (2 colunas cortavam o botão do link) */
+    #pedidoClienteGrid{grid-template-columns:1fr !important}
 
     /* ============ OUTROS MODAIS ============ */
     #logGeralModal, #archivedModal, #estoqueModal{padding:0 !important}
@@ -735,7 +740,7 @@
       <button onclick="closeCard()" class="absolute top-3 right-3 bg-white/95 hover:bg-white text-slate-700 rounded-lg w-9 h-9 flex items-center justify-center shadow-md" title="Fechar">
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
       </button>
-      <div class="px-5 py-3 flex items-center gap-3">
+      <div id="cardHeadRow" class="px-5 py-3 flex items-center gap-3">
         <input id="cardTitle" class="flex-1 min-w-0 text-lg font-semibold bg-transparent outline-none border-b border-transparent focus:border-pink-500"/>
         <div id="faccaoField" class="relative flex-shrink-0" style="width:200px">
           <button id="cardFaccaoBtn" type="button" class="w-full px-2 py-1.5 rounded-lg bg-slate-100 dark:bg-ink-700 text-xs text-left flex items-center gap-2 hover:bg-slate-200 dark:hover:bg-ink-600">
@@ -883,7 +888,7 @@
             </div>
           </div>
           <div id="bordadoFields" class="hidden space-y-4">
-            <div class="grid grid-cols-2 gap-3">
+            <div id="pedidoClienteGrid" class="grid grid-cols-2 gap-3">
               <div>
                 <label class="text-xs font-medium uppercase text-amber-600 flex items-center gap-1"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Nº do pedido</label>
                 <div class="flex gap-1 mt-1 items-center">
