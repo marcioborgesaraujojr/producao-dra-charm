@@ -1425,7 +1425,9 @@ async function afterLogin(){
     }
     const { data: allP } = await sb.from('profiles').select('*');
     profiles = allP || [];
-    showHub();
+    // Sem flash: se o refresh foi dentro de um QUADRO, NÃO mostra a suíte primeiro — vai direto pro quadro
+    // (antes mostrava a suíte e só depois trocava, o que fazia "piscar" a Suíte antes de abrir o quadro).
+    if (_restore.v !== 'quadros') showHub();
     updateUserAvatar();
     await loadAppSettings();
     const { data: bs } = await sb.from('boards').select('*, board_members!inner(*)').eq('board_members.user_id', user.id).order('created_at');
@@ -1434,6 +1436,7 @@ async function afterLogin(){
       if (profile.role === 'admin' || (await uiConfirm('Você não tem quadros. Criar os quadros iniciais?', {title:'Criar quadros'}))){
         await bootstrapBoards();
       } else {
+        try { if (_restore.v === 'quadros') showHub(); } catch(_){}  // sem quadros: cai na suíte (não fica em branco)
         document.getElementById('board').innerHTML = '<div class="text-center p-8 text-slate-500">Você ainda não foi adicionado a nenhum quadro.</div>';
         esconderBannerConexao();
         return;
@@ -1442,9 +1445,12 @@ async function afterLogin(){
     renderBoardSelect();
     const _tb = (_restore.b && boards.find(b => b.id === _restore.b)) ? _restore.b : boards[0].id;
     await switchBoard(_tb);
+    // Quadro pronto: mostra ele agora (a suíte não chegou a aparecer). Assim o refresh abre direto no quadro.
+    if (_restore.v === 'quadros') enterQuadros();
     esconderBannerConexao();
   } catch(e){
     console.error('afterLogin falhou:', e);
+    try { if (_restore.v === 'quadros') showHub(); } catch(_){}  // se falhou o carregamento, cai na suíte com o aviso
     mostrarBannerConexao('Não consegui carregar seus dados do servidor. Pode ser instabilidade de conexão — tente de novo.');
     return;
   }
@@ -1452,8 +1458,8 @@ async function afterLogin(){
   try { await loadNotifications(); } catch(e){ console.warn('loadNotifications falhou:', e); }
   try { subscribeRealtime(); } catch(e){ console.warn('subscribeRealtime falhou:', e); }
   try {
-    if (_restore.v === 'quadros') enterQuadros();
-    else if (_restore.v === 'cep' && typeof enterCep === 'function') enterCep();
+    // Quadros já foi restaurado direto (sem flash) acima. Aqui só a tela do CEP.
+    if (_restore.v === 'cep' && typeof enterCep === 'function') enterCep();
   } catch(e){ console.warn('restaurar tela falhou:', e); }
 }
 
