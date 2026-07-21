@@ -1264,7 +1264,7 @@ function bordadosDoCard(c){
   // fallback: bordado único do card (dados antigos)
   if (c.bordado_tipo || c.bordado_linha1 || c.bordado_imagem_url){
     const _pm = Array.isArray(c.pedido_produtos) ? c.pedido_produtos.find(p => p.bordado) : null;
-    return [{ info:{ tipo:c.bordado_tipo, linha1:c.bordado_linha1, linha2:c.bordado_linha2, corHex:c.bordado_cor_hex, corNome:c.bordado_cor_nome, fonte:c.bordado_fonte, lado:c.bordado_lado, imagem:c.bordado_imagem_url, detalhes:c.bordado_detalhes }, nome:_pm?_pm.nome:null, sku:_pm?_pm.sku:null, cor:BORDADO_PALETTE[0] }];
+    return [{ info:{ tipo:c.bordado_tipo, linha1:c.bordado_linha1, linha2:c.bordado_linha2, linha3:c.bordado_linha3, corHex:c.bordado_cor_hex, corNome:c.bordado_cor_nome, fonte:c.bordado_fonte, lado:c.bordado_lado, imagem:c.bordado_imagem_url, detalhes:c.bordado_detalhes }, nome:_pm?_pm.nome:null, sku:_pm?_pm.sku:null, cor:BORDADO_PALETTE[0] }];
   }
   return [];
 }
@@ -1288,7 +1288,8 @@ function bordadoPreviewFromInfo(info, prodNome, size){
   const bg = peca ? peca.hex : (isLightColor(cor) ? '#0f172a' : '#e2e8f0');
   const l1=escapeHtml((info.linha1||'').slice(0,28));
   const l2=escapeHtml((info.linha2||'').slice(0,28));
-  return `<div class="bordado-preview fabric-weave" style="width:${w}px;height:${h}px;background-color:${bg}" title="${escapeHtml(prodNome||'')}"><div style="font-family:${fontFam};line-height:1.25;text-align:center;padding:4px;overflow:hidden;--thread-color:${cor}"><div class="bordado-thread" style="font-size:${size>100?13:11}px">${l1}</div>${l2?`<div class="bordado-thread" style="font-size:${size>100?10:9}px;margin-top:2px">${l2}</div>`:''}</div></div>`;
+  const l3=escapeHtml((info.linha3||'').slice(0,28));
+  return `<div class="bordado-preview fabric-weave" style="width:${w}px;height:${h}px;background-color:${bg}" title="${escapeHtml(prodNome||'')}"><div style="font-family:${fontFam};line-height:1.25;text-align:center;padding:4px;overflow:hidden;--thread-color:${cor}"><div class="bordado-thread" style="font-size:${size>100?13:11}px">${l1}</div>${l2?`<div class="bordado-thread" style="font-size:${size>100?10:9}px;margin-top:2px">${l2}</div>`:''}${l3?`<div class="bordado-thread" style="font-size:${size>100?9:8}px;margin-top:2px">${l3}</div>`:''}</div></div>`;
 }
 // Mapeia fonte do LI para a fonte native carregada (mesma do site dracharm.com.br)
 function bordadoFontFamily(fonteName){
@@ -2551,7 +2552,7 @@ function renderCardCover(c){
       } else {
         img.src = info.imagem; img.classList.remove('hidden');
       }
-    } else if (info.linha1 || info.linha2){
+    } else if (info.linha1 || info.linha2 || info.linha3){
       const fam = bordadoFontFamily(info.fonte);
       const cor = info.corHex || '#333';
       const peca = matchProductColor(b.nome||'');
@@ -2561,6 +2562,7 @@ function renderCardCover(c){
       textPreview.innerHTML = `<div style="font-family:${fam};line-height:1.3;--thread-color:${cor}">
         <div class="bordado-thread" style="font-size:56px">${escapeHtml(info.linha1||'')}</div>
         ${info.linha2 ? `<div class="bordado-thread" style="font-size:38px;margin-top:6px">${escapeHtml(info.linha2)}</div>` : ''}
+        ${info.linha3 ? `<div class="bordado-thread" style="font-size:30px;margin-top:6px">${escapeHtml(info.linha3)}</div>` : ''}
       </div>`;
       textPreview.style.display = 'flex';
     } else {
