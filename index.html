@@ -3683,6 +3683,7 @@ document.addEventListener('change', async e => {
 
 function applyLogo(url){
   if (!url) return;
+  try { window.DC_LOGO = url; } catch(e){}   // loading passa a usar o logo atual do sistema
   document.querySelectorAll('.system-logo').forEach(el => {
     el.innerHTML = '<img src="'+url+'" class="w-full h-full object-cover">';
     el.classList.remove('bg-pink-500');
@@ -4053,7 +4054,10 @@ window.uiAlert = (message, opts={}) => uiDialog({ message, okText: opts.okText||
 
 function escapeHtml(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]); }
 // Spinner de carregamento (girando) + texto pulsando. Uso: el.innerHTML = dcLoad();
-function dcLoad(){ return '<div class="dc-load"><div class="dc-logo-wrap"><img src="/aragao-loading.png" class="dc-logo-img" alt="" onerror="this.style.display=\'none\'"><div class="dc-logo-ring"></div></div></div>'; }
+// Logo do loading: usa o SVG do sistema (vetorial, alta qualidade) que o app já carrega no header;
+// se falhar, cai no PNG local. window.DC_LOGO é setado no applyLogo (fica sempre com o logo atual).
+window.DC_LOGO = window.DC_LOGO || 'https://wwytzoyeibekhstinott.supabase.co/storage/v1/object/public/attachments/system/logo-1784146210835.svg';
+function dcLoad(){ return '<div class="dc-load"><div class="dc-logo-wrap"><img src="'+window.DC_LOGO+'" class="dc-logo-img" alt="" onerror="this.onerror=null;this.src=\'/aragao-loading.png\'"><div class="dc-logo-ring"></div></div></div>'; }
 // Datas em formato brasileiro a partir de ISO 'yyyy-mm-dd'
 function brData(iso){ var s=(iso==null?'':iso)+''; var m=s.slice(0,10).match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? (m[3]+'/'+m[2]+'/'+m[1]) : s; }
 function brDia(iso){ var s=(iso==null?'':iso)+''; var m=s.slice(0,10).match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? (m[3]+'/'+m[2]) : s; }
