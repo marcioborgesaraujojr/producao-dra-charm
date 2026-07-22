@@ -58,12 +58,18 @@ function buildBordadoFromFields(f, raw){
   else if(wantNome) tipo='nome_profissao';
   // Pagou/escolheu logo mas a imagem não veio no pedido => precisa confirmar com o cliente e anexar a logo.
   const logoPendente = wantLogo && !imgUrl;
+  // LADOS: o pedido pode ter DOIS "-- Lados:" — o 1º é do Nome/Profissão (antes da imagem), o 2º é da Logomarca (depois da imagem).
+  const ladosAll = [...String(raw||'').matchAll(/--\s*lados?\s*:\s*([^\r\n]+)/gi)].map(m=>m[1].trim()).filter(Boolean);
+  let lado=null, ladoLogo=null;
+  if(wantNome && wantLogo){ lado = ladosAll[0] || null; ladoLogo = ladosAll[1] || null; }
+  else if(wantLogo){ ladoLogo = ladosAll[0] || f['lados'] || f['lado'] || null; }
+  else { lado = ladosAll[0] || f['lados'] || f['lado'] || null; }
   return {
     tipo,
     linha1, linha2, linha3,
     corHex, corNome,
     fonte: f['tipo de letra'] || null,
-    lado: f['lados'] || f['lado'] || null,
+    lado, ladoLogo,
     imagem: imgUrl,
     logoPendente,
     detalhes: f['detalhes do bordado (opcional)'] || f['detalhes do bordado'] || null
@@ -359,7 +365,7 @@ export default async function handler(req,res){
       list_id:PERSO_LIST, title:(c.cliente||('Pedido '+c.numero)), position:Date.now(), created_by:userId,
       pedido_numero:c.numero, pedido_cliente:c.cliente,
       bordado_tipo:c.b.tipo, bordado_linha1:c.b.linha1, bordado_linha2:c.b.linha2, bordado_linha3:c.b.linha3,
-      bordado_cor_hex:c.b.corHex, bordado_cor_nome:c.b.corNome, bordado_fonte:c.b.fonte, bordado_lado:c.b.lado,
+      bordado_cor_hex:c.b.corHex, bordado_cor_nome:c.b.corNome, bordado_fonte:c.b.fonte, bordado_lado:c.b.lado, bordado_lado_logo:c.b.ladoLogo,
       bordado_imagem_url:c.b.imagem, bordado_detalhes:c.b.detalhes,
       pedido_produtos: (c.produtos && c.produtos.length) ? c.produtos : null,
       pedido_url: c.id_li?('https://app.lojaintegrada.com.br/painel/pedido/'+c.id_li+'/detalhar'):null
@@ -376,7 +382,7 @@ export default async function handler(req,res){
       for(const c of toUpdate){
         const patch={
           bordado_tipo:c.b.tipo, bordado_linha1:c.b.linha1, bordado_linha2:c.b.linha2, bordado_linha3:c.b.linha3,
-          bordado_cor_hex:c.b.corHex, bordado_cor_nome:c.b.corNome, bordado_fonte:c.b.fonte, bordado_lado:c.b.lado,
+          bordado_cor_hex:c.b.corHex, bordado_cor_nome:c.b.corNome, bordado_fonte:c.b.fonte, bordado_lado:c.b.lado, bordado_lado_logo:c.b.ladoLogo,
           bordado_imagem_url:c.b.imagem, bordado_detalhes:c.b.detalhes,
           pedido_produtos:(c.produtos&&c.produtos.length)?c.produtos:null
         };
