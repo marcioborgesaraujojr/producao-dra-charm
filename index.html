@@ -1665,37 +1665,34 @@ async function switchBoard(boardId){
     cardLabels[c.id] = (c.card_labels||[]).map(cl => labels.find(l=>l.id===cl.label_id)).filter(Boolean);
     cardMembers[c.id] = (c.card_members||[]).map(cm => profiles.find(p=>p.id===cm.user_id)).filter(Boolean);
   });
-  // Puxa contagens de comentários e anexos por card
+  // Puxa contagens de comentários/anexos (e grades só na Produção) por card.
   const cardIds = cards.map(c=>c.id);
   commentCounts = {}; attachmentCounts = {}; gradeTotalsByCard = {};
   if (cardIds.length){
-    // NÃO usar .in('card_id', cardIds): o quadro tem ~800 cards e a lista de UUIDs estoura o tamanho da
-    // URL da query → o Supabase responde "Bad Request" e a contagem/soma volta VAZIA (contadores de
-    // comentário/anexo somem e nenhum card mostra o ícone de Acabamento/Estoque). Em vez disso varremos a
-    // tabela inteira paginada (ordenada por id, paginação estável) e filtramos os cards do quadro com um Set.
-    const _cardSet = new Set(cardIds);
-    const _PG = 1000;
-    const varre = async (table, cols, filtro, fn) => {
-      let from = 0;
-      for (let g = 0; g < 200; g++){
-        let q = sb.from(table).select(cols).order('id', { ascending: true }).range(from, from + _PG - 1);
-        if (filtro) q = filtro(q);
-        const { data, error } = await q;
-        if (error || !data || !data.length) break;
-        data.forEach(r => { if (_cardSet.has(r.card_id)) fn(r); });
-        if (data.length < _PG) break;
-        from += _PG;
-      }
-    };
-    await Promise.all([
-      varre('comments', 'card_id', null, r => { commentCounts[r.card_id] = (commentCounts[r.card_id]||0) + 1; }),
-      varre('attachments', 'card_id', null, r => { attachmentCounts[r.card_id] = (attachmentCounts[r.card_id]||0) + 1; }),
-      varre('activity_log', 'card_id, meta', q => q.eq('action','grade'), r => {
-        const m = r.meta||{}; const et = m.etapa; if (et !== 'acabamento' && et !== 'estoque') return;
-        const g = gradeTotalsByCard[r.card_id] || (gradeTotalsByCard[r.card_id] = {});
-        g[et] = (g[et]||0) + Number(m.qtd||0);
-      }),
-    ]);
+    // Escala pelo TAMANHO DO QUADRO, não pela tabela inteira: consulta só as linhas dos cards deste quadro,
+    // em blocos de 100 IDs (evita estourar o tamanho da URL). Muito mais rápido/consistente com muita gente
+    // usando, porque não varre milhares de linhas históricas de activity_log a cada refresh.
+    const _chunk = (arr,n) => { const o=[]; for(let i=0;i<arr.length;i+=n) o.push(arr.slice(i,i+n)); return o; };
+    const _groups = _chunk(cardIds, 100);
+    const _needGrades = boardType(boardId) === 'producao';  // grades só são exibidas na Produção
+    const _run = (make, fn) => Promise.all(_groups.map(async g => {
+      const { data, error } = await make(g);
+      if (!error && data) data.forEach(fn);
+    }));
+    const tarefas = [
+      _run(g => sb.from('comments').select('card_id').in('card_id', g),
+           r => { commentCounts[r.card_id] = (commentCounts[r.card_id]||0) + 1; }),
+      _run(g => sb.from('attachments').select('card_id').in('card_id', g),
+           r => { attachmentCounts[r.card_id] = (attachmentCounts[r.card_id]||0) + 1; }),
+    ];
+    if (_needGrades){
+      tarefas.push(_run(
+        g => sb.from('activity_log').select('card_id, meta').eq('action','grade').in('card_id', g),
+        r => { const m = r.meta||{}; const et = m.etapa; if (et !== 'acabamento' && et !== 'estoque') return;
+               const gg = gradeTotalsByCard[r.card_id] || (gradeTotalsByCard[r.card_id] = {});
+               gg[et] = (gg[et]||0) + Number(m.qtd||0); }));
+    }
+    await Promise.all(tarefas);
   }
   renderBoard();
 }
