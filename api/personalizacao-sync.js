@@ -365,7 +365,12 @@ export default async function handler(req,res){
       pedido_url: c.id_li?('https://app.lojaintegrada.com.br/painel/pedido/'+c.id_li+'/detalhar'):null
     }));
     let inserted=0, insErr=null, deleted=0, delErr=null, updated=0, updErr=null;
-    if(commit && rows.length){ const ins=await sbREST('POST','cards',rows); if(ins.status>=200&&ins.status<300){ inserted=(ins.j||[]).length; } else { insErr=ins.j; } }
+    // Etiquetas do TIPO do bordado no quadro de Personalização (mesma cor/nome já existentes no board).
+    const TIPO_LABEL={ nome_profissao:'ab57e975-9a18-4af8-bb2c-6d6f1caecc0a', logomarca:'68529082-80c7-4003-ba6c-dfdf409c3b13', ambos:'07b5f110-24e3-48cc-b047-fe34bc3e9837' };
+    if(commit && rows.length){ const ins=await sbREST('POST','cards',rows); if(ins.status>=200&&ins.status<300){ inserted=(ins.j||[]).length;
+      // Ao puxar o pedido, já marca a etiqueta do tipo no card novo.
+      try{ const clRows=(ins.j||[]).map(cc=>({card_id:cc.id, label_id:TIPO_LABEL[cc.bordado_tipo]})).filter(r=>r.label_id); if(clRows.length) await sbREST('POST','card_labels',clRows); }catch(e){}
+    } else { insErr=ins.j; } }
     if(commit && toDelete.length){ for(const num of toDelete){ const dl=await sbREST('DELETE','cards?pedido_numero=eq.'+num); if(dl.status>=200&&dl.status<300){ deleted++; } else { delErr=dl.j; } } }
     if(commit && backfill && toUpdate.length){
       for(const c of toUpdate){
