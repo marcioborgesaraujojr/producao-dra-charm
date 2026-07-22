@@ -943,6 +943,10 @@
                 <label class="text-xs font-medium uppercase text-slate-500">Linha 2 (Profissão)</label>
                 <input id="cardBordadoLinha2" type="text" placeholder="Profissão" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"/>
               </div>
+              <div class="col-span-2">
+                <label class="text-xs font-medium uppercase text-slate-500">Linha 3 (Complemento)</label>
+                <input id="cardBordadoLinha3" type="text" placeholder="Complemento (ex: especialidade)" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"/>
+              </div>
             </div>
             <div class="grid grid-cols-3 gap-3">
               <div>
@@ -2333,8 +2337,10 @@ async function openCard(id){
   const btEl = document.getElementById('cardBordadoTipo'); if (btEl) btEl.value = c.bordado_tipo || '';
   const bl1El = document.getElementById('cardBordadoLinha1');
   const bl2El = document.getElementById('cardBordadoLinha2');
+  const bl3El = document.getElementById('cardBordadoLinha3');
   if (bl1El) bl1El.value = c.bordado_linha1 || '';
   if (bl2El) bl2El.value = c.bordado_linha2 || '';
+  if (bl3El) bl3El.value = c.bordado_linha3 || '';
   // Box de URL só pra logomarca/ambos
   const imgBox = document.getElementById('cardBordadoImagemBox');
   if (imgBox) imgBox.style.display = (c.bordado_tipo === 'logomarca' || c.bordado_tipo === 'ambos') ? '' : 'none';
@@ -2624,6 +2630,7 @@ function fillBordadoFields(info){
   set('cardBordadoTipo', info.tipo);
   set('cardBordadoLinha1', info.linha1);
   set('cardBordadoLinha2', info.linha2);
+  set('cardBordadoLinha3', info.linha3);
   setCorFio(info.corNome, info.corHex);
   preencherSelectBordado('cardBordadoFonte', FONTE_OPTS, info.fonte);
   preencherSelectBordado('cardBordadoLado', LADO_OPTS, info.lado);
@@ -2895,6 +2902,7 @@ window.saveCard = async (silent = false) => {
     updates.bordado_tipo = document.getElementById('cardBordadoTipo').value || null;
     updates.bordado_linha1 = document.getElementById('cardBordadoLinha1').value || null;
     updates.bordado_linha2 = document.getElementById('cardBordadoLinha2').value || null;
+    updates.bordado_linha3 = document.getElementById('cardBordadoLinha3').value || null;
     updates.bordado_cor_hex = document.getElementById('cardBordadoCorHex').value || null;
     updates.bordado_cor_nome = document.getElementById('cardBordadoCorNome').value || null;
     updates.bordado_fonte = document.getElementById('cardBordadoFonte').value || null;
@@ -2912,7 +2920,7 @@ window.saveCard = async (silent = false) => {
         const _alvo = _bordProds[_heroIdx] || _bordProds[0];
         if (_alvo){
           const _novoInfo = { ...(_alvo.bordadoInfo||{}),
-            tipo: updates.bordado_tipo, linha1: updates.bordado_linha1, linha2: updates.bordado_linha2,
+            tipo: updates.bordado_tipo, linha1: updates.bordado_linha1, linha2: updates.bordado_linha2, linha3: updates.bordado_linha3,
             corHex: updates.bordado_cor_hex, corNome: updates.bordado_cor_nome,
             fonte: updates.bordado_fonte, lado: updates.bordado_lado,
             imagem: updates.bordado_imagem_url, detalhes: updates.bordado_detalhes };
@@ -2944,7 +2952,7 @@ window.saveCard = async (silent = false) => {
   }
   // Personalização: se algum campo de bordado mudou, acende "alterado — conferir"
   if (bType === 'bordado'){
-    const BFIELDS = ['bordado_tipo','bordado_linha1','bordado_linha2','bordado_cor_hex','bordado_cor_nome','bordado_fonte','bordado_lado','bordado_imagem_url','bordado_detalhes'];
+    const BFIELDS = ['bordado_tipo','bordado_linha1','bordado_linha2','bordado_linha3','bordado_cor_hex','bordado_cor_nome','bordado_fonte','bordado_lado','bordado_imagem_url','bordado_detalhes'];
     if (BFIELDS.some(k => k in diff) || ('pedido_produtos' in diff)){ diff.bordado_alterado_em = new Date().toISOString(); diff.bordado_alterado_por = user.id; }
   }
   const _labelAtual = (cardLabels[activeCardId] && cardLabels[activeCardId][0]) ? cardLabels[activeCardId][0].id : null;
@@ -3005,7 +3013,7 @@ const ACTIVITY_LABELS = {
   tecido_id:'Tecido', tecido_qtd:'Qtd tecido', metragem:'Metragem', qtd_rolos:'Rolos',
   aprovacao:'Aprovação', valor:'Valor',
   pedido_numero:'Nº pedido', pedido_cliente:'Cliente',
-  bordado_tipo:'Tipo do bordado', bordado_linha1:'Linha 1', bordado_linha2:'Linha 2',
+  bordado_tipo:'Tipo do bordado', bordado_linha1:'Linha 1', bordado_linha2:'Linha 2', bordado_linha3:'Linha 3',
   bordado_cor_nome:'Cor', bordado_fonte:'Fonte', bordado_lado:'Lado', bordado_detalhes:'Detalhes',
 };
 // Campos técnicos/ruído que NÃO devem poluir o log (o valor legível já aparece por outro campo):
@@ -4268,6 +4276,7 @@ window.addEventListener('message', async (e) => {
       bordado_tipo: o.bordado_tipo,
       bordado_linha1: o.bordado_linha1,
       bordado_linha2: o.bordado_linha2,
+      bordado_linha3: o.bordado_linha3,
       bordado_cor_hex: o.bordado_cor_hex,
       bordado_cor_nome: o.bordado_cor_nome,
       bordado_fonte: o.bordado_fonte,
