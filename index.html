@@ -93,6 +93,10 @@
   .card-drag .card-drag-handle{-webkit-user-drag:element}
   .card-drag:active{cursor:grabbing}
   .drop-hint{outline:2px dashed #ec4899;outline-offset:-4px;background:rgba(236,72,153,.06)}
+  .col-drop-left{box-shadow:-3px 0 0 0 #ec4899}
+  .col-drop-right{box-shadow:3px 0 0 0 #ec4899}
+  .list-header{cursor:grab}
+  .list-header:active{cursor:grabbing}
   /* Participantes do quadro: hover levanta e traz a bolinha pra frente (estilo Trello) */
   .board-mem{transition:transform .12s ease, box-shadow .12s ease; cursor:default; position:relative}
   .board-mem:hover{transform:translateY(-3px) scale(1.14); z-index:20; box-shadow:0 5px 14px rgba(0,0,0,.28)}
@@ -1162,7 +1166,7 @@ let boards = [], currentBoardId = null;
 let lists = [], labels = [], tecidos = [], cards = [];
 let cardLabels = {}, cardMembers = {}, checklistsByCard = {};
 let comments = [], activity = [], notifications = [];
-let activeCardId = null, draggingCardId = null;
+let activeCardId = null, draggingCardId = null, draggingListId = null;
 let _localMoveAt = 0;
 let canEditBoard = true; // permissão de edição do usuário atual no quadro aberto (false = só leitura)
 let boardLabelFilter = []; // se não-vazio, o usuário atual só vê cards com pelo menos uma dessas labels (id)
@@ -1458,7 +1462,7 @@ document.addEventListener('click', (e) => {
     raf = requestAnimationFrame(tick);
   }
   document.addEventListener('dragover', (e) => {
-    if (!draggingCardId) return;
+    if (!draggingCardId && !draggingListId) return;
     ptr.x = e.clientX; ptr.y = e.clientY; ptr.on = true;
     if (!raf) raf = requestAnimationFrame(tick);
   }, true);
@@ -1741,7 +1745,7 @@ function renderBoard(){
   const alertaAtivo = filters.alerta !== 'todos' && bType === 'producao' && ehAdmin();
   const _af = document.getElementById('alertaFilter');
   if (_af) _af.classList.toggle('hidden', !(bType === 'producao' && ehAdmin()));
-  lists.forEach(list => {
+  [...lists].sort((a,b) => (a.position||0) - (b.position||0)).forEach(list => {
     if (filters.hideFinalizado && finalizadoIds.has(list.id)) return;
     const listCards = cards.filter(c => c.list_id === list.id)
       .filter(c => !boardLabelFilter.length || (cardLabels[c.id]||[]).some(l => boardLabelFilter.includes(l.id)))
@@ -1764,8 +1768,8 @@ function renderBoard(){
     col.className = 'shrink-0 w-72 bg-slate-200/70 dark:bg-ink-800 rounded-xl p-2 flex flex-col max-h-full';
     col.dataset.listId = list.id;
     col.innerHTML = `
-      <div class="flex items-center gap-1 px-2 py-1 relative">
-        <div class="font-semibold text-sm flex-1 truncate">${escapeHtml(list.name)}</div>
+      <div class="list-header flex items-center gap-1 px-2 py-1 relative">
+        <div class="font-semibold text-sm flex-1 truncate pointer-events-none">${escapeHtml(list.name)}</div>
         <span class="text-xs px-1.5 rounded-full bg-white dark:bg-ink-700 text-slate-500">${listCards.length}</span>
         ${canEditBoard ? '<button class="list-menu-btn p-1 rounded hover:bg-slate-300/60 dark:hover:bg-ink-700 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" title="Opções da coluna"><svg class="w-4 h-4 pointer-events-none" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button>' : ''}
       </div>
@@ -1773,15 +1777,45 @@ function renderBoard(){
       ${canEditBoard ? '<button class="mt-1 text-left px-2 py-1.5 text-xs text-slate-500 hover:bg-slate-300/50 dark:hover:bg-ink-700 rounded-lg add-card">+ Novo card</button>' : ''}`;
     const cw = col.querySelector('.cards');
     listCards.forEach(c => cw.appendChild(renderCard(c, compact)));
-    col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('drop-hint'); });
-    col.addEventListener('dragleave', () => col.classList.remove('drop-hint'));
+    col.addEventListener('dragover', e => {
+      e.preventDefault();
+      if (draggingListId){
+        if (draggingListId === list.id){ col.classList.remove('col-drop-left','col-drop-right'); return; }
+        const r = col.getBoundingClientRect();
+        const after = e.clientX > r.left + r.width/2;
+        col.classList.toggle('col-drop-right', after);
+        col.classList.toggle('col-drop-left', !after);
+        return;
+      }
+      col.classList.add('drop-hint');
+    });
+    col.addEventListener('dragleave', () => col.classList.remove('drop-hint','col-drop-left','col-drop-right'));
     col.addEventListener('drop', async e => {
-      e.preventDefault(); col.classList.remove('drop-hint');
+      e.preventDefault(); col.classList.remove('drop-hint','col-drop-left','col-drop-right');
+      if (draggingListId){
+        const r = col.getBoundingClientRect();
+        const after = e.clientX > r.left + r.width/2;
+        await dropListAt(draggingListId, list.id, after);
+        return;
+      }
       if (draggingCardId){
         const moved = await dropCardAt(draggingCardId, list.id, e.clientY);
         if (moved) toast(`Movido para "${list.name}"`);
       }
     });
+    // Arrastar a COLUNA pelo cabeçalho (estilo Trello) — só quem pode editar
+    const _hdr = col.querySelector('.list-header');
+    if (_hdr && canEditBoard){
+      _hdr.setAttribute('draggable', 'true');
+      _hdr.addEventListener('dragstart', ev => {
+        draggingListId = list.id; col.classList.add('opacity-60');
+        try { ev.dataTransfer.effectAllowed = 'move'; ev.dataTransfer.setData('text/plain',''); ev.dataTransfer.setDragImage(col, 20, 20); } catch(_){}
+      });
+      _hdr.addEventListener('dragend', () => {
+        draggingListId = null; col.classList.remove('opacity-60');
+        document.querySelectorAll('.col-drop-left,.col-drop-right,.drop-hint').forEach(x => x.classList.remove('col-drop-left','col-drop-right','drop-hint'));
+      });
+    }
     const _addBtn = col.querySelector('.add-card');
     if (_addBtn) _addBtn.onclick = async () => {
       if (_addBtn.dataset.busy === '1') return; // trava de duplo-clique
@@ -1901,6 +1935,33 @@ async function dropCardAt(cardId, listId, clientY){
   if (card.list_id === listId && (card.position||0) === newPos) return false;
   await sb.from('cards').update({ list_id: listId, position: newPos }).eq('id', cardId);
   card.list_id = listId; card.position = newPos; _localMoveAt = Date.now(); renderBoard();
+  return true;
+}
+
+// Reordena COLUNAS (lists). Insere a coluna arrastada antes/depois da coluna-alvo.
+async function dropListAt(listId, targetListId, after){
+  if (!canEditBoard) return false;
+  if (listId === targetListId) return false;
+  const STEP = 16384;
+  const rest = lists
+    .filter(l => !l.archived && l.id !== listId)
+    .sort((a,b) => (a.position||0) - (b.position||0));
+  let idx = rest.findIndex(l => l.id === targetListId);
+  if (idx < 0) return false;
+  if (after) idx++;
+  const prev = rest[idx-1], next = rest[idx];
+  const P = prev ? (prev.position||0) : null;
+  const N = next ? (next.position||0) : null;
+  let newPos;
+  if (P == null && N == null) newPos = STEP;
+  else if (P == null) newPos = N - STEP;
+  else if (N == null) newPos = P + STEP;
+  else newPos = (P + N) / 2;
+  const l = lists.find(x => x.id === listId);
+  if (!l || (l.position||0) === newPos) return false;
+  const { error } = await sb.from('lists').update({ position: newPos }).eq('id', listId);
+  if (error){ toast('Erro ao mover coluna: ' + error.message); return false; }
+  l.position = newPos; renderBoard();
   return true;
 }
 
