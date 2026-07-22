@@ -291,7 +291,12 @@ export default async function handler(req,res){
         const prod=(rb.produtos&&rb.produtos.length)?rb.produtos:null;
         // Também preenche a 3a linha no nível do card (o campo editável lê bordado_linha3).
         const cb=buildBordadoFromFields(parseFields(d.cliente_obs||''), d.cliente_obs||'');
-        if(commit && (force || prod)){ const up=await sbREST('PATCH','cards?id=eq.'+cd.id, {pedido_produtos:prod, bordado_linha3:cb.linha3}); if(up.status>=200&&up.status<300) updated++; else updErr=up.j; }
+        // Re-detecta o TIPO do bordado (mesma lógica da criação: pelos SKUs de logo/personalização).
+        const skusFb=(d.itens||[]).map(it=>String(it.sku||'').toUpperCase());
+        const hasLogoFb=skusFb.includes(SKU_LOGOMARCA), hasPersoFb=skusFb.includes(SKU_PERSONALIZACAO);
+        const patch={pedido_produtos:prod, bordado_linha3:cb.linha3};
+        if(hasLogoFb||hasPersoFb) patch.bordado_tipo=(hasLogoFb&&hasPersoFb)?'ambos':(hasLogoFb?'logomarca':'nome_profissao');
+        if(commit && (force || prod)){ const up=await sbREST('PATCH','cards?id=eq.'+cd.id, patch); if(up.status>=200&&up.status<300) updated++; else updErr=up.j; }
         results.push({num, found:true, nProd:(rb.produtos||[]).length, comBordado:(rb.produtos||[]).filter(p=>p.bordado).length});
       }
       const nextOffset = force ? (fbOffset+cards.length) : 0;
