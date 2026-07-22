@@ -289,7 +289,9 @@ export default async function handler(req,res){
         if(!d || !d.itens){ results.push({num, found:false}); continue; }
         const rb=await buildProdutos(d.itens, imgCache, d.cliente_obs);
         const prod=(rb.produtos&&rb.produtos.length)?rb.produtos:null;
-        if(commit && (force || prod)){ const up=await sbREST('PATCH','cards?id=eq.'+cd.id, {pedido_produtos:prod}); if(up.status>=200&&up.status<300) updated++; else updErr=up.j; }
+        // Também preenche a 3a linha no nível do card (o campo editável lê bordado_linha3).
+        const cb=buildBordadoFromFields(parseFields(d.cliente_obs||''), d.cliente_obs||'');
+        if(commit && (force || prod)){ const up=await sbREST('PATCH','cards?id=eq.'+cd.id, {pedido_produtos:prod, bordado_linha3:cb.linha3}); if(up.status>=200&&up.status<300) updated++; else updErr=up.j; }
         results.push({num, found:true, nProd:(rb.produtos||[]).length, comBordado:(rb.produtos||[]).filter(p=>p.bordado).length});
       }
       const nextOffset = force ? (fbOffset+cards.length) : 0;
