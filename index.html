@@ -1278,7 +1278,7 @@ const BORDADO_PALETTE = ['#f59e0b','#3b82f6','#10b981','#ec4899','#8b5cf6','#ef4
 // Lista de bordados de um card (um por produto personalizado). Cai no bordado do card se não tiver por-produto.
 function bordadosDoCard(c){
   const arr = Array.isArray(c.pedido_produtos) ? c.pedido_produtos.filter(p => p.bordado && p.bordadoInfo) : [];
-  if (arr.length) return arr.map((p,i)=>({ info:p.bordadoInfo, nome:p.nome, sku:p.sku, cor:BORDADO_PALETTE[i%BORDADO_PALETTE.length] }));
+  if (arr.length) return arr.map((p,i)=>({ info:{ ...p.bordadoInfo, lado:(p.bordadoInfo.lado ?? c.bordado_lado ?? null), ladoLogo:(p.bordadoInfo.ladoLogo ?? c.bordado_lado_logo ?? null) }, nome:p.nome, sku:p.sku, cor:BORDADO_PALETTE[i%BORDADO_PALETTE.length] }));
   // fallback: bordado único do card (dados antigos)
   if (c.bordado_tipo || c.bordado_linha1 || c.bordado_imagem_url){
     const _pm = Array.isArray(c.pedido_produtos) ? c.pedido_produtos.find(p => p.bordado) : null;
