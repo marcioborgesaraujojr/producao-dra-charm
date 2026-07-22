@@ -961,10 +961,14 @@
                 <label class="text-xs font-medium uppercase text-slate-500">Fonte</label>
                 <select id="cardBordadoFonte" class="mt-1 w-full p-2 rounded-lg bg-white dark:bg-ink-900 border border-slate-200 dark:border-ink-600 text-sm cursor-pointer"></select>
               </div>
-              <div>
-                <label class="text-xs font-medium uppercase text-slate-500">Lado</label>
+              <div id="cardBordadoLadoBox">
+                <label class="text-xs font-medium uppercase text-slate-500">Lado (Nome/Prof.)</label>
                 <select id="cardBordadoLado" class="mt-1 w-full p-2 rounded-lg bg-white dark:bg-ink-900 border border-slate-200 dark:border-ink-600 text-sm cursor-pointer"></select>
               </div>
+            </div>
+            <div id="cardBordadoLadoLogoBox" class="hidden mb-3">
+              <label class="text-xs font-medium uppercase text-slate-500">Lado da Logomarca</label>
+              <select id="cardBordadoLadoLogo" class="mt-1 w-full p-2 rounded-lg bg-white dark:bg-ink-900 border border-slate-200 dark:border-ink-600 text-sm cursor-pointer"></select>
             </div>
             <div id="cardBordadoImagemBox">
               <label class="text-xs font-medium uppercase text-slate-500 flex items-center gap-1"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>URL da imagem (logomarca)</label>
@@ -1219,7 +1223,17 @@ function setCorFio(nome, hex){
 }
 // Opções de Fonte e Lado do bordado (as mesmas do site, tiradas dos pedidos reais)
 const FONTE_OPTS = ['Monotype Corsiva','Ballantines Script','Arial'];
-const LADO_OPTS = ['Peito Esquerdo','Peito Direito','Manga Esquerda','Manga Direita','Costas'];
+const LADO_NOME_OPTS = ['Peito Esquerdo','Peito Direito'];
+const LADO_LOGO_OPTS = ['Peito Esquerdo','Peito Direito','Manga Esquerda','Manga Direita'];
+const LADO_OPTS = LADO_NOME_OPTS; // compat
+// Mostra o campo "Lado (Nome/Prof.)" quando tem nome; "Lado da Logomarca" quando tem logo.
+function _ladoBoxes(tipo){
+  const t = tipo || '';
+  const nomeBox = document.getElementById('cardBordadoLadoBox');
+  const logoBox = document.getElementById('cardBordadoLadoLogoBox');
+  if (nomeBox) nomeBox.classList.toggle('hidden', t === 'logomarca');
+  if (logoBox) logoBox.classList.toggle('hidden', !(t === 'logomarca' || t === 'ambos'));
+}
 function preencherSelectBordado(id, opts, valor){
   const sel = document.getElementById(id);
   if (!sel || sel.tagName !== 'SELECT') return;
@@ -1268,7 +1282,7 @@ function bordadosDoCard(c){
   // fallback: bordado único do card (dados antigos)
   if (c.bordado_tipo || c.bordado_linha1 || c.bordado_imagem_url){
     const _pm = Array.isArray(c.pedido_produtos) ? c.pedido_produtos.find(p => p.bordado) : null;
-    return [{ info:{ tipo:c.bordado_tipo, linha1:c.bordado_linha1, linha2:c.bordado_linha2, linha3:c.bordado_linha3, corHex:c.bordado_cor_hex, corNome:c.bordado_cor_nome, fonte:c.bordado_fonte, lado:c.bordado_lado, imagem:c.bordado_imagem_url, detalhes:c.bordado_detalhes }, nome:_pm?_pm.nome:null, sku:_pm?_pm.sku:null, cor:BORDADO_PALETTE[0] }];
+    return [{ info:{ tipo:c.bordado_tipo, linha1:c.bordado_linha1, linha2:c.bordado_linha2, linha3:c.bordado_linha3, corHex:c.bordado_cor_hex, corNome:c.bordado_cor_nome, fonte:c.bordado_fonte, lado:c.bordado_lado, ladoLogo:c.bordado_lado_logo, imagem:c.bordado_imagem_url, detalhes:c.bordado_detalhes }, nome:_pm?_pm.nome:null, sku:_pm?_pm.sku:null, cor:BORDADO_PALETTE[0] }];
   }
   return [];
 }
@@ -2243,9 +2257,21 @@ function updateStats(){
 }
 
 function renderFilterBar(){
-  // Filtro de etiqueta foi removido do header; a busca agora inclui as etiquetas.
+  // Chips de filtro por etiqueta (no quadro de Personalização = tipo do bordado). Clica pra filtrar.
   const bar = document.getElementById('faccaoFilterBar');
-  if (bar){ bar.classList.add('hidden'); bar.innerHTML = ''; }
+  if (!bar) return;
+  if (!labels.length){ bar.classList.add('hidden'); bar.innerHTML=''; return; }
+  bar.classList.remove('hidden');
+  const chips = labels.map(l => {
+    const on = filters.faccao.has(l.name);
+    const style = on ? `background:${l.color};color:#fff;border-color:${l.color}` : `background:transparent;border-color:${l.color};color:${l.color}`;
+    return `<button data-lbl="${escapeHtml(l.name)}" class="px-2.5 py-1 rounded-full text-xs font-medium border transition-colors" style="${style}">${escapeHtml(l.name)}</button>`;
+  }).join('');
+  bar.innerHTML = chips + (filters.faccao.size ? `<button id="filtClear" class="px-2 py-1 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">limpar</button>` : '');
+  bar.querySelectorAll('[data-lbl]').forEach(b => {
+    b.onclick = () => { const n = b.dataset.lbl; if (filters.faccao.has(n)) filters.faccao.delete(n); else filters.faccao.add(n); renderBoard(); };
+  });
+  const clr = bar.querySelector('#filtClear'); if (clr) clr.onclick = () => { filters.faccao.clear(); renderBoard(); };
 }
 
 async function openCard(id){
@@ -2402,7 +2428,9 @@ async function openCard(id){
   // (handler do botão "Atualizar da Loja Integrada" definido uma vez, fora daqui)
   preencherProdutoBordado(c);
   preencherSelectBordado('cardBordadoFonte', FONTE_OPTS, c.bordado_fonte);
-  preencherSelectBordado('cardBordadoLado', LADO_OPTS, c.bordado_lado);
+  preencherSelectBordado('cardBordadoLado', LADO_NOME_OPTS, c.bordado_lado);
+  preencherSelectBordado('cardBordadoLadoLogo', LADO_LOGO_OPTS, c.bordado_lado_logo);
+  _ladoBoxes(c.bordado_tipo);
   const biuEl = document.getElementById('cardBordadoImagemUrl'); if (biuEl){ biuEl.value = c.bordado_imagem_url || ''; biuEl.readOnly = !canEditBoard; }
   const bdEl = document.getElementById('cardBordadoDetalhes'); if (bdEl) bdEl.value = c.bordado_detalhes || '';
   toggleBordadoCampos(c.bordado_tipo);
@@ -2633,7 +2661,9 @@ function fillBordadoFields(info){
   set('cardBordadoLinha3', info.linha3);
   setCorFio(info.corNome, info.corHex);
   preencherSelectBordado('cardBordadoFonte', FONTE_OPTS, info.fonte);
-  preencherSelectBordado('cardBordadoLado', LADO_OPTS, info.lado);
+  preencherSelectBordado('cardBordadoLado', LADO_NOME_OPTS, info.lado);
+  preencherSelectBordado('cardBordadoLadoLogo', LADO_LOGO_OPTS, info.ladoLogo);
+  _ladoBoxes(info.tipo);
   set('cardBordadoImagemUrl', info.imagem);
   set('cardBordadoDetalhes', info.detalhes);
   toggleBordadoCampos(info.tipo);
@@ -2907,6 +2937,7 @@ window.saveCard = async (silent = false) => {
     updates.bordado_cor_nome = document.getElementById('cardBordadoCorNome').value || null;
     updates.bordado_fonte = document.getElementById('cardBordadoFonte').value || null;
     updates.bordado_lado = document.getElementById('cardBordadoLado').value || null;
+    { const _ll=document.getElementById('cardBordadoLadoLogo'); updates.bordado_lado_logo = _ll ? (_ll.value || null) : null; }
     updates.bordado_imagem_url = document.getElementById('cardBordadoImagemUrl').value || null;
     updates.bordado_detalhes = document.getElementById('cardBordadoDetalhes').value || null;
     // FIX cor/infos não salvavam em pedido sincronizado: quando o bordado é POR PRODUTO
@@ -2922,7 +2953,7 @@ window.saveCard = async (silent = false) => {
           const _novoInfo = { ...(_alvo.bordadoInfo||{}),
             tipo: updates.bordado_tipo, linha1: updates.bordado_linha1, linha2: updates.bordado_linha2, linha3: updates.bordado_linha3,
             corHex: updates.bordado_cor_hex, corNome: updates.bordado_cor_nome,
-            fonte: updates.bordado_fonte, lado: updates.bordado_lado,
+            fonte: updates.bordado_fonte, lado: updates.bordado_lado, ladoLogo: updates.bordado_lado_logo,
             imagem: updates.bordado_imagem_url, detalhes: updates.bordado_detalhes };
           // Só grava se algo do bordado do produto realmente mudou (evita diff/flag à toa)
           if (JSON.stringify(_alvo.bordadoInfo||{}) !== JSON.stringify(_novoInfo)){
@@ -2952,7 +2983,7 @@ window.saveCard = async (silent = false) => {
   }
   // Personalização: se algum campo de bordado mudou, acende "alterado — conferir"
   if (bType === 'bordado'){
-    const BFIELDS = ['bordado_tipo','bordado_linha1','bordado_linha2','bordado_linha3','bordado_cor_hex','bordado_cor_nome','bordado_fonte','bordado_lado','bordado_imagem_url','bordado_detalhes'];
+    const BFIELDS = ['bordado_tipo','bordado_linha1','bordado_linha2','bordado_linha3','bordado_cor_hex','bordado_cor_nome','bordado_fonte','bordado_lado','bordado_lado_logo','bordado_imagem_url','bordado_detalhes'];
     if (BFIELDS.some(k => k in diff) || ('pedido_produtos' in diff)){ diff.bordado_alterado_em = new Date().toISOString(); diff.bordado_alterado_por = user.id; }
   }
   const _labelAtual = (cardLabels[activeCardId] && cardLabels[activeCardId][0]) ? cardLabels[activeCardId][0].id : null;
@@ -3014,7 +3045,7 @@ const ACTIVITY_LABELS = {
   aprovacao:'Aprovação', valor:'Valor',
   pedido_numero:'Nº pedido', pedido_cliente:'Cliente',
   bordado_tipo:'Tipo do bordado', bordado_linha1:'Linha 1', bordado_linha2:'Linha 2', bordado_linha3:'Linha 3',
-  bordado_cor_nome:'Cor', bordado_fonte:'Fonte', bordado_lado:'Lado', bordado_detalhes:'Detalhes',
+  bordado_cor_nome:'Cor', bordado_fonte:'Fonte', bordado_lado:'Lado', bordado_lado_logo:'Lado logo', bordado_detalhes:'Detalhes',
 };
 // Campos técnicos/ruído que NÃO devem poluir o log (o valor legível já aparece por outro campo):
 const ACTIVITY_SKIP = new Set(['position','bordado_cor_hex','pedido_produtos','bordado_alterado_em','bordado_alterado_por','updated_at']);
@@ -4281,6 +4312,7 @@ window.addEventListener('message', async (e) => {
       bordado_cor_nome: o.bordado_cor_nome,
       bordado_fonte: o.bordado_fonte,
       bordado_lado: o.bordado_lado,
+      bordado_lado_logo: o.bordado_lado_logo,
       bordado_imagem_url: o.bordado_imagem_url,
       bordado_detalhes: o.bordado_detalhes,
       pedido_produtos: o.pedido_produtos,
