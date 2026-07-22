@@ -279,9 +279,11 @@ export default async function handler(req,res){
       const fbOffset=parseInt(q.fbOffset||'0',10);
       // tipo=logo: varre só cards com logomarca (ambos/logomarca) — usado pra corrigir o "lado da logo" pra trás.
       const soLogo = q.tipo==='logo';
+      // onlynull=1: só cards com o lado da logo AINDA vazio (varredura eficiente, os já feitos saem do conjunto).
+      const nullFiltro = q.onlynull==='1' ? '&bordado_lado_logo=is.null' : '';
       const tipoFiltro = soLogo ? 'bordado_tipo=in.(ambos,logomarca)' : 'bordado_tipo=not.is.null';
-      const filtro = force ? tipoFiltro+'&pedido_numero=not.is.null'
-                           : tipoFiltro+'&pedido_numero=not.is.null&pedido_produtos=is.null';
+      const filtro = (force ? tipoFiltro+'&pedido_numero=not.is.null'
+                           : tipoFiltro+'&pedido_numero=not.is.null&pedido_produtos=is.null') + nullFiltro;
       const sel=await sbREST('GET','cards?select=id,pedido_numero&'+filtro+'&order=pedido_numero.desc&limit='+fbLimit+'&offset='+fbOffset);
       const cards=sel.j||[];
       const totResp=await sbREST('GET','cards?select=pedido_numero&'+filtro);
