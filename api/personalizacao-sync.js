@@ -277,8 +277,11 @@ export default async function handler(req,res){
       const force=q.force==='1';
       const fbLimit=Math.min(parseInt(q.fbLimit||'12',10),25);
       const fbOffset=parseInt(q.fbOffset||'0',10);
-      const filtro = force ? 'bordado_tipo=not.is.null&pedido_numero=not.is.null'
-                           : 'bordado_tipo=not.is.null&pedido_numero=not.is.null&pedido_produtos=is.null';
+      // tipo=logo: varre só cards com logomarca (ambos/logomarca) — usado pra corrigir o "lado da logo" pra trás.
+      const soLogo = q.tipo==='logo';
+      const tipoFiltro = soLogo ? 'bordado_tipo=in.(ambos,logomarca)' : 'bordado_tipo=not.is.null';
+      const filtro = force ? tipoFiltro+'&pedido_numero=not.is.null'
+                           : tipoFiltro+'&pedido_numero=not.is.null&pedido_produtos=is.null';
       const sel=await sbREST('GET','cards?select=id,pedido_numero&'+filtro+'&order=pedido_numero.desc&limit='+fbLimit+'&offset='+fbOffset);
       const cards=sel.j||[];
       const totResp=await sbREST('GET','cards?select=pedido_numero&'+filtro);
@@ -300,7 +303,7 @@ export default async function handler(req,res){
         // Re-detecta o TIPO do bordado (mesma lógica da criação: pelos SKUs de logo/personalização).
         const skusFb=(d.itens||[]).map(it=>String(it.sku||'').toUpperCase());
         const hasLogoFb=skusFb.includes(SKU_LOGOMARCA), hasPersoFb=skusFb.includes(SKU_PERSONALIZACAO);
-        const patch={pedido_produtos:prod, bordado_linha3:cb.linha3};
+        const patch={pedido_produtos:prod, bordado_linha3:cb.linha3, bordado_lado:cb.lado, bordado_lado_logo:cb.ladoLogo};
         if(hasLogoFb||hasPersoFb) patch.bordado_tipo=(hasLogoFb&&hasPersoFb)?'ambos':(hasLogoFb?'logomarca':'nome_profissao');
         if(commit && (force || prod)){ const up=await sbREST('PATCH','cards?id=eq.'+cd.id, patch); if(up.status>=200&&up.status<300) updated++; else updErr=up.j; }
         results.push({num, found:true, nProd:(rb.produtos||[]).length, comBordado:(rb.produtos||[]).filter(p=>p.bordado).length});
