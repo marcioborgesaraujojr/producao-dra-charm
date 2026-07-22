@@ -1005,7 +1005,7 @@
           </div>
           <div id="cardDescBox">
             <label class="text-xs font-medium uppercase text-slate-500">Descrição</label>
-            <textarea id="cardDesc" rows="3" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 outline-none focus:border-pink-500"></textarea>
+            <textarea id="cardDesc" rows="8" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 outline-none focus:border-pink-500 text-sm leading-snug resize-y min-h-[7rem]"></textarea>
           </div>
           <div id="cardChecklistBox">
             <label class="text-xs font-medium uppercase text-slate-500">Checklist</label>
@@ -1036,13 +1036,13 @@
           </div>
           <!-- ANEXOS -->
           <div id="anexoSection" class="pt-3 border-t border-slate-200 dark:border-ink-700">
-            <div class="flex items-center justify-between mb-2">
-              <label class="text-xs font-medium uppercase text-slate-500 flex items-center gap-2">
-                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            <div class="flex items-center justify-between gap-2 mb-2">
+              <label class="text-xs font-medium uppercase text-slate-500 flex items-center gap-2 min-w-0 truncate">
+                <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
                 Anexos
               </label>
-              <button id="anexoAddBtn" class="text-xs px-2.5 py-1 rounded-lg bg-slate-200 dark:bg-ink-700 hover:bg-slate-300 dark:hover:bg-ink-600 text-slate-700 dark:text-slate-200 font-medium flex items-center gap-1">
-                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <button id="anexoAddBtn" title="Anexar arquivo" class="shrink-0 whitespace-nowrap inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-ink-600 text-slate-600 dark:text-slate-300 hover:text-pink-600 hover:border-pink-400 hover:bg-pink-50 dark:hover:bg-pink-900/20 transition-colors">
+                <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
                 Anexar
               </button>
               <input id="anexoInput" type="file" multiple class="hidden">
