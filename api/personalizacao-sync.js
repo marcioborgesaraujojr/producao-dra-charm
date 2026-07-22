@@ -351,7 +351,7 @@ export default async function handler(req,res){
     const rows=toCreate.map(c=>({
       list_id:PERSO_LIST, title:(c.cliente||('Pedido '+c.numero)), position:Date.now(), created_by:userId,
       pedido_numero:c.numero, pedido_cliente:c.cliente,
-      bordado_tipo:c.b.tipo, bordado_linha1:c.b.linha1, bordado_linha2:c.b.linha2,
+      bordado_tipo:c.b.tipo, bordado_linha1:c.b.linha1, bordado_linha2:c.b.linha2, bordado_linha3:c.b.linha3,
       bordado_cor_hex:c.b.corHex, bordado_cor_nome:c.b.corNome, bordado_fonte:c.b.fonte, bordado_lado:c.b.lado,
       bordado_imagem_url:c.b.imagem, bordado_detalhes:c.b.detalhes,
       pedido_produtos: (c.produtos && c.produtos.length) ? c.produtos : null,
@@ -363,7 +363,7 @@ export default async function handler(req,res){
     if(commit && backfill && toUpdate.length){
       for(const c of toUpdate){
         const patch={
-          bordado_tipo:c.b.tipo, bordado_linha1:c.b.linha1, bordado_linha2:c.b.linha2,
+          bordado_tipo:c.b.tipo, bordado_linha1:c.b.linha1, bordado_linha2:c.b.linha2, bordado_linha3:c.b.linha3,
           bordado_cor_hex:c.b.corHex, bordado_cor_nome:c.b.corNome, bordado_fonte:c.b.fonte, bordado_lado:c.b.lado,
           bordado_imagem_url:c.b.imagem, bordado_detalhes:c.b.detalhes,
           pedido_produtos:(c.produtos&&c.produtos.length)?c.produtos:null
