@@ -111,6 +111,7 @@
   body.board-readonly #cardPedidoLink{pointer-events:auto}
   /* Modo leitura ainda pode COMENTAR e marcar @ (a designer usa o quadro de Personalização) */
   body.board-readonly #feedSection{pointer-events:auto}
+  body.board-readonly #anexoSection{pointer-events:auto}
   body.board-readonly #cardTitle{pointer-events:none;background:transparent}
   body.board-readonly .card-drag{cursor:default}
   body.board-readonly #autosaveStatus{display:none}
@@ -1032,6 +1033,21 @@
             <label class="text-xs font-medium uppercase text-slate-500">Data limite</label>
             <input id="cardDue" type="date" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"/>
             <div id="cardDueHint" class="text-[10px] text-slate-400 mt-0.5"></div>
+          </div>
+          <!-- ANEXOS -->
+          <div id="anexoSection" class="pt-3 border-t border-slate-200 dark:border-ink-700">
+            <div class="flex items-center justify-between mb-2">
+              <label class="text-xs font-medium uppercase text-slate-500 flex items-center gap-2">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                Anexos
+              </label>
+              <button id="anexoAddBtn" class="text-xs px-2.5 py-1 rounded-lg bg-slate-200 dark:bg-ink-700 hover:bg-slate-300 dark:hover:bg-ink-600 text-slate-700 dark:text-slate-200 font-medium flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Anexar
+              </button>
+              <input id="anexoInput" type="file" multiple class="hidden">
+            </div>
+            <div id="anexoList" class="space-y-1"></div>
           </div>
           <!-- FEED: COMENTÁRIOS + ATIVIDADES -->
           <div id="feedSection" class="pt-3 border-t border-slate-200 dark:border-ink-700">
@@ -2546,6 +2562,7 @@ async function openCard(id){
   if (_bd0.length) fillBordadoFields(_bd0[0].info);
   await loadChecklists(id);
   await loadComments(id);
+  loadAnexos(id);
   await loadActivity(id);
   switchTab('details');
   document.getElementById('cardModal').classList.remove('hidden');
@@ -3109,6 +3126,61 @@ window.deleteCard = async () => {
   cards = cards.filter(c=>c.id!==activeCardId);
   renderBoard(); closeCard();
 };
+
+// ===== Anexos do card (upload de qualquer arquivo, listar, baixar, remover) =====
+function _fmtBytes(n){ n = Number(n)||0; if (n < 1024) return n + ' B'; if (n < 1048576) return (n/1024).toFixed(0) + ' KB'; return (n/1048576).toFixed(1) + ' MB'; }
+async function loadAnexos(cardId){
+  const list = document.getElementById('anexoList');
+  const addBtn = document.getElementById('anexoAddBtn');
+  if (addBtn) addBtn.classList.toggle('hidden', !canEditBoard);   // só quem edita pode anexar
+  if (!list) return;
+  list.innerHTML = '<div class="text-[11px] text-slate-400">Carregando…</div>';
+  const { data, error } = await sb.from('attachments').select('*').eq('card_id', cardId).order('created_at', { ascending: false });
+  if (error){ list.innerHTML = '<div class="text-[11px] text-red-500">Erro ao carregar anexos.</div>'; return; }
+  const arr = data || [];
+  if (!arr.length){ list.innerHTML = '<div class="text-[11px] text-slate-400">Nenhum anexo ainda.</div>'; return; }
+  list.innerHTML = arr.map(a => {
+    const url = sb.storage.from('attachments').getPublicUrl(a.storage_path).data.publicUrl;
+    const del = canEditBoard ? `<button data-del="${a.id}" data-path="${escapeHtml(a.storage_path)}" title="Remover" class="anexo-del text-slate-400 hover:text-red-500 shrink-0"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button>` : '';
+    return `<div class="flex items-center gap-2 p-2 rounded-lg bg-slate-50 dark:bg-ink-700/60 border border-slate-100 dark:border-ink-700">
+      <svg class="w-4 h-4 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+      <a href="${escapeHtml(url)}" target="_blank" rel="noopener" download="${escapeHtml(a.file_name)}" class="flex-1 min-w-0 truncate text-xs text-slate-700 dark:text-slate-200 hover:text-pink-500" title="${escapeHtml(a.file_name)}">${escapeHtml(a.file_name)}</a>
+      <span class="text-[10px] text-slate-400 shrink-0">${_fmtBytes(a.file_size)}</span>
+      ${del}
+    </div>`;
+  }).join('');
+  list.querySelectorAll('.anexo-del').forEach(b => {
+    b.onclick = async () => {
+      if (!(await uiConfirm('Remover este anexo?', { danger:true, okText:'Remover' }))) return;
+      const id = b.dataset.del, path = b.dataset.path;
+      const { error: dErr } = await sb.from('attachments').delete().eq('id', id);
+      if (dErr){ toast('Erro ao remover: ' + dErr.message); return; }
+      try { await sb.storage.from('attachments').remove([path]); } catch(_){}
+      attachmentCounts[cardId] = Math.max(0, (attachmentCounts[cardId]||1) - 1);
+      loadAnexos(cardId); renderBoard();
+    };
+  });
+}
+document.addEventListener('click', e => { if (e.target.closest('#anexoAddBtn')){ const i = document.getElementById('anexoInput'); if (i) i.click(); } });
+document.addEventListener('change', async e => {
+  if (e.target.id === 'anexoInput' && e.target.files.length && activeCardId){
+    const files = [...e.target.files]; e.target.value = '';
+    const cardId = activeCardId; let ok = 0;
+    for (const file of files){
+      if (file.size > 25 * 1024 * 1024){ toast(`"${file.name}" passa de 25MB — pulei.`); continue; }
+      toast('Enviando ' + file.name + '…');
+      const safe = file.name.replace(/[^\w.\-]+/g, '_');
+      const path = `cards/${cardId}/${Date.now()}-${safe}`;
+      const { error: upErr } = await sb.storage.from('attachments').upload(path, file);
+      if (upErr){ toast('Erro no upload: ' + upErr.message); continue; }
+      const { error: insErr } = await sb.from('attachments').insert({ card_id: cardId, file_name: file.name, storage_path: path, file_size: file.size, uploaded_by: user.id });
+      if (insErr){ toast('Erro ao salvar: ' + insErr.message); try { await sb.storage.from('attachments').remove([path]); } catch(_){}; continue; }
+      attachmentCounts[cardId] = (attachmentCounts[cardId]||0) + 1; ok++;
+    }
+    if (ok) toast(ok === 1 ? 'Anexo enviado!' : ok + ' anexos enviados!');
+    loadAnexos(cardId); renderBoard();
+  }
+});
 
 async function loadComments(cardId){
   const { data } = await sb.from('comments').select('*, mentions(mentioned_user_id)').eq('card_id', cardId).order('created_at');
