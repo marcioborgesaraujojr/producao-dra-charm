@@ -3429,9 +3429,16 @@ function resetFeedCollapse(){
   });
 }
 
+// Normaliza pra comparar menções: minúsculo + remove acentos (ã->a, é->e...) pra "aragão" casar com "aragao".
+function _mnorm(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); }
+function _findMentioned(name){
+  const n = _mnorm(name);
+  return profiles.find(x => _mnorm((x.full_name||'').replace(/\s+/g,'.')) === n || _mnorm((x.email||'').split('@')[0]) === n);
+}
 function renderMentions(text){
-  return escapeHtml(text).replace(/@([\w.]+)/g, (match, name) => {
-    const p = profiles.find(x => (x.full_name||'').toLowerCase().replace(/\s+/g,'.') === name.toLowerCase() || (x.email||'').split('@')[0] === name);
+  // \p{L} inclui letras acentuadas (o \w antigo parava no "ã" e quebrava a menção).
+  return escapeHtml(text).replace(/@([\p{L}\p{N}_.]+)/gu, (match, name) => {
+    const p = _findMentioned(name);
     return p ? `<span class="mention-tag">@${escapeHtml(p.full_name)}</span>` : match;
   });
 }
@@ -3440,12 +3447,11 @@ window.postComment = async () => {
   const ta = document.getElementById('commentInput');
   const body = ta.value.trim();
   if (!body) return;
-  const mentionMatches = body.match(/@[\w.]+/g) || [];
+  const mentionMatches = body.match(/@[\p{L}\p{N}_.]+/gu) || [];
   const mentionedIds = [];
   mentionMatches.forEach(m => {
-    const name = m.slice(1);
-    const p = profiles.find(x => (x.full_name||'').toLowerCase().replace(/\s+/g,'.') === name.toLowerCase() || (x.email||'').split('@')[0] === name);
-    if (p) mentionedIds.push(p.id);
+    const p = _findMentioned(m.slice(1));
+    if (p && !mentionedIds.includes(p.id)) mentionedIds.push(p.id);
   });
   const { data: comment } = await sb.from('comments').insert({card_id: activeCardId, author_id: user.id, body}).select().single();
   if (comment && mentionedIds.length){
@@ -3475,17 +3481,17 @@ document.getElementById('commentInput').addEventListener('input', e => {
   const val = ta.value;
   const pos = ta.selectionStart;
   const before = val.slice(0, pos);
-  const match = before.match(/@([\w.]*)$/);
+  const match = before.match(/@([\p{L}\p{N}_.]*)$/u);
   const menu = document.getElementById('mentionMenu');
   if (match){
-    const query = match[1].toLowerCase();
+    const query = _mnorm(match[1]);
     // Só sugere quem é membro DESTE quadro (não gente de outros boards), e não você mesmo.
     // Sugere membros do quadro; se a lista de membros ainda não carregou (vazia), cai pra todos os usuários
     // (assim o menu SEMPRE aparece — antes ficava vazio quando currentBoardMemberIds não tinha carregado).
     // Sugere só quem é membro DESTE quadro (o board_members agora é legível por todos, então no
     // modo leitura também vem a lista completa). Se ainda não carregou, cai pra todos os usuários.
     const scope = (currentBoardMemberIds && currentBoardMemberIds.size > 1) ? profiles.filter(p => currentBoardMemberIds.has(p.id)) : profiles;
-    const matches = scope.filter(p => p.id !== user.id && (p.full_name||'').toLowerCase().includes(query)).slice(0,6);
+    const matches = scope.filter(p => p.id !== user.id && _mnorm(p.full_name).includes(query)).slice(0,6);
     if (matches.length){
       menu.innerHTML = matches.map(p => `<button class="w-full text-left flex items-center gap-2 p-2 hover:bg-slate-100 dark:hover:bg-ink-700 text-sm" data-slug="${(p.full_name||'').toLowerCase().replace(/\s+/g,'.')}">
         <div class="w-6 h-6 rounded-full text-white text-xs flex items-center justify-center" style="background:${userColor(p)}">${(p.full_name||'?').charAt(0).toUpperCase()}</div>
