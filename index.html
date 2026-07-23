@@ -955,7 +955,7 @@
               </div>
             </div>
             <div class="grid grid-cols-3 gap-3">
-              <div>
+              <div id="cardBordadoCorBox">
                 <label class="text-xs font-medium uppercase text-slate-500">Cor</label>
                 <div class="flex gap-1 mt-1 items-center">
                   <div id="cardBordadoCorSwatch" class="w-9 h-9 rounded border border-slate-300 flex-shrink-0" style="background:#94a3b8"></div>
@@ -963,7 +963,7 @@
                   <input id="cardBordadoCorHex" type="hidden"/>
                 </div>
               </div>
-              <div>
+              <div id="cardBordadoFonteBox">
                 <label class="text-xs font-medium uppercase text-slate-500">Fonte</label>
                 <select id="cardBordadoFonte" class="mt-1 w-full p-2 rounded-lg bg-white dark:bg-ink-900 border border-slate-200 dark:border-ink-600 text-sm cursor-pointer"></select>
               </div>
@@ -1267,6 +1267,11 @@ function toggleBordadoCampos(tipo){
   const ib = document.getElementById('cardBordadoImagemBox');
   if (lb) lb.classList.toggle('hidden', tipo === 'logomarca');
   if (ib) ib.style.display = (tipo === 'logomarca' || tipo === 'ambos') ? '' : 'none';
+  // Logo é só a logo: cor e fonte são do texto (nome/profissão) → escondem quando for só logomarca.
+  const corBox = document.getElementById('cardBordadoCorBox');
+  const fonteBox = document.getElementById('cardBordadoFonteBox');
+  if (corBox) corBox.classList.toggle('hidden', tipo === 'logomarca');
+  if (fonteBox) fonteBox.classList.toggle('hidden', tipo === 'logomarca');
 }
 // Match: encontra a cor da peça pelo nome do produto (ex: "Scrub Feminino Ava Branco" -> Branco -> #FFFFFF)
 function matchProductColor(productName){
