@@ -1788,43 +1788,52 @@ function renderBoard(){
       ${canEditBoard ? '<button class="mt-1 text-left px-2 py-1.5 text-xs text-slate-500 hover:bg-slate-300/50 dark:hover:bg-ink-700 rounded-lg add-card">+ Novo card</button>' : ''}`;
     const cw = col.querySelector('.cards');
     listCards.forEach(c => cw.appendChild(renderCard(c, compact)));
-    col.addEventListener('dragover', e => {
-      e.preventDefault();
-      if (draggingListId){
-        if (draggingListId === list.id){ col.classList.remove('col-drop-left','col-drop-right'); return; }
-        const r = col.getBoundingClientRect();
-        const after = e.clientX > r.left + r.width/2;
-        col.classList.toggle('col-drop-right', after);
-        col.classList.toggle('col-drop-left', !after);
-        return;
-      }
-      col.classList.add('drop-hint');
-    });
-    col.addEventListener('dragleave', () => col.classList.remove('drop-hint','col-drop-left','col-drop-right'));
-    col.addEventListener('drop', async e => {
-      e.preventDefault(); col.classList.remove('drop-hint','col-drop-left','col-drop-right');
-      if (draggingListId){
-        const r = col.getBoundingClientRect();
-        const after = e.clientX > r.left + r.width/2;
-        await dropListAt(draggingListId, list.id, after);
-        return;
-      }
-      if (draggingCardId){
-        const moved = await dropCardAt(draggingCardId, list.id, e.clientY);
-        if (moved) toast(`Movido para "${list.name}"`);
-      }
-    });
-    // Arrastar a COLUNA pelo cabeçalho (estilo Trello) — só quem pode editar
+    // Arrastar a COLUNA pelo cabeçalho — MESMO visual do card: fantasma inclinado + contorno pontilhado.
     const _hdr = col.querySelector('.list-header');
     if (_hdr && canEditBoard){
-      _hdr.setAttribute('draggable', 'true');
-      _hdr.addEventListener('dragstart', ev => {
-        draggingListId = list.id; col.classList.add('opacity-60');
-        try { ev.dataTransfer.effectAllowed = 'move'; ev.dataTransfer.setData('text/plain',''); ev.dataTransfer.setDragImage(col, 20, 20); } catch(_){}
-      });
-      _hdr.addEventListener('dragend', () => {
-        draggingListId = null; col.classList.remove('opacity-60');
-        document.querySelectorAll('.col-drop-left,.col-drop-right,.drop-hint').forEach(x => x.classList.remove('col-drop-left','col-drop-right','drop-hint'));
+      _hdr.addEventListener('mousedown', (ev) => {
+        if (ev.button !== 0) return;
+        if (ev.target.closest('a,button,input,select,textarea,label')) return;
+        const startX = ev.clientX, startY = ev.clientY;
+        let started = false, offx = 0, offy = 0, gh = null, tgt = null, after = false;
+        const onMove = (e) => {
+          if (!started){
+            if (Math.abs(e.clientX - startX) < 5 && Math.abs(e.clientY - startY) < 5) return;
+            started = true; draggingListId = list.id; col.classList.add('opacity-40');
+            const r = col.getBoundingClientRect();
+            offx = e.clientX - r.left; offy = e.clientY - r.top;
+            gh = col.cloneNode(true);
+            gh.style.cssText = `position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;max-height:${Math.min(r.height, Math.round(window.innerHeight*0.7))}px;overflow:hidden;margin:0;pointer-events:none;z-index:9999;opacity:.95;transform:rotate(3deg) scale(1.02);box-shadow:0 14px 34px rgba(0,0,0,.30)`;
+            document.body.appendChild(gh);
+            document.body.style.userSelect = 'none';
+          }
+          e.preventDefault();
+          if (gh){ gh.style.left = (e.clientX - offx) + 'px'; gh.style.top = (e.clientY - offy) + 'px'; gh.style.display = 'none'; }
+          const under = document.elementFromPoint(e.clientX, e.clientY);
+          if (gh) gh.style.display = '';
+          const oc = under ? under.closest('[data-list-id]') : null;
+          if (tgt && tgt !== oc) tgt.classList.remove('drop-hint');
+          if (oc && oc !== col){ oc.classList.add('drop-hint'); tgt = oc; const rr = oc.getBoundingClientRect(); after = e.clientX > rr.left + rr.width/2; }
+          else { if (tgt) tgt.classList.remove('drop-hint'); tgt = null; }
+          const EDGE = 80, SP = 20, vw = window.innerWidth;
+          const bd = document.getElementById('board');
+          if (bd){ if (e.clientX < EDGE) bd.scrollLeft -= SP; else if (e.clientX > vw - EDGE) bd.scrollLeft += SP; }
+        };
+        const onUp = async () => {
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+          document.body.style.userSelect = '';
+          col.classList.remove('opacity-40');
+          if (gh){ gh.remove(); gh = null; }
+          const oc = tgt; if (tgt){ tgt.classList.remove('drop-hint'); tgt = null; }
+          draggingListId = null;
+          if (started && oc){
+            const targetId = oc.getAttribute('data-list-id');
+            await dropListAt(list.id, targetId, after);
+          }
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
       });
     }
     const _addBtn = col.querySelector('.add-card');
@@ -1976,7 +1985,12 @@ async function dropListAt(listId, targetListId, after){
   else newPos = (P + N) / 2;
   const l = lists.find(x => x.id === listId);
   if (!l || (l.position||0) === newPos) return false;
-  const { error } = await sb.from('lists').update({ position: newPos }).eq('id', listId);
+  // Tenta a função move_list (libera pro editor, não só admin). Se ainda não estiver instalada, cai no update direto.
+  let { error } = await sb.rpc('move_list', { p_list: listId, p_pos: newPos });
+  if (error){
+    const r = await sb.from('lists').update({ position: newPos }).eq('id', listId);
+    error = r.error;
+  }
   if (error){ toast('Erro ao mover coluna: ' + error.message); return false; }
   l.position = newPos; renderBoard();
   return true;
