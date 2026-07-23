@@ -2365,7 +2365,7 @@ function renderFilterBar(){
   const n = filters.faccao.size;
   // Botão gatilho (mesmo estilo dos outros controles da barra)
   const badge = n ? `<span class="ml-1 min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center rounded-full bg-pink-500 text-white text-[11px] font-bold">${n}</span>` : '';
-  const trigger = `<button id="faccaoFilterBtnUI" title="Filtrar por etiqueta" class="flex items-center justify-center gap-1.5 px-3 py-2 min-h-[38px] rounded-lg bg-slate-200/80 dark:bg-ink-700 border ${n?'border-pink-400':'border-slate-300 dark:border-ink-600'} text-sm whitespace-nowrap">
+  const trigger = `<button id="faccaoFilterBtnUI" title="Filtrar por etiqueta" style="min-height:38px" class="flex items-center justify-center gap-1.5 px-3 rounded-lg bg-slate-200/80 dark:bg-ink-700 border ${n?'border-pink-400':'border-slate-300 dark:border-ink-600'} text-sm whitespace-nowrap">
       <svg class="w-4 h-4 text-slate-500 dark:text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
       <span class="hidden sm:inline">Etiqueta</span>${badge}
       <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
@@ -5474,7 +5474,7 @@ initAuth().catch(function(e){ console.error('initAuth falhou:', e); if(window.mo
 </div>
 
 <!-- Modal: criar / editar etiqueta (com paleta de cores, estilo Trello) -->
-<div id="novaEtiquetaModal" class="hidden fixed inset-0 z-[60] modal-bg items-center justify-center p-4">
+<div id="novaEtiquetaModal" class="hidden fixed inset-0 z-50 modal-bg items-center justify-center p-4">
   <div class="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-xs">
     <div class="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-ink-700">
       <h3 id="novaEtiquetaTitulo" class="text-sm font-semibold">Nova etiqueta</h3>
@@ -5490,7 +5490,7 @@ initAuth().catch(function(e){ console.error('initAuth falhou:', e); if(window.mo
       </div>
       <div>
         <label class="text-xs font-medium uppercase text-slate-500">Cor</label>
-        <div id="novaEtiquetaCores" class="mt-1 grid grid-cols-6 gap-2"></div>
+        <div id="novaEtiquetaCores" class="mt-1" style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px"></div>
       </div>
     </div>
     <div class="flex items-center gap-2 px-4 py-3 border-t border-slate-200 dark:border-ink-700">
