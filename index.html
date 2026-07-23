@@ -1641,7 +1641,8 @@ async function switchBoard(boardId){
   filters.faccao.clear();
   filters.alerta = 'todos';
   { const _af = document.getElementById('alertaFilter'); if (_af) _af.value = 'todos'; }
-  document.getElementById('board').innerHTML = dcLoad();
+  document.getElementById('board').innerHTML = '';
+  showBoardLoading();
   const b = boards.find(x => x.id === boardId);
   applyBoardBackground(b?.background_url);
   // Divergências já aprovadas por mim (pra não repintar card que eu já dei ok)
@@ -1749,6 +1750,7 @@ async function criarCardPedidoManual(list, listCards){
 }
 if (!window.__listMenuDoc){ window.__listMenuDoc = true; document.addEventListener('click', (e)=>{ if (!e.target.closest('.list-menu') && !e.target.closest('.list-menu-btn')) closeAllListMenus(); }); }
 function renderBoard(){
+  hideBoardLoading();
   const board = document.getElementById('board');
   board.innerHTML = '';
   // Zoom do quadro (100% = Confortável). CSS zoom mantém coords consistentes p/ o drag.
@@ -2363,8 +2365,8 @@ function renderFilterBar(){
   const n = filters.faccao.size;
   // Botão gatilho (mesmo estilo dos outros controles da barra)
   const badge = n ? `<span class="ml-1 min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center rounded-full bg-pink-500 text-white text-[11px] font-bold">${n}</span>` : '';
-  const trigger = `<button id="faccaoFilterBtnUI" title="Filtrar por etiqueta" class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-200/80 dark:bg-ink-700 border ${n?'border-pink-400':'border-slate-300 dark:border-ink-600'} text-sm whitespace-nowrap">
-      <svg class="w-4 h-4 text-slate-500 dark:text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
+  const trigger = `<button id="faccaoFilterBtnUI" title="Filtrar por etiqueta" class="flex items-center justify-center gap-1.5 px-3 py-2 min-h-[38px] rounded-lg bg-slate-200/80 dark:bg-ink-700 border ${n?'border-pink-400':'border-slate-300 dark:border-ink-600'} text-sm whitespace-nowrap">
+      <svg class="w-4 h-4 text-slate-500 dark:text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
       <span class="hidden sm:inline">Etiqueta</span>${badge}
       <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
     </button>`;
@@ -2378,7 +2380,8 @@ function renderFilterBar(){
       </button>`;
   }).join('');
   const clearRow = n ? `<button id="filtClear" class="w-full text-left px-3 py-2 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 border-t border-slate-100 dark:border-ink-700">Limpar filtro</button>` : '';
-  const menu = `<div id="faccaoFilterMenu" class="${_facMenuOpen?'':'hidden'} absolute right-0 mt-1 z-40 w-52 bg-white dark:bg-ink-800 rounded-lg shadow-2xl border border-slate-200 dark:border-ink-700 py-1 overflow-hidden">${items}${clearRow}</div>`;
+  const novaRow = canEditBoard ? `<button id="filtNova" class="w-full text-left flex items-center gap-2 px-3 py-2 text-sm text-pink-600 dark:text-pink-400 hover:bg-pink-50 dark:hover:bg-pink-900/20 font-medium border-t border-slate-100 dark:border-ink-700"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Criar nova etiqueta</button>` : '';
+  const menu = `<div id="faccaoFilterMenu" class="${_facMenuOpen?'':'hidden'} absolute right-0 mt-1 z-40 w-56 bg-white dark:bg-ink-800 rounded-lg shadow-2xl border border-slate-200 dark:border-ink-700 py-1 overflow-hidden">${items}${clearRow}${novaRow}</div>`;
   wrap.innerHTML = trigger + menu;
   const btn = wrap.querySelector('#faccaoFilterBtnUI');
   btn.onclick = (e) => { e.stopPropagation(); _facMenuOpen = !_facMenuOpen; wrap.querySelector('#faccaoFilterMenu').classList.toggle('hidden', !_facMenuOpen); };
@@ -2386,6 +2389,7 @@ function renderFilterBar(){
     b.onclick = (e) => { e.stopPropagation(); const nm = b.dataset.lbl; if (filters.faccao.has(nm)) filters.faccao.delete(nm); else filters.faccao.add(nm); _facMenuOpen = true; renderBoard(); };
   });
   const clr = wrap.querySelector('#filtClear'); if (clr) clr.onclick = (e) => { e.stopPropagation(); filters.faccao.clear(); _facMenuOpen = true; renderBoard(); };
+  const nv = wrap.querySelector('#filtNova'); if (nv) nv.onclick = (e) => { e.stopPropagation(); _facMenuOpen = false; document.getElementById('faccaoFilterMenu').classList.add('hidden'); abrirNovaEtiqueta(false, null); };
 }
 // Fecha o dropdown de etiqueta ao clicar fora
 document.addEventListener('click', (e) => {
@@ -2614,13 +2618,33 @@ function renderFaccaoDropdownMenu(){
   none.onclick = () => selectFaccao(null);
   menu.appendChild(none);
   labels.slice().sort((a,b) => a.name.localeCompare(b.name)).forEach(l => {
+    const row = document.createElement('div');
+    row.className = 'flex items-center hover:bg-slate-100 dark:hover:bg-ink-700';
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'w-full text-left flex items-center gap-2 p-2 hover:bg-slate-100 dark:hover:bg-ink-700 text-sm';
-    b.innerHTML = `<span class="w-3 h-3 rounded-full flex-shrink-0" style="background:${l.color}"></span><span style="color:${l.color};font-weight:600">${escapeHtml(l.name)}</span>`;
+    b.className = 'flex-1 min-w-0 text-left flex items-center gap-2 p-2 text-sm';
+    b.innerHTML = `<span class="w-3 h-3 rounded-full flex-shrink-0" style="background:${l.color}"></span><span class="truncate" style="color:${l.color};font-weight:600">${escapeHtml(l.name)}</span>`;
     b.onclick = () => selectFaccao(l);
-    menu.appendChild(b);
+    row.appendChild(b);
+    if (canEditBoard){
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.title = 'Editar etiqueta';
+      edit.className = 'shrink-0 p-2 text-slate-400 hover:text-pink-500';
+      edit.innerHTML = '<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+      edit.onclick = (e) => { e.stopPropagation(); menu.classList.add('hidden'); abrirNovaEtiqueta(false, l); };
+      row.appendChild(edit);
+    }
+    menu.appendChild(row);
   });
+  if (canEditBoard){
+    const nova = document.createElement('button');
+    nova.type = 'button';
+    nova.className = 'w-full text-left flex items-center gap-2 p-2 text-sm text-pink-600 dark:text-pink-400 hover:bg-pink-50 dark:hover:bg-pink-900/20 font-medium border-t border-slate-100 dark:border-ink-700';
+    nova.innerHTML = '<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Criar nova etiqueta';
+    nova.onclick = (e) => { e.stopPropagation(); menu.classList.add('hidden'); abrirNovaEtiqueta(true, null); };
+    menu.appendChild(nova);
+  }
 }
 function selectFaccao(label){
   document.getElementById('cardFaccao').value = label ? label.id : '';
@@ -2639,6 +2663,71 @@ document.addEventListener('click', e => {
     menu.classList.add('hidden');
   }
 });
+
+// ===== Criar / editar / excluir ETIQUETAS (com paleta de cores) =====
+const LABEL_COLORS = ['#4bce97','#f5cd47','#faa53d','#f87168','#9f8fef','#579dff','#6cc3e0','#94c748','#e774bb','#8590a2','#22a06b','#e2b203','#e56910','#ca3521','#803fa5','#0c66e4','#227d9b','#5b7f24','#943d73','#596773','#3f66ab','#10b981','#ec4899','#8b5cf6'];
+let _etCor = LABEL_COLORS[0], _etEdit = null, _etAssign = false;
+function _renderEtPreview(){
+  const p = document.getElementById('novaEtiquetaPreview');
+  if (p){ p.style.background = _etCor; p.textContent = (document.getElementById('novaEtiquetaNome').value.trim() || 'Etiqueta'); }
+}
+function abrirNovaEtiqueta(assignToCard, editLabel){
+  if (!canEditBoard){ toast('Só quem edita o quadro pode criar ou editar etiquetas.'); return; }
+  _etAssign = !!assignToCard;
+  _etEdit = editLabel || null;
+  _etCor = editLabel ? editLabel.color : LABEL_COLORS[0];
+  document.getElementById('novaEtiquetaTitulo').textContent = editLabel ? 'Editar etiqueta' : 'Nova etiqueta';
+  document.getElementById('novaEtiquetaNome').value = editLabel ? editLabel.name : '';
+  document.getElementById('novaEtiquetaExcluir').classList.toggle('hidden', !editLabel);
+  const grid = document.getElementById('novaEtiquetaCores');
+  const paint = () => grid.querySelectorAll('[data-cor]').forEach(x => { const on = x.dataset.cor === _etCor; x.className = 'h-8 rounded-lg border-2 ' + (on ? 'border-slate-800 dark:border-white' : 'border-transparent'); });
+  grid.innerHTML = LABEL_COLORS.map(c => `<button type="button" data-cor="${c}" class="h-8 rounded-lg border-2 border-transparent" style="background:${c}"></button>`).join('');
+  grid.querySelectorAll('[data-cor]').forEach(b => b.onclick = () => { _etCor = b.dataset.cor; paint(); _renderEtPreview(); });
+  paint(); _renderEtPreview();
+  const nome = document.getElementById('novaEtiquetaNome'); nome.oninput = _renderEtPreview;
+  const m = document.getElementById('novaEtiquetaModal'); m.classList.remove('hidden'); m.classList.add('flex');
+  setTimeout(() => nome.focus(), 50);
+}
+window.fecharNovaEtiqueta = () => { const m = document.getElementById('novaEtiquetaModal'); m.classList.add('hidden'); m.classList.remove('flex'); };
+window.salvarNovaEtiqueta = async () => {
+  const nome = document.getElementById('novaEtiquetaNome').value.trim();
+  if (!nome){ toast('Dá um nome pra etiqueta.'); return; }
+  if (_etEdit){
+    // tenta direto (admin/editor com RLS ok); se o banco bloquear, usa a função save_label
+    let r = await sb.from('labels').update({ name: nome, color: _etCor }).eq('id', _etEdit.id);
+    if (r.error){ const rr = await sb.rpc('save_label', { p_id: _etEdit.id, p_board: currentBoardId, p_name: nome, p_color: _etCor }); r.error = rr.error; }
+    if (r.error){ toast('Erro: ' + r.error.message); return; }
+    const l = labels.find(x => x.id === _etEdit.id); if (l){ l.name = nome; l.color = _etCor; }
+    toast('Etiqueta atualizada!');
+  } else {
+    let r = await sb.from('labels').insert({ board_id: currentBoardId, name: nome, color: _etCor }).select().single();
+    if (r.error){ const rr = await sb.rpc('save_label', { p_id: null, p_board: currentBoardId, p_name: nome, p_color: _etCor }); r = { data: Array.isArray(rr.data) ? rr.data[0] : rr.data, error: rr.error }; }
+    if (r.error){ toast('Erro: ' + r.error.message); return; }
+    if (r.data){ labels.push(r.data); if (_etAssign && activeCardId) selectFaccao(r.data); }
+    toast('Etiqueta criada!');
+  }
+  fecharNovaEtiqueta();
+  renderFilterBar();
+  if (document.getElementById('cardFaccaoMenu')) renderFaccaoDropdownMenu();
+  renderBoard();
+};
+window.excluirEtiquetaAtual = async () => {
+  if (!_etEdit) return;
+  if (!(await uiConfirm(`Excluir a etiqueta "${_etEdit.name}"? Ela sai de todos os cards.`, { danger:true, okText:'Excluir' }))) return;
+  const id = _etEdit.id, nome = _etEdit.name;
+  await sb.from('card_labels').delete().eq('label_id', id);
+  let r = await sb.from('labels').delete().eq('id', id);
+  if (r.error){ const rr = await sb.rpc('delete_label', { p_id: id }); r.error = rr.error; }
+  if (r.error){ toast('Erro: ' + r.error.message); return; }
+  labels = labels.filter(x => x.id !== id);
+  Object.keys(cardLabels).forEach(cid => { cardLabels[cid] = (cardLabels[cid]||[]).filter(l => l.id !== id); });
+  filters.faccao.delete(nome);
+  fecharNovaEtiqueta();
+  renderFilterBar();
+  if (document.getElementById('cardFaccaoMenu')) renderFaccaoDropdownMenu();
+  renderBoard();
+  toast('Etiqueta excluída.');
+};
 
 function updateCortadaTotal(){
   const t = ['PP','P','M','G','GG','XG'].reduce((s,k)=> s + (parseInt(document.getElementById('cardTam'+k).value)||0), 0);
@@ -4310,6 +4399,14 @@ function escapeHtml(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({ '&':
 // se falhar, cai no PNG local. window.DC_LOGO é setado no applyLogo (fica sempre com o logo atual).
 window.DC_LOGO = window.DC_LOGO || 'https://wwytzoyeibekhstinott.supabase.co/storage/v1/object/public/attachments/system/logo-1784146210835.svg';
 function dcLoad(){ return '<div class="dc-load"><img src="'+window.DC_LOGO+'" class="dc-logo-img" alt="" onerror="this.onerror=null;this.src=\'/aragao-loading.png\'"></div>'; }
+// Carregando do quadro: overlay FIXO na tela (fora do zoom do #board) → fica sempre no centro, inclusive no mobile.
+function showBoardLoading(){
+  let el = document.getElementById('boardLoadingOverlay');
+  if (!el){ el = document.createElement('div'); el.id = 'boardLoadingOverlay'; el.className = 'fixed inset-0 z-20 flex items-center justify-center pointer-events-none'; document.body.appendChild(el); }
+  el.innerHTML = '<img src="'+window.DC_LOGO+'" class="dc-logo-img" alt="" onerror="this.onerror=null;this.src=\'/aragao-loading.png\'">';
+  el.style.display = 'flex';
+}
+function hideBoardLoading(){ const el = document.getElementById('boardLoadingOverlay'); if (el) el.style.display = 'none'; }
 // Datas em formato brasileiro a partir de ISO 'yyyy-mm-dd'
 function brData(iso){ var s=(iso==null?'':iso)+''; var m=s.slice(0,10).match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? (m[3]+'/'+m[2]+'/'+m[1]) : s; }
 function brDia(iso){ var s=(iso==null?'':iso)+''; var m=s.slice(0,10).match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? (m[3]+'/'+m[2]) : s; }
@@ -5372,6 +5469,35 @@ initAuth().catch(function(e){ console.error('initAuth falhou:', e); if(window.mo
     </div>
     <div class="flex-1 overflow-y-auto p-6 space-y-6" id="painelBody">
       <div class="dc-load"><img src="/aragao-loading.png" class="dc-logo-img" alt=""></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: criar / editar etiqueta (com paleta de cores, estilo Trello) -->
+<div id="novaEtiquetaModal" class="hidden fixed inset-0 z-[60] modal-bg items-center justify-center p-4">
+  <div class="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-xs">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-ink-700">
+      <h3 id="novaEtiquetaTitulo" class="text-sm font-semibold">Nova etiqueta</h3>
+      <button onclick="fecharNovaEtiqueta()" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-xl leading-none">×</button>
+    </div>
+    <div class="p-4 space-y-3">
+      <div>
+        <div id="novaEtiquetaPreview" class="w-full rounded-lg px-3 py-2 text-sm font-semibold text-white truncate" style="background:#4bce97">Etiqueta</div>
+      </div>
+      <div>
+        <label class="text-xs font-medium uppercase text-slate-500">Nome</label>
+        <input id="novaEtiquetaNome" type="text" placeholder="Ex: Facção: Ana" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm outline-none focus:border-pink-500"/>
+      </div>
+      <div>
+        <label class="text-xs font-medium uppercase text-slate-500">Cor</label>
+        <div id="novaEtiquetaCores" class="mt-1 grid grid-cols-6 gap-2"></div>
+      </div>
+    </div>
+    <div class="flex items-center gap-2 px-4 py-3 border-t border-slate-200 dark:border-ink-700">
+      <button id="novaEtiquetaExcluir" onclick="excluirEtiquetaAtual()" class="hidden text-xs text-red-600 hover:text-red-700 font-medium">Excluir</button>
+      <div class="flex-1"></div>
+      <button onclick="fecharNovaEtiqueta()" class="px-3 py-1.5 rounded-lg text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-200">Cancelar</button>
+      <button onclick="salvarNovaEtiqueta()" class="px-4 py-1.5 rounded-lg bg-pink-600 text-white text-sm font-medium hover:bg-pink-700">Salvar</button>
     </div>
   </div>
 </div>
