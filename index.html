@@ -4402,7 +4402,11 @@ function dcLoad(){ return '<div class="dc-load"><img src="'+window.DC_LOGO+'" cl
 // Carregando do quadro: overlay FIXO na tela (fora do zoom do #board) → fica sempre no centro, inclusive no mobile.
 function showBoardLoading(){
   let el = document.getElementById('boardLoadingOverlay');
-  if (!el){ el = document.createElement('div'); el.id = 'boardLoadingOverlay'; el.className = 'fixed inset-0 z-20 flex items-center justify-center pointer-events-none'; document.body.appendChild(el); }
+  if (!el){ el = document.createElement('div'); el.id = 'boardLoadingOverlay'; el.className = 'fixed z-20 flex items-center justify-center pointer-events-none'; document.body.appendChild(el); }
+  // Centraliza na ÁREA DO BOARD (abaixo do cabeçalho), não na tela toda.
+  const hdr = document.querySelector('#app header');
+  const top = hdr ? Math.round(hdr.getBoundingClientRect().bottom) : 56;
+  el.style.left = '0'; el.style.right = '0'; el.style.bottom = '0'; el.style.top = top + 'px';
   el.innerHTML = '<img src="'+window.DC_LOGO+'" class="dc-logo-img" alt="" onerror="this.onerror=null;this.src=\'/aragao-loading.png\'">';
   el.style.display = 'flex';
 }
