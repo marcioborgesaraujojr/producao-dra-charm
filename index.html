@@ -913,6 +913,13 @@
                 </div>
               </div>
             </div>
+            <div id="cfBox" class="pt-2">
+              <div class="flex items-center justify-between mb-2">
+                <label class="text-xs font-medium uppercase text-purple-600 inline-flex items-center gap-1"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="8" width="18" height="8" rx="2"/></svg>Campos personalizados</label>
+                <button id="cfEditBtn" type="button" onclick="abrirEditorCampos()" class="hidden text-xs px-2.5 py-1 rounded-lg border border-slate-300 dark:border-ink-600 text-slate-600 dark:text-slate-300 hover:text-pink-600 hover:border-pink-400 transition-colors">Editar campos</button>
+              </div>
+              <div id="cfList" class="grid grid-cols-2 gap-3"></div>
+            </div>
           </div>
           <div id="bordadoFields" class="hidden space-y-4">
             <div id="pedidoClienteGrid" class="grid grid-cols-2 gap-3">
@@ -2495,6 +2502,7 @@ async function openCard(id){
   // Campos de Marketing
   const aEl = document.getElementById('cardAprovacao'); if (aEl) aEl.value = c.aprovacao || '';
   const vEl = document.getElementById('cardValor'); if (vEl) vEl.value = c.valor ?? '';
+  if (bType === 'marketing') renderCamposPersonalizados(c);
   // Campos de Bordado (Personalização)
   const pnEl = document.getElementById('cardPedidoNumero'); if (pnEl) pnEl.value = c.pedido_numero || '';
   const pcEl = document.getElementById('cardPedidoCliente'); if (pcEl) pcEl.value = c.pedido_cliente || '';
@@ -3096,6 +3104,74 @@ window.addChecklistItem = async () => {
   if (cls[0]) addChecklistItemTo(cls[0]);
 };
 
+// ===== Campos personalizados (marketing) — estilo Trello =====
+const CF_TYPES = [{v:'text',l:'Texto'},{v:'number',l:'Número'},{v:'date',l:'Data'},{v:'select',l:'Lista'},{v:'checkbox',l:'Sim/Não'}];
+function boardCF(){ const b = boards.find(x=>x.id===currentBoardId); return (b && Array.isArray(b.custom_fields)) ? b.custom_fields : []; }
+function renderCamposPersonalizados(c){
+  const list = document.getElementById('cfList'); const btn = document.getElementById('cfEditBtn');
+  if (!list) return;
+  if (btn) btn.classList.toggle('hidden', !canEditBoard);
+  const fields = boardCF();
+  const vals = (c && c.cf_values && typeof c.cf_values==='object') ? c.cf_values : {};
+  if (!fields.length){ list.innerHTML = `<div class="col-span-2 text-xs text-slate-400">Nenhum campo ainda.${canEditBoard?' Clique em "Editar campos" pra criar.':''}</div>`; return; }
+  list.innerHTML = fields.map(f => {
+    const v = vals[f.id];
+    const base = 'mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm';
+    let input;
+    if (f.type==='select') input = `<select data-cf="${f.id}" class="${base}"><option value="">—</option>${(f.options||[]).map(o=>`<option ${v===o?'selected':''}>${escapeHtml(o)}</option>`).join('')}</select>`;
+    else if (f.type==='checkbox') input = `<label class="mt-1 flex items-center gap-2 text-sm h-9"><input type="checkbox" data-cf="${f.id}" ${v?'checked':''} class="accent-pink-500"> Sim</label>`;
+    else if (f.type==='date') input = `<input type="date" data-cf="${f.id}" value="${escapeHtml(v||'')}" class="${base}">`;
+    else if (f.type==='number') input = `<input type="number" step="any" data-cf="${f.id}" value="${escapeHtml(v==null?'':String(v))}" placeholder="0" class="${base}">`;
+    else input = `<input type="text" data-cf="${f.id}" value="${escapeHtml(v||'')}" class="${base}">`;
+    return `<div><label class="text-xs font-medium uppercase text-slate-500">${escapeHtml(f.name)}</label>${input}</div>`;
+  }).join('');
+}
+function coletarCamposValores(){
+  const list = document.getElementById('cfList'); const out = {};
+  if (!list) return out;
+  list.querySelectorAll('[data-cf]').forEach(el => {
+    const id = el.dataset.cf;
+    if (el.type==='checkbox'){ if (el.checked) out[id] = true; }
+    else if (el.value!=='' && el.value!=null) out[id] = el.value;
+  });
+  return out;
+}
+let _cfDraft = [];
+window.abrirEditorCampos = () => {
+  if (!canEditBoard){ toast('Só quem edita o quadro pode mexer nos campos.'); return; }
+  _cfDraft = JSON.parse(JSON.stringify(boardCF()));
+  renderEditorCampos();
+  const m = document.getElementById('cfEditorModal'); m.classList.remove('hidden'); m.classList.add('flex');
+};
+window.fecharEditorCampos = () => { const m=document.getElementById('cfEditorModal'); m.classList.add('hidden'); m.classList.remove('flex'); };
+function renderEditorCampos(){
+  const box = document.getElementById('cfEditorList');
+  box.innerHTML = _cfDraft.length ? _cfDraft.map((f,i)=>`
+    <div class="border border-slate-200 dark:border-ink-700 rounded-lg p-2 space-y-2">
+      <div class="flex items-center gap-2">
+        <input value="${escapeHtml(f.name||'')}" data-cfname="${i}" placeholder="Nome do campo" class="flex-1 min-w-0 p-1.5 rounded bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm">
+        <select data-cftype="${i}" class="shrink-0 p-1.5 rounded bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm">${CF_TYPES.map(t=>`<option value="${t.v}" ${f.type===t.v?'selected':''}>${t.l}</option>`).join('')}</select>
+        <button data-cfdel="${i}" class="shrink-0 text-slate-400 hover:text-red-500 text-sm">✕</button>
+      </div>
+      ${f.type==='select'?`<input value="${escapeHtml((f.options||[]).join(', '))}" data-cfopts="${i}" placeholder="Opções separadas por vírgula" class="w-full p-1.5 rounded bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-xs">`:''}
+    </div>`).join('') : '<div class="text-xs text-slate-400 text-center py-3">Nenhum campo. Clique em "Adicionar campo".</div>';
+  box.querySelectorAll('[data-cfname]').forEach(el=>el.oninput=()=>{ _cfDraft[+el.dataset.cfname].name=el.value; });
+  box.querySelectorAll('[data-cftype]').forEach(el=>el.onchange=()=>{ _cfDraft[+el.dataset.cftype].type=el.value; renderEditorCampos(); });
+  box.querySelectorAll('[data-cfopts]').forEach(el=>el.oninput=()=>{ _cfDraft[+el.dataset.cfopts].options=el.value.split(',').map(s=>s.trim()).filter(Boolean); });
+  box.querySelectorAll('[data-cfdel]').forEach(el=>el.onclick=()=>{ _cfDraft.splice(+el.dataset.cfdel,1); renderEditorCampos(); });
+}
+window.cfAddCampo = () => { const id = (window.crypto&&crypto.randomUUID)?crypto.randomUUID():('f'+Date.now()+Math.floor(Math.random()*1e4)); _cfDraft.push({id, name:'', type:'text', options:[]}); renderEditorCampos(); };
+window.salvarEditorCampos = async () => {
+  const fields = _cfDraft.filter(f=>f.name && f.name.trim()).map(f=>({id:f.id, name:f.name.trim(), type:f.type, options: f.type==='select'?(f.options||[]):[]}));
+  let r = await sb.from('boards').update({custom_fields: fields}).eq('id', currentBoardId);
+  if (r.error){ const rr = await sb.rpc('save_board_fields',{p_board: currentBoardId, p_fields: fields}); r.error = rr.error; }
+  if (r.error){ toast('Erro ao salvar campos: '+r.error.message); return; }
+  const b = boards.find(x=>x.id===currentBoardId); if (b) b.custom_fields = fields;
+  fecharEditorCampos();
+  const c = cards.find(x=>x.id===activeCardId); renderCamposPersonalizados(c);
+  toast('Campos salvos!');
+};
+
 let autosaveTimer = null;
 function autosave(){
   if (!canEditBoard) return;
@@ -3190,6 +3266,7 @@ window.saveCard = async (silent = false) => {
   } else if (bType === 'marketing'){
     updates.aprovacao = document.getElementById('cardAprovacao').value || null;
     updates.valor = parseFloat(document.getElementById('cardValor').value) || null;
+    if (boardCF().length) updates.cf_values = coletarCamposValores();
   } else if (bType === 'bordado'){
     updates.pedido_numero = document.getElementById('cardPedidoNumero').value || null;
     updates.pedido_cliente = document.getElementById('cardPedidoCliente').value || null;
@@ -5562,6 +5639,24 @@ initAuth().catch(function(e){ console.error('initAuth falhou:', e); if(window.mo
       <div class="flex-1"></div>
       <button onclick="fecharNovaEtiqueta()" class="px-3 py-1.5 rounded-lg text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-200">Cancelar</button>
       <button onclick="salvarNovaEtiqueta()" class="px-4 py-1.5 rounded-lg bg-pink-600 text-white text-sm font-medium hover:bg-pink-700">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Editor de Campos Personalizados (marketing) -->
+<div id="cfEditorModal" class="hidden fixed inset-0 z-50 modal-bg items-center justify-center p-4">
+  <div class="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full flex flex-col" style="max-width:440px;max-height:85vh">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-ink-700">
+      <h3 class="text-sm font-semibold">Campos personalizados</h3>
+      <button onclick="fecharEditorCampos()" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-xl leading-none">×</button>
+    </div>
+    <div class="p-4 space-y-2 overflow-y-auto flex-1" id="cfEditorList"></div>
+    <div class="px-4 pb-1">
+      <button onclick="cfAddCampo()" class="w-full text-sm text-slate-600 dark:text-slate-300 hover:text-pink-600 border border-dashed border-slate-300 dark:border-ink-600 rounded-lg py-2 flex items-center justify-center gap-1"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Adicionar campo</button>
+    </div>
+    <div class="flex items-center justify-end gap-2 px-4 py-3 border-t border-slate-200 dark:border-ink-700">
+      <button onclick="fecharEditorCampos()" class="px-3 py-1.5 rounded-lg text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-200">Cancelar</button>
+      <button onclick="salvarEditorCampos()" class="px-4 py-1.5 rounded-lg bg-pink-600 text-white text-sm font-medium hover:bg-pink-700">Salvar campos</button>
     </div>
   </div>
 </div>
