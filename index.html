@@ -1918,7 +1918,7 @@ function renderBoard(){
 // Move um card pra uma lista, calculando a POSIÇÃO exata pelo ponto (Y) onde foi solto,
 // pra ele ficar entre os dois cards certos (não só no fim da lista).
 async function dropCardAt(cardId, listId, clientY){
-  if (!canEditBoard) return false;
+  // Mover card é liberado pra qualquer membro do quadro (a função move_card no banco valida o acesso).
   const card = cards.find(x => x.id === cardId);
   if (!card || !listId) return false;
   const STEP = 16384;
@@ -1944,7 +1944,13 @@ async function dropCardAt(cardId, listId, clientY){
   else if (N == null) newPos = P + STEP;
   else newPos = (P + N) / 2;
   if (card.list_id === listId && (card.position||0) === newPos) return false;
-  await sb.from('cards').update({ list_id: listId, position: newPos }).eq('id', cardId);
+  // Tenta a função move_card (libera pra qualquer membro). Se ainda não estiver instalada, cai no update direto.
+  let { error } = await sb.rpc('move_card', { p_card: cardId, p_list: listId, p_pos: newPos });
+  if (error){
+    const r = await sb.from('cards').update({ list_id: listId, position: newPos }).eq('id', cardId);
+    error = r.error;
+  }
+  if (error){ toast('Não foi possível mover o card: ' + error.message); return false; }
   card.list_id = listId; card.position = newPos; _localMoveAt = Date.now(); renderBoard();
   return true;
 }
@@ -2216,7 +2222,6 @@ function renderCard(c, compact){
   // ===== Drag por toque (mobile): segura ~0,35s pra pegar o card e arrasta pra outra coluna =====
   let tTimer = null, tDrag = false, ghost = null, sX = 0, sY = 0, lastCol = null, lastTouchY = 0;
   el.addEventListener('touchstart', (ev) => {
-    if (!canEditBoard) return;
     if (ev.touches.length !== 1) return;
     const t = ev.touches[0]; sX = t.clientX; sY = t.clientY;
     tTimer = setTimeout(() => {
@@ -2268,7 +2273,6 @@ function renderCard(c, compact){
 
   // ===== Drag com mouse (desktop): card inclina e "levanta" estilo Trello =====
   el.addEventListener('mousedown', (ev) => {
-    if (!canEditBoard) return;
     if (ev.button !== 0) return;
     if (ev.target.closest('a,button,input,select,textarea,label')) return;
     const startX = ev.clientX, startY = ev.clientY;
