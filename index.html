@@ -93,6 +93,9 @@
   .card-drag .card-drag-handle{-webkit-user-drag:element}
   .card-drag:active{cursor:grabbing}
   .drop-hint{outline:2px dashed #ff3c6f;outline-offset:-4px;background:rgba(255,60,111,.06)}
+  /* Descrição estilo "feed" no marketing: sem borda/fundo, com recolher/expandir */
+  #cardDesc.desc-clean{border-color:transparent!important;background:transparent!important;padding-left:0;padding-right:0;resize:none;overflow-y:auto;transition:max-height .18s ease}
+  #cardDesc.desc-collapsed{max-height:8.5rem}
   .col-drop-left{box-shadow:-3px 0 0 0 #ff3c6f}
   .col-drop-right{box-shadow:3px 0 0 0 #ff3c6f}
   .list-header{cursor:grab}
@@ -1006,11 +1009,13 @@
           <div id="cardDescBox">
             <label class="text-xs font-medium uppercase text-slate-500">Descrição</label>
             <textarea id="cardDesc" rows="8" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 outline-none focus:border-pink-500 text-sm leading-snug resize-y min-h-[7rem]"></textarea>
+            <div class="flex justify-center">
+              <button id="cardDescToggle" type="button" onclick="toggleDesc()" class="hidden -mt-3 text-[11px] px-3 py-1 rounded-full bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 shadow-sm">Ver mais ↓</button>
+            </div>
           </div>
           <div id="cardChecklistBox">
             <label class="text-xs font-medium uppercase text-slate-500">Checklist</label>
             <div id="cardChecklist" class="mt-2 space-y-1"></div>
-            <button onclick="addChecklistItem()" class="mt-2 text-xs text-pink-600 hover:underline">+ item</button>
           </div>
           <div class="hidden">
             <div id="cardMembers" class="flex flex-wrap gap-1 mt-2"></div>
@@ -2441,6 +2446,13 @@ async function openCard(id){
   document.getElementById('cardChecklistBox').classList.toggle('hidden', bType === 'producao' || bType === 'bordado');
   document.getElementById('cardTitle').value = c.title || '';
   document.getElementById('cardDesc').value = c.description || '';
+  // Marketing: descrição estilo "feed" (sem borda, recolhida, com Ver mais/Recolher)
+  { const _d = document.getElementById('cardDesc'), _dt = document.getElementById('cardDescToggle');
+    if (bType === 'marketing'){
+      _d.classList.add('desc-clean','desc-collapsed'); _d.style.maxHeight='';
+      setTimeout(() => { const over = _d.scrollHeight > _d.clientHeight + 6; _dt.classList.toggle('hidden', !over); _dt.textContent = 'Ver mais ↓'; }, 60);
+    } else { _d.classList.remove('desc-clean','desc-collapsed'); _d.style.maxHeight=''; _dt.classList.add('hidden'); }
+  }
   // Prazo automático pra bordado: 5 dias úteis (nome/prof) ou 10 dias úteis (logo/ambos)
   let dueVal = c.due_date || '';
   if (bType === 'bordado' && !dueVal && c.bordado_tipo){
@@ -3001,16 +3013,31 @@ async function loadChecklists(cardId){
 
 function renderChecklist(){
   const box = document.getElementById('cardChecklist');
-  const cls = checklistsByCard[activeCardId] || [];
+  const cls = (checklistsByCard[activeCardId] || []).slice().sort((a,b)=>(a.position||0)-(b.position||0));
   box.innerHTML = '';
   cls.forEach(cl => {
-    (cl.checklist_items||[]).sort((a,b)=>a.position-b.position).forEach(item => {
+    const items = (cl.checklist_items||[]).slice().sort((a,b)=>a.position-b.position);
+    const feitos = items.filter(i=>i.done).length;
+    const wrap = document.createElement('div'); wrap.className = 'mb-3';
+    // Cabeçalho: nome editável + progresso + excluir
+    const head = document.createElement('div'); head.className = 'flex items-center gap-2 mb-1';
+    head.innerHTML = `<svg class="w-4 h-4 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      <input type="text" value="${escapeHtml(cl.name||'Checklist')}" class="cl-name flex-1 min-w-0 bg-transparent outline-none text-sm font-semibold" ${canEditBoard?'':'readonly'}>
+      ${items.length?`<span class="text-[10px] text-slate-400 shrink-0">${feitos}/${items.length}</span>`:''}
+      ${canEditBoard?'<button class="cl-del shrink-0 text-slate-400 hover:text-red-500 text-xs" title="Excluir checklist">✕</button>':''}`;
+    const nameInp = head.querySelector('.cl-name');
+    if (nameInp) nameInp.onblur = async e => { const nv = e.target.value.trim() || 'Checklist'; await sb.from('checklists').update({name: nv}).eq('id', cl.id); cl.name = nv; };
+    const delBtn = head.querySelector('.cl-del');
+    if (delBtn) delBtn.onclick = async () => { if (!(await uiConfirm(`Excluir a checklist "${cl.name||'Checklist'}"?`,{danger:true,okText:'Excluir'}))) return; await sb.from('checklist_items').delete().eq('checklist_id', cl.id); await sb.from('checklists').delete().eq('id', cl.id); checklistsByCard[activeCardId] = (checklistsByCard[activeCardId]||[]).filter(x=>x.id!==cl.id); renderChecklist(); };
+    wrap.appendChild(head);
+    // Itens
+    items.forEach(item => {
       const row = document.createElement('div');
-      row.className = 'flex items-center gap-2 text-sm';
+      row.className = 'flex items-center gap-2 text-sm pl-1';
       row.innerHTML = `
         <input type="checkbox" ${item.done?'checked':''} class="accent-pink-500">
-        <input type="text" value="${escapeHtml(item.text)}" class="flex-1 bg-transparent outline-none ${item.done?'line-through text-slate-400':''}">
-        <button class="text-slate-400 hover:text-red-500 text-xs">X</button>`;
+        <input type="text" value="${escapeHtml(item.text)}" class="flex-1 bg-transparent outline-none ${item.done?'line-through text-slate-400':''}" ${canEditBoard?'':'readonly'}>
+        ${canEditBoard?'<button class="text-slate-400 hover:text-red-500 text-xs">X</button>':''}`;
       row.querySelector('input[type=checkbox]').onchange = async e => {
         await sb.from('checklist_items').update({done: e.target.checked}).eq('id', item.id);
         item.done = e.target.checked; renderChecklist();
@@ -3018,30 +3045,55 @@ function renderChecklist(){
       row.querySelector('input[type=text]').onblur = async e => {
         await sb.from('checklist_items').update({text: e.target.value}).eq('id', item.id);
       };
-      row.querySelector('button').onclick = async () => {
+      const x = row.querySelector('button'); if (x) x.onclick = async () => {
         await sb.from('checklist_items').delete().eq('id', item.id);
         cl.checklist_items = cl.checklist_items.filter(i => i.id !== item.id);
         renderChecklist();
       };
-      box.appendChild(row);
+      wrap.appendChild(row);
     });
+    if (canEditBoard){
+      const addItem = document.createElement('button');
+      addItem.className = 'mt-1 ml-1 text-xs text-slate-500 hover:text-pink-600';
+      addItem.textContent = '+ item';
+      addItem.onclick = () => addChecklistItemTo(cl);
+      wrap.appendChild(addItem);
+    }
+    box.appendChild(wrap);
   });
+  if (canEditBoard){
+    const addCl = document.createElement('button');
+    addCl.className = 'text-xs text-slate-500 hover:text-pink-600 font-medium mt-1';
+    addCl.textContent = cls.length ? '+ Nova checklist' : '+ Adicionar checklist';
+    addCl.onclick = novaChecklist;
+    box.appendChild(addCl);
+  }
 }
 
-window.addChecklistItem = async () => {
+async function addChecklistItemTo(cl){
   const text = await uiPrompt('Item da checklist', {title:'Novo item'});
   if (!text) return;
-  let cls = checklistsByCard[activeCardId] || [];
-  let cl = cls[0];
-  if (!cl){
-    const { data: newCl } = await sb.from('checklists').insert({card_id: activeCardId, name: 'Checklist'}).select().single();
-    cl = {...newCl, checklist_items: []};
-    checklistsByCard[activeCardId] = [cl];
-  }
   const maxPos = Math.max(0, ...(cl.checklist_items||[]).map(i=>i.position||0));
-  const { data: newItem } = await sb.from('checklist_items').insert({checklist_id: cl.id, text, position: maxPos+1}).select().single();
+  const { data: newItem, error } = await sb.from('checklist_items').insert({checklist_id: cl.id, text, position: maxPos+1}).select().single();
+  if (error){ toast('Erro: '+error.message); return; }
   cl.checklist_items = [...(cl.checklist_items||[]), newItem];
   renderChecklist();
+}
+async function novaChecklist(){
+  const nome = await uiPrompt('Nome da checklist', {title:'Nova checklist', defaultValue:'Checklist'});
+  if (nome === null) return;
+  const cls = checklistsByCard[activeCardId] || [];
+  const maxPos = Math.max(0, ...cls.map(c=>c.position||0));
+  const { data: newCl, error } = await sb.from('checklists').insert({card_id: activeCardId, name: (nome.trim()||'Checklist'), position: maxPos+1}).select().single();
+  if (error){ toast('Erro: '+error.message); return; }
+  checklistsByCard[activeCardId] = [...cls, {...newCl, checklist_items: []}];
+  renderChecklist();
+}
+// compat: botão antigo (se existir) adiciona item na 1ª checklist (cria uma se não houver)
+window.addChecklistItem = async () => {
+  let cls = checklistsByCard[activeCardId] || [];
+  if (!cls.length){ await novaChecklist(); cls = checklistsByCard[activeCardId] || []; }
+  if (cls[0]) addChecklistItemTo(cls[0]);
 };
 
 let autosaveTimer = null;
@@ -3705,6 +3757,14 @@ async function sincronizaBoasFalhas(){
   try{ await sb.from('cards').update({ qtd_pcs_boas: boas || null, qtd_pcs_falhas: falhas || null }).eq('id', activeCardId); }catch(e){}
 }
 
+// Descrição do marketing: recolher/expandir (estilo feed)
+window.toggleDesc = () => {
+  const el = document.getElementById('cardDesc'), b = document.getElementById('cardDescToggle');
+  if (!el) return;
+  const colapsada = el.classList.toggle('desc-collapsed');
+  if (colapsada){ el.style.maxHeight = ''; b.textContent = 'Ver mais ↓'; }
+  else { el.style.maxHeight = el.scrollHeight + 'px'; b.textContent = 'Recolher ↑'; }
+};
 // Histórico recolhido (estilo checkout): mostra só o mais recente e expande no clique.
 window.toggleFeed = () => {
   const l = document.getElementById('feedList');
