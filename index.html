@@ -2451,8 +2451,8 @@ async function openCard(id){
   document.getElementById('bordadoFields').classList.toggle('hidden', bType !== 'bordado');
   document.getElementById('tecidoField').classList.toggle('hidden', bType !== 'producao');
   document.getElementById('faccaoField').classList.toggle('hidden', labels.length === 0);
-  // Descrição: hide no board bordado (produtos ja tem info visual)
-  document.getElementById('cardDescBox').classList.toggle('hidden', bType === 'bordado' || bType === 'producao');
+  // Descrição: aparece em TODOS os quadros (estilo feed, sem borda). Fica discreta quando vazia.
+  document.getElementById('cardDescBox').classList.remove('hidden');
   document.getElementById('cardChecklistBox').classList.toggle('hidden', bType === 'producao' || bType === 'bordado');
   document.getElementById('cardTitle').value = c.title || '';
   document.getElementById('cardDesc').value = c.description || '';
