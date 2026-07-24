@@ -94,7 +94,7 @@
   .card-drag:active{cursor:grabbing}
   .drop-hint{outline:2px dashed #ff3c6f;outline-offset:-4px;background:rgba(255,60,111,.06)}
   /* Descrição estilo "feed" no marketing: sem borda/fundo, com recolher/expandir */
-  #cardDesc.desc-clean{border-color:transparent!important;background:transparent!important;padding-left:0;padding-right:0;resize:none;overflow-y:auto;transition:max-height .18s ease}
+  #cardDesc.desc-clean{border-color:transparent!important;background:transparent!important;padding-left:0;padding-right:0;resize:none;overflow-y:auto}
   #cardDesc.desc-collapsed{max-height:8.5rem}
   .col-drop-left{box-shadow:-3px 0 0 0 #ff3c6f}
   .col-drop-right{box-shadow:3px 0 0 0 #ff3c6f}
@@ -916,7 +916,7 @@
             <div id="cfBox" class="pt-2">
               <div class="flex items-center justify-between mb-2">
                 <label class="text-xs font-medium uppercase text-purple-600 inline-flex items-center gap-1"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="8" width="18" height="8" rx="2"/></svg>Campos personalizados</label>
-                <button id="cfEditBtn" type="button" onclick="abrirEditorCampos()" class="hidden text-xs px-2.5 py-1 rounded-lg border border-slate-300 dark:border-ink-600 text-slate-600 dark:text-slate-300 hover:text-pink-600 hover:border-pink-400 transition-colors">Editar campos</button>
+                <button id="cfEditBtn" type="button" onclick="abrirEditorCampos()" style="padding:7px 16px" class="hidden text-xs rounded-lg border border-slate-300 dark:border-ink-600 text-slate-600 dark:text-slate-300 hover:text-pink-600 hover:border-pink-400 transition-colors whitespace-nowrap">Editar campos</button>
               </div>
               <div id="cfList" class="grid grid-cols-2 gap-3"></div>
             </div>
@@ -1015,9 +1015,12 @@
           </div>
           <div id="cardDescBox">
             <label class="text-xs font-medium uppercase text-slate-500">Descrição</label>
-            <textarea id="cardDesc" rows="8" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 outline-none focus:border-pink-500 text-sm leading-snug resize-y min-h-[7rem]"></textarea>
-            <div class="flex justify-center">
-              <button id="cardDescToggle" type="button" onclick="toggleDesc()" class="hidden -mt-3 text-[11px] px-3 py-1 rounded-full bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 shadow-sm">Ver mais ↓</button>
+            <div id="descWrap" class="relative mt-1">
+              <textarea id="cardDesc" rows="8" class="w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 outline-none focus:border-pink-500 text-sm leading-snug resize-y min-h-[7rem]"></textarea>
+              <div id="descFadeBg" class="hidden absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-white dark:from-ink-800 to-transparent pointer-events-none rounded-b-lg"></div>
+              <div id="descToggleWrap" class="hidden absolute inset-x-0 bottom-1 flex justify-center pointer-events-none">
+                <button id="cardDescToggle" type="button" onclick="toggleDesc()" class="pointer-events-auto text-[11px] px-3 py-1 rounded-full bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 shadow-sm">Desça para ver mais ↓</button>
+              </div>
             </div>
           </div>
           <div id="cardChecklistBox">
@@ -2453,12 +2456,13 @@ async function openCard(id){
   document.getElementById('cardChecklistBox').classList.toggle('hidden', bType === 'producao' || bType === 'bordado');
   document.getElementById('cardTitle').value = c.title || '';
   document.getElementById('cardDesc').value = c.description || '';
-  // Marketing: descrição estilo "feed" (sem borda, recolhida, com Ver mais/Recolher)
-  { const _d = document.getElementById('cardDesc'), _dt = document.getElementById('cardDescToggle');
+  // Marketing: descrição estilo "feed" (sem borda, recolhida, esmaecido + "Desça para ver mais")
+  { const _d = document.getElementById('cardDesc'), _dt = document.getElementById('cardDescToggle'), _df = document.getElementById('descFadeBg'), _dw = document.getElementById('descToggleWrap');
     if (bType === 'marketing'){
-      _d.classList.add('desc-clean','desc-collapsed'); _d.style.maxHeight='';
-      setTimeout(() => { const over = _d.scrollHeight > _d.clientHeight + 6; _dt.classList.toggle('hidden', !over); _dt.textContent = 'Ver mais ↓'; }, 60);
-    } else { _d.classList.remove('desc-clean','desc-collapsed'); _d.style.maxHeight=''; _dt.classList.add('hidden'); }
+      _d.classList.add('desc-clean','desc-collapsed'); _d.style.height='';
+      _dt.textContent = 'Desça para ver mais ↓';
+      setTimeout(() => { const over = _d.scrollHeight > _d.clientHeight + 6; _dw.classList.toggle('hidden', !over); _df.classList.toggle('hidden', !over); }, 60);
+    } else { _d.classList.remove('desc-clean','desc-collapsed'); _d.style.height=''; _dw.classList.add('hidden'); _df.classList.add('hidden'); }
   }
   // Prazo automático pra bordado: 5 dias úteis (nome/prof) ou 10 dias úteis (logo/ambos)
   let dueVal = c.due_date || '';
@@ -3154,7 +3158,9 @@ function renderEditorCampos(){
         <button data-cfdel="${i}" class="shrink-0 text-slate-400 hover:text-red-500 text-sm">✕</button>
       </div>
       ${f.type==='select'?`<input value="${escapeHtml((f.options||[]).join(', '))}" data-cfopts="${i}" placeholder="Opções separadas por vírgula" class="w-full p-1.5 rounded bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-xs">`:''}
-    </div>`).join('') : '<div class="text-xs text-slate-400 text-center py-3">Nenhum campo. Clique em "Adicionar campo".</div>';
+    </div>`).join('') : '<div class="text-xs text-slate-400 text-center py-2">Nenhum campo ainda.</div>';
+  box.innerHTML += '<button id="cfAddBtn" type="button" class="w-full mt-1 text-sm text-slate-600 dark:text-slate-300 hover:text-pink-600 border border-dashed border-slate-300 dark:border-ink-600 rounded-lg py-2 flex items-center justify-center gap-1"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Adicionar campo</button>';
+  box.querySelector('#cfAddBtn').onclick = () => cfAddCampo();
   box.querySelectorAll('[data-cfname]').forEach(el=>el.oninput=()=>{ _cfDraft[+el.dataset.cfname].name=el.value; });
   box.querySelectorAll('[data-cftype]').forEach(el=>el.onchange=()=>{ _cfDraft[+el.dataset.cftype].type=el.value; renderEditorCampos(); });
   box.querySelectorAll('[data-cfopts]').forEach(el=>el.oninput=()=>{ _cfDraft[+el.dataset.cfopts].options=el.value.split(',').map(s=>s.trim()).filter(Boolean); });
@@ -3834,13 +3840,13 @@ async function sincronizaBoasFalhas(){
   try{ await sb.from('cards').update({ qtd_pcs_boas: boas || null, qtd_pcs_falhas: falhas || null }).eq('id', activeCardId); }catch(e){}
 }
 
-// Descrição do marketing: recolher/expandir (estilo feed)
+// Descrição do marketing: recolher/expandir (estilo feed, com esmaecido)
 window.toggleDesc = () => {
-  const el = document.getElementById('cardDesc'), b = document.getElementById('cardDescToggle');
+  const el = document.getElementById('cardDesc'), b = document.getElementById('cardDescToggle'), f = document.getElementById('descFadeBg');
   if (!el) return;
   const colapsada = el.classList.toggle('desc-collapsed');
-  if (colapsada){ el.style.maxHeight = ''; b.textContent = 'Ver mais ↓'; }
-  else { el.style.maxHeight = el.scrollHeight + 'px'; b.textContent = 'Recolher ↑'; }
+  if (colapsada){ el.style.height = ''; b.textContent = 'Desça para ver mais ↓'; if (f) f.classList.remove('hidden'); }
+  else { el.style.height = el.scrollHeight + 'px'; b.textContent = 'Recolher ↑'; if (f) f.classList.add('hidden'); }
 };
 // Histórico recolhido (estilo checkout): mostra só o mais recente e expande no clique.
 window.toggleFeed = () => {
@@ -5651,9 +5657,6 @@ initAuth().catch(function(e){ console.error('initAuth falhou:', e); if(window.mo
       <button onclick="fecharEditorCampos()" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-xl leading-none">×</button>
     </div>
     <div class="p-4 space-y-2 overflow-y-auto flex-1" id="cfEditorList"></div>
-    <div class="px-4 pb-1">
-      <button onclick="cfAddCampo()" class="w-full text-sm text-slate-600 dark:text-slate-300 hover:text-pink-600 border border-dashed border-slate-300 dark:border-ink-600 rounded-lg py-2 flex items-center justify-center gap-1"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Adicionar campo</button>
-    </div>
     <div class="flex items-center justify-end gap-2 px-4 py-3 border-t border-slate-200 dark:border-ink-700">
       <button onclick="fecharEditorCampos()" class="px-3 py-1.5 rounded-lg text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-200">Cancelar</button>
       <button onclick="salvarEditorCampos()" class="px-4 py-1.5 rounded-lg bg-pink-600 text-white text-sm font-medium hover:bg-pink-700">Salvar campos</button>
