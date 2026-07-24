@@ -2456,13 +2456,11 @@ async function openCard(id){
   document.getElementById('cardChecklistBox').classList.toggle('hidden', bType === 'producao' || bType === 'bordado');
   document.getElementById('cardTitle').value = c.title || '';
   document.getElementById('cardDesc').value = c.description || '';
-  // Marketing: descrição estilo "feed" (sem borda, recolhida, esmaecido + "Desça para ver mais")
-  { const _d = document.getElementById('cardDesc'), _dt = document.getElementById('cardDescToggle'), _df = document.getElementById('descFadeBg'), _dw = document.getElementById('descToggleWrap');
-    if (bType === 'marketing'){
-      _d.classList.add('desc-clean','desc-collapsed'); _d.style.height='';
-      _dt.textContent = 'Desça para ver mais ↓';
-      setTimeout(() => { const over = _d.scrollHeight > _d.clientHeight + 6; _dw.classList.toggle('hidden', !over); _df.classList.toggle('hidden', !over); }, 60);
-    } else { _d.classList.remove('desc-clean','desc-collapsed'); _d.style.height=''; _dw.classList.add('hidden'); _df.classList.add('hidden'); }
+  // Marketing: descrição estilo "feed" (sem borda, recolhida, esmaecido + "Desça para ver mais").
+  // A checagem de overflow acontece DEPOIS do modal abrir (ver ajustarDescricaoFeed), senão as dimensões vêm 0.
+  { const _d = document.getElementById('cardDesc'), _df = document.getElementById('descFadeBg'), _dw = document.getElementById('descToggleWrap');
+    if (bType === 'marketing'){ _d.classList.add('desc-clean','desc-collapsed'); _d.style.height=''; }
+    else { _d.classList.remove('desc-clean','desc-collapsed'); _d.style.height=''; _dw.classList.add('hidden'); _df.classList.add('hidden'); }
   }
   // Prazo automático pra bordado: 5 dias úteis (nome/prof) ou 10 dias úteis (logo/ambos)
   let dueVal = c.due_date || '';
@@ -2615,6 +2613,21 @@ async function openCard(id){
   switchTab('details');
   document.getElementById('cardModal').classList.remove('hidden');
   document.getElementById('cardModal').classList.add('flex');
+  // Agora que o modal está visível, decide se mostra o esmaecido + "Desça para ver mais" na descrição.
+  requestAnimationFrame(() => requestAnimationFrame(ajustarDescricaoFeed));
+  setTimeout(ajustarDescricaoFeed, 220);
+}
+
+// Mostra/esconde o esmaecido + botão "Desça para ver mais" conforme a descrição estoura a altura recolhida.
+function ajustarDescricaoFeed(){
+  const d = document.getElementById('cardDesc'), dw = document.getElementById('descToggleWrap'), df = document.getElementById('descFadeBg'), b = document.getElementById('cardDescToggle');
+  if (!d || !dw || !df) return;
+  if (!d.classList.contains('desc-clean')){ dw.classList.add('hidden'); df.classList.add('hidden'); return; }
+  if (!d.classList.contains('desc-collapsed')) return; // usuário deixou expandido
+  const over = d.scrollHeight > d.clientHeight + 6;
+  dw.classList.toggle('hidden', !over);
+  df.classList.toggle('hidden', !over);
+  if (b) b.textContent = 'Desça para ver mais ↓';
 }
 
 function renderFaccaoDropdownButton(label){
@@ -4329,12 +4342,35 @@ window.markAllRead = async () => {
   renderNotifications();
 };
 
+// Som de notificação (gerado na hora, sem arquivo). O navegador libera áudio depois da 1ª interação do usuário.
+let _audioCtx = null;
+function playNotifSound(){
+  try{
+    if (localStorage.getItem('dc_notif_som') === '0') return;   // usuário pode desligar
+    _audioCtx = _audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (_audioCtx.state === 'suspended') _audioCtx.resume();
+    const ctx = _audioCtx, now = ctx.currentTime;
+    [[880, 0], [1174.66, 0.13]].forEach(([freq, t]) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, now + t);
+      g.gain.exponentialRampToValueAtTime(0.16, now + t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.28);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(now + t); o.stop(now + t + 0.3);
+    });
+  }catch(e){}
+}
+// Deixa o áudio "destravado" no primeiro clique/tecla do usuário (política de autoplay dos navegadores)
+document.addEventListener('click', () => { try{ _audioCtx = _audioCtx || new (window.AudioContext||window.webkitAudioContext)(); if(_audioCtx.state==='suspended') _audioCtx.resume(); }catch(e){} }, { once: true });
+
 function subscribeRealtime(){
   sb.channel('notifs')
     .on('postgres_changes', {event:'INSERT', schema:'public', table:'notifications', filter:`user_id=eq.${user.id}`}, payload => {
       notifications.unshift({...payload.new, cards: null});
       loadNotifications();
       toast('Nova notificação');
+      playNotifSound();
     }).subscribe();
   sb.channel('board-changes')
     .on('postgres_changes', {event:'*', schema:'public', table:'cards'}, async () => {
