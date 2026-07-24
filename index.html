@@ -2456,12 +2456,9 @@ async function openCard(id){
   document.getElementById('cardChecklistBox').classList.toggle('hidden', bType === 'producao' || bType === 'bordado');
   document.getElementById('cardTitle').value = c.title || '';
   document.getElementById('cardDesc').value = c.description || '';
-  // Marketing: descrição estilo "feed" (sem borda, recolhida, esmaecido + "Desça para ver mais").
+  // Descrição estilo "feed" em TODOS os quadros (sem borda, recolhida, esmaecido + "Desça para ver mais").
   // A checagem de overflow acontece DEPOIS do modal abrir (ver ajustarDescricaoFeed), senão as dimensões vêm 0.
-  { const _d = document.getElementById('cardDesc'), _df = document.getElementById('descFadeBg'), _dw = document.getElementById('descToggleWrap');
-    if (bType === 'marketing'){ _d.classList.add('desc-clean','desc-collapsed'); _d.style.height=''; }
-    else { _d.classList.remove('desc-clean','desc-collapsed'); _d.style.height=''; _dw.classList.add('hidden'); _df.classList.add('hidden'); }
-  }
+  { const _d = document.getElementById('cardDesc'); if (_d){ _d.classList.add('desc-clean','desc-collapsed'); _d.style.height=''; } }
   // Prazo automático pra bordado: 5 dias úteis (nome/prof) ou 10 dias úteis (logo/ambos)
   let dueVal = c.due_date || '';
   if (bType === 'bordado' && !dueVal && c.bordado_tipo){
