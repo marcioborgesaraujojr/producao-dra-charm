@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Agendamentos — Suíte Aragão</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  html,body{background:#0f172a}
+  .fade{animation:fade .2s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .tab-on{background:#4f46e5;color:#fff}
+</style>
+</head>
+<body class="min-h-screen text-slate-100 antialiased">
+
+<!-- ===================== CONFIG (edite aqui) ===================== -->
+<script>
+  const CONFIG = {
+    // A URL/chave é puxada automaticamente da própria suíte (lib/supabase.js). URL só de fallback:
+    SUPABASE_URL: 'https://wwytzoyeibekhstinott.supabase.co',
+    PAGINA_CLIENTE: 'agendar.html'             // arquivo da página pública (mesmo domínio)
+  };
+</script>
+<!-- ============================================================== -->
+
+<!-- Gate de autenticação -->
+<div id="gate" class="fixed inset-0 grid place-items-center text-slate-400">
+  <div class="text-center">
+    <svg class="animate-spin h-7 w-7 mx-auto mb-3 text-indigo-400" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+    Verificando acesso…
+  </div>
+</div>
+
+<div id="app" class="hidden">
+  <div class="max-w-3xl mx-auto px-4 py-6">
+
+    <!-- Cabeçalho -->
+    <header class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-3">
+        <a href="/" class="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-500 grid place-items-center font-bold shadow-lg">A</a>
+        <div>
+          <h1 class="font-semibold leading-tight">Agendamentos</h1>
+          <p class="text-xs text-slate-400">Visitas para escolher peças</p>
+        </div>
+      </div>
+      <div class="text-right">
+        <p id="userEmail" class="text-xs text-slate-400"></p>
+        <a href="/" class="text-xs text-indigo-400 hover:underline">← Voltar à suíte</a>
+      </div>
+    </header>
+
+    <!-- Abas -->
+    <div class="flex gap-2 mb-5 text-sm">
+      <button data-tab="agenda"  class="tab px-4 py-2 rounded-xl bg-slate-800 tab-on">📋 Agenda</button>
+      <button data-tab="gerar"   class="tab px-4 py-2 rounded-xl bg-slate-800">🔗 Gerar link</button>
+      <button data-tab="config"  class="tab px-4 py-2 rounded-xl bg-slate-800">⚙️ Horários</button>
+    </div>
+
+    <!-- ===== ABA AGENDA ===== -->
+    <section id="tab-agenda" class="fade">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm uppercase tracking-wide text-slate-500">Próximas visitas</h2>
+        <button id="btnRefresh" class="text-xs text-indigo-400 hover:underline">Atualizar</button>
+      </div>
+      <div id="listaAgenda" class="space-y-2"></div>
+
+      <h2 class="text-sm uppercase tracking-wide text-slate-500 mt-8 mb-3">Links enviados aguardando o cliente</h2>
+      <div id="listaPendentes" class="space-y-2"></div>
+    </section>
+
+    <!-- ===== ABA GERAR LINK ===== -->
+    <section id="tab-gerar" class="hidden fade">
+      <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-5">
+        <h2 class="font-medium mb-1">Gerar link para um cliente</h2>
+        <p class="text-xs text-slate-400 mb-4">Preencha os dados. O link já vem identificado — o cliente só escolhe o horário.</p>
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs text-slate-400">Nome do cliente *</label>
+            <input id="gNome" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-indigo-500 outline-none" placeholder="Ex.: Maria Silva" />
+          </div>
+          <div>
+            <label class="text-xs text-slate-400">WhatsApp / telefone (com DDD)</label>
+            <input id="gTel" inputmode="numeric" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-indigo-500 outline-none" placeholder="Ex.: 85 99999-9999" />
+          </div>
+          <div>
+            <label class="text-xs text-slate-400">Observação (opcional)</label>
+            <input id="gObs" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-indigo-500 outline-none" placeholder="Ex.: interesse em anéis" />
+          </div>
+          <button id="btnGerar" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-medium text-sm">Gerar link</button>
+        </div>
+      </div>
+
+      <div id="resultadoLink" class="hidden bg-emerald-900/25 border border-emerald-700/50 rounded-2xl p-5 mt-4 fade">
+        <p class="text-sm text-emerald-200 font-medium mb-2">✅ Link criado para <span id="rlNome"></span></p>
+        <div class="flex gap-2">
+          <input id="rlUrl" readonly class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-300" />
+          <button id="btnCopiar" class="px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-xs font-medium">Copiar</button>
+        </div>
+        <div class="grid grid-cols-1 gap-2 mt-3">
+          <a id="rlWhats" target="_blank" rel="noopener" class="hidden py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-sm font-medium text-center">💬 Enviar no WhatsApp do cliente</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== ABA CONFIG ===== -->
+    <section id="tab-config" class="hidden fade">
+      <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-5 space-y-4">
+        <h2 class="font-medium">Horários de atendimento</h2>
+
+        <div>
+          <label class="text-xs text-slate-400">Dias que a fábrica atende</label>
+          <div id="cfgDias" class="flex flex-wrap gap-2 mt-2"></div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-slate-400">Abre às</label>
+            <input id="cfgIni" type="time" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="text-xs text-slate-400">Fecha às</label>
+            <input id="cfgFim" type="time" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="text-xs text-slate-400">Duração de cada atendimento (min)</label>
+            <input id="cfgDur" type="number" min="10" step="5" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="text-xs text-slate-400">Clientes por horário</label>
+            <input id="cfgCap" type="number" min="1" step="1" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="text-xs text-slate-400">Almoço — início (opcional)</label>
+            <input id="cfgAlmoIni" type="time" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="text-xs text-slate-400">Almoço — fim (opcional)</label>
+            <input id="cfgAlmoFim" type="time" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm" />
+          </div>
+        </div>
+
+        <div>
+          <label class="text-xs text-slate-400">Datas bloqueadas (feriados/folgas)</label>
+          <div class="flex gap-2 mt-1">
+            <input id="cfgDataBloq" type="date" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm" />
+            <button id="btnAddBloq" class="px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-sm">Adicionar</button>
+          </div>
+          <div id="cfgListaBloq" class="flex flex-wrap gap-2 mt-2"></div>
+        </div>
+
+        <button id="btnSalvarCfg" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-medium text-sm">Salvar configuração</button>
+        <p id="cfgMsg" class="text-center text-xs text-emerald-400 h-4"></p>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+const $ = (id)=>document.getElementById(id);
+const TZ = 'America/Fortaleza';
+let sb, sessionEmail = '';
+let cfgBloq = []; // datas bloqueadas em memória
+
+// ---------- utils ----------
+function fmtDia(iso){ return new Intl.DateTimeFormat('pt-BR',{timeZone:TZ,weekday:'short',day:'2-digit',month:'2-digit'}).format(new Date(iso)); }
+function fmtHora(iso){ return new Intl.DateTimeFormat('pt-BR',{timeZone:TZ,hour:'2-digit',minute:'2-digit'}).format(new Date(iso)); }
+function soDigitos(s){ return (s||'').replace(/\D/g,''); }
+function telParaWhats(t){ let d=soDigitos(t); if(!d) return ''; if(d.length<=11) d='55'+d; return d; }
+
+// ---------- config do Supabase: puxa da própria suíte, sem chave hardcoded ----------
+async function getSupaCfg(){
+  const fontes = ['lib/supabase.js','index.html','estoque.html','validadordecep.html','atendimento.html'];
+  for (const f of fontes){
+    try{
+      const t = await fetch('/'+f, {cache:'no-store'}).then(r=>r.text());
+      const key = (t.match(/eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/) || t.match(/sb_publishable_[A-Za-z0-9_]+/) || [])[0];
+      const url = (t.match(/https:\/\/[a-z0-9]+\.supabase\.co/) || [CONFIG.SUPABASE_URL])[0];
+      if (key) return { url, key };
+    }catch(e){}
+  }
+  return null;
+}
+
+// ---------- auth gate ----------
+async function boot(){
+  const cfg = await getSupaCfg();
+  if (!cfg){
+    $('gate').innerHTML = '<div class="text-center text-slate-300 px-6"><p class="text-lg mb-1">⚠️ Erro de configuração</p><p class="text-sm text-slate-400">Não foi possível carregar a config do Supabase.</p></div>';
+    return;
+  }
+  sb = supabase.createClient(cfg.url, cfg.key);
+  const { data:{ session } } = await sb.auth.getSession();
+  if (!session){ location.href = '/'; return; }   // sem login → volta pra suíte
+  sessionEmail = session.user.email || '';
+  $('userEmail').textContent = sessionEmail;
+  $('gate').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  carregarConfig();
+  carregarAgenda();
+}
+
+// ---------- abas ----------
+document.querySelectorAll('.tab').forEach(b=>{
+  b.onclick = ()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('tab-on'));
+    b.classList.add('tab-on');
+    ['agenda','gerar','config'].forEach(t=> $('tab-'+t).classList.add('hidden'));
+    $('tab-'+b.dataset.tab).classList.remove('hidden');
+  };
+});
+
+// ---------- AGENDA ----------
+$('btnRefresh').onclick = carregarAgenda;
+async function carregarAgenda(){
+  const agora = new Date(Date.now() - 3600000).toISOString(); // margem 1h
+  const { data: ags, error } = await sb.from('ag_agendamentos')
+    .select('*').eq('status','confirmado').gte('inicio', agora).order('inicio');
+  const cont = $('listaAgenda');
+  if (error){ cont.innerHTML = '<p class="text-red-400 text-sm">Erro ao carregar.</p>'; return; }
+  if (!ags.length){ cont.innerHTML = '<p class="text-slate-500 text-sm">Nenhuma visita marcada ainda.</p>'; }
+  else cont.innerHTML = ags.map(a=>cardAgenda(a)).join('');
+
+  // links pendentes (gerados, ainda não usados)
+  const { data: links } = await sb.from('ag_links')
+    .select('*').eq('status','ativo').order('criado_em',{ascending:false}).limit(30);
+  const cp = $('listaPendentes');
+  if (!links || !links.length){ cp.innerHTML = '<p class="text-slate-500 text-sm">Nenhum link pendente.</p>'; }
+  else cp.innerHTML = links.map(l=>cardPendente(l)).join('');
+  ligarBotoes();
+}
+
+function cardAgenda(a){
+  const tel = a.cliente_telefone ? soDigitos(a.cliente_telefone) : '';
+  const whats = tel ? `<a href="https://wa.me/${telParaWhats(tel)}" target="_blank" rel="noopener" class="text-emerald-400 text-xs hover:underline">WhatsApp</a>` : '';
+  return `<div class="bg-slate-800/60 border border-slate-700 rounded-xl p-3 flex items-center justify-between">
+    <div>
+      <p class="font-medium text-sm">${escapeHtml(a.cliente_nome)}</p>
+      <p class="text-xs text-slate-400">${fmtDia(a.inicio)} · ${fmtHora(a.inicio)}–${fmtHora(a.fim)} ${a.cliente_telefone?('· '+escapeHtml(a.cliente_telefone)):''}</p>
+    </div>
+    <div class="flex items-center gap-3">
+      ${whats}
+      <button data-cancelar="${a.id}" data-link="${a.link_id||''}" class="text-red-400 text-xs hover:underline">Cancelar</button>
+    </div>
+  </div>`;
+}
+function cardPendente(l){
+  const url = location.origin + '/' + CONFIG.PAGINA_CLIENTE + '?t=' + l.token;
+  const tel = l.cliente_telefone ? telParaWhats(l.cliente_telefone) : '';
+  const msg = encodeURIComponent('Oi '+ (l.cliente_nome||'') +'! Para marcar sua visita e escolher as peças, é só acessar: '+url);
+  const whats = tel ? `<a href="https://wa.me/${tel}?text=${msg}" target="_blank" rel="noopener" class="text-emerald-400 text-xs hover:underline">Enviar</a>` : '';
+  return `<div class="bg-slate-800/40 border border-slate-700/60 rounded-xl p-3 flex items-center justify-between">
+    <div class="min-w-0">
+      <p class="font-medium text-sm">${escapeHtml(l.cliente_nome)}</p>
+      <p class="text-xs text-slate-500 truncate max-w-[200px]">${escapeHtml(l.cliente_telefone||'sem telefone')}</p>
+    </div>
+    <div class="flex items-center gap-3 shrink-0">
+      <button data-copy="${escapeHtml(url)}" class="text-indigo-400 text-xs hover:underline">Copiar link</button>
+      ${whats}
+      <button data-cancelarlink="${l.id}" class="text-red-400 text-xs hover:underline">Excluir</button>
+    </div>
+  </div>`;
+}
+
+function ligarBotoes(){
+  document.querySelectorAll('[data-cancelar]').forEach(b=> b.onclick = ()=>cancelarAgendamento(b.dataset.cancelar, b.dataset.link));
+  document.querySelectorAll('[data-cancelarlink]').forEach(b=> b.onclick = ()=>excluirLink(b.dataset.cancelarlink));
+  document.querySelectorAll('[data-copy]').forEach(b=> b.onclick = ()=>{ navigator.clipboard.writeText(b.dataset.copy); b.textContent='Copiado!'; setTimeout(()=>b.textContent='Copiar link',1500); });
+}
+
+async function cancelarAgendamento(id, linkId){
+  if (!confirm('Cancelar esta visita? O horário volta a ficar livre.')) return;
+  await sb.from('ag_agendamentos').update({ status:'cancelado' }).eq('id', id);
+  if (linkId){ await sb.from('ag_links').update({ status:'ativo', agendamento_id:null }).eq('id', linkId); }
+  carregarAgenda();
+}
+async function excluirLink(id){
+  if (!confirm('Excluir este link? O cliente não conseguirá mais usá-lo.')) return;
+  await sb.from('ag_links').update({ status:'cancelado' }).eq('id', id);
+  carregarAgenda();
+}
+
+// ---------- GERAR LINK ----------
+$('btnGerar').onclick = async ()=>{
+  const nome = $('gNome').value.trim();
+  if (!nome){ $('gNome').focus(); return; }
+  const btn = $('btnGerar'); btn.disabled=true; btn.textContent='Gerando…';
+  const { data, error } = await sb.from('ag_links').insert({
+    cliente_nome: nome,
+    cliente_telefone: $('gTel').value.trim() || null,
+    observacao: $('gObs').value.trim() || null,
+    criado_por: sessionEmail
+  }).select('token, cliente_nome, cliente_telefone').single();
+  btn.disabled=false; btn.textContent='Gerar link';
+  if (error){ alert('Erro ao gerar link.'); console.error(error); return; }
+  const url = location.origin + '/' + CONFIG.PAGINA_CLIENTE + '?t=' + data.token;
+  $('rlNome').textContent = data.cliente_nome;
+  $('rlUrl').value = url;
+  const tel = telParaWhats(data.cliente_telefone||'');
+  const w = $('rlWhats');
+  if (tel){
+    const msg = encodeURIComponent('Oi '+data.cliente_nome+'! Para marcar sua visita e escolher as peças, é só acessar: '+url);
+    w.href = 'https://wa.me/'+tel+'?text='+msg; w.classList.remove('hidden');
+  } else w.classList.add('hidden');
+  $('resultadoLink').classList.remove('hidden');
+  $('gNome').value=''; $('gTel').value=''; $('gObs').value='';
+  carregarAgenda();
+};
+$('btnCopiar').onclick = ()=>{ navigator.clipboard.writeText($('rlUrl').value); $('btnCopiar').textContent='Copiado!'; setTimeout(()=>$('btnCopiar').textContent='Copiar',1500); };
+
+// ---------- CONFIG ----------
+const NOMES_DIAS = [['Dom',0],['Seg',1],['Ter',2],['Qua',3],['Qui',4],['Sex',5],['Sáb',6]];
+async function carregarConfig(){
+  const { data } = await sb.from('ag_config').select('*').eq('id',1).single();
+  if (!data) return;
+  const dias = data.dias_semana || [1,2,3,4,5];
+  $('cfgDias').innerHTML = NOMES_DIAS.map(([n,i])=>
+    `<button data-dia="${i}" class="diaBtn px-3 py-1.5 rounded-lg text-sm ${dias.includes(i)?'bg-indigo-600':'bg-slate-700'}">${n}</button>`).join('');
+  document.querySelectorAll('.diaBtn').forEach(b=> b.onclick=()=>{ b.classList.toggle('bg-indigo-600'); b.classList.toggle('bg-slate-700'); });
+  $('cfgIni').value = (data.hora_inicio||'08:00').slice(0,5);
+  $('cfgFim').value = (data.hora_fim||'18:00').slice(0,5);
+  $('cfgDur').value = data.duracao_min || 60;
+  $('cfgCap').value = data.capacidade || 1;
+  $('cfgAlmoIni').value = data.almoco_inicio ? data.almoco_inicio.slice(0,5) : '';
+  $('cfgAlmoFim').value = data.almoco_fim ? data.almoco_fim.slice(0,5) : '';
+  cfgBloq = (data.datas_bloqueadas||[]).slice();
+  renderBloq();
+}
+function renderBloq(){
+  cfgBloq.sort();
+  $('cfgListaBloq').innerHTML = cfgBloq.length ? cfgBloq.map(d=>
+    `<span class="inline-flex items-center gap-1 bg-slate-700 rounded-lg px-2 py-1 text-xs">${d.split('-').reverse().join('/')}<button data-del="${d}" class="text-red-400">✕</button></span>`).join('')
+    : '<span class="text-xs text-slate-500">Nenhuma.</span>';
+  document.querySelectorAll('[data-del]').forEach(b=> b.onclick=()=>{ cfgBloq = cfgBloq.filter(x=>x!==b.dataset.del); renderBloq(); });
+}
+$('btnAddBloq').onclick = ()=>{ const v=$('cfgDataBloq').value; if(v && !cfgBloq.includes(v)){ cfgBloq.push(v); renderBloq(); } };
+$('btnSalvarCfg').onclick = async ()=>{
+  const dias = [...document.querySelectorAll('.diaBtn')].filter(b=>b.classList.contains('bg-indigo-600')).map(b=>parseInt(b.dataset.dia));
+  const payload = {
+    dias_semana: dias.length?dias:[1,2,3,4,5],
+    hora_inicio: $('cfgIni').value || '08:00',
+    hora_fim: $('cfgFim').value || '18:00',
+    duracao_min: parseInt($('cfgDur').value)||60,
+    capacidade: parseInt($('cfgCap').value)||1,
+    almoco_inicio: $('cfgAlmoIni').value || null,
+    almoco_fim: $('cfgAlmoFim').value || null,
+    datas_bloqueadas: cfgBloq,
+    atualizado_em: new Date().toISOString()
+  };
+  const { error } = await sb.from('ag_config').update(payload).eq('id',1);
+  $('cfgMsg').textContent = error ? 'Erro ao salvar.' : 'Salvo ✓';
+  if (error) console.error(error);
+  setTimeout(()=>$('cfgMsg').textContent='',2500);
+};
+
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+boot();
+</script>
+</body>
+</html>

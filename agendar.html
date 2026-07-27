@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Agendar visita — Aragão</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  html,body{background:#0f172a}
+  .fade{animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .slot:disabled{opacity:.35;cursor:not-allowed}
+  ::-webkit-scrollbar{height:6px;width:6px}
+  ::-webkit-scrollbar-thumb{background:#334155;border-radius:9px}
+</style>
+</head>
+<body class="min-h-screen text-slate-100 antialiased">
+
+<!-- ===================== CONFIG (edite aqui) ===================== -->
+<script>
+  const CONFIG = {
+    // A URL/chave é puxada automaticamente da própria suíte (lib/supabase.js).
+    // Esta URL é só fallback:
+    SUPABASE_URL: 'https://wwytzoyeibekhstinott.supabase.co',
+
+    EMPRESA_NOME: 'Aragão',
+    // Aparece no convite de calendário do cliente. Ex.: 'Rua X, 123 - Bairro - Cidade/CE'
+    ENDERECO: '',
+    DIAS_VISIVEIS: 21,          // quantos dias pra frente mostrar
+    WHATSAPP_FABRICA: ''        // opcional, só dígitos com DDI, ex.: '5585999999999'
+  };
+</script>
+<!-- ============================================================== -->
+
+<div class="max-w-lg mx-auto px-4 py-8">
+
+  <!-- Cabeçalho -->
+  <header class="flex items-center gap-3 mb-6">
+    <div class="h-11 w-11 rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-500 grid place-items-center font-bold text-lg shadow-lg">A</div>
+    <div>
+      <h1 class="font-semibold leading-tight" id="hdrTitulo">Agendar visita</h1>
+      <p class="text-xs text-slate-400" id="hdrSub">Escolha o melhor horário para você</p>
+    </div>
+  </header>
+
+  <!-- Estado: carregando -->
+  <div id="loading" class="text-center py-20 text-slate-400">
+    <svg class="animate-spin h-7 w-7 mx-auto mb-3 text-indigo-400" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+    Carregando…
+  </div>
+
+  <!-- Estado: erro/link inválido -->
+  <div id="erro" class="hidden bg-slate-800/60 border border-slate-700 rounded-2xl p-6 text-center fade">
+    <div class="text-4xl mb-2">⚠️</div>
+    <p id="erroMsg" class="text-slate-300">Este link não é válido.</p>
+    <p class="text-xs text-slate-500 mt-2">Fale com a nossa equipe para receber um novo link.</p>
+  </div>
+
+  <!-- Estado: já agendou -->
+  <div id="jaAgendou" class="hidden bg-emerald-900/30 border border-emerald-700/50 rounded-2xl p-6 fade">
+    <div class="text-center">
+      <div class="text-4xl mb-2">✅</div>
+      <p class="font-medium text-emerald-200">Você já tem uma visita marcada!</p>
+      <p id="jaData" class="text-lg font-semibold mt-1"></p>
+    </div>
+    <div id="jaBotoes" class="mt-5 grid gap-2"></div>
+  </div>
+
+  <!-- Estado: escolher horário -->
+  <div id="agendador" class="hidden fade">
+    <p class="text-sm text-slate-300 mb-3" id="saudacao"></p>
+
+    <!-- Dias -->
+    <p class="text-xs uppercase tracking-wide text-slate-500 mb-2">Escolha o dia</p>
+    <div id="dias" class="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1"></div>
+
+    <!-- Horários -->
+    <p class="text-xs uppercase tracking-wide text-slate-500 mt-5 mb-2">Horários disponíveis</p>
+    <div id="slots" class="grid grid-cols-3 gap-2">
+      <p class="col-span-3 text-slate-500 text-sm py-6 text-center" id="slotsVazio">Selecione um dia acima.</p>
+    </div>
+  </div>
+
+  <!-- Estado: sucesso -->
+  <div id="sucesso" class="hidden bg-emerald-900/30 border border-emerald-700/50 rounded-2xl p-6 fade">
+    <div class="text-center">
+      <div class="text-4xl mb-2">🎉</div>
+      <p class="font-medium text-emerald-200">Visita confirmada!</p>
+      <p id="sucData" class="text-lg font-semibold mt-1"></p>
+      <p class="text-xs text-slate-400 mt-1" id="sucEndereco"></p>
+    </div>
+    <div id="sucBotoes" class="mt-5 grid gap-2"></div>
+    <p class="text-center text-xs text-slate-500 mt-4">Adicione ao seu calendário para não esquecer 😉</p>
+  </div>
+
+  <p class="text-center text-[11px] text-slate-600 mt-10">Suíte Aragão · Agendamento</p>
+</div>
+
+<!-- Modal de confirmação -->
+<div id="modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4">
+  <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-sm fade">
+    <p class="text-slate-300 text-sm">Confirmar sua visita para:</p>
+    <p id="modalData" class="text-lg font-semibold my-2"></p>
+    <div class="grid grid-cols-2 gap-2 mt-4">
+      <button id="modalCancelar" class="py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-sm font-medium">Voltar</button>
+      <button id="modalConfirmar" class="py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-sm font-medium">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+const TOKEN = params.get('t');
+let sb, LINK = null, cfgTz = 'America/Fortaleza', duracao = 60;
+let escolhido = null; // {inicio, fim}
+
+const DIAS_SEMANA_NOME = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+function show(id){ ['loading','erro','jaAgendou','agendador','sucesso'].forEach(x=>$(x).classList.add('hidden')); $(id).classList.remove('hidden'); }
+function erro(msg){ $('erroMsg').textContent = msg; show('erro'); }
+
+function fmtData(iso){
+  return new Intl.DateTimeFormat('pt-BR',{timeZone:cfgTz,weekday:'long',day:'2-digit',month:'long'}).format(new Date(iso));
+}
+function fmtHora(iso){
+  return new Intl.DateTimeFormat('pt-BR',{timeZone:cfgTz,hour:'2-digit',minute:'2-digit'}).format(new Date(iso));
+}
+function fmtDataHora(iso){ return fmtData(iso) + ' às ' + fmtHora(iso); }
+
+function hojeFortaleza(){
+  return new Intl.DateTimeFormat('en-CA',{timeZone:cfgTz,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+}
+
+// ---- ICS / links de calendário ----
+function toUTCstamp(iso){
+  const d = new Date(iso);
+  return d.getUTCFullYear()
+    + String(d.getUTCMonth()+1).padStart(2,'0')
+    + String(d.getUTCDate()).padStart(2,'0') + 'T'
+    + String(d.getUTCHours()).padStart(2,'0')
+    + String(d.getUTCMinutes()).padStart(2,'0')
+    + String(d.getUTCSeconds()).padStart(2,'0') + 'Z';
+}
+function tituloEvento(){ return 'Visita à ' + CONFIG.EMPRESA_NOME + ' — escolher peças'; }
+function icsBlobUrl(inicio, fim){
+  const ics = [
+    'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Aragao//Agendamento//PT-BR','CALSCALE:GREGORIAN','METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    'UID:'+ (LINK && LINK.agid ? LINK.agid : Math.abs(hashCode(inicio))) +'@aragao',
+    'DTSTAMP:'+toUTCstamp(new Date().toISOString()),
+    'DTSTART:'+toUTCstamp(inicio),
+    'DTEND:'+toUTCstamp(fim),
+    'SUMMARY:'+tituloEvento(),
+    CONFIG.ENDERECO ? 'LOCATION:'+CONFIG.ENDERECO.replace(/,/g,'\\,') : 'LOCATION:'+CONFIG.EMPRESA_NOME,
+    'DESCRIPTION:Sua visita para escolher as peças. Qualquer imprevisto\\, avise a nossa equipe.',
+    'BEGIN:VALARM','TRIGGER:-PT2H','ACTION:DISPLAY','DESCRIPTION:Lembrete da visita','END:VALARM',
+    'END:VEVENT','END:VCALENDAR'
+  ].join('\r\n');
+  return URL.createObjectURL(new Blob([ics], {type:'text/calendar'}));
+}
+function googleUrl(inicio, fim){
+  const p = new URLSearchParams({
+    action:'TEMPLATE', text:tituloEvento(),
+    dates: toUTCstamp(inicio)+'/'+toUTCstamp(fim),
+    details:'Visita para escolher as peças.',
+    location: CONFIG.ENDERECO || CONFIG.EMPRESA_NOME
+  });
+  return 'https://calendar.google.com/calendar/render?'+p.toString();
+}
+function hashCode(s){ let h=0; for(let i=0;i<s.length;i++){h=(h<<5)-h+s.charCodeAt(i)|0;} return h; }
+
+function botoesCalendario(container, inicio, fim){
+  container.innerHTML = '';
+  const g = document.createElement('a');
+  g.href = googleUrl(inicio, fim); g.target = '_blank'; g.rel='noopener';
+  g.className = 'py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-sm font-medium text-center';
+  g.textContent = '📅 Adicionar ao Google Agenda';
+  const a = document.createElement('a');
+  a.href = icsBlobUrl(inicio, fim); a.download = 'visita-aragao.ics';
+  a.className = 'py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-sm font-medium text-center';
+  a.textContent = '🍏 Apple / Outlook (.ics)';
+  container.appendChild(g); container.appendChild(a);
+  if (CONFIG.WHATSAPP_FABRICA){
+    const w = document.createElement('a');
+    const msg = encodeURIComponent('Oi! Confirmei minha visita para '+fmtDataHora(inicio)+'.');
+    w.href = 'https://wa.me/'+CONFIG.WHATSAPP_FABRICA+'?text='+msg; w.target='_blank'; w.rel='noopener';
+    w.className = 'py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-sm font-medium text-center';
+    w.textContent = '💬 Avisar no WhatsApp';
+    container.appendChild(w);
+  }
+}
+
+// ---- Config do Supabase: puxa da própria suíte, sem chave hardcoded ----
+async function getSupaCfg(){
+  const fontes = ['lib/supabase.js','index.html','estoque.html','validadordecep.html','atendimento.html'];
+  for (const f of fontes){
+    try{
+      const t = await fetch('/'+f, {cache:'no-store'}).then(r=>r.text());
+      const key = (t.match(/eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/) || t.match(/sb_publishable_[A-Za-z0-9_]+/) || [])[0];
+      const url = (t.match(/https:\/\/[a-z0-9]+\.supabase\.co/) || [CONFIG.SUPABASE_URL])[0];
+      if (key) return { url, key };
+    }catch(e){}
+  }
+  return null;
+}
+
+// ---- Fluxo ----
+async function init(){
+  if (!TOKEN){ erro('Link sem código de agendamento.'); return; }
+  const cfg = await getSupaCfg();
+  if (!cfg){ erro('Não foi possível carregar a configuração do sistema.'); return; }
+  sb = supabase.createClient(cfg.url, cfg.key);
+
+  const { data, error } = await sb.rpc('ag_get_link', { p_token: TOKEN });
+  if (error){ erro('Não foi possível carregar. Tente novamente.'); console.error(error); return; }
+  if (!data || !data.ok){
+    const m = { link_invalido:'Este link não existe.', link_cancelado:'Este link foi cancelado.' };
+    erro(m[data && data.erro] || 'Este link não é válido.'); return;
+  }
+  LINK = data;
+  cfgTz = (data.config && data.config.fuso) || cfgTz;
+  duracao = (data.config && data.config.duracao_min) || 60;
+
+  $('hdrTitulo').textContent = 'Olá, ' + primeiroNome(data.cliente_nome) + '!';
+  $('hdrSub').textContent = 'Visita à ' + CONFIG.EMPRESA_NOME + ' para escolher as peças';
+
+  if (data.ja_agendou && data.agendamento){
+    LINK.agid = 'existente';
+    $('jaData').textContent = fmtDataHora(data.agendamento.inicio);
+    botoesCalendario($('jaBotoes'), data.agendamento.inicio, data.agendamento.fim);
+    show('jaAgendou'); return;
+  }
+
+  $('saudacao').textContent = 'Escolha um dia e um horário para vir escolher as peças. Leva cerca de '+duracao+' minutos.';
+  renderDias(data.config);
+  show('agendador');
+}
+
+function primeiroNome(n){ return (n||'').trim().split(/\s+/)[0] || n; }
+
+function renderDias(config){
+  const dias = (config.dias_semana || [1,2,3,4,5]);
+  const bloq = new Set(config.datas_bloqueadas || []);
+  const cont = $('dias'); cont.innerHTML = '';
+  const hoje = hojeFortaleza();
+  let base = new Date(hoje + 'T12:00:00Z');
+  let mostrados = 0;
+  for (let i=0; i<CONFIG.DIAS_VISIVEIS && mostrados<14; i++){
+    const d = new Date(base.getTime() + i*86400000);
+    const iso = d.toISOString().slice(0,10);
+    const dow = d.getUTCDay();
+    if (!dias.includes(dow)) continue;
+    if (bloq.has(iso)) continue;
+    mostrados++;
+    const btn = document.createElement('button');
+    btn.className = 'shrink-0 w-16 py-2 rounded-xl bg-slate-800 border border-slate-700 hover:border-indigo-500 text-center';
+    btn.dataset.iso = iso;
+    btn.innerHTML = '<div class="text-[11px] text-slate-400">'+DIAS_SEMANA_NOME[dow]+'</div>'+
+                    '<div class="text-lg font-semibold leading-none mt-1">'+iso.slice(8,10)+'</div>'+
+                    '<div class="text-[10px] text-slate-500">'+mesNome(iso)+'</div>';
+    btn.onclick = () => selecionarDia(btn, iso);
+    cont.appendChild(btn);
+  }
+  if (!mostrados){ $('slotsVazio').textContent = 'Nenhum dia disponível no momento.'; }
+}
+function mesNome(iso){
+  return new Intl.DateTimeFormat('pt-BR',{month:'short',timeZone:'UTC'}).format(new Date(iso+'T12:00:00Z')).replace('.','');
+}
+
+async function selecionarDia(btn, iso){
+  [...$('dias').children].forEach(b=>b.classList.remove('border-indigo-500','bg-indigo-600/20'));
+  btn.classList.add('border-indigo-500','bg-indigo-600/20');
+  const cont = $('slots');
+  cont.innerHTML = '<p class="col-span-3 text-slate-500 text-sm py-6 text-center">Buscando horários…</p>';
+  const { data, error } = await sb.rpc('ag_slots_livres', { p_token: TOKEN, p_data: iso });
+  if (error){ cont.innerHTML = '<p class="col-span-3 text-red-400 text-sm py-6 text-center">Erro ao buscar horários.</p>'; return; }
+  const livres = (data||[]).filter(s=>s.livre);
+  if (!livres.length){ cont.innerHTML = '<p class="col-span-3 text-slate-500 text-sm py-6 text-center">Sem horários livres nesse dia.</p>'; return; }
+  cont.innerHTML = '';
+  livres.forEach(s=>{
+    const b = document.createElement('button');
+    b.className = 'slot py-2.5 rounded-xl bg-slate-800 border border-slate-700 hover:border-indigo-500 hover:bg-indigo-600/20 text-sm font-medium';
+    b.textContent = fmtHora(s.inicio);
+    b.onclick = () => abrirModal(s);
+    cont.appendChild(b);
+  });
+}
+
+function abrirModal(s){
+  escolhido = s;
+  $('modalData').textContent = fmtDataHora(s.inicio);
+  $('modal').classList.remove('hidden');
+}
+$('modalCancelar').onclick = ()=> $('modal').classList.add('hidden');
+$('modalConfirmar').onclick = confirmar;
+
+async function confirmar(){
+  if (!escolhido) return;
+  const btn = $('modalConfirmar');
+  btn.disabled = true; btn.textContent = 'Confirmando…';
+  const { data, error } = await sb.rpc('ag_agendar', { p_token: TOKEN, p_inicio: escolhido.inicio });
+  btn.disabled = false; btn.textContent = 'Confirmar';
+  $('modal').classList.add('hidden');
+  if (error){ alert('Não foi possível confirmar. Tente novamente.'); return; }
+  if (!data.ok){
+    if (data.erro === 'cheio'){ alert('Esse horário acabou de ser preenchido. Escolha outro, por favor.'); return; }
+    if (data.erro === 'ja_agendado'){ alert('Você já tem uma visita marcada com este link.'); location.reload(); return; }
+    alert('Não foi possível confirmar ('+data.erro+').'); return;
+  }
+  LINK.agid = data.id;
+  $('sucData').textContent = fmtDataHora(data.inicio);
+  $('sucEndereco').textContent = CONFIG.ENDERECO ? ('📍 '+CONFIG.ENDERECO) : '';
+  botoesCalendario($('sucBotoes'), data.inicio, data.fim);
+  show('sucesso');
+}
+
+init();
+</script>
+</body>
+</html>
