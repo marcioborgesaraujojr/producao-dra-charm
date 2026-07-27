@@ -401,6 +401,18 @@
         <span class="hub-card-badge bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">Ativo</span>
       </button>
 
+      <!-- Agendamento de Visitas -->
+      <button type="button" onclick="location.href='/agendamento.html'" data-access="agendamento" class="hub-card group text-left hidden">
+        <div class="hub-card-icon bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/><path d="M9 15l2 2 4-4"/></svg>
+        </div>
+        <div class="hub-card-body">
+          <div class="hub-card-title">Agendamento de Visitas</div>
+          <div class="hub-card-desc">Marque horários dos clientes na loja para escolher as peças</div>
+        </div>
+        <span class="hub-card-badge bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">Ativo</span>
+      </button>
+
       <!-- Estoque & Vendas -->
       <button type="button" onclick="location.href='/estoque.html'" data-access="estoque" class="hub-card group text-left hidden">
         <div class="hub-card-icon bg-gradient-to-br from-emerald-500 to-teal-500 text-white">
@@ -4925,6 +4937,7 @@ window.openUsers = async () => {
       {key:'cep', label:'CEP'},
       {key:'atendimento', label:'Atendimento'},
       {key:'cade_pedido', label:'Rastreio de Pedido'},
+      {key:'agendamento', label:'Agendamento de Visitas'},
       {key:'marketing', label:'Marketing'},
       {key:'painel', label:'Painel'},
     ];
