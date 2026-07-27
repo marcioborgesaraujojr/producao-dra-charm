@@ -451,15 +451,20 @@ async function runVendas(maxPages, reset, rewind) {
 }
 
 // Atualiza SÓ os últimos dias (inclui hoje) sem mexer no backfill — pra o "Hoje" vir na hora.
-async function runVendasRecente(dias) {
+async function runVendasRecente(dias, leve) {
   const nd = Math.min(Math.max(parseInt(dias) || 2, 1), 30); // padrão 2 dias (botão); cron diário chama com 7
+  // Modo leve (botão "Atualizar hoje"): atualiza SÓ as vendas do dia (vendas.json) e pula o livro-razão de
+  // pagos + recálculo de KPIs (que varrem 175k+ registros e são o real gargalo). Os KPIs de cliente já são
+  // reconciliados pelo cron de 20 min (run=vendas) e pelo cron diário (dias=7, sem leve). Isso deixa o botão
+  // em segundos em vez de ~15s.
+  const soVendas = leve === true || leve === "1";
   let snap = (await storageGet("reposicao/vendas.json")) || { atualizado_em: null, offset: 0, total_count: 0, dias: {}, done: false, janela_dias: 1095 };
   if (!snap.dias) snap.dias = {};
   const LIMIT = 100;
   const inc = diasAtras(nd); // últimos nd dias (2 = rápido no botão; 7 = reconciliação diária)
   for (const k of Object.keys(snap.dias)) if (k >= inc) delete snap.dias[k]; // recontar do zero esses dias
-  const pg = await lerPagos(false, snap.janela_dias || 1095);
-  for (const k of Object.keys(pg.pagos)) if (pg.pagos[k].d >= inc) delete pg.pagos[k]; // idem no livro-razão
+  const pg = soVendas ? null : await lerPagos(false, snap.janela_dias || 1095);
+  if (pg) for (const k of Object.keys(pg.pagos)) if (pg.pagos[k].d >= inc) delete pg.pagos[k]; // idem no livro-razão
   let offset = 0, processados = 0;
   // Teto de páginas proporcional à janela (~250 pedidos/dia ~2,5 pág/dia). Break antecipado ao passar de 'inc'.
   const maxPag = Math.min(30, Math.ceil(nd * 3) + 4);
@@ -470,15 +475,14 @@ async function runVendasRecente(dias) {
     const objs = out.data.objects || [];
     if (!objs.length) break;
     let passou = false;
-    for (const p of objs) { const dia = diaISO(p.data_criacao); if (dia && dia >= inc) { agregaPedido(snap.dias, p); regPago(pg.pagos, p); processados++; } else if (dia) { passou = true; } }
+    for (const p of objs) { const dia = diaISO(p.data_criacao); if (dia && dia >= inc) { agregaPedido(snap.dias, p); if (pg) regPago(pg.pagos, p); processados++; } else if (dia) { passou = true; } }
     offset += objs.length;
     if (passou || objs.length < LIMIT) break;
   }
   snap.atualizado_em = new Date().toISOString();
   await storagePut("reposicao/vendas.json", snap);
-  await salvarPagos(pg, null);
-  await salvarKpis(pg.pagos);
-  return { ok: true, processados, dias: Object.keys(snap.dias).length, pagos: pg.total };
+  if (pg) { await salvarPagos(pg, null); await salvarKpis(pg.pagos); }
+  return { ok: true, leve: soVendas, processados, dias: Object.keys(snap.dias).length, pagos: pg ? pg.total : null };
 }
 
 // ============ PAGAMENTOS + PRODUTOS (detalhe por pedido pago) ============
@@ -565,7 +569,7 @@ export default async function handler(req, res) {
   try {
     if (run === "estoque") return res.json(await runEstoque());
     if (run === "vendas") return res.json(await runVendas(req.query.pages, req.query.reset === "1", req.query.rewind === "1"));
-    if (run === "vendas-recente") return res.json(await runVendasRecente(req.query.dias));
+    if (run === "vendas-recente") return res.json(await runVendasRecente(req.query.dias, req.query.leve));
     if (run === "pagamentos") return res.json(await runPagamentos(req.query.details, req.query.reset === "1"));
     // AUDITORIA (só leitura, não grava): re-lê os últimos N dias DIRETO da LI e compara com o gravado.
     if (run === "audit") {
