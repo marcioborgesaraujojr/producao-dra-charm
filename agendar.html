@@ -3,108 +3,128 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Agendar visita — Aragão</title>
+<title>Agendar visita — Dra. Charm</title>
+<link rel="icon" href="/icone-app.png" />
 <script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{ ink:{600:'#243049',700:'#182036',800:'#111a2e',900:'#0b1220'} } } } };
+  if (localStorage.getItem('dc_dark') === '1') document.documentElement.classList.add('dark');
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-  html,body{background:#0f172a}
-  .fade{animation:fade .25s ease}
-  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  html{background:#f1f5f9}html.dark{background:#0b1220}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background-color:transparent}
+  #appBg{position:fixed;inset:0;width:100vw;height:100vh;z-index:-1;background-size:cover;background-position:center;background-repeat:no-repeat;pointer-events:none}
+  body.has-bg #appBg::after{content:'';position:absolute;inset:0;background:rgba(15,23,42,.35);pointer-events:none}
+  html.dark body.has-bg #appBg::after{background:rgba(0,0,0,.5)}
+  body.has-bg::before{content:'';position:fixed;inset:0;background:rgba(255,255,255,.30);pointer-events:none;z-index:0}
+  body.has-bg #appWrap{position:relative;z-index:1;background:transparent !important;background-image:none !important}
+  body.has-bg header{background:rgba(255,255,255,.85)!important;backdrop-filter:blur(12px)}
+  html.dark body.has-bg header{background:rgba(17,26,46,.85)!important}
+  .fade{animation:fade .25s ease}@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
   .slot:disabled{opacity:.35;cursor:not-allowed}
-  ::-webkit-scrollbar{height:6px;width:6px}
-  ::-webkit-scrollbar-thumb{background:#334155;border-radius:9px}
+  ::-webkit-scrollbar{height:6px;width:6px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:9px}
+  html.dark ::-webkit-scrollbar-thumb{background:#334155}
 </style>
 </head>
-<body class="min-h-screen text-slate-100 antialiased">
+<body class="text-slate-800 dark:text-slate-100 antialiased">
+<div id="appBg"></div>
 
-<!-- ===================== CONFIG (edite aqui) ===================== -->
+<!-- ===================== CONFIG ===================== -->
 <script>
   const CONFIG = {
-    // A URL/chave é puxada automaticamente da própria suíte (lib/supabase.js).
-    // Esta URL é só fallback:
-    SUPABASE_URL: 'https://wwytzoyeibekhstinott.supabase.co',
-
-    EMPRESA_NOME: 'Aragão',
-    // Aparece no convite de calendário do cliente. Ex.: 'Rua X, 123 - Bairro - Cidade/CE'
-    ENDERECO: '',
-    DIAS_VISIVEIS: 21,          // quantos dias pra frente mostrar
+    SUPABASE_URL: 'https://wwytzoyeibekhstinott.supabase.co', // fallback; a chave é puxada da suíte
+    EMPRESA_NOME: 'Dra. Charm',
+    ENDERECO: '',               // endereço (aparece no convite de calendário)
+    DIAS_VISIVEIS: 21,
     WHATSAPP_FABRICA: ''        // opcional, só dígitos com DDI, ex.: '5585999999999'
   };
 </script>
-<!-- ============================================================== -->
+<!-- ================================================= -->
 
-<div class="max-w-lg mx-auto px-4 py-8">
+<div id="appWrap" class="min-h-screen bg-gradient-to-br from-pink-50 via-white to-slate-50 dark:from-ink-900 dark:via-ink-800 dark:to-ink-900">
 
-  <!-- Cabeçalho -->
-  <header class="flex items-center gap-3 mb-6">
-    <div class="h-11 w-11 rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-500 grid place-items-center font-bold text-lg shadow-lg">A</div>
-    <div>
-      <h1 class="font-semibold leading-tight" id="hdrTitulo">Agendar visita</h1>
-      <p class="text-xs text-slate-400" id="hdrSub">Escolha o melhor horário para você</p>
+  <!-- Barra do topo (padrão da suíte) -->
+  <header class="h-14 flex items-center justify-between px-3 sm:px-4 gap-2 bg-white/95 dark:bg-ink-800/95 border-b border-slate-200 dark:border-ink-600 sticky top-0 z-30 backdrop-blur">
+    <div class="flex items-center gap-2.5 min-w-0">
+      <a href="/" title="Ir para a Suíte" class="w-9 h-9 rounded-xl overflow-hidden shadow hover:scale-105 transition flex-shrink-0 block"><img src="/icone-app.png" alt="Dra. Charm" class="w-full h-full object-cover"></a>
+      <div class="leading-tight min-w-0">
+        <div class="text-sm font-semibold truncate" id="hdrTitulo">Agendar visita</div>
+        <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate" id="hdrSub">Dra. Charm</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-1">
+      <button onclick="document.getElementById('bgInput').click()" title="Trocar fundo" class="w-9 h-9 rounded-lg grid place-items-center text-slate-500 hover:text-pink-500 hover:bg-slate-100 dark:hover:bg-ink-700 transition">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+      </button>
+      <button onclick="toggleDark()" title="Tema claro/escuro" class="w-9 h-9 rounded-lg grid place-items-center text-slate-500 hover:text-pink-500 hover:bg-slate-100 dark:hover:bg-ink-700 transition">
+        <svg id="iconSol" class="w-5 h-5 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+        <svg class="w-5 h-5 block dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+      </button>
     </div>
   </header>
+  <input type="file" id="bgInput" accept="image/*" class="hidden" />
 
-  <!-- Estado: carregando -->
-  <div id="loading" class="text-center py-20 text-slate-400">
-    <svg class="animate-spin h-7 w-7 mx-auto mb-3 text-indigo-400" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
-    Carregando…
-  </div>
+  <div class="max-w-lg mx-auto px-4 py-8">
 
-  <!-- Estado: erro/link inválido -->
-  <div id="erro" class="hidden bg-slate-800/60 border border-slate-700 rounded-2xl p-6 text-center fade">
-    <div class="text-4xl mb-2">⚠️</div>
-    <p id="erroMsg" class="text-slate-300">Este link não é válido.</p>
-    <p class="text-xs text-slate-500 mt-2">Fale com a nossa equipe para receber um novo link.</p>
-  </div>
-
-  <!-- Estado: já agendou -->
-  <div id="jaAgendou" class="hidden bg-emerald-900/30 border border-emerald-700/50 rounded-2xl p-6 fade">
-    <div class="text-center">
-      <div class="text-4xl mb-2">✅</div>
-      <p class="font-medium text-emerald-200">Você já tem uma visita marcada!</p>
-      <p id="jaData" class="text-lg font-semibold mt-1"></p>
+    <!-- carregando -->
+    <div id="loading" class="text-center py-20 text-slate-400">
+      <svg class="animate-spin h-7 w-7 mx-auto mb-3 text-pink-500" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+      Carregando…
     </div>
-    <div id="jaBotoes" class="mt-5 grid gap-2"></div>
-  </div>
 
-  <!-- Estado: escolher horário -->
-  <div id="agendador" class="hidden fade">
-    <p class="text-sm text-slate-300 mb-3" id="saudacao"></p>
-
-    <!-- Dias -->
-    <p class="text-xs uppercase tracking-wide text-slate-500 mb-2">Escolha o dia</p>
-    <div id="dias" class="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1"></div>
-
-    <!-- Horários -->
-    <p class="text-xs uppercase tracking-wide text-slate-500 mt-5 mb-2">Horários disponíveis</p>
-    <div id="slots" class="grid grid-cols-3 gap-2">
-      <p class="col-span-3 text-slate-500 text-sm py-6 text-center" id="slotsVazio">Selecione um dia acima.</p>
+    <!-- erro -->
+    <div id="erro" class="hidden bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 text-center fade shadow-sm">
+      <svg class="w-10 h-10 mx-auto mb-2 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L14.7 3.9a2 2 0 00-3.4 0z"/></svg>
+      <p id="erroMsg" class="text-slate-600 dark:text-slate-300">Este link não é válido.</p>
+      <p class="text-xs text-slate-400 mt-2">Fale com a nossa equipe para receber um novo link.</p>
     </div>
-  </div>
 
-  <!-- Estado: sucesso -->
-  <div id="sucesso" class="hidden bg-emerald-900/30 border border-emerald-700/50 rounded-2xl p-6 fade">
-    <div class="text-center">
-      <div class="text-4xl mb-2">🎉</div>
-      <p class="font-medium text-emerald-200">Visita confirmada!</p>
-      <p id="sucData" class="text-lg font-semibold mt-1"></p>
-      <p class="text-xs text-slate-400 mt-1" id="sucEndereco"></p>
+    <!-- já agendou -->
+    <div id="jaAgendou" class="hidden bg-white dark:bg-ink-800 border border-emerald-300 dark:border-emerald-700/60 rounded-2xl p-6 fade shadow-sm">
+      <div class="text-center">
+        <svg class="w-11 h-11 mx-auto mb-2 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+        <p class="font-medium text-emerald-600 dark:text-emerald-300">Você já tem uma visita marcada!</p>
+        <p id="jaData" class="text-lg font-semibold mt-1"></p>
+      </div>
+      <div id="jaBotoes" class="mt-5 grid gap-2"></div>
     </div>
-    <div id="sucBotoes" class="mt-5 grid gap-2"></div>
-    <p class="text-center text-xs text-slate-500 mt-4">Adicione ao seu calendário para não esquecer 😉</p>
-  </div>
 
-  <p class="text-center text-[11px] text-slate-600 mt-10">Suíte Aragão · Agendamento</p>
+    <!-- escolher horário -->
+    <div id="agendador" class="hidden fade">
+      <p class="text-sm text-slate-600 dark:text-slate-300 mb-4" id="saudacao"></p>
+      <p class="text-xs uppercase tracking-wide text-slate-400 mb-2">Escolha o dia</p>
+      <div id="dias" class="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1"></div>
+      <p class="text-xs uppercase tracking-wide text-slate-400 mt-5 mb-2">Horários disponíveis</p>
+      <div id="slots" class="grid grid-cols-3 gap-2">
+        <p class="col-span-3 text-slate-400 text-sm py-6 text-center" id="slotsVazio">Selecione um dia acima.</p>
+      </div>
+    </div>
+
+    <!-- sucesso -->
+    <div id="sucesso" class="hidden bg-white dark:bg-ink-800 border border-emerald-300 dark:border-emerald-700/60 rounded-2xl p-6 fade shadow-sm">
+      <div class="text-center">
+        <svg class="w-11 h-11 mx-auto mb-2 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+        <p class="font-medium text-emerald-600 dark:text-emerald-300">Visita confirmada!</p>
+        <p id="sucData" class="text-lg font-semibold mt-1"></p>
+        <p class="text-xs text-slate-400 mt-1" id="sucEndereco"></p>
+      </div>
+      <div id="sucBotoes" class="mt-5 grid gap-2"></div>
+      <p class="text-center text-xs text-slate-400 mt-4">Adicione à sua agenda para não esquecer.</p>
+    </div>
+
+    <p class="text-center text-[11px] text-slate-400 mt-10">Dra. Charm · Agendamento</p>
+  </div>
 </div>
 
-<!-- Modal de confirmação -->
-<div id="modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4">
-  <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-sm fade">
-    <p class="text-slate-300 text-sm">Confirmar sua visita para:</p>
+<!-- Modal -->
+<div id="modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
+  <div class="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 w-full max-w-sm fade shadow-xl">
+    <p class="text-slate-500 dark:text-slate-300 text-sm">Confirmar sua visita para:</p>
     <p id="modalData" class="text-lg font-semibold my-2"></p>
     <div class="grid grid-cols-2 gap-2 mt-4">
-      <button id="modalCancelar" class="py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-sm font-medium">Voltar</button>
-      <button id="modalConfirmar" class="py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-sm font-medium">Confirmar</button>
+      <button id="modalCancelar" class="py-2.5 rounded-xl bg-slate-100 dark:bg-ink-700 hover:bg-slate-200 dark:hover:bg-ink-600 text-sm font-medium">Voltar</button>
+      <button id="modalConfirmar" class="py-2.5 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-sm font-medium">Confirmar</button>
     </div>
   </div>
 </div>
@@ -114,85 +134,87 @@ const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const TOKEN = params.get('t');
 let sb, LINK = null, cfgTz = 'America/Fortaleza', duracao = 60;
-let escolhido = null; // {inicio, fim}
-
+let escolhido = null;
 const DIAS_SEMANA_NOME = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+// ---- tema + wallpaper ----
+function toggleDark(){
+  const on = document.documentElement.classList.toggle('dark');
+  localStorage.setItem('dc_dark', on ? '1' : '0');
+}
+(function initWall(){
+  const w = localStorage.getItem('dc_wall');
+  if (w){ $('appBg').style.backgroundImage = `url(${w})`; document.body.classList.add('has-bg'); }
+})();
+$('bgInput').onchange = (e) => {
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 1920; let w = img.width, h = img.height;
+      const s = Math.min(1, max/Math.max(w,h)); w = Math.round(w*s); h = Math.round(h*s);
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      let data; try { data = c.toDataURL('image/jpeg', 0.82); } catch(err){ alert('Não foi possível processar a imagem.'); return; }
+      try { localStorage.setItem('dc_wall', data); } catch(err){ alert('Imagem muito grande, tente outra.'); return; }
+      $('appBg').style.backgroundImage = `url(${data})`; document.body.classList.add('has-bg');
+    };
+    img.src = r.result;
+  };
+  r.readAsDataURL(f);
+};
 
 function show(id){ ['loading','erro','jaAgendou','agendador','sucesso'].forEach(x=>$(x).classList.add('hidden')); $(id).classList.remove('hidden'); }
 function erro(msg){ $('erroMsg').textContent = msg; show('erro'); }
-
-function fmtData(iso){
-  return new Intl.DateTimeFormat('pt-BR',{timeZone:cfgTz,weekday:'long',day:'2-digit',month:'long'}).format(new Date(iso));
-}
-function fmtHora(iso){
-  return new Intl.DateTimeFormat('pt-BR',{timeZone:cfgTz,hour:'2-digit',minute:'2-digit'}).format(new Date(iso));
-}
+function fmtData(iso){ return new Intl.DateTimeFormat('pt-BR',{timeZone:cfgTz,weekday:'long',day:'2-digit',month:'long'}).format(new Date(iso)); }
+function fmtHora(iso){ return new Intl.DateTimeFormat('pt-BR',{timeZone:cfgTz,hour:'2-digit',minute:'2-digit'}).format(new Date(iso)); }
 function fmtDataHora(iso){ return fmtData(iso) + ' às ' + fmtHora(iso); }
+function hojeFortaleza(){ return new Intl.DateTimeFormat('en-CA',{timeZone:cfgTz,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()); }
 
-function hojeFortaleza(){
-  return new Intl.DateTimeFormat('en-CA',{timeZone:cfgTz,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-}
-
-// ---- ICS / links de calendário ----
-function toUTCstamp(iso){
-  const d = new Date(iso);
-  return d.getUTCFullYear()
-    + String(d.getUTCMonth()+1).padStart(2,'0')
-    + String(d.getUTCDate()).padStart(2,'0') + 'T'
-    + String(d.getUTCHours()).padStart(2,'0')
-    + String(d.getUTCMinutes()).padStart(2,'0')
-    + String(d.getUTCSeconds()).padStart(2,'0') + 'Z';
-}
+// ---- ICS / calendário ----
+function toUTCstamp(iso){ const d=new Date(iso); return d.getUTCFullYear()+String(d.getUTCMonth()+1).padStart(2,'0')+String(d.getUTCDate()).padStart(2,'0')+'T'+String(d.getUTCHours()).padStart(2,'0')+String(d.getUTCMinutes()).padStart(2,'0')+String(d.getUTCSeconds()).padStart(2,'0')+'Z'; }
 function tituloEvento(){ return 'Visita à ' + CONFIG.EMPRESA_NOME + ' — escolher peças'; }
+function hashCode(s){ let h=0; for(let i=0;i<s.length;i++){h=(h<<5)-h+s.charCodeAt(i)|0;} return h; }
 function icsBlobUrl(inicio, fim){
-  const ics = [
-    'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Aragao//Agendamento//PT-BR','CALSCALE:GREGORIAN','METHOD:PUBLISH',
-    'BEGIN:VEVENT',
-    'UID:'+ (LINK && LINK.agid ? LINK.agid : Math.abs(hashCode(inicio))) +'@aragao',
-    'DTSTAMP:'+toUTCstamp(new Date().toISOString()),
-    'DTSTART:'+toUTCstamp(inicio),
-    'DTEND:'+toUTCstamp(fim),
+  const ics = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//DraCharm//Agendamento//PT-BR','CALSCALE:GREGORIAN','METHOD:PUBLISH','BEGIN:VEVENT',
+    'UID:'+ (LINK && LINK.agid ? LINK.agid : Math.abs(hashCode(inicio))) +'@dracharm',
+    'DTSTAMP:'+toUTCstamp(new Date().toISOString()),'DTSTART:'+toUTCstamp(inicio),'DTEND:'+toUTCstamp(fim),
     'SUMMARY:'+tituloEvento(),
     CONFIG.ENDERECO ? 'LOCATION:'+CONFIG.ENDERECO.replace(/,/g,'\\,') : 'LOCATION:'+CONFIG.EMPRESA_NOME,
     'DESCRIPTION:Sua visita para escolher as peças. Qualquer imprevisto\\, avise a nossa equipe.',
-    'BEGIN:VALARM','TRIGGER:-PT2H','ACTION:DISPLAY','DESCRIPTION:Lembrete da visita','END:VALARM',
-    'END:VEVENT','END:VCALENDAR'
-  ].join('\r\n');
+    'BEGIN:VALARM','TRIGGER:-PT2H','ACTION:DISPLAY','DESCRIPTION:Lembrete da visita','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
   return URL.createObjectURL(new Blob([ics], {type:'text/calendar'}));
 }
 function googleUrl(inicio, fim){
-  const p = new URLSearchParams({
-    action:'TEMPLATE', text:tituloEvento(),
-    dates: toUTCstamp(inicio)+'/'+toUTCstamp(fim),
-    details:'Visita para escolher as peças.',
-    location: CONFIG.ENDERECO || CONFIG.EMPRESA_NOME
-  });
+  const p = new URLSearchParams({ action:'TEMPLATE', text:tituloEvento(), dates: toUTCstamp(inicio)+'/'+toUTCstamp(fim), details:'Visita para escolher as peças.', location: CONFIG.ENDERECO || CONFIG.EMPRESA_NOME });
   return 'https://calendar.google.com/calendar/render?'+p.toString();
 }
-function hashCode(s){ let h=0; for(let i=0;i<s.length;i++){h=(h<<5)-h+s.charCodeAt(i)|0;} return h; }
+const SVG_CAL = '<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>';
+const SVG_APPLE = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M16.4 12.6c0-2 1.6-3 1.7-3-.9-1.4-2.4-1.5-2.9-1.6-1.2-.1-2.4.7-3 .7-.6 0-1.6-.7-2.6-.7-1.3 0-2.6.8-3.3 2-1.4 2.4-.4 6 1 8 .7 1 1.4 2 2.4 2 1 0 1.3-.6 2.5-.6s1.5.6 2.5.6 1.6-.9 2.3-1.9c.7-1 1-2 1-2.1 0 0-1.9-.7-1.9-2.9zM14.6 5.9c.5-.7.9-1.6.8-2.5-.8 0-1.7.5-2.3 1.2-.5.6-.9 1.5-.8 2.4.9.1 1.7-.4 2.3-1.1z"/></svg>';
+const SVG_WA = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 00-8.5 15.2L2 22l4.9-1.5A10 10 0 1012 2zm0 18a8 8 0 01-4.1-1.1l-.3-.2-2.9.9.9-2.8-.2-.3A8 8 0 1112 20zm4.4-6c-.2-.1-1.4-.7-1.6-.8-.2-.1-.4-.1-.5.1-.2.2-.6.8-.8 1-.1.1-.3.1-.5.1-.2-.1-1-.4-1.8-1.1-.7-.6-1.1-1.4-1.3-1.6-.1-.2 0-.4.1-.5l.4-.4.2-.4v-.4c0-.1-.5-1.3-.7-1.7-.2-.4-.4-.4-.5-.4h-.5c-.2 0-.4.1-.6.3-.2.2-.8.8-.8 1.9s.8 2.2.9 2.4c.1.2 1.7 2.6 4 3.5.6.3 1 .4 1.4.5.6.2 1.1.2 1.5.1.5-.1 1.4-.6 1.6-1.1.2-.5.2-1 .1-1.1 0-.1-.2-.2-.4-.3z"/></svg>';
 
 function botoesCalendario(container, inicio, fim){
   container.innerHTML = '';
-  const g = document.createElement('a');
-  g.href = googleUrl(inicio, fim); g.target = '_blank'; g.rel='noopener';
-  g.className = 'py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-sm font-medium text-center';
-  g.textContent = '📅 Adicionar ao Google Agenda';
-  const a = document.createElement('a');
-  a.href = icsBlobUrl(inicio, fim); a.download = 'visita-aragao.ics';
-  a.className = 'py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-sm font-medium text-center';
-  a.textContent = '🍏 Apple / Outlook (.ics)';
+  const base = 'flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium';
+  const g = document.createElement('a'); g.href = googleUrl(inicio, fim); g.target='_blank'; g.rel='noopener';
+  g.className = base+' bg-slate-100 dark:bg-ink-700 hover:bg-slate-200 dark:hover:bg-ink-600';
+  g.innerHTML = SVG_CAL+'<span>Adicionar ao Google Agenda</span>';
+  const a = document.createElement('a'); a.href = icsBlobUrl(inicio, fim); a.download = 'visita-dra-charm.ics';
+  a.className = base+' bg-slate-100 dark:bg-ink-700 hover:bg-slate-200 dark:hover:bg-ink-600';
+  a.innerHTML = SVG_APPLE+'<span>Apple / Outlook (.ics)</span>';
   container.appendChild(g); container.appendChild(a);
   if (CONFIG.WHATSAPP_FABRICA){
     const w = document.createElement('a');
     const msg = encodeURIComponent('Oi! Confirmei minha visita para '+fmtDataHora(inicio)+'.');
     w.href = 'https://wa.me/'+CONFIG.WHATSAPP_FABRICA+'?text='+msg; w.target='_blank'; w.rel='noopener';
-    w.className = 'py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-sm font-medium text-center';
-    w.textContent = '💬 Avisar no WhatsApp';
+    w.className = base+' bg-emerald-500 hover:bg-emerald-600 text-white';
+    w.innerHTML = SVG_WA+'<span>Avisar no WhatsApp</span>';
     container.appendChild(w);
   }
 }
 
-// ---- Config do Supabase: puxa da própria suíte, sem chave hardcoded ----
+// ---- config Supabase (puxa da suíte) ----
 async function getSupaCfg(){
   const fontes = ['lib/supabase.js','index.html','estoque.html','validadordecep.html','atendimento.html'];
   for (const f of fontes){
@@ -206,13 +228,12 @@ async function getSupaCfg(){
   return null;
 }
 
-// ---- Fluxo ----
+// ---- fluxo ----
 async function init(){
   if (!TOKEN){ erro('Link sem código de agendamento.'); return; }
   const cfg = await getSupaCfg();
   if (!cfg){ erro('Não foi possível carregar a configuração do sistema.'); return; }
   sb = supabase.createClient(cfg.url, cfg.key);
-
   const { data, error } = await sb.rpc('ag_get_link', { p_token: TOKEN });
   if (error){ erro('Não foi possível carregar. Tente novamente.'); console.error(error); return; }
   if (!data || !data.ok){
@@ -222,22 +243,18 @@ async function init(){
   LINK = data;
   cfgTz = (data.config && data.config.fuso) || cfgTz;
   duracao = (data.config && data.config.duracao_min) || 60;
-
   $('hdrTitulo').textContent = 'Olá, ' + primeiroNome(data.cliente_nome) + '!';
-  $('hdrSub').textContent = 'Visita à ' + CONFIG.EMPRESA_NOME + ' para escolher as peças';
-
+  $('hdrSub').textContent = 'Dra. Charm · escolher peças';
   if (data.ja_agendou && data.agendamento){
     LINK.agid = 'existente';
     $('jaData').textContent = fmtDataHora(data.agendamento.inicio);
     botoesCalendario($('jaBotoes'), data.agendamento.inicio, data.agendamento.fim);
     show('jaAgendou'); return;
   }
-
-  $('saudacao').textContent = 'Escolha um dia e um horário para vir escolher as peças. Leva cerca de '+duracao+' minutos.';
+  $('saudacao').textContent = 'Escolha um dia e um horário para vir à '+CONFIG.EMPRESA_NOME+' escolher as peças. Leva cerca de '+duracao+' minutos.';
   renderDias(data.config);
   show('agendador');
 }
-
 function primeiroNome(n){ return (n||'').trim().split(/\s+/)[0] || n; }
 
 function renderDias(config){
@@ -255,54 +272,43 @@ function renderDias(config){
     if (bloq.has(iso)) continue;
     mostrados++;
     const btn = document.createElement('button');
-    btn.className = 'shrink-0 w-16 py-2 rounded-xl bg-slate-800 border border-slate-700 hover:border-indigo-500 text-center';
+    btn.className = 'diaBtn shrink-0 w-16 py-2 rounded-xl bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 hover:border-pink-400 text-center transition';
     btn.dataset.iso = iso;
-    btn.innerHTML = '<div class="text-[11px] text-slate-400">'+DIAS_SEMANA_NOME[dow]+'</div>'+
-                    '<div class="text-lg font-semibold leading-none mt-1">'+iso.slice(8,10)+'</div>'+
-                    '<div class="text-[10px] text-slate-500">'+mesNome(iso)+'</div>';
+    btn.innerHTML = '<div class="text-[11px] text-slate-400">'+DIAS_SEMANA_NOME[dow]+'</div><div class="text-lg font-semibold leading-none mt-1">'+iso.slice(8,10)+'</div><div class="text-[10px] text-slate-400">'+mesNome(iso)+'</div>';
     btn.onclick = () => selecionarDia(btn, iso);
     cont.appendChild(btn);
   }
   if (!mostrados){ $('slotsVazio').textContent = 'Nenhum dia disponível no momento.'; }
 }
-function mesNome(iso){
-  return new Intl.DateTimeFormat('pt-BR',{month:'short',timeZone:'UTC'}).format(new Date(iso+'T12:00:00Z')).replace('.','');
-}
+function mesNome(iso){ return new Intl.DateTimeFormat('pt-BR',{month:'short',timeZone:'UTC'}).format(new Date(iso+'T12:00:00Z')).replace('.',''); }
 
 async function selecionarDia(btn, iso){
-  [...$('dias').children].forEach(b=>b.classList.remove('border-indigo-500','bg-indigo-600/20'));
-  btn.classList.add('border-indigo-500','bg-indigo-600/20');
+  [...$('dias').children].forEach(b=>b.classList.remove('border-pink-500','bg-pink-50','dark:bg-pink-500/10','ring-1','ring-pink-400'));
+  btn.classList.add('border-pink-500','bg-pink-50','dark:bg-pink-500/10','ring-1','ring-pink-400');
   const cont = $('slots');
-  cont.innerHTML = '<p class="col-span-3 text-slate-500 text-sm py-6 text-center">Buscando horários…</p>';
+  cont.innerHTML = '<p class="col-span-3 text-slate-400 text-sm py-6 text-center">Buscando horários…</p>';
   const { data, error } = await sb.rpc('ag_slots_livres', { p_token: TOKEN, p_data: iso });
-  if (error){ cont.innerHTML = '<p class="col-span-3 text-red-400 text-sm py-6 text-center">Erro ao buscar horários.</p>'; return; }
+  if (error){ cont.innerHTML = '<p class="col-span-3 text-red-500 text-sm py-6 text-center">Erro ao buscar horários.</p>'; return; }
   const livres = (data||[]).filter(s=>s.livre);
-  if (!livres.length){ cont.innerHTML = '<p class="col-span-3 text-slate-500 text-sm py-6 text-center">Sem horários livres nesse dia.</p>'; return; }
+  if (!livres.length){ cont.innerHTML = '<p class="col-span-3 text-slate-400 text-sm py-6 text-center">Sem horários livres nesse dia.</p>'; return; }
   cont.innerHTML = '';
   livres.forEach(s=>{
     const b = document.createElement('button');
-    b.className = 'slot py-2.5 rounded-xl bg-slate-800 border border-slate-700 hover:border-indigo-500 hover:bg-indigo-600/20 text-sm font-medium';
+    b.className = 'slot py-2.5 rounded-xl bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 hover:border-pink-400 hover:bg-pink-50 dark:hover:bg-pink-500/10 text-sm font-medium transition';
     b.textContent = fmtHora(s.inicio);
     b.onclick = () => abrirModal(s);
     cont.appendChild(b);
   });
 }
-
-function abrirModal(s){
-  escolhido = s;
-  $('modalData').textContent = fmtDataHora(s.inicio);
-  $('modal').classList.remove('hidden');
-}
+function abrirModal(s){ escolhido = s; $('modalData').textContent = fmtDataHora(s.inicio); $('modal').classList.remove('hidden'); }
 $('modalCancelar').onclick = ()=> $('modal').classList.add('hidden');
 $('modalConfirmar').onclick = confirmar;
 
 async function confirmar(){
   if (!escolhido) return;
-  const btn = $('modalConfirmar');
-  btn.disabled = true; btn.textContent = 'Confirmando…';
+  const btn = $('modalConfirmar'); btn.disabled = true; btn.textContent = 'Confirmando…';
   const { data, error } = await sb.rpc('ag_agendar', { p_token: TOKEN, p_inicio: escolhido.inicio });
-  btn.disabled = false; btn.textContent = 'Confirmar';
-  $('modal').classList.add('hidden');
+  btn.disabled = false; btn.textContent = 'Confirmar'; $('modal').classList.add('hidden');
   if (error){ alert('Não foi possível confirmar. Tente novamente.'); return; }
   if (!data.ok){
     if (data.erro === 'cheio'){ alert('Esse horário acabou de ser preenchido. Escolha outro, por favor.'); return; }
@@ -311,11 +317,10 @@ async function confirmar(){
   }
   LINK.agid = data.id;
   $('sucData').textContent = fmtDataHora(data.inicio);
-  $('sucEndereco').textContent = CONFIG.ENDERECO ? ('📍 '+CONFIG.ENDERECO) : '';
+  $('sucEndereco').textContent = CONFIG.ENDERECO ? CONFIG.ENDERECO : '';
   botoesCalendario($('sucBotoes'), data.inicio, data.fim);
   show('sucesso');
 }
-
 init();
 </script>
 </body>
