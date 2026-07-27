@@ -317,7 +317,7 @@ window.atualizarVendas=async()=>{
   const info=document.getElementById('vendasInfo'); if(info) info.textContent='Atualizando vendas de hoje…';
   if(b){ b.disabled=true; b.style.opacity='.85'; }
   if(svg){ svg.classList.add('animate-spin'); }
-  try{ await fetch('/api/estoque-sync?run=vendas-recente&_='+Date.now()); }catch(e){}
+  try{ await fetch('/api/estoque-sync?run=vendas-recente&dias=2&leve=1&_='+Date.now()); }catch(e){}
   try{ const r=await fetch(BUCKET_URL+'vendas.json?t='+Date.now()); if(r.ok) VENDAS=await r.json(); }catch(e){}
   try{ const r=await fetch(BUCKET_URL+'kpis.json?t='+Date.now()); if(r.ok) KPIS=await r.json(); }catch(e){}
   if(svg){ svg.classList.remove('animate-spin'); }
