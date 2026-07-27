@@ -451,18 +451,19 @@ async function runVendas(maxPages, reset, rewind) {
 }
 
 // Atualiza SÓ os últimos dias (inclui hoje) sem mexer no backfill — pra o "Hoje" vir na hora.
-async function runVendasRecente() {
+async function runVendasRecente(dias) {
+  const nd = Math.min(Math.max(parseInt(dias) || 2, 1), 30); // padrão 2 dias (botão); cron diário chama com 7
   let snap = (await storageGet("reposicao/vendas.json")) || { atualizado_em: null, offset: 0, total_count: 0, dias: {}, done: false, janela_dias: 1095 };
   if (!snap.dias) snap.dias = {};
   const LIMIT = 100;
-  const inc = diasAtras(7); // últimos ~7 dias (janela ampla: auto-corrige qualquer dia recente com problema)
+  const inc = diasAtras(nd); // últimos nd dias (2 = rápido no botão; 7 = reconciliação diária)
   for (const k of Object.keys(snap.dias)) if (k >= inc) delete snap.dias[k]; // recontar do zero esses dias
   const pg = await lerPagos(false, snap.janela_dias || 1095);
   for (const k of Object.keys(pg.pagos)) if (pg.pagos[k].d >= inc) delete pg.pagos[k]; // idem no livro-razão
   let offset = 0, processados = 0;
-  // Teto de 30 páginas (~3000 pedidos / ~12 dias com ~250/dia): apaga 7 dias, então o re-scan precisa cobrir
-  // >=7 dias de pedidos. Para ao passar de 'inc'.
-  for (let i = 0; i < 30; i++) {
+  // Teto de páginas proporcional à janela (~250 pedidos/dia ~2,5 pág/dia). Break antecipado ao passar de 'inc'.
+  const maxPag = Math.min(30, Math.ceil(nd * 3) + 4);
+  for (let i = 0; i < maxPag; i++) {
     const out = await li("/pedido/?limit=" + LIMIT + "&offset=" + offset + "&order_by=-data_criacao");
     if (!out.ok || !out.data) break;
     if (out.data.meta && out.data.meta.total_count) snap.total_count = out.data.meta.total_count;
@@ -564,7 +565,7 @@ export default async function handler(req, res) {
   try {
     if (run === "estoque") return res.json(await runEstoque());
     if (run === "vendas") return res.json(await runVendas(req.query.pages, req.query.reset === "1", req.query.rewind === "1"));
-    if (run === "vendas-recente") return res.json(await runVendasRecente());
+    if (run === "vendas-recente") return res.json(await runVendasRecente(req.query.dias));
     if (run === "pagamentos") return res.json(await runPagamentos(req.query.details, req.query.reset === "1"));
     // AUDITORIA (só leitura, não grava): re-lê os últimos N dias DIRETO da LI e compara com o gravado.
     if (run === "audit") {
