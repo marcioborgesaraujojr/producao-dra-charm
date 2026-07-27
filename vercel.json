@@ -13,6 +13,10 @@
       "schedule": "*/20 * * * *"
     },
     {
+      "path": "/api/estoque-sync?run=vendas-recente&dias=7",
+      "schedule": "0 6 * * *"
+    },
+    {
       "path": "/api/estoque-sync?run=pagamentos&details=260",
       "schedule": "8,28,48 * * * *"
     }
