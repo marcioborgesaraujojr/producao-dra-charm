@@ -6,7 +6,7 @@
 <title>Agendar visita — Dra. Charm</title>
 <link rel="icon" type="image/png" href="https://cdn.awsli.com.br/1930/1930166/favicon/sem-ti-tulo-1-46c8llhz70.png">
 <link rel="apple-touch-icon" href="https://cdn.awsli.com.br/1930/1930166/favicon/sem-ti-tulo-1-46c8llhz70.png">
-<meta name="theme-color" content="#eb4f71">
+<meta name="theme-color" content="#ff3c6f">
 <!-- Fonte (Poppins) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,7 +20,7 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
   // Rosa da marca Dra. Charm (#ff3c6f) sobrescrevendo a paleta pink
-  tailwind.config = { theme:{ extend:{ colors:{ pink:{50:'#fdeef2',100:'#fae2e9',400:'#ef84b0',500:'#eb4f71',600:'#d63f62'} } } } };
+  tailwind.config = { theme:{ extend:{ colors:{ pink:{50:'#fff1f4',100:'#ffe1e8',400:'#ff6b90',500:'#ff3c6f',600:'#ec2560'} } } } };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -46,14 +46,14 @@
   .slot:disabled{opacity:.35;cursor:not-allowed}
   /* Botões de dia/horário na mesma linguagem do modal "Personalizar bordado" */
   .diaBtn,.slot{border-width:1.5px}
-  .is-on{border-color:#eb4f71 !important;background:#eb4f71 !important;box-shadow:0 8px 20px rgba(235,79,113,.30)}
+  .is-on{border-color:#ff3c6f !important;background:#ff3c6f !important;box-shadow:0 8px 20px rgba(255,60,111,.30)}
   .is-on *{color:#fff !important}
   /* Modal de confirmação = mesmo estilo do modal do bordado */
   .modal-card{background:#fff;border-radius:24px;box-shadow:0 26px 64px rgba(17,24,46,.28)}
   .btn-cancelar{background:#f1f3f6;color:#243049}
   .btn-cancelar:hover{background:#e6eaef}
-  .btn-confirmar{background:#eb4f71;color:#fff}
-  .btn-confirmar:hover{background:#eb4f71;filter:brightness(1.05)}
+  .btn-confirmar{background:#ff3c6f;color:#fff}
+  .btn-confirmar:hover{background:#ff3c6f;filter:brightness(1.05)}
   ::-webkit-scrollbar{height:6px;width:6px}::-webkit-scrollbar-thumb{background:#f3b8cd;border-radius:9px}
 </style>
 </head>
@@ -87,7 +87,7 @@
     <!-- carregando -->
     <div id="loading">
       <div class="dc-load">
-        <svg class="draw-flor" viewBox="0 0 100 100" width="72" height="72" fill="none" stroke="#eb4f71" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+        <svg class="draw-flor" viewBox="0 0 100 100" width="72" height="72" fill="none" stroke="#ff3c6f" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
           <path pathLength="100" d="M30.2,30.2 A20,20 0 0 1 69.8,30.2 A20,20 0 0 1 69.8,69.8 A20,20 0 0 1 30.2,69.8 A20,20 0 0 1 30.2,30.2 Z"/>
           <circle pathLength="100" cx="50" cy="50" r="8"/>
         </svg>

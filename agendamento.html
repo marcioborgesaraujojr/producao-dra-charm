@@ -12,7 +12,7 @@
 </script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
-  tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{ pink:{50:'#fdeef2',100:'#fae2e9',400:'#ef84b0',500:'#eb4f71',600:'#d63f62'}, ink:{600:'#243049',700:'#182036',800:'#111a2e',900:'#0b1220'} } } } };
+  tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{ pink:{50:'#fff1f4',100:'#ffe1e8',400:'#ff6b90',500:'#ff3c6f',600:'#ec2560'}, ink:{600:'#243049',700:'#182036',800:'#111a2e',900:'#0b1220'} } } } };
   if (localStorage.getItem('dc_dark') === '1') document.documentElement.classList.add('dark');
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -27,7 +27,7 @@
   body.has-bg header{background:rgba(255,255,255,.85)!important;backdrop-filter:blur(12px)}
   html.dark body.has-bg header{background:rgba(17,26,46,.85)!important}
   .fade{animation:fade .2s ease}@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1}}
-  .tab-on{background:#eb4f71!important;color:#fff!important;border-color:#eb4f71!important}
+  .tab-on{background:#ff3c6f!important;color:#fff!important;border-color:#ff3c6f!important}
   /* Carregando: logo "A" pulsando, igual ao quadro de produção */
   .dc-load{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:56px 16px;min-height:40vh}
   .dc-logo-img{width:72px;height:72px;object-fit:contain;animation:dc-breathe 1.5s ease-in-out infinite}
@@ -37,14 +37,14 @@
   .act svg{width:14px;height:14px;flex-shrink:0}
   .act-wa{color:#059669;background:#ecfdf5;border-color:#bbf7d0}
   .act-wa:hover{background:#d1fae5}
-  .act-copy{color:#eb4f71;background:#fdeef2;border-color:#f7cdda}
-  .act-copy:hover{background:#fbdbe6}
+  .act-copy{color:#ff3c6f;background:#fff1f4;border-color:#ffc9d6}
+  .act-copy:hover{background:#ffdce4}
   .act-del{color:#e11d48;background:#fff1f2;border-color:#fecdd3}
   .act-del:hover{background:#ffe4e6}
   .act-neutral{color:#475569;background:#f1f5f9;border-color:#e2e8f0}
   .act-neutral:hover{background:#e2e8f0}
   html.dark .act-wa{color:#6ee7b7;background:rgba(16,185,129,.14);border-color:rgba(16,185,129,.3)}
-  html.dark .act-copy{color:#f9a8c4;background:rgba(235,79,113,.16);border-color:rgba(235,79,113,.32)}
+  html.dark .act-copy{color:#f9a8c4;background:rgba(255,60,111,.16);border-color:rgba(255,60,111,.32)}
   html.dark .act-del{color:#fda4af;background:rgba(244,63,94,.15);border-color:rgba(244,63,94,.32)}
   html.dark .act-neutral{color:#cbd5e1;background:rgba(148,163,184,.14);border-color:rgba(148,163,184,.28)}
   #dcModalIcon svg{width:20px;height:20px}
