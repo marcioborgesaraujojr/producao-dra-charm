@@ -1659,17 +1659,23 @@ function renderBoardSelect(){
   sel.value = currentBoardId || boards[0]?.id;
 }
 
-async function switchBoard(boardId){
+async function switchBoard(boardId, opts){
+  opts = opts || {};
   currentBoardId = boardId;
   // Mantém o seletor de quadro sempre igual ao quadro realmente carregado
   const _bs = document.getElementById('boardSelect'); if (_bs && _bs.value !== boardId) _bs.value = boardId;
   try { localStorage.setItem('dc_last_board', boardId); } catch(e){}
   renderBoardMembers(boardId);
-  filters.faccao.clear();
-  filters.alerta = 'todos';
-  { const _af = document.getElementById('alertaFilter'); if (_af) _af.value = 'todos'; }
-  document.getElementById('board').innerHTML = '';
-  showBoardLoading();
+  if (!opts.silent){
+    // Só reseta filtros e mostra "carregando" numa troca de quadro de verdade —
+    // NÃO numa atualização automática (realtime), pra não piscar o logo nem apagar o filtro do usuário.
+    filters.faccao.clear();
+    filters.alerta = 'todos';
+    { const _af = document.getElementById('alertaFilter'); if (_af) _af.value = 'todos'; }
+    document.getElementById('board').innerHTML = '';
+    showBoardLoading();
+  }
+  try {
   const b = boards.find(x => x.id === boardId);
   applyBoardBackground(b?.background_url);
   // Divergências já aprovadas por mim (pra não repintar card que eu já dei ok)
@@ -1741,6 +1747,12 @@ async function switchBoard(boardId){
     await Promise.all(tarefas);
   }
   renderBoard();
+  } catch(e){
+    // Se uma consulta falhar (instabilidade de rede), NÃO deixa o "carregando" preso pra sempre.
+    console.error('switchBoard falhou:', e);
+    hideBoardLoading();
+    if (!opts.silent && typeof toast === 'function') toast('Não consegui carregar o quadro. Tente de novo.');
+  }
 }
 
 function closeAllListMenus(){ document.querySelectorAll('.list-menu').forEach(m=>m.remove()); }
@@ -4373,6 +4385,16 @@ function playNotifSound(){
 // Deixa o áudio "destravado" no primeiro clique/tecla do usuário (política de autoplay dos navegadores)
 document.addEventListener('click', () => { try{ _audioCtx = _audioCtx || new (window.AudioContext||window.webkitAudioContext)(); if(_audioCtx.state==='suspended') _audioCtx.resume(); }catch(e){} }, { once: true });
 
+// Atualização automática (realtime) SEM piscar o "carregando": recarrega o quadro em silêncio
+// e junta várias mudanças seguidas numa só atualização (debounce), pra não recarregar a cada card.
+let _boardRefreshTimer = null;
+function scheduleBoardRefresh(){
+  if (_boardRefreshTimer) return;
+  _boardRefreshTimer = setTimeout(async () => {
+    _boardRefreshTimer = null;
+    if (currentBoardId){ try { await switchBoard(currentBoardId, { silent: true }); } catch(e){ console.warn('refresh silencioso falhou:', e); } }
+  }, 600);
+}
 function subscribeRealtime(){
   sb.channel('notifs')
     .on('postgres_changes', {event:'INSERT', schema:'public', table:'notifications', filter:`user_id=eq.${user.id}`}, payload => {
@@ -4382,9 +4404,13 @@ function subscribeRealtime(){
       playNotifSound();
     }).subscribe();
   sb.channel('board-changes')
-    .on('postgres_changes', {event:'*', schema:'public', table:'cards'}, async () => {
+    .on('postgres_changes', {event:'*', schema:'public', table:'cards'}, (payload) => {
       if (Date.now() - _localMoveAt < 1500) return; // mudança feita aqui mesmo, já aplicada localmente (evita render duplo/piscada)
-      if (currentBoardId) await switchBoard(currentBoardId);
+      // Só atualiza se a mudança for de um card DESTE quadro — não recarrega quando mexem em OUTRO quadro.
+      const _row = (payload && (payload.new || payload.old)) || {};
+      const _lid = _row.list_id;
+      if (_lid && Array.isArray(lists) && lists.length && !lists.some(l => l.id === _lid)) return;
+      scheduleBoardRefresh();
     })
     .on('postgres_changes', {event:'*', schema:'public', table:'comments'}, () => {
       if (activeCardId) loadComments(activeCardId);
