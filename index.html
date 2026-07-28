@@ -277,12 +277,12 @@
   .cg-del:hover{color:#ef4444}
   .cg-add{border:1px dashed #cbd5e1;color:#64748b;background:none;border-radius:10px;padding:7px 13px;font-size:12px;cursor:pointer;font-weight:700}
   .cg-add:hover{border-color:#ff3c6f;color:#ff3c6f}
-  .cg-cores{display:flex;flex-wrap:wrap;gap:8px}
-  .cg-cor{display:flex;align-items:center;gap:7px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:11px;padding:6px 9px}
+  .cg-cores{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .cg-cor{display:flex;align-items:center;gap:6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:5px 8px;min-width:0}
   .dark .cg-cor{background:#1e293b;border-color:#334155}
-  .cg-cor input[type=color]{width:24px;height:24px;border:none;background:none;padding:0;border-radius:6px;cursor:pointer}
-  .cg-cnm{font-size:12.5px;font-weight:600;width:78px;border:none;background:none;outline:none;color:inherit}
-  .cg-cro{width:40px;font-size:12px;text-align:right;border:none;background:#eef2f7;border-radius:6px;padding:3px 4px;color:#0f172a}
+  .cg-cor input[type=color]{width:22px;height:22px;border:none;background:none;padding:0;border-radius:6px;cursor:pointer;flex:none}
+  .cg-cnm{font-size:12px;font-weight:600;flex:1;min-width:0;width:auto;border:none;background:none;outline:none;color:inherit}
+  .cg-cro{width:34px;font-size:12px;text-align:right;border:none;background:#eef2f7;border-radius:6px;padding:3px 4px;color:#0f172a;flex:none}
   .dark .cg-cro{background:#0f172a;color:#e2e8f0}
   .cg-cun{font-size:10px;color:#64748b}
   .cg-final{border:1px solid #e2e8f0;border-radius:13px;overflow:hidden}
@@ -3536,6 +3536,18 @@ window.CorteGrade = (function(){
   const SLBL={pp:'PP',p:'P',m:'M',g:'G',gg:'GG',xg:'XG'};
   const num=v=>{const n=parseFloat(v);return isNaN(n)?0:n};
   const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+  // Casa o nome digitado com uma cor conhecida (branco, preto, marinho...). Tenta o nome inteiro e depois a 1ª palavra.
+  const _norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+  const COR_HEX={
+    'branco':'#ffffff','branco off':'#f4f1ea','off white':'#f4f1ea','preto':'#111111',
+    'marinho':'#1f2a44','azul marinho':'#1f2a44','azul':'#2563eb','azul royal':'#1d4ed8','azul claro':'#7dd3fc','azul bebe':'#bfdbfe','azul turquesa':'#14b8a6','azul indigo':'#312e81',
+    'vermelho':'#dc2626','vinho':'#7f1d1d','verde':'#16a34a','verde claro':'#86efac','verde musgo':'#4d5320','verde agua':'#a7f3d0','verde bandeira':'#15803d','verde mar':'#2dd4bf',
+    'rosa':'#f9a8d4','rosa claro':'#fbcfe8','rosa bebe':'#fbcfe8','pink':'#ff3c6f','pink claro':'#ff9db4','amarelo':'#facc15','laranja':'#f97316',
+    'roxo':'#7c3aed','lilas':'#c4b5fd','cinza':'#9ca3af','cinza claro':'#d1d5db','cinza silver':'#c0c0c0','prata':'#c0c0c0','grafite':'#374151','chumbo':'#4b5563',
+    'bege':'#e3d5b8','nude':'#e6ccb2','creme':'#f5efe0','gelo':'#eef2f7','marrom':'#78350f','caramelo':'#b45309','mostarda':'#ca8a04','marrocos':'#8a5a2b',
+    'turquesa':'#14b8a6','cereja':'#b91c1c','coral':'#fb7185','salmao':'#fda4af','terracota':'#c2410c','deep red':'#7f1d1d','deep gray':'#4b5563','mid blue':'#3b6ea5'
+  };
+  const lookupCor=nome=>{const n=_norm(nome); if(!n) return null; if(COR_HEX[n]) return COR_HEX[n]; const w=n.split(/[\s*]+/)[0]; return COR_HEX[w]||null;};
   let S={tecido:'',riscos:[],cores:[],folhas:{},open:new Set(),_seq:0};
 
   const nid=()=>++S._seq;
@@ -3596,8 +3608,8 @@ window.CorteGrade = (function(){
     const el=document.getElementById('cgCores'); if(!el) return;
     el.innerHTML=S.cores.map(c=>`
       <div class="cg-cor">
-        <input type="color" value="${c.hex}" oninput="CorteGrade.setHex(${c.id},this.value)">
-        <input class="cg-cnm" value="${esc(c.nome)}" oninput="CorteGrade.setCorNome(${c.id},this.value)">
+        <input type="color" id="cgCol${c.id}" value="${c.hex}" oninput="CorteGrade.setHex(${c.id},this.value)">
+        <input class="cg-cnm" value="${esc(c.nome)}" placeholder="cor" oninput="CorteGrade.setCorNome(${c.id},this.value)">
         <input class="cg-cro" value="${c.rolos||''}" placeholder="0" inputmode="numeric" oninput="CorteGrade.setRolos(${c.id},this.value)">
         <span class="cg-cun">rolos</span>
         <button type="button" class="cg-del" onclick="CorteGrade.delCor(${c.id})">×</button>
@@ -3673,7 +3685,8 @@ window.CorteGrade = (function(){
   function setRiscoNome(rid,v){const r=R(rid); if(r) r.nome=v;}
   function setFolha(rid,cid,v){S.folhas[folKey(rid,cid)]=v; recalc();}
   function setHex(cid,v){const c=C(cid); if(c){c.hex=v; const sw=document.getElementById('cgSW'+cid); if(sw) sw.style.background=v;}}
-  function setCorNome(cid,v){const c=C(cid); if(c){c.nome=v; const e=document.getElementById('cgCN'+cid); if(e) e.textContent=v;}}
+  function setCorNome(cid,v){const c=C(cid); if(!c) return; c.nome=v; const e=document.getElementById('cgCN'+cid); if(e) e.textContent=v;
+    const hex=lookupCor(v); if(hex){ c.hex=hex; const col=document.getElementById('cgCol'+cid); if(col) col.value=hex; const sw=document.getElementById('cgSW'+cid); if(sw) sw.style.background=hex; }}
   function setRolos(cid,v){const c=C(cid); if(c) c.rolos=v;}
   function addRisco(){S.riscos.push({id:nid(),nome:'Risco '+(S.riscos.length+1),g:{},metr:''}); renderRiscos(); renderFinal(); recalc();}
   function delRisco(rid){ if(S.riscos.length<=1){S.riscos=[{id:nid(),nome:'Risco 1',g:{},metr:''}];} else {S.riscos=S.riscos.filter(r=>r.id!==rid);} Object.keys(S.folhas).forEach(k=>{if(k.indexOf('r'+rid+'c')===0) delete S.folhas[k];}); renderRiscos(); renderFinal(); recalc();}
