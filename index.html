@@ -4589,6 +4589,10 @@ window.DC_LOGO = window.DC_LOGO || 'https://wwytzoyeibekhstinott.supabase.co/sto
 function dcLoad(){ return '<div class="dc-load"><img src="'+window.DC_LOGO+'" class="dc-logo-img" alt="" onerror="this.onerror=null;this.src=\'/aragao-loading.png\'"></div>'; }
 // Carregando do quadro: overlay FIXO na tela (fora do zoom do #board) → fica sempre no centro, inclusive no mobile.
 function showBoardLoading(){
+  // Não mostrar o "carregando" do quadro por cima da SUÍTE (hub). Ao dar refresh na suíte,
+  // o app pré-carrega o último quadro em 2º plano — isso não deve piscar o logo no meio do hub.
+  const _hub = document.getElementById('hubScreen');
+  if (_hub && !_hub.classList.contains('hidden')) return;
   let el = document.getElementById('boardLoadingOverlay');
   if (!el){ el = document.createElement('div'); el.id = 'boardLoadingOverlay'; el.className = 'fixed z-20 flex items-center justify-center pointer-events-none'; document.body.appendChild(el); }
   // Centraliza na ÁREA DO BOARD (abaixo do cabeçalho), não na tela toda.
@@ -4854,6 +4858,7 @@ function showHub(){
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('app').classList.add('hidden');
   document.getElementById('hubScreen').classList.remove('hidden');
+  try { hideBoardLoading(); } catch(e){}  // nunca deixar o "carregando" do quadro por cima da suíte
   (document.getElementById('appBg')||document.body).style.backgroundImage = '';
   document.body.classList.add('has-bg');
   applySuiteBg();
