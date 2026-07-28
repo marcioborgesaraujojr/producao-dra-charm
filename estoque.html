@@ -507,17 +507,15 @@ window.rodarSync=async(tipo)=>{
 </style>
 <script id="dc-bg3-js">(function(){
 var KEY='bg-'+((location.pathname.split('/').pop()||'app').replace(/\.html$/,'')||'app')+'.jpg';
-var U='https://wwytzoyeibekhstinott.supabase.co/storage/v1/object/public/system-assets/'+KEY;
-function clearBg(){var ab=document.getElementById('appBg');if(ab)ab.style.backgroundImage='';document.body.classList.remove('has-bg');var l=document.getElementById('dc-bg3-layer');if(l)l.style.backgroundImage='';var v=document.getElementById('dc-bg3-veil');if(v)v.style.display='none';}
-function apply(bust){var u=U+(bust?('?t='+Date.now()):'');var im=new Image();
-im.onload=function(){var ab=document.getElementById('appBg');
- if(ab){ab.style.backgroundImage="url('"+u+"')";document.body.classList.add('has-bg');}
- else{if(!document.getElementById('dc-bg3-layer')){var l=document.createElement('div');l.id='dc-bg3-layer';var v=document.createElement('div');v.id='dc-bg3-veil';document.body.appendChild(l);document.body.appendChild(v);}document.getElementById('dc-bg3-layer').style.backgroundImage="url('"+u+"')";document.getElementById('dc-bg3-veil').style.display='block';}};
-im.onerror=function(){clearBg();};im.src=u;}
-function hook(){var inp=document.getElementById('bgInput');if(inp){inp.onchange=function(e){var f=e.target.files&&e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){var img=new Image();img.onload=function(){var max=2560,w=img.width,h=img.height,s=Math.min(1,max/Math.max(w,h));w=Math.round(w*s);h=Math.round(h*s);var c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);c.toBlob(function(blob){(async function(){try{if(typeof sb!=='undefined'&&sb){await sb.storage.from('system-assets').upload(KEY,blob,{upsert:true,contentType:'image/jpeg'});apply(true);}}catch(err){console.error(err);}})();},'image/jpeg',0.85);};img.src=r.result;};r.readAsDataURL(f);};}}
-function run(){apply(false);hook();}
-if(document.readyState!=='loading')run();else document.addEventListener('DOMContentLoaded',run);
-setTimeout(run,1800);
+var BASE='https://wwytzoyeibekhstinott.supabase.co/storage/v1/object/public/system-assets/'+KEY;
+function L(){var el=document.getElementById('appBg');if(el)return el;el=document.getElementById('dc-bg3-layer');if(el)return el;el=document.createElement('div');el.id='dc-bg3-layer';el.style.cssText='position:fixed;inset:0;z-index:-1;background-size:cover;background-position:center;background-repeat:no-repeat;';document.body.insertBefore(el,document.body.firstChild);return el;}
+function show(u){var im=new Image();im.onload=function(){L().style.backgroundImage="url('"+u+"')";document.body.classList.add('has-bg');};im.src=u;}
+function load(){show(BASE+'?t='+Date.now());}
+var hooked=false;
+function hook(){var inp=document.getElementById('bgInput');if(!inp||hooked)return;hooked=true;inp.addEventListener('change',function(e){var f=e.target.files&&e.target.files[0];if(!f)return;var rd=new FileReader();rd.onload=function(){var img=new Image();img.onload=function(){var mw=2560,sc=Math.min(1,mw/Math.max(img.width,img.height));var c=document.createElement('canvas');c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);c.getContext('2d').drawImage(img,0,0,c.width,c.height);c.toBlob(async function(blob){try{if(typeof sb==='undefined'||!sb){alert('Sessao nao carregada, recarregue a pagina.');return;}await sb.storage.from('system-assets').upload(KEY,blob,{upsert:true,contentType:'image/jpeg',cacheControl:'0'});show(BASE+'?t='+Date.now());if(window.dcToast)dcToast('Fundo deste app atualizado!','ok');}catch(err){alert('Erro ao salvar o fundo: '+((err&&err.message)||err));}},'image/jpeg',0.85);};img.src=rd.result;};rd.readAsDataURL(f);e.target.value='';});}
+function start(){load();hook();}
+if(document.readyState!=='loading')start();else document.addEventListener('DOMContentLoaded',start);
+var n=0,iv=setInterval(function(){hook();if(hooked||++n>15)clearInterval(iv);},500);
 })();</script>
 </body>
 </html>
