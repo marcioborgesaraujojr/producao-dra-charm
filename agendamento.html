@@ -102,13 +102,15 @@
 
     <!-- AGENDA -->
     <section id="tab-agenda" class="fade">
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="text-xs uppercase tracking-wide text-slate-400">Próximas visitas</h2>
-        <button id="btnRefresh" class="text-xs text-pink-500 hover:underline">Atualizar</button>
+      <div class="bg-white/85 dark:bg-ink-800/85 backdrop-blur border border-slate-200 dark:border-ink-600 rounded-2xl p-5 shadow-sm">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-xs uppercase tracking-wide text-slate-500 font-semibold">Próximas visitas</h2>
+          <button id="btnRefresh" class="text-xs text-pink-500 hover:underline">Atualizar</button>
+        </div>
+        <div id="listaAgenda" class="space-y-2"></div>
+        <h2 class="text-xs uppercase tracking-wide text-slate-500 font-semibold mt-8 mb-3">Links enviados aguardando o cliente</h2>
+        <div id="listaPendentes" class="space-y-2"></div>
       </div>
-      <div id="listaAgenda" class="space-y-2"></div>
-      <h2 class="text-xs uppercase tracking-wide text-slate-400 mt-8 mb-3">Links enviados aguardando o cliente</h2>
-      <div id="listaPendentes" class="space-y-2"></div>
     </section>
 
     <!-- GERAR LINK -->
@@ -255,7 +257,7 @@ async function carregarAgenda(){
 function cardAgenda(a){
   const tel = a.cliente_telefone ? soDigitos(a.cliente_telefone) : '';
   const whats = tel ? `<a href="https://wa.me/${telParaWhats(tel)}" target="_blank" rel="noopener" class="text-emerald-500 text-xs hover:underline">WhatsApp</a>` : '';
-  return `<div class="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-xl p-3 flex items-center justify-between shadow-sm">
+  return `<div class="bg-slate-50 dark:bg-ink-900/60 border border-slate-200 dark:border-ink-600 rounded-xl p-3 flex items-center justify-between">
     <div><p class="font-medium text-sm">${escapeHtml(a.cliente_nome)}</p>
     <p class="text-xs text-slate-400">${fmtDia(a.inicio)} · ${fmtHora(a.inicio)}–${fmtHora(a.fim)} ${a.cliente_telefone?('· '+escapeHtml(a.cliente_telefone)):''}</p></div>
     <div class="flex items-center gap-3">${whats}<button data-cancelar="${a.id}" data-link="${a.link_id||''}" class="text-red-500 text-xs hover:underline">Cancelar</button></div></div>`;
@@ -265,7 +267,7 @@ function cardPendente(l){
   const tel = l.cliente_telefone ? telParaWhats(l.cliente_telefone) : '';
   const msg = encodeURIComponent('Oi '+ (l.cliente_nome||'') +'! Para marcar sua visita e escolher as peças, é só acessar: '+url);
   const whats = tel ? `<a href="https://wa.me/${tel}?text=${msg}" target="_blank" rel="noopener" class="text-emerald-500 text-xs hover:underline">Enviar</a>` : '';
-  return `<div class="bg-white/70 dark:bg-ink-800/60 border border-slate-200 dark:border-ink-600 rounded-xl p-3 flex items-center justify-between">
+  return `<div class="bg-slate-50 dark:bg-ink-900/60 border border-slate-200 dark:border-ink-600 rounded-xl p-3 flex items-center justify-between">
     <div class="min-w-0"><p class="font-medium text-sm">${escapeHtml(l.cliente_nome)}</p>
     <p class="text-xs text-slate-400 truncate max-w-[200px]">${escapeHtml(l.cliente_telefone||'sem telefone')}</p></div>
     <div class="flex items-center gap-3 shrink-0"><button data-copy="${escapeHtml(url)}" class="text-pink-500 text-xs hover:underline">Copiar link</button>${whats}<button data-cancelarlink="${l.id}" class="text-red-500 text-xs hover:underline">Excluir</button></div></div>`;
