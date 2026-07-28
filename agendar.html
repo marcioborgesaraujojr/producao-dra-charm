@@ -4,9 +4,13 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Agendar visita — Dra. Charm</title>
-<link id="faviconLink" rel="icon" type="image/png" href="/dra-charm-icon.png">
+<link id="faviconLink" rel="icon" type="image/png" href="https://cdn.awsli.com.br/1930/1930166/arquivos/logo.png">
 <link rel="apple-touch-icon" href="/dra-charm-icon.png">
-<meta name="theme-color" content="#ff4b7d">
+<script>
+  // Favicon igual ao resto da suíte (system-assets/favicon.png; cai no default se não existir)
+  (function(){ try{ var u='https://wwytzoyeibekhstinott.supabase.co/storage/v1/object/public/system-assets/favicon.png?t='+Date.now(); var img=new Image(); img.onload=function(){ var f=document.getElementById('faviconLink'); if(f) f.href=u; }; img.src=u; }catch(e){} })();
+</script>
+<meta name="theme-color" content="#eb4f71">
 <!-- Pré-visualização (WhatsApp, redes) -->
 <meta property="og:type" content="website">
 <meta property="og:title" content="Agendar visita — Dra. Charm">
@@ -14,6 +18,10 @@
 <meta property="og:image" content="https://producao-dra-charm.vercel.app/dra-charm-logo.png">
 <meta name="twitter:card" content="summary">
 <script src="https://cdn.tailwindcss.com"></script>
+<script>
+  // Rosa da marca Dra. Charm (#ff3c6f) sobrescrevendo a paleta pink
+  tailwind.config = { theme:{ extend:{ colors:{ pink:{50:'#fdeef2',100:'#fae2e9',400:'#ef84b0',500:'#eb4f71',600:'#d63f62'} } } } };
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   html,body{margin:0}
@@ -31,6 +39,10 @@
   .dc-load{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:40px 8px}
   .dc-logo-img{width:76px;height:76px;object-fit:contain;animation:dc-breathe 1.5s ease-in-out infinite}
   @keyframes dc-breathe{0%,100%{opacity:.55;transform:scale(.92)}50%{opacity:1;transform:scale(1)}}
+  /* Efeito "desenhando" a florzinha */
+  .draw-flor path,.draw-flor circle{stroke-dasharray:100;animation:dcdraw 2s ease-in-out infinite}
+  .draw-flor circle{animation-delay:.15s}
+  @keyframes dcdraw{0%{stroke-dashoffset:100}45%{stroke-dashoffset:0}55%{stroke-dashoffset:0}100%{stroke-dashoffset:-100}}
   .slot:disabled{opacity:.35;cursor:not-allowed}
   ::-webkit-scrollbar{height:6px;width:6px}::-webkit-scrollbar-thumb{background:#f3b8cd;border-radius:9px}
 </style>
@@ -64,12 +76,18 @@
 
     <!-- carregando -->
     <div id="loading">
-      <div class="dc-load"><img src="/dra-charm-icon.png" class="dc-logo-img" alt="" /><span class="text-xs text-slate-400">Carregando…</span></div>
+      <div class="dc-load">
+        <svg class="draw-flor" viewBox="0 0 100 100" width="72" height="72" fill="none" stroke="#eb4f71" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+          <path pathLength="100" d="M30.2,30.2 A20,20 0 0 1 69.8,30.2 A20,20 0 0 1 69.8,69.8 A20,20 0 0 1 30.2,69.8 A20,20 0 0 1 30.2,30.2 Z"/>
+          <circle pathLength="100" cx="50" cy="50" r="8"/>
+        </svg>
+        <span class="text-xs text-slate-400">Carregando…</span>
+      </div>
     </div>
 
     <!-- erro -->
     <div id="erro" class="hidden text-center py-4 fade">
-      <svg class="w-10 h-10 mx-auto mb-2 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L14.7 3.9a2 2 0 00-3.4 0z"/></svg>
+      <svg class="w-10 h-10 mx-auto mb-2 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L14.7 3.9a2 2 0 00-3.4 0z"/></svg>
       <p id="erroMsg" class="text-slate-600">Este link não é válido.</p>
       <p class="text-xs text-slate-400 mt-2">Fale com a nossa equipe para receber um novo link.</p>
     </div>
@@ -112,7 +130,7 @@
 
     <!-- Logo Dra. Charm no rodapé -->
     <div class="flex justify-center mt-6 pt-4 border-t border-slate-200/70">
-      <img src="/dra-charm-logo.png" alt="Dra. Charm" class="h-10 object-contain opacity-90" />
+      <img src="/dra-charm-logo.png" alt="Dra. Charm" class="h-14 object-contain opacity-95" />
     </div>
   </div>
 </div>
