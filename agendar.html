@@ -66,7 +66,7 @@
   const CONFIG = {
     SUPABASE_URL: 'https://wwytzoyeibekhstinott.supabase.co', // fallback; a chave é puxada da suíte
     EMPRESA_NOME: 'Dra. Charm',
-    ENDERECO: '',               // endereço (aparece no convite de calendário)
+    ENDERECO: 'Rua Carlos Câmara, 1738D — Damas, Fortaleza/CE (porta ao lado do Açaí Açailândia)',  // showroom de fábrica
     DIAS_VISIVEIS: 21,
     WHATSAPP_FABRICA: ''        // opcional, só dígitos com DDI, ex.: '5585999999999'
   };
@@ -119,6 +119,7 @@
       <div class="text-center mb-4">
         <h1 id="hdrTitulo" class="text-2xl font-extrabold text-[#1a2036] tracking-tight">Olá!</h1>
         <p class="text-sm text-slate-500" id="saudacao"></p>
+        <p class="text-xs text-slate-500 mt-2 inline-flex items-start gap-1 justify-center" id="localLinha"></p>
       </div>
       <p class="text-xs uppercase tracking-wide text-pink-500 font-semibold mb-2">Escolha o dia</p>
       <div id="dias" class="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1"></div>
@@ -255,7 +256,8 @@ async function init(){
     show('jaAgendou'); return;
   }
   $('hdrTitulo').textContent = 'Olá, ' + primeiroNome(data.cliente_nome) + '!';
-  $('saudacao').textContent = 'Escolha um dia e um horário para vir à '+CONFIG.EMPRESA_NOME+' escolher as peças.';
+  $('saudacao').textContent = 'Escolha um dia e um horário para vir ao nosso showroom de fábrica escolher as peças.';
+  if (CONFIG.ENDERECO) $('localLinha').innerHTML = '<svg class="w-4 h-4 mt-px shrink-0 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><span class="text-left">'+CONFIG.ENDERECO+'</span>';
   renderDias(data.config);
   show('agendador');
 }
