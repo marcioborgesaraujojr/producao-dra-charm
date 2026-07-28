@@ -501,6 +501,18 @@
         <span class="hub-card-badge bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">Ativo</span>
       </button>
 
+      <!-- Agendamento de Visitas -->
+      <button type="button" onclick="location.href='/agendamento.html'" data-access="agendamento" class="hub-card group text-left hidden">
+        <div class="hub-card-icon text-white" style="background:linear-gradient(135deg,#ff3c6f,#d946ef)">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/><path d="M9 15l2 2 4-4"/></svg>
+        </div>
+        <div class="hub-card-body">
+          <div class="hub-card-title">Agendamento de Visitas</div>
+          <div class="hub-card-desc">Marque horários dos clientes na loja para escolher as peças</div>
+        </div>
+        <span class="hub-card-badge bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">Ativo</span>
+      </button>
+
       <!-- Painel de Controle (admin) -->
       <button class="hub-card group text-left hidden" id="hubPainelCard" data-hub-open="painel">
         <div class="hub-card-icon bg-gradient-to-br from-slate-800 to-slate-900 text-white">
@@ -1794,17 +1806,16 @@ function renderBoardSelect(){
   sel.value = currentBoardId || boards[0]?.id;
 }
 
-async function switchBoard(boardId){
+async function switchBoard(boardId, opts){
+  opts = opts || {};
+  const _silent = !!opts.silent;   // refresh silencioso (realtime): não limpa o board nem mostra "carregando"
   currentBoardId = boardId;
   // Mantém o seletor de quadro sempre igual ao quadro realmente carregado
   const _bs = document.getElementById('boardSelect'); if (_bs && _bs.value !== boardId) _bs.value = boardId;
   try { localStorage.setItem('dc_last_board', boardId); } catch(e){}
   renderBoardMembers(boardId);
-  filters.faccao.clear();
-  filters.alerta = 'todos';
-  { const _af = document.getElementById('alertaFilter'); if (_af) _af.value = 'todos'; }
-  document.getElementById('board').innerHTML = '';
-  showBoardLoading();
+  if (!_silent){ filters.faccao.clear(); filters.alerta = 'todos'; const _af = document.getElementById('alertaFilter'); if (_af) _af.value = 'todos'; }
+  if (!_silent){ document.getElementById('board').innerHTML = ''; showBoardLoading(); }
   const b = boards.find(x => x.id === boardId);
   applyBoardBackground(b?.background_url);
   // Divergências já aprovadas por mim (pra não repintar card que eu já dei ok)
@@ -4717,6 +4728,16 @@ function playNotifSound(){
 // Deixa o áudio "destravado" no primeiro clique/tecla do usuário (política de autoplay dos navegadores)
 document.addEventListener('click', () => { try{ _audioCtx = _audioCtx || new (window.AudioContext||window.webkitAudioContext)(); if(_audioCtx.state==='suspended') _audioCtx.resume(); }catch(e){} }, { once: true });
 
+// Atualização automática (realtime) SEM piscar o "carregando": recarrega o quadro em silêncio
+// e junta várias mudanças seguidas numa só atualização (debounce), pra não recarregar a cada card.
+let _boardRefreshTimer = null;
+function scheduleBoardRefresh(){
+  if (_boardRefreshTimer) return;
+  _boardRefreshTimer = setTimeout(async () => {
+    _boardRefreshTimer = null;
+    if (currentBoardId){ try { await switchBoard(currentBoardId, { silent: true }); } catch(e){ console.warn('refresh silencioso falhou:', e); } }
+  }, 600);
+}
 function subscribeRealtime(){
   sb.channel('notifs')
     .on('postgres_changes', {event:'INSERT', schema:'public', table:'notifications', filter:`user_id=eq.${user.id}`}, payload => {
@@ -4726,9 +4747,13 @@ function subscribeRealtime(){
       playNotifSound();
     }).subscribe();
   sb.channel('board-changes')
-    .on('postgres_changes', {event:'*', schema:'public', table:'cards'}, async () => {
+    .on('postgres_changes', {event:'*', schema:'public', table:'cards'}, (payload) => {
       if (Date.now() - _localMoveAt < 1500) return; // mudança feita aqui mesmo, já aplicada localmente (evita render duplo/piscada)
-      if (currentBoardId) await switchBoard(currentBoardId);
+      // Só atualiza se a mudança for de um card DESTE quadro — não recarrega quando mexem em OUTRO quadro.
+      const _row = (payload && (payload.new || payload.old)) || {};
+      const _lid = _row.list_id;
+      if (_lid && Array.isArray(lists) && lists.length && !lists.some(l => l.id === _lid)) return;
+      scheduleBoardRefresh();
     })
     .on('postgres_changes', {event:'*', schema:'public', table:'comments'}, () => {
       if (activeCardId) loadComments(activeCardId);
@@ -5281,6 +5306,7 @@ window.openUsers = async () => {
       {key:'cep', label:'CEP'},
       {key:'atendimento', label:'Atendimento'},
       {key:'cade_pedido', label:'Rastreio de Pedido'},
+      {key:'agendamento', label:'Agendamento de Visitas'},
       {key:'marketing', label:'Marketing'},
       {key:'painel', label:'Painel'},
     ];
