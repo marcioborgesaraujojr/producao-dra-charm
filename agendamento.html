@@ -268,7 +268,7 @@ function toggleDark(){ const on = document.documentElement.classList.toggle('dar
 // Fundo próprio deste app, salvo no SERVIDOR (bg-agendamento.jpg) — fica fixo pro app, em qualquer aparelho.
 const DC_BG_KEY = 'bg-agendamento.jpg';
 const DC_BG_URL = 'https://wwytzoyeibekhstinott.supabase.co/storage/v1/object/public/system-assets/' + DC_BG_KEY;
-function dcApplyBg(bust){ const u = DC_BG_URL + (bust ? ('?t='+Date.now()) : ''); const im = new Image(); im.onload = function(){ $('appBg').style.backgroundImage = "url('"+u+"')"; document.body.classList.add('has-bg'); }; im.onerror = function(){ $('appBg').style.backgroundImage = ''; document.body.classList.remove('has-bg'); }; im.src = u; }
+function dcApplyBg(bust){ const u = DC_BG_URL + '?t=' + Date.now(); const im = new Image(); im.onload = function(){ $('appBg').style.backgroundImage = "url('"+u+"')"; document.body.classList.add('has-bg'); }; im.onerror = function(){ if(!document.body.classList.contains('has-bg')){ $('appBg').style.backgroundImage=''; } }; im.src = u; }
 dcApplyBg(false);
 $('bgInput').onchange = (e) => {
   const f = e.target.files[0]; if(!f) return;
@@ -284,7 +284,7 @@ $('bgInput').onchange = (e) => {
         if(!blob){ dcToast('Não foi possível processar a imagem.','err'); return; }
         dcToast('Salvando fundo…','info');
         try{
-          const { error } = await sb.storage.from('system-assets').upload(DC_BG_KEY, blob, { upsert:true, contentType:'image/jpeg' });
+          const { error } = await sb.storage.from('system-assets').upload(DC_BG_KEY, blob, { upsert:true, contentType:'image/jpeg', cacheControl:'0' });
           if(error) throw error;
           dcApplyBg(true);
           dcToast('Fundo deste app atualizado!','ok');
