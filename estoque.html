@@ -20,7 +20,7 @@
   .dark body.has-bg #appBg::after{background:rgba(0,0,0,.5)}
   body.has-bg::before{content:'';position:fixed;inset:0;background:rgba(255,255,255,.42);pointer-events:none;z-index:0}
   body.has-bg #appWrap{position:relative;z-index:1}
-  body.has-bg header{background:rgba(255,255,255,.85)!important;backdrop-filter:blur(12px)}
+  body.has-bg header{background:rgba(255,255,255,.85)!important;backdrop-filter:blur(8px)}
   body.has-bg.dark header{background:rgba(17,24,39,.85)!important}
   .tabbar{display:inline-flex;gap:4px;padding:5px;border-radius:14px;background:rgba(255,255,255,.72);backdrop-filter:blur(10px);box-shadow:0 2px 10px rgba(15,23,42,.08);border:1px solid rgba(255,255,255,.5)}
   .dark .tabbar{background:rgba(17,24,39,.72);border-color:rgba(255,255,255,.08)}
@@ -78,9 +78,9 @@
   /* cards "flutuando": fosco/translúcido + sombra cinza suave (não altera o fundo) */
   .rounded-2xl.border.bg-white{
     background:rgba(255,255,255,.85);
-    -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
-    box-shadow:0 10px 26px rgba(17,24,39,.09), 0 2px 6px rgba(17,24,39,.04);
-    border-color:rgba(255,255,255,.6);
+    -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+    box-shadow:0 1px 3px rgba(15,23,42,.08);
+    border-color:rgba(226,232,240,.9);
   }
   html.dark .rounded-2xl.border.dark\:bg-ink-800{
     background:rgba(17,24,39,.72);
@@ -89,7 +89,12 @@
   }
   /* leve 3D nos cards clicáveis ao passar o mouse */
   button.rounded-2xl.border.bg-white, a.rounded-2xl.border.bg-white{transition:transform .16s ease, box-shadow .16s ease}
-  button.rounded-2xl.border.bg-white:hover, a.rounded-2xl.border.bg-white:hover{transform:translateY(-2px); box-shadow:0 16px 34px rgba(17,24,39,.12), 0 4px 10px rgba(17,24,39,.05)}
+  button.rounded-2xl.border.bg-white:hover, a.rounded-2xl.border.bg-white:hover{box-shadow:0 4px 12px rgba(15,23,42,.10)}
+</style>
+
+<style id="dc-glass">/* glass-card */
+.card{background:rgba(255,255,255,.85); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); box-shadow:0 1px 3px rgba(15,23,42,.08); border-color:rgba(226,232,240,.9)}
+.dark .card{background:rgba(17,24,39,.72); border-color:rgba(255,255,255,.08)}
 </style>
 </head>
 <body class="text-slate-800 dark:text-slate-100">

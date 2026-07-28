@@ -20,10 +20,10 @@
   .dark body.has-bg #appBg::after{background:rgba(0,0,0,.5)}
   body.has-bg::before{content:'';position:fixed;inset:0;background:rgba(255,255,255,.42);pointer-events:none;z-index:0}
   body.has-bg #appWrap{position:relative;z-index:1;background:transparent !important;background-image:none !important}
-  body.has-bg header{background:rgba(255,255,255,.85)!important;backdrop-filter:blur(12px)}
+  body.has-bg header{background:rgba(255,255,255,.85)!important;backdrop-filter:blur(8px)}
   body.has-bg.dark header{background:rgba(17,24,39,.85)!important}
   /* CEP-specific (extraído do index.html) */
-  body.has-bg #cepHeader{background:rgba(255,255,255,.85)!important;backdrop-filter:blur(12px)}
+  body.has-bg #cepHeader{background:rgba(255,255,255,.85)!important;backdrop-filter:blur(8px)}
   body.has-bg.dark #cepHeader{background:rgba(17,24,39,.85)!important}
   ::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px}.dark ::-webkit-scrollbar-thumb{background:#475569}
 </style>
@@ -38,9 +38,9 @@
   /* cards de conteúdo "saltando" da página: fosco/translúcido (igual ao agendar) + sombra suave */
   #appWrap .rounded-2xl.border.bg-white{
     background:rgba(255,255,255,.85);
-    backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
-    box-shadow:0 10px 26px rgba(17,24,39,.09), 0 2px 6px rgba(17,24,39,.04);
-    border-color:rgba(255,255,255,.6);
+    backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+    box-shadow:0 1px 3px rgba(15,23,42,.08);
+    border-color:rgba(226,232,240,.9);
   }
   html.dark #appWrap .rounded-2xl.border.bg-white{
     background:rgba(17,24,39,.72) !important;
@@ -49,10 +49,10 @@
   }
   /* leve 3D nos cards de KPI ao passar o mouse */
   #appWrap .cep-kpi{transition:transform .16s ease, box-shadow .16s ease}
-  #appWrap .cep-kpi:hover{transform:translateY(-2px); box-shadow:0 16px 34px rgba(17,24,39,.12), 0 4px 10px rgba(17,24,39,.05)}
+  #appWrap .cep-kpi:hover{box-shadow:0 4px 12px rgba(15,23,42,.10)}
   html.dark #appWrap .cep-kpi:hover{box-shadow:0 22px 50px rgba(0,0,0,.55), 0 5px 14px rgba(0,0,0,.4)}
   /* header também flutua um tiquinho */
-  #cepHeader{box-shadow:0 6px 18px rgba(15,23,42,.06)}
+  #cepHeader{}
 </style>
 </head>
 <body class="text-slate-800 dark:text-slate-100">
