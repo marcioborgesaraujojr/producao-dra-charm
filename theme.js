@@ -44,3 +44,36 @@ tailwind.config = {
     }
   }
 };
+
+/* ============================================================
+   INTERAÇÃO CENTRAL — hovers/estados iguais em TODOS os apps.
+   Um só lugar. Se mudar a marca, muda aqui e vale pra tudo.
+   Como usar nas classes/CSS de qualquer app:
+     var(--dc-pink-50)   -> fundo do hover rosa (bem clarinho)
+     var(--dc-pink-600)  -> texto/realce do hover rosa
+     var(--dc-pink-200)  -> borda do hover rosa
+     var(--dc-lift)      -> sombra "saltar" ao passar o mouse (cards)
+   Classes prontas (funcionam em qualquer app que carrega o theme.js):
+     .dc-lift        -> card clicável ganha leve 3D no hover
+     .dc-refreshing  -> gira o ícone (setinhas) enquanto atualiza
+   ============================================================ */
+(function(){
+  try {
+    var css = ''
+      + ':root{'
+      +   '--dc-pink:#ff3c6f;--dc-pink-600:#ec2560;--dc-pink-700:#c81a4e;'
+      +   '--dc-pink-50:#fff1f4;--dc-pink-100:#ffe1e8;--dc-pink-200:#ffc9d6;--dc-pink-300:#ff9db4;'
+      +   '--dc-lift:0 4px 12px rgba(15,23,42,.10);'
+      + '}'
+      /* card clicável: leve 3D no hover (mesmo efeito em todo lugar) */
+      + '.dc-lift{transition:transform .16s ease, box-shadow .16s ease}'
+      + '.dc-lift:hover{box-shadow:var(--dc-lift)}'
+      /* girar o ícone de atualizar enquanto carrega */
+      + '@keyframes dc-spin{to{transform:rotate(360deg)}}'
+      + '.dc-refreshing svg{animation:dc-spin .7s linear infinite}';
+    var s = document.createElement('style');
+    s.id = 'dc-ui';
+    s.textContent = css;
+    (document.head || document.documentElement).appendChild(s);
+  } catch(e){}
+})();

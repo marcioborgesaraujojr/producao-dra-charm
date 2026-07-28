@@ -30,6 +30,13 @@
   html.dark body.has-bg header{background:rgba(17,26,46,.85)!important}
   .fade{animation:fade .2s ease}@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1}}
   .tab-on{background:#ff3c6f!important;color:#fff!important;border-color:#ff3c6f!important}
+  .tab{transition:background .15s,border-color .15s,color .15s}
+  .tab:not(.tab-on):hover{border-color:var(--dc-pink-300);color:var(--dc-pink-600);background:var(--dc-pink-50)}
+  html.dark .tab:not(.tab-on):hover{background:rgba(255,60,111,.12);color:#f9a8c4;border-color:rgba(255,60,111,.35)}
+  #btnRefresh:hover{background:var(--dc-pink-50);color:var(--dc-pink-600);border-color:var(--dc-pink-200)}
+  html.dark #btnRefresh:hover{background:rgba(255,60,111,.14);color:#f9a8c4;border-color:rgba(255,60,111,.3)}
+  #btnRefresh.loading{pointer-events:none;opacity:.85;background:var(--dc-pink-50);color:var(--dc-pink-600);border-color:var(--dc-pink-200)}
+  #btnRefresh.loading svg{animation:dc-spin .7s linear infinite}
   /* Carregando: logo "A" pulsando, igual ao quadro de produção */
   .dc-load{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:56px 16px;min-height:40vh}
   .dc-logo-img{width:72px;height:72px;object-fit:contain;animation:dc-breathe 1.5s ease-in-out infinite}
@@ -514,16 +521,22 @@ document.querySelectorAll('.tab').forEach(b=>{
 // ---- AGENDA ----
 $('btnRefresh').onclick = carregarAgenda;
 async function carregarAgenda(){
-  const agora = new Date(Date.now() - 3600000).toISOString();
-  const { data: ags, error } = await sb.from('ag_agendamentos').select('*').eq('status','confirmado').gte('inicio', agora).order('inicio');
-  const cont = $('listaAgenda');
-  if (error){ cont.innerHTML = '<p class="text-red-500 text-sm">Erro ao carregar.</p>'; return; }
-  const reais = (ags||[]).filter(a => !a.bloqueio);   // esconde os bloqueios (agendamentos fantasma)
-  cont.innerHTML = reais.length ? reais.map(cardAgenda).join('') : '<p class="text-slate-400 text-sm">Nenhuma visita marcada ainda.</p>';
-  const { data: links } = await sb.from('ag_links').select('*').eq('status','ativo').order('criado_em',{ascending:false}).limit(30);
-  const cp = $('listaPendentes');
-  cp.innerHTML = (links && links.length) ? links.map(cardPendente).join('') : '<p class="text-slate-400 text-sm">Nenhum link pendente.</p>';
-  ligarBotoes();
+  const rb = $('btnRefresh'); const t0 = Date.now(); if (rb) rb.classList.add('loading');
+  try {
+    const agora = new Date(Date.now() - 3600000).toISOString();
+    const { data: ags, error } = await sb.from('ag_agendamentos').select('*').eq('status','confirmado').gte('inicio', agora).order('inicio');
+    const cont = $('listaAgenda');
+    if (error){ cont.innerHTML = '<p class="text-red-500 text-sm">Erro ao carregar.</p>'; return; }
+    const reais = (ags||[]).filter(a => !a.bloqueio);   // esconde os bloqueios (agendamentos fantasma)
+    cont.innerHTML = reais.length ? reais.map(cardAgenda).join('') : '<p class="text-slate-400 text-sm">Nenhuma visita marcada ainda.</p>';
+    const { data: links } = await sb.from('ag_links').select('*').eq('status','ativo').order('criado_em',{ascending:false}).limit(30);
+    const cp = $('listaPendentes');
+    cp.innerHTML = (links && links.length) ? links.map(cardPendente).join('') : '<p class="text-slate-400 text-sm">Nenhum link pendente.</p>';
+    ligarBotoes();
+  } finally {
+    const el = Date.now() - t0; if (el < 550) await new Promise(r=>setTimeout(r, 550 - el));
+    if (rb) rb.classList.remove('loading');
+  }
 }
 function cardAgenda(a){
   REAG[a.id] = a;
