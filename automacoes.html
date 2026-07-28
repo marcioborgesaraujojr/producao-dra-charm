@@ -8,20 +8,20 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
 tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
-  ink:{900:'#0b1220',800:'#111827',700:'#1f2937',600:'#374151'}, accent:{DEFAULT:'#e91e63',600:'#db2777'} }}}};
+  ink:{900:'#0b1220',800:'#111827',700:'#1f2937',600:'#374151'}, accent:{DEFAULT:'#ff3c6f',600:'#ff3c6f'} }}}};
 </script>
 <style>
   html{background:#f1f5f9}html.dark{background:#0b1220}
   body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0}
   .scroll{scrollbar-width:thin}.scroll::-webkit-scrollbar{width:8px}.scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px}.dark .scroll::-webkit-scrollbar-thumb{background:#475569}
   .tab{padding:8px 4px;font-size:14px;font-weight:600;color:#64748b;cursor:pointer;border-bottom:2px solid transparent}
-  .tab[data-active="1"]{color:#db2777;border-bottom-color:#db2777}.dark .tab{color:#94a3b8}
+  .tab[data-active="1"]{color:#ff3c6f;border-bottom-color:#ff3c6f}.dark .tab{color:#94a3b8}
   .switch{width:42px;height:24px;border-radius:999px;background:#cbd5e1;position:relative;cursor:pointer;transition:background .15s;flex-shrink:0}
-  .switch[data-on="1"]{background:#db2777}
+  .switch[data-on="1"]{background:#ff3c6f}
   .switch::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s}
   .switch[data-on="1"]::after{left:21px}
   .dark .switch{background:#374151}
-  .var-chip{font-size:11px;font-family:ui-monospace,monospace;background:#fdf2f8;color:#db2777;border:1px solid #fbcfe8;border-radius:6px;padding:2px 6px;cursor:pointer}
+  .var-chip{font-size:11px;font-family:ui-monospace,monospace;background:#fdf2f8;color:#ff3c6f;border:1px solid #fbcfe8;border-radius:6px;padding:2px 6px;cursor:pointer}
   .dark .var-chip{background:#3f1d2b;color:#f9a8d4;border-color:#6d2647}
   [data-fade]{animation:fade .18s ease}@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 </style>
@@ -48,6 +48,15 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
   button.rounded-2xl.border.bg-white, a.rounded-2xl.border.bg-white{transition:transform .16s ease, box-shadow .16s ease}
   button.rounded-2xl.border.bg-white:hover, a.rounded-2xl.border.bg-white:hover{transform:translateY(-2px); box-shadow:0 22px 50px rgba(15,23,42,.20), 0 5px 14px rgba(15,23,42,.09)}
 </style>
+<style id="dc-brand-mini">
+.bg-pink-50{background-color:#fff1f4!important}.bg-pink-100{background-color:#ffe1e8!important}.bg-pink-500{background-color:#ff3c6f!important}.bg-pink-600{background-color:#ec2560!important}
+.text-pink-300{color:#ff9db4!important}.text-pink-400{color:#ff6b90!important}.text-pink-500{color:#ff3c6f!important}.text-pink-600{color:#ec2560!important}.text-pink-700{color:#c81a4e!important}
+.border-pink-400{border-color:#ff6b90!important}.border-pink-500{border-color:#ff3c6f!important}
+.hover\:bg-pink-50:hover{background-color:#fff1f4!important}.hover\:bg-pink-600:hover{background-color:#ec2560!important}.hover\:bg-pink-700:hover{background-color:#c81a4e!important}.hover\:text-pink-600:hover{color:#ec2560!important}
+.accent-pink-500{accent-color:#ff3c6f!important}.accent-pink-600{accent-color:#ec2560!important}
+.ring-pink-500{--tw-ring-color:#ff3c6f!important}
+.bg-pink-900\/30{background-color:rgba(122,16,48,.3)!important}.dark .dark\:bg-pink-900\/30{background-color:rgba(122,16,48,.3)!important}.dark .dark\:text-pink-300{color:#ff9db4!important}
+</style>
 </head>
 <body class="text-slate-800 dark:text-slate-100">
 
@@ -62,11 +71,11 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
 <div id="appWrap" class="hidden">
 <header class="h-14 flex items-center justify-between px-4 bg-white/95 dark:bg-ink-800/95 border-b border-slate-200 dark:border-ink-600 sticky top-0 z-30 backdrop-blur">
   <div class="flex items-center gap-3">
-    <button onclick="location.href='/'" title="Voltar à Suíte" class="w-9 h-9 rounded-xl overflow-hidden shadow hover:scale-105 hover:shadow-md transition"><img src="/icone-app.png" alt="Aragão" class="w-full h-full object-cover"></button>
+    <button onclick="location.href='/'" title="Voltar à Suíte" class="w-9 h-9 rounded-xl shadow hover:scale-105 hover:shadow-md transition flex items-center justify-center text-white bg-gradient-to-br from-amber-500 to-orange-500"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg></button>
     <div class="leading-tight"><div class="text-sm font-semibold">Automações</div><div class="text-[11px] text-slate-500 dark:text-slate-400">Gatilhos e Fila de envios · Grupo Aragão</div></div>
   </div>
   <div class="flex items-center gap-1">
-    <button onclick="location.href='/'" class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 flex items-center justify-center text-slate-500" title="Voltar à Suíte"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg></button>
+    <button onclick="location.href='/'" class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 flex items-center justify-center text-slate-500" title="Voltar à Suíte"><img src="/icone-app.png" alt="Suíte" class="w-6 h-6 rounded-md object-cover"></button>
     <button onclick="document.documentElement.classList.toggle('dark')" class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 flex items-center justify-center text-slate-500" title="Tema"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
   </div>
 </header>
