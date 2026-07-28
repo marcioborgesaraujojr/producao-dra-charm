@@ -2324,7 +2324,7 @@ function renderCard(c, compact){
       cover = `<div class="bord-stack shrink-0" style="position:relative;display:inline-flex;margin-right:${bords.length>1?16:0}px">${back}<div style="position:relative;z-index:2">${bordadoPreviewFromInfo(bords[0].info, bords[0].nome, size)}</div>${badge}</div>`;
     }
   } else if (bType === 'estoque' && c.cor_hex){
-    cover = `<div class="product-cover ${compact?'product-cover-compact':'product-cover-normal'}" style="background:${escapeHtml(c.cor_hex)};border:1px solid rgba(0,0,0,.12)"></div>`;
+    cover = `<div class="product-cover ${compact?'product-cover-compact':'product-cover-normal'}" style="background:${escapeHtml(c.cor_hex)};width:${compact?58:118}px;height:${compact?34:42}px"></div>`;
   } else if (c.cover_url){
     cover = `<img src="${escapeHtml(c.cover_url)}" class="product-cover ${compact?'product-cover-compact':'product-cover-normal'}" loading="lazy" onerror="this.style.display='none'"/>`;
   }
