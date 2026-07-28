@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Estoque & Vendas — Sistema Grupo Aragão</title>
 <link rel="icon" type="image/svg+xml" href="/logo_500x500.svg">
-<link rel="icon" type="image/png" href="/icone-app.png">
+<link rel="icon" type="image/png" href="data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20100%20100'%3E%3Cdefs%3E%3ClinearGradient%20id%3D'g'%20x1%3D'0'%20y1%3D'0'%20x2%3D'1'%20y2%3D'1'%3E%3Cstop%20offset%3D'0'%20stop-color%3D'%2310b981'%2F%3E%3Cstop%20offset%3D'1'%20stop-color%3D'%2314b8a6'%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D'100'%20height%3D'100'%20fill%3D'url(%23g)'%2F%3E%3Cg%20transform%3D'translate(26%2026)%20scale(2)'%20fill%3D'none'%20stroke%3D'%23fff'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M3%203h18v4H3z'%2F%3E%3Cpath%20d%3D'M5%207v13a1%201%200%200%200%201%201h12a1%201%200%200%200%201-1V7'%2F%3E%3Cpath%20d%3D'M9%2012h6'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E">
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
 tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
-  ink:{900:'#0b1220',800:'#111827',700:'#1f2937',600:'#374151'}, accent:{DEFAULT:'#e91e63',600:'#db2777'} }}}};
+  ink:{900:'#0b1220',800:'#111827',700:'#1f2937',600:'#374151'}, accent:{DEFAULT:'#ff3c6f',600:'#ec2560'} }}}};
 </script>
 <style>
   html{background:#f1f5f9}html.dark{background:#0b1220}
@@ -25,8 +25,8 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
   .tabbar{display:inline-flex;gap:4px;padding:5px;border-radius:14px;background:rgba(255,255,255,.72);backdrop-filter:blur(10px);box-shadow:0 2px 10px rgba(15,23,42,.08);border:1px solid rgba(255,255,255,.5)}
   .dark .tabbar{background:rgba(17,24,39,.72);border-color:rgba(255,255,255,.08)}
   .tab{padding:7px 14px;border-radius:10px;font-size:14px;font-weight:600;color:#64748b;cursor:pointer;transition:all .12s;display:flex;align-items:center;gap:6px;white-space:nowrap}
-  .tab:not([data-active="1"]):hover{color:#db2777;background:rgba(219,39,119,.08)}
-  .tab[data-active="1"]{background:#db2777;color:#fff;box-shadow:0 2px 8px rgba(219,39,119,.35)}
+  .tab:not([data-active="1"]):hover{color:#ec2560;background:rgba(219,39,119,.08)}
+  .tab[data-active="1"]{background:#ec2560;color:#fff;box-shadow:0 2px 8px rgba(219,39,119,.35)}
   .dark .tab{color:#94a3b8}
   .card{background:#fff;border:1px solid #eef2f7;border-radius:14px}.dark .card{background:#111827;border-color:#334155}
   .prod{background:#fff;border:1px solid #eef2f7;border-radius:14px;overflow:hidden;transition:transform .1s,box-shadow .1s}
@@ -56,7 +56,7 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
   }
   .ico-i{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:999px;border:1px solid #cbd5e1;color:#94a3b8;font-size:9px;font-weight:800;font-style:normal;cursor:help;flex-shrink:0;line-height:1}
   .dark .ico-i{border-color:#475569;color:#94a3b8}
-  .ico-i:hover{border-color:#ec4899;color:#ec4899}
+  .ico-i:hover{border-color:#ff3c6f;color:#ff3c6f}
   .ico-i::after{content:attr(data-tip);position:absolute;left:12px;top:26px;width:230px;background:#0f172a;color:#f1f5f9;font-size:11px;font-weight:500;line-height:1.45;padding:8px 10px;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);opacity:0;visibility:hidden;transform:translateY(-3px);transition:opacity .12s,transform .12s;z-index:40;pointer-events:none;text-align:left}
   .ico-i:hover::after{opacity:1;visibility:visible;transform:none}
   /* Tooltip do gráfico de linha */
@@ -67,6 +67,19 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
   #chartTip .v{font-weight:800;font-size:15px;display:flex;align-items:center;gap:6px}
   #chartTip .v i{width:9px;height:9px;border-radius:999px;background:#7c6cf0;display:inline-block}
 </style>
+<style id="dc-brand-std">
+.bg-pink-50{background-color:#fff1f4!important}.bg-pink-100{background-color:#ffe1e8!important}
+.bg-pink-400{background-color:#ff6b90!important}.bg-pink-500{background-color:#ff3c6f!important}
+.bg-pink-600{background-color:#ec2560!important}.bg-pink-700{background-color:#c81a4e!important}
+.hover\:bg-pink-600:hover{background-color:#ec2560!important}.hover\:bg-pink-700:hover{background-color:#c81a4e!important}
+.text-pink-400{color:#ff6b90!important}.text-pink-500{color:#ff3c6f!important}.text-pink-600{color:#ec2560!important}.text-pink-700{color:#c81a4e!important}
+.hover\:text-pink-600:hover{color:#ec2560!important}
+.border-pink-400{border-color:#ff6b90!important}.border-pink-500{border-color:#ff3c6f!important}.border-pink-600{border-color:#ec2560!important}
+.ring-pink-400{--tw-ring-color:#ff6b90!important}.ring-pink-400\/50{--tw-ring-color:rgba(255,107,144,.5)!important}.ring-pink-500{--tw-ring-color:#ff3c6f!important}
+.from-pink-500{--tw-gradient-from:#ff3c6f var(--tw-gradient-from-position)!important;--tw-gradient-to:rgba(255,60,111,0) var(--tw-gradient-to-position)!important;--tw-gradient-stops:var(--tw-gradient-from),var(--tw-gradient-to)!important}
+.to-pink-600{--tw-gradient-to:#ec2560 var(--tw-gradient-to-position)!important}
+.accent-pink-500,.accent-pink-600{accent-color:#ff3c6f!important}
+</style>
 </head>
 <body class="text-slate-800 dark:text-slate-100">
 <div id="appBg"></div>
@@ -74,7 +87,7 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
 
 <div id="authGate" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-50 dark:bg-ink-900">
   <div class="text-center">
-    <div class="w-14 h-14 mx-auto rounded-2xl overflow-hidden mb-4"><img src="/icone-app.png" alt="Aragão" class="w-full h-full object-cover"></div>
+    <div class="w-14 h-14 mx-auto rounded-2xl overflow-hidden mb-4"><img src="data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20100%20100'%3E%3Cdefs%3E%3ClinearGradient%20id%3D'g'%20x1%3D'0'%20y1%3D'0'%20x2%3D'1'%20y2%3D'1'%3E%3Cstop%20offset%3D'0'%20stop-color%3D'%2310b981'%2F%3E%3Cstop%20offset%3D'1'%20stop-color%3D'%2314b8a6'%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D'100'%20height%3D'100'%20fill%3D'url(%23g)'%2F%3E%3Cg%20transform%3D'translate(26%2026)%20scale(2)'%20fill%3D'none'%20stroke%3D'%23fff'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M3%203h18v4H3z'%2F%3E%3Cpath%20d%3D'M5%207v13a1%201%200%200%200%201%201h12a1%201%200%200%200%201-1V7'%2F%3E%3Cpath%20d%3D'M9%2012h6'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E" alt="Aragão" class="w-full h-full object-cover"></div>
     <div class="font-semibold mb-1">Estoque & Vendas</div>
     <div class="text-sm text-slate-500 mb-4">Você precisa estar logado na Suíte para acessar.</div>
     <a href="/" class="inline-block text-sm font-semibold text-white bg-pink-500 hover:bg-pink-600 px-4 py-2 rounded-lg">Ir para o login da Suíte</a>
@@ -84,7 +97,7 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
 <div id="appWrap" class="hidden">
 <header class="h-14 flex items-center justify-between px-3 sm:px-4 gap-2 bg-white/95 dark:bg-ink-800/95 border-b border-slate-200 dark:border-ink-600 sticky top-0 z-30 backdrop-blur">
   <div class="flex items-center gap-2.5 min-w-0">
-    <button onclick="location.href='/'" title="Voltar à Suíte" class="w-9 h-9 rounded-xl overflow-hidden shadow hover:scale-105 transition flex-shrink-0"><img src="/icone-app.png" alt="Aragão" class="w-full h-full object-cover"></button>
+    <button onclick="location.href='/'" title="Voltar à Suíte" class="w-9 h-9 rounded-xl overflow-hidden shadow hover:scale-105 transition flex-shrink-0"><img src="data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20100%20100'%3E%3Cdefs%3E%3ClinearGradient%20id%3D'g'%20x1%3D'0'%20y1%3D'0'%20x2%3D'1'%20y2%3D'1'%3E%3Cstop%20offset%3D'0'%20stop-color%3D'%2310b981'%2F%3E%3Cstop%20offset%3D'1'%20stop-color%3D'%2314b8a6'%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D'100'%20height%3D'100'%20fill%3D'url(%23g)'%2F%3E%3Cg%20transform%3D'translate(26%2026)%20scale(2)'%20fill%3D'none'%20stroke%3D'%23fff'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M3%203h18v4H3z'%2F%3E%3Cpath%20d%3D'M5%207v13a1%201%200%200%200%201%201h12a1%201%200%200%200%201-1V7'%2F%3E%3Cpath%20d%3D'M9%2012h6'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E" alt="Aragão" class="w-full h-full object-cover"></button>
     <div class="leading-tight min-w-0">
       <div class="text-sm font-semibold truncate">Estoque &amp; Vendas</div>
       <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate">Sistema Grupo Aragão</div>
