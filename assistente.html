@@ -45,6 +45,29 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{ ink:{600:'#47556
 .accent-pink-500{accent-color:#ff3c6f!important}
 </style>
 <script id="dc-fav-std">(function(){try{document.querySelectorAll('link[rel="icon"],link[rel="shortcut icon"]').forEach(function(l){l.remove();});var l=document.createElement('link');l.rel='icon';l.type='image/png';l.href='https://wwytzoyeibekhstinott.supabase.co/storage/v1/object/public/system-assets/favicon.png';document.head.appendChild(l);}catch(e){}})();</script>
+
+<!-- ===== Tema Dra. Charm: Poppins + cards foscos flutuando (mantém o fundo existente) ===== -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style id="dc-theme">
+  body{font-family:'Poppins',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif !important}
+  /* cards "flutuando": fosco/translúcido + sombra cinza suave (não altera o fundo) */
+  .rounded-2xl.border{
+    background:rgba(255,255,255,.82) !important;
+    -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
+    box-shadow:0 16px 40px rgba(15,23,42,.15), 0 3px 10px rgba(15,23,42,.06);
+    border-color:rgba(255,255,255,.6) !important;
+  }
+  html.dark .rounded-2xl.border{
+    background:rgba(17,24,39,.72) !important;
+    box-shadow:0 16px 40px rgba(0,0,0,.5), 0 3px 10px rgba(0,0,0,.35);
+    border-color:rgba(255,255,255,.08) !important;
+  }
+  /* leve 3D nos cards clicáveis ao passar o mouse */
+  button.rounded-2xl.border, a.rounded-2xl.border{transition:transform .16s ease, box-shadow .16s ease}
+  button.rounded-2xl.border:hover, a.rounded-2xl.border:hover{transform:translateY(-2px); box-shadow:0 22px 50px rgba(15,23,42,.20), 0 5px 14px rgba(15,23,42,.09)}
+</style>
 </head>
 <body class="text-slate-800 dark:text-slate-100">
 <div id="appBg"></div>
