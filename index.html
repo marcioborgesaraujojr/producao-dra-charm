@@ -672,7 +672,7 @@
     <div class="px-4 py-2 flex flex-wrap items-center gap-x-2 gap-y-2">
       <!-- Identidade (esq.) -->
       <div class="order-1 flex items-center gap-2 min-w-0">
-        <div class="system-logo shrink-0 w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-gradient-to-br from-pink-500 to-rose-500 text-white">
+        <div class="system-logo board-icon shrink-0 w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-gradient-to-br from-pink-500 to-rose-500 text-white">
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="10" rx="1"/></svg>
         </div>
         <div class="leading-tight min-w-0">
@@ -4575,7 +4575,7 @@ document.addEventListener('change', async e => {
 function applyLogo(url){
   if (!url) return;
   try { window.DC_LOGO = url; } catch(e){}   // loading passa a usar o logo atual do sistema
-  document.querySelectorAll('.system-logo').forEach(el => {
+  document.querySelectorAll('.system-logo:not(.board-icon)').forEach(el => {
     el.innerHTML = '<img src="'+url+'" class="w-full h-full object-cover">';
     el.classList.remove('bg-pink-500');
   });
@@ -5250,6 +5250,7 @@ document.addEventListener('change', async e => {
 
 function showHub(){
   try { localStorage.setItem('dc_last_view', 'hub'); } catch(e){}
+  if (typeof hideBoardLoading === 'function') hideBoardLoading();
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('app').classList.add('hidden');
   document.getElementById('hubScreen').classList.remove('hidden');
