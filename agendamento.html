@@ -23,6 +23,7 @@
   body.has-bg #appBg::after{content:'';position:absolute;inset:0;background:rgba(15,23,42,.35);pointer-events:none}
   html.dark body.has-bg #appBg::after{background:rgba(0,0,0,.5)}
   body.has-bg::before{content:'';position:fixed;inset:0;background:rgba(255,255,255,.30);pointer-events:none;z-index:0}
+  @media(max-width:640px){ body.has-bg::before{background:rgba(255,255,255,.55)} body.has-bg #appBg::after{background:rgba(15,23,42,.15)} }
   body.has-bg #appWrap{position:relative;z-index:1;background:transparent !important;background-image:none !important}
   body.has-bg header{background:rgba(255,255,255,.85)!important;backdrop-filter:blur(12px)}
   html.dark body.has-bg header{background:rgba(17,26,46,.85)!important}
@@ -264,20 +265,30 @@ let cfgBloq = [];
 
 // ---- tema + wallpaper ----
 function toggleDark(){ const on = document.documentElement.classList.toggle('dark'); localStorage.setItem('dc_dark', on ? '1':'0'); }
-(function initWall(){ const w = localStorage.getItem('dc_wall'); if (w){ $('appBg').style.backgroundImage = `url(${w})`; document.body.classList.add('has-bg'); } })();
+// Fundo agora fica salvo no SERVIDOR (suite-bg.jpg) — vale em todos os painéis e aparelhos.
+const DC_BG_URL = 'https://wwytzoyeibekhstinott.supabase.co/storage/v1/object/public/system-assets/suite-bg.jpg';
+function dcApplyBg(bust){ const u = DC_BG_URL + (bust ? ('?t='+Date.now()) : ''); const im = new Image(); im.onload = function(){ $('appBg').style.backgroundImage = "url('"+u+"')"; document.body.classList.add('has-bg'); }; im.src = u; }
+dcApplyBg(false);
 $('bgInput').onchange = (e) => {
   const f = e.target.files[0]; if(!f) return;
   const r = new FileReader();
   r.onload = () => {
     const img = new Image();
     img.onload = () => {
-      const max = 1920; let w = img.width, h = img.height;
+      const max = 2560; let w = img.width, h = img.height;
       const s = Math.min(1, max/Math.max(w,h)); w = Math.round(w*s); h = Math.round(h*s);
       const c = document.createElement('canvas'); c.width = w; c.height = h;
       c.getContext('2d').drawImage(img, 0, 0, w, h);
-      let data; try { data = c.toDataURL('image/jpeg', 0.82); } catch(err){ dcToast('Não foi possível processar a imagem.','err'); return; }
-      try { localStorage.setItem('dc_wall', data); } catch(err){ dcToast('Imagem muito grande, tente outra.','err'); return; }
-      $('appBg').style.backgroundImage = `url(${data})`; document.body.classList.add('has-bg');
+      c.toBlob(async (blob) => {
+        if(!blob){ dcToast('Não foi possível processar a imagem.','err'); return; }
+        dcToast('Salvando fundo…','info');
+        try{
+          const { error } = await sb.storage.from('system-assets').upload('suite-bg.jpg', blob, { upsert:true, contentType:'image/jpeg' });
+          if(error) throw error;
+          dcApplyBg(true);
+          dcToast('Fundo atualizado — vale em todos os painéis!','ok');
+        }catch(err){ dcToast('Erro ao salvar o fundo.','err'); console.error(err); }
+      }, 'image/jpeg', 0.85);
     };
     img.src = r.result;
   };
