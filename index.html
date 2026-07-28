@@ -1305,6 +1305,7 @@ let user = null, profile = null, profiles = [];
 let boards = [], currentBoardId = null;
 let lists = [], labels = [], tecidos = [], cards = [];
 let cardLabels = {}, cardMembers = {}, checklistsByCard = {};
+let cardSelLabels = new Set(); // etiquetas selecionadas no card aberto (multi)
 let comments = [], activity = [], notifications = [];
 let activeCardId = null, draggingCardId = null, draggingListId = null;
 let _localMoveAt = 0;
@@ -2729,9 +2730,8 @@ async function openCard(id){
   const listSel = document.getElementById('cardList');
   listSel.innerHTML = lists.map(l => `<option value="${l.id}">${escapeHtml(l.name)}</option>`).join('');
   listSel.value = c.list_id;
-  const currentLabel = cardLabels[id][0] || null;
-  document.getElementById('cardFaccao').value = currentLabel?.id || '';
-  renderFaccaoDropdownButton(currentLabel);
+  cardSelLabels = new Set((cardLabels[id]||[]).map(l => l.id));
+  renderFaccaoDropdownButton();
   const tecSel = document.getElementById('cardTecido');
   tecSel.innerHTML = '<option value="">—</option>' + tecidos.map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
   tecSel.value = c.tecido_id || '';
@@ -2765,19 +2765,25 @@ function ajustarDescricaoFeed(){
   if (b) b.textContent = 'Desça para ver mais ↓';
 }
 
-function renderFaccaoDropdownButton(label){
+function renderFaccaoDropdownButton(){
   const dot = document.getElementById('cardFaccaoDot');
   const lbl = document.getElementById('cardFaccaoLabel');
-  if (label){
-    dot.style.background = label.color;
-    lbl.textContent = label.name;
-    lbl.style.color = label.color;
-    lbl.style.fontWeight = '600';
-  } else {
+  const sel = labels.filter(l => cardSelLabels.has(l.id));
+  if (sel.length === 0){
     dot.style.background = '#94a3b8';
     lbl.textContent = '— nenhuma —';
     lbl.style.color = '';
     lbl.style.fontWeight = '';
+  } else if (sel.length === 1){
+    dot.style.background = sel[0].color;
+    lbl.textContent = sel[0].name;
+    lbl.style.color = sel[0].color;
+    lbl.style.fontWeight = '600';
+  } else {
+    dot.style.background = sel[0].color;
+    lbl.textContent = sel.length + ' etiquetas';
+    lbl.style.color = '';
+    lbl.style.fontWeight = '600';
   }
 }
 function renderFaccaoDropdownMenu(){
@@ -2786,17 +2792,18 @@ function renderFaccaoDropdownMenu(){
   const none = document.createElement('button');
   none.type = 'button';
   none.className = 'w-full text-left flex items-center gap-2 p-2 hover:bg-slate-100 dark:hover:bg-ink-700 text-sm';
-  none.innerHTML = '<span class="w-3 h-3 rounded-full flex-shrink-0" style="background:#94a3b8"></span><span class="text-slate-500">— nenhuma —</span>';
-  none.onclick = () => selectFaccao(null);
+  none.innerHTML = '<span class="w-3 h-3 rounded-full flex-shrink-0" style="background:#94a3b8"></span><span class="text-slate-500">Limpar seleção</span>';
+  none.onclick = () => clearFaccoes();
   menu.appendChild(none);
   labels.slice().sort((a,b) => a.name.localeCompare(b.name)).forEach(l => {
+    const on = cardSelLabels.has(l.id);
     const row = document.createElement('div');
-    row.className = 'flex items-center hover:bg-slate-100 dark:hover:bg-ink-700';
+    row.className = 'flex items-center hover:bg-slate-100 dark:hover:bg-ink-700' + (on ? ' bg-slate-50 dark:bg-ink-700/60' : '');
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'flex-1 min-w-0 text-left flex items-center gap-2 p-2 text-sm';
-    b.innerHTML = `<span class="w-3 h-3 rounded-full flex-shrink-0" style="background:${l.color}"></span><span class="truncate" style="color:${l.color};font-weight:600">${escapeHtml(l.name)}</span>`;
-    b.onclick = () => selectFaccao(l);
+    b.innerHTML = `<span class="w-4 flex-shrink-0 text-center" style="color:${l.color}">${on ? '✓' : ''}</span><span class="w-3 h-3 rounded-full flex-shrink-0" style="background:${l.color}"></span><span class="truncate" style="color:${l.color};font-weight:600">${escapeHtml(l.name)}</span>`;
+    b.onclick = () => toggleFaccao(l);
     row.appendChild(b);
     if (canEditBoard){
       const edit = document.createElement('button');
@@ -2818,10 +2825,17 @@ function renderFaccaoDropdownMenu(){
     menu.appendChild(nova);
   }
 }
-function selectFaccao(label){
-  document.getElementById('cardFaccao').value = label ? label.id : '';
-  renderFaccaoDropdownButton(label);
-  document.getElementById('cardFaccaoMenu').classList.add('hidden');
+function toggleFaccao(label){
+  if (!label) return;
+  if (cardSelLabels.has(label.id)) cardSelLabels.delete(label.id); else cardSelLabels.add(label.id);
+  renderFaccaoDropdownButton();
+  renderFaccaoDropdownMenu();               // mantém o menu aberto pra marcar várias
+  autosave();
+}
+function clearFaccoes(){
+  cardSelLabels.clear();
+  renderFaccaoDropdownButton();
+  renderFaccaoDropdownMenu();
   autosave();
 }
 document.addEventListener('click', e => {
@@ -2875,7 +2889,7 @@ window.salvarNovaEtiqueta = async () => {
     let r = await sb.from('labels').insert({ board_id: currentBoardId, name: nome, color: _etCor }).select().single();
     if (r.error){ const rr = await sb.rpc('save_label', { p_id: null, p_board: currentBoardId, p_name: nome, p_color: _etCor }); r = { data: Array.isArray(rr.data) ? rr.data[0] : rr.data, error: rr.error }; }
     if (r.error){ toast('Erro: ' + r.error.message); return; }
-    if (r.data){ labels.push(r.data); if (_etAssign && activeCardId) selectFaccao(r.data); }
+    if (r.data){ labels.push(r.data); if (_etAssign && activeCardId) toggleFaccao(r.data); }
     toast('Etiqueta criada!');
   }
   fecharNovaEtiqueta();
@@ -3375,14 +3389,15 @@ window.archiveCard = async () => {
 window.saveCard = async (silent = false) => {
   if (!canEditBoard) return;
   const c0 = cards.find(x => x.id === activeCardId) || {};
-  let newLabelId = document.getElementById('cardFaccao').value || null;
   const gi = k => parseInt(document.getElementById(k).value) || null;
   const bType = boardType(currentBoardId);
+  // Conjunto de etiquetas selecionadas (multi)
+  let selLabelIds = [...cardSelLabels];
   // Card de bordado ainda sem etiqueta (ex.: card manual): deriva a etiqueta pelo tipo do bordado
-  if (bType === 'bordado' && !newLabelId){
+  if (bType === 'bordado' && selLabelIds.length === 0){
     const _tp = (document.getElementById('cardBordadoTipo')||{}).value;
     const _rx = _tp==='nome_profissao' ? /nome/i : _tp==='logomarca' ? /logo/i : _tp==='ambos' ? /ambos/i : null;
-    if (_rx){ const _lbl = (labels||[]).find(l => _rx.test(l.name)); if (_lbl) newLabelId = _lbl.id; }
+    if (_rx){ const _lbl = (labels||[]).find(l => _rx.test(l.name)); if (_lbl){ selLabelIds = [_lbl.id]; cardSelLabels.add(_lbl.id); } }
   }
   // Campos comuns a todos os boards
   const updates = {
@@ -3489,19 +3504,22 @@ window.saveCard = async (silent = false) => {
     const BFIELDS = ['bordado_tipo','bordado_linha1','bordado_linha2','bordado_linha3','bordado_cor_hex','bordado_cor_nome','bordado_fonte','bordado_lado','bordado_lado_logo','bordado_imagem_url','bordado_detalhes'];
     if (BFIELDS.some(k => k in diff) || ('pedido_produtos' in diff)){ diff.bordado_alterado_em = new Date().toISOString(); diff.bordado_alterado_por = user.id; }
   }
-  const _labelAtual = (cardLabels[activeCardId] && cardLabels[activeCardId][0]) ? cardLabels[activeCardId][0].id : null;
-  const _labelMudou = _labelAtual !== newLabelId;
+  const _atualIds = (cardLabels[activeCardId] || []).map(l => l.id).sort();
+  const _novosIds = [...selLabelIds].sort();
+  const _labelMudou = JSON.stringify(_atualIds) !== JSON.stringify(_novosIds);
   if (Object.keys(diff).length === 0 && !_labelMudou){
     if (silent) document.getElementById('autosaveStatus').textContent = 'salvo';
     else { closeCard(); }
     return;
   }
   if (Object.keys(diff).length) await sb.from('cards').update(diff).eq('id', activeCardId);
-  await sb.from('card_labels').delete().eq('card_id', activeCardId);
-  if (newLabelId){
-    await sb.from('card_labels').insert({card_id: activeCardId, label_id: newLabelId});
-    cardLabels[activeCardId] = [labels.find(l=>l.id===newLabelId)];
-  } else cardLabels[activeCardId] = [];
+  if (_labelMudou){
+    await sb.from('card_labels').delete().eq('card_id', activeCardId);
+    if (selLabelIds.length){
+      await sb.from('card_labels').insert(selLabelIds.map(id => ({card_id: activeCardId, label_id: id})));
+    }
+    cardLabels[activeCardId] = selLabelIds.map(id => labels.find(l=>l.id===id)).filter(Boolean);
+  }
   const c = cards.find(x=>x.id===activeCardId);
   if (c) Object.assign(c, diff);
   renderBoard();
