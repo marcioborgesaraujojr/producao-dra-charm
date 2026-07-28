@@ -3775,6 +3775,7 @@ function activityEditParts(meta, listResolver){
     if (k === 'list_id') return `Lista: <span class="text-slate-400 line-through">${escapeHtml(listName(v?.from))}</span> → <span class="text-emerald-600 font-medium">${escapeHtml(listName(v?.to))}</span>`;
     if (k === 'tecido_id') return `Tecido: <span class="text-slate-400 line-through">${escapeHtml(tecidoNome(v?.from))}</span> → <span class="text-emerald-600 font-medium">${escapeHtml(tecidoNome(v?.to))}</span>`;
     if (k === 'cover_url') return 'Foto atualizada';
+    if (k === 'corte_grade') return 'Grade de corte atualizada';
     if (k === 'bordado_imagem_url') return 'Link da logo atualizado';
     if (k === 'due_date' || k === 'data_coleta_oficina'){ const fD = x => (x===null||x===''||x===undefined) ? '—' : brData(x); return `${humanizeCampo(k)}: <span class="text-slate-400 line-through">${escapeHtml(fD(v?.from))}</span> → <span class="text-emerald-600 font-medium">${escapeHtml(fD(v?.to))}</span>`; }
     return `${humanizeCampo(k)}: <span class="text-slate-400 line-through">${escapeHtml(fmt(v?.from))}</span> → <span class="text-emerald-600 font-medium">${escapeHtml(fmt(v?.to))}</span>`;
