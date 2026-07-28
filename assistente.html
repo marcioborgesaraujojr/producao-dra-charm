@@ -8,6 +8,7 @@
 <link id="faviconLink" rel="icon" type="image/png" href="data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20100%20100'%3E%3Cdefs%3E%3ClinearGradient%20id%3D'g'%20x1%3D'0'%20y1%3D'0'%20x2%3D'1'%20y2%3D'1'%3E%3Cstop%20offset%3D'0'%20stop-color%3D'%238b5cf6'%2F%3E%3Cstop%20offset%3D'1'%20stop-color%3D'%23d946ef'%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D'100'%20height%3D'100'%20fill%3D'url(%23g)'%2F%3E%3Cg%20transform%3D'translate(26%2026)%20scale(2)'%20fill%3D'none'%20stroke%3D'%23fff'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M12%203l1.9%205.1L19%2010l-5.1%201.9L12%2017l-1.9-5.1L5%2010l5.1-1.9z'%2F%3E%3Cpath%20d%3D'M19%2015l.6%201.8L21.5%2017.5l-1.9.7L19%2020l-.6-1.8L16.5%2017.5l1.9-.7z'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="/theme.js"></script>
+<script src="/suite-user.js"></script>
 <script>
 
 </script>
@@ -22,6 +23,9 @@
   body.has-bg header{background:rgba(255,255,255,.9)!important;backdrop-filter:blur(8px)}
   body.has-bg.dark header{background:rgba(17,24,39,.9)!important}
   ::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px}.dark ::-webkit-scrollbar-thumb{background:#475569}
+  /* campo de mensagem: sem barra cinza (scrollbar) aparecendo à toa — a altura já cresce sozinha */
+  #chatInput{overflow-y:hidden;scrollbar-width:none}
+  #chatInput::-webkit-scrollbar{display:none;width:0;height:0}
   /* markdown básico das respostas */
   .msg-ai h3{font-weight:700;font-size:15px;margin:10px 0 4px}
   .msg-ai ul{margin:6px 0;padding-left:18px;list-style:disc}
