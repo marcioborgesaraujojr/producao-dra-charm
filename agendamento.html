@@ -165,6 +165,14 @@
         <button id="btnSalvarCfg" class="w-full py-2.5 rounded-xl bg-pink-500 hover:bg-pink-600 text-white font-medium text-sm">Salvar configuração</button>
         <p id="cfgMsg" class="text-center text-xs text-emerald-500 h-4"></p>
       </div>
+
+      <div class="bg-white/85 dark:bg-ink-800/85 backdrop-blur border border-slate-200 dark:border-ink-600 rounded-2xl p-5 shadow-sm mt-4">
+        <h2 class="font-medium mb-1">Fundo da página do cliente</h2>
+        <p class="text-xs text-slate-400 mb-3">Imagem que aparece atrás na página que o cliente abre. Use uma imagem de boa qualidade (de preferência horizontal). Máx 5MB.</p>
+        <input type="file" id="bgClienteInput" accept="image/*" class="hidden">
+        <button id="btnBgCliente" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-ink-700 hover:bg-slate-200 dark:hover:bg-ink-600 text-sm font-medium">Escolher imagem de fundo</button>
+        <span id="bgClienteStatus" class="text-xs ml-2"></span>
+      </div>
     </section>
   </div>
 </div>
@@ -345,6 +353,19 @@ $('btnSalvarCfg').onclick = async ()=>{
   const { error } = await sb.from('ag_config').update(payload).eq('id',1);
   $('cfgMsg').textContent = error ? 'Erro ao salvar.' : 'Salvo ✓'; if (error) console.error(error);
   setTimeout(()=>$('cfgMsg').textContent='',2500);
+};
+
+// ---- Fundo da página do cliente (sobe pro storage; a página do cliente lê de lá) ----
+$('btnBgCliente').onclick = ()=> $('bgClienteInput').click();
+$('bgClienteInput').onchange = async (e)=>{
+  const f = e.target.files[0]; if(!f) return;
+  const st = $('bgClienteStatus');
+  if (f.size > 5*1024*1024){ st.textContent='Muito grande (máx 5MB).'; st.className='text-xs ml-2 text-red-500'; e.target.value=''; return; }
+  st.textContent='Enviando…'; st.className='text-xs ml-2 text-slate-500';
+  const { error } = await sb.storage.from('system-assets').upload('agendar-bg.png', f, { upsert:true, contentType:f.type });
+  if (error){ st.textContent='Erro: '+error.message; st.className='text-xs ml-2 text-red-500'; console.error(error); }
+  else { st.textContent='Fundo atualizado! ✓'; st.className='text-xs ml-2 text-emerald-600'; }
+  e.target.value='';
 };
 
 boot();

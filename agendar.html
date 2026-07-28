@@ -49,17 +49,22 @@
 </script>
 <!-- ================================================= -->
 
+<script>
+  // Fundo da página do cliente: usa o que o admin subiu no painel (storage); senão, o padrão do CSS.
+  (function(){
+    var u = 'https://wwytzoyeibekhstinott.supabase.co/storage/v1/object/public/system-assets/agendar-bg.png';
+    var img = new Image();
+    img.onload = function(){ document.body.style.backgroundImage = "url('" + u + "')"; };
+    img.src = u;
+  })();
+</script>
+
 <div class="wrap min-h-screen flex items-center justify-center px-4 py-8">
   <div class="card w-full max-w-lg p-6 sm:p-7 fade">
 
-    <!-- Logo Dra. Charm -->
-    <div class="flex justify-center mb-2">
-      <img src="/dra-charm-logo.png" alt="Dra. Charm" class="h-16 sm:h-20 object-contain" />
-    </div>
-
     <!-- carregando -->
     <div id="loading">
-      <div class="dc-load"><img src="/dra-charm-logo.png" class="dc-logo-img" alt="" /><span class="text-xs text-slate-400">Carregando…</span></div>
+      <div class="dc-load"><svg class="animate-spin h-8 w-8 text-pink-500" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg><span class="text-xs text-slate-400">Carregando…</span></div>
     </div>
 
     <!-- erro -->
@@ -105,7 +110,10 @@
       <p class="text-center text-xs text-slate-400 mt-4">Adicione à sua agenda para não esquecer.</p>
     </div>
 
-    <p class="text-center text-[11px] text-slate-400 mt-6">Dra. Charm · Agendamento</p>
+    <!-- Logo Dra. Charm no rodapé -->
+    <div class="flex justify-center mt-6 pt-4 border-t border-slate-200/70">
+      <img src="/dra-charm-logo.png" alt="Dra. Charm" class="h-10 object-contain opacity-90" />
+    </div>
   </div>
 </div>
 
