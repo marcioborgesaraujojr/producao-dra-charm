@@ -4,7 +4,12 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Agendar visita — Dra. Charm</title>
-<link rel="icon" href="/icone-app.png" />
+<link id="faviconLink" rel="icon" type="image/png" href="https://cdn.awsli.com.br/1930/1930166/arquivos/logo.png">
+<link rel="apple-touch-icon" href="/icone-app.png">
+<script>
+  // Favicon igual ao resto da suíte (system-assets/favicon.png; cai no default se não existir)
+  (function(){ try{ var u='https://wwytzoyeibekhstinott.supabase.co/storage/v1/object/public/system-assets/favicon.png?t='+Date.now(); var img=new Image(); img.onload=function(){ var f=document.getElementById('faviconLink'); if(f) f.href=u; }; img.src=u; }catch(e){} })();
+</script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
   tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{ ink:{600:'#243049',700:'#182036',800:'#111a2e',900:'#0b1220'} } } } };
@@ -22,6 +27,10 @@
   body.has-bg header{background:rgba(255,255,255,.85)!important;backdrop-filter:blur(12px)}
   html.dark body.has-bg header{background:rgba(17,26,46,.85)!important}
   .fade{animation:fade .25s ease}@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  /* Carregando: logo "A" pulsando, igual ao quadro de produção */
+  .dc-load{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:56px 16px;min-height:40vh}
+  .dc-logo-img{width:72px;height:72px;object-fit:contain;animation:dc-breathe 1.5s ease-in-out infinite}
+  @keyframes dc-breathe{0%,100%{opacity:.5;transform:scale(.9)}50%{opacity:1;transform:scale(1)}}
   .slot:disabled{opacity:.35;cursor:not-allowed}
   ::-webkit-scrollbar{height:6px;width:6px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:9px}
   html.dark ::-webkit-scrollbar-thumb{background:#334155}
@@ -68,9 +77,8 @@
   <div class="max-w-lg mx-auto px-4 py-8">
 
     <!-- carregando -->
-    <div id="loading" class="text-center py-20 text-slate-400">
-      <svg class="animate-spin h-7 w-7 mx-auto mb-3 text-pink-500" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
-      Carregando…
+    <div id="loading" class="fade">
+      <div class="dc-load"><img src="/aragao-loading.png" class="dc-logo-img" alt="" /><span class="text-xs text-slate-400">Carregando…</span></div>
     </div>
 
     <!-- erro -->
