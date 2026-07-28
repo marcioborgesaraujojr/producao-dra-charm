@@ -7,9 +7,9 @@
 <link rel="icon" type="image/svg+xml" href="/logo_500x500.svg">
 <link rel="icon" type="image/png" href="data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20100%20100'%3E%3Cdefs%3E%3ClinearGradient%20id%3D'g'%20x1%3D'0'%20y1%3D'0'%20x2%3D'1'%20y2%3D'1'%3E%3Cstop%20offset%3D'0'%20stop-color%3D'%2310b981'%2F%3E%3Cstop%20offset%3D'1'%20stop-color%3D'%2314b8a6'%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D'100'%20height%3D'100'%20fill%3D'url(%23g)'%2F%3E%3Cg%20transform%3D'translate(26%2026)%20scale(2)'%20fill%3D'none'%20stroke%3D'%23fff'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M3%203h18v4H3z'%2F%3E%3Cpath%20d%3D'M5%207v13a1%201%200%200%200%201%201h12a1%201%200%200%200%201-1V7'%2F%3E%3Cpath%20d%3D'M9%2012h6'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E">
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="/theme.js"></script>
 <script>
-tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
-  ink:{900:'#0b1220',800:'#111827',700:'#1f2937',600:'#374151'}, accent:{DEFAULT:'#ff3c6f',600:'#ec2560'} }}}};
+
 </script>
 <style>
   html{background:#f1f5f9}html.dark{background:#0b1220}
@@ -67,19 +67,6 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
   #chartTip .v{font-weight:800;font-size:15px;display:flex;align-items:center;gap:6px}
   #chartTip .v i{width:9px;height:9px;border-radius:999px;background:#7c6cf0;display:inline-block}
 </style>
-<style id="dc-brand-std">
-.bg-pink-50{background-color:#fff1f4!important}.bg-pink-100{background-color:#ffe1e8!important}
-.bg-pink-400{background-color:#ff6b90!important}.bg-pink-500{background-color:#ff3c6f!important}
-.bg-pink-600{background-color:#ec2560!important}.bg-pink-700{background-color:#c81a4e!important}
-.hover\:bg-pink-600:hover{background-color:#ec2560!important}.hover\:bg-pink-700:hover{background-color:#c81a4e!important}
-.text-pink-400{color:#ff6b90!important}.text-pink-500{color:#ff3c6f!important}.text-pink-600{color:#ec2560!important}.text-pink-700{color:#c81a4e!important}
-.hover\:text-pink-600:hover{color:#ec2560!important}
-.border-pink-400{border-color:#ff6b90!important}.border-pink-500{border-color:#ff3c6f!important}.border-pink-600{border-color:#ec2560!important}
-.ring-pink-400{--tw-ring-color:#ff6b90!important}.ring-pink-400\/50{--tw-ring-color:rgba(255,107,144,.5)!important}.ring-pink-500{--tw-ring-color:#ff3c6f!important}
-.from-pink-500{--tw-gradient-from:#ff3c6f var(--tw-gradient-from-position)!important;--tw-gradient-to:rgba(255,60,111,0) var(--tw-gradient-to-position)!important;--tw-gradient-stops:var(--tw-gradient-from),var(--tw-gradient-to)!important}
-.to-pink-600{--tw-gradient-to:#ec2560 var(--tw-gradient-to-position)!important}
-.accent-pink-500,.accent-pink-600{accent-color:#ff3c6f!important}
-</style>
 <script id="dc-fav-std">(function(){try{document.querySelectorAll('link[rel="icon"],link[rel="shortcut icon"]').forEach(function(l){l.remove();});var l=document.createElement('link');l.rel='icon';l.type='image/png';l.href='https://wwytzoyeibekhstinott.supabase.co/storage/v1/object/public/system-assets/favicon.png';document.head.appendChild(l);}catch(e){}})();</script>
 
 <!-- ===== Tema Dra. Charm: Poppins + cards foscos flutuando (mantém o fundo existente) ===== -->
@@ -87,18 +74,18 @@ tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style id="dc-theme">
-  body{font-family:'Poppins',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif !important}
+  body{font-family:'Poppins',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
   /* cards "flutuando": fosco/translúcido + sombra cinza suave (não altera o fundo) */
   .rounded-2xl.border.bg-white{
-    background:rgba(255,255,255,.82) !important;
+    background:rgba(255,255,255,.82);
     -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
     box-shadow:0 16px 40px rgba(15,23,42,.15), 0 3px 10px rgba(15,23,42,.06);
-    border-color:rgba(255,255,255,.6) !important;
+    border-color:rgba(255,255,255,.6);
   }
   html.dark .rounded-2xl.border.dark\:bg-ink-800{
-    background:rgba(17,24,39,.72) !important;
+    background:rgba(17,24,39,.72);
     box-shadow:0 16px 40px rgba(0,0,0,.5), 0 3px 10px rgba(0,0,0,.35);
-    border-color:rgba(255,255,255,.08) !important;
+    border-color:rgba(255,255,255,.08);
   }
   /* leve 3D nos cards clicáveis ao passar o mouse */
   button.rounded-2xl.border.bg-white, a.rounded-2xl.border.bg-white{transition:transform .16s ease, box-shadow .16s ease}
