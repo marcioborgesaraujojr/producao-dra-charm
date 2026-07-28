@@ -955,6 +955,13 @@
                 <label class="text-xs font-medium uppercase text-blue-600 inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>Quantidade de rolos</label>
                 <input id="cardQtdRolos" type="number" min="0" placeholder="0" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-blue-500 text-sm"/>
               </div>
+              <div>
+                <label class="text-xs font-medium uppercase text-violet-600 inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg>Cor do tecido</label>
+                <div class="flex gap-2 mt-1 items-center">
+                  <input type="color" id="cardCorHex" value="#cccccc" class="w-10 h-9 rounded-lg border border-slate-200 dark:border-ink-600 bg-transparent p-0 cursor-pointer" oninput="var t=document.getElementById('cardCorHexTxt');if(t)t.textContent=this.value"/>
+                  <span id="cardCorHexTxt" class="text-xs text-slate-500 font-mono">#cccccc</span>
+                </div>
+              </div>
             </div>
             <!-- GRADE DE CORTE (colunas PARA CORTAR / CORTADA/CONCLUÍDO) -->
             <div id="corteGradeWrap" class="hidden space-y-4">
@@ -2316,12 +2323,14 @@ function renderCard(c, compact){
       const badge = bords.length>1 ? `<div style="position:absolute;bottom:-3px;left:-3px;z-index:5;background:#0f172a;color:#fff;font-size:10px;font-weight:800;border-radius:999px;min-width:19px;height:19px;display:flex;align-items:center;justify-content:center;padding:0 5px;box-shadow:0 1px 4px rgba(0,0,0,.4)" title="${bords.length} bordados neste pedido">${bords.length}</div>` : '';
       cover = `<div class="bord-stack shrink-0" style="position:relative;display:inline-flex;margin-right:${bords.length>1?16:0}px">${back}<div style="position:relative;z-index:2">${bordadoPreviewFromInfo(bords[0].info, bords[0].nome, size)}</div>${badge}</div>`;
     }
+  } else if (bType === 'estoque' && c.cor_hex){
+    cover = `<div class="product-cover ${compact?'product-cover-compact':'product-cover-normal'}" style="background:${escapeHtml(c.cor_hex)};border:1px solid rgba(0,0,0,.12)"></div>`;
   } else if (c.cover_url){
     cover = `<img src="${escapeHtml(c.cover_url)}" class="product-cover ${compact?'product-cover-compact':'product-cover-normal'}" loading="lazy" onerror="this.style.display='none'"/>`;
   }
-  // Etiqueta da facção ACIMA da foto (empilhada, alinhada à esquerda), fora do corpo do card.
-  // Só quando há foto do produto; sem foto, cai no corpo (fallback logo abaixo).
-  const hasPhoto = bType !== 'bordado' && !!c.cover_url && !!cover;
+  // Etiqueta ACIMA da foto/swatch (empilhada, alinhada à esquerda), fora do corpo do card.
+  // Só quando há foto/swatch; sem, cai no corpo (fallback logo abaixo).
+  const hasPhoto = bType !== 'bordado' && !!cover;
   const labelAbove = (hasPhoto && labelChips)
     ? `<div class="flex flex-col items-start gap-1 mb-1">${labelChips}</div>`
     : '';
@@ -2646,6 +2655,7 @@ async function openCard(id){
     if (_est) _est.classList.toggle('hidden', _kind !== 'estoque');
     if (_grd) _grd.classList.toggle('hidden', _kind !== 'corte');
     if (_kind === 'corte'){ fillCorteTecidoSelect(c.corte_grade && c.corte_grade.tecido); CorteGrade.load(c.corte_grade); }
+    if (_kind === 'estoque'){ const ch=document.getElementById('cardCorHex'); if(ch){ ch.value=c.cor_hex||'#cccccc'; const t=document.getElementById('cardCorHexTxt'); if(t) t.textContent=c.cor_hex||'#cccccc'; } }
     // Nas colunas de corte a grade substitui a descrição
     document.getElementById('cardDescBox').classList.toggle('hidden', _kind === 'corte');
   }
@@ -3449,6 +3459,7 @@ window.saveCard = async (silent = false) => {
   } else if (bType === 'estoque'){
     updates.metragem = parseFloat(document.getElementById('cardMetragem').value) || null;
     updates.qtd_rolos = parseInt(document.getElementById('cardQtdRolos').value) || null;
+    updates.cor_hex = document.getElementById('cardCorHex').value || null;
   } else if (bType === 'marketing'){
     updates.aprovacao = document.getElementById('cardAprovacao').value || null;
     updates.valor = parseFloat(document.getElementById('cardValor').value) || null;
