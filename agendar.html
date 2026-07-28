@@ -46,13 +46,14 @@
   .slot:disabled{opacity:.35;cursor:not-allowed}
   /* Botões de dia/horário na mesma linguagem do modal "Personalizar bordado" */
   .diaBtn,.slot{border-width:1.5px}
-  .is-on{border-color:#eb4f71 !important;background:#fdeef2 !important;box-shadow:0 6px 18px rgba(235,79,113,.18)}
+  .is-on{border-color:#eb4f71 !important;background:#eb4f71 !important;box-shadow:0 8px 20px rgba(235,79,113,.30)}
+  .is-on *{color:#fff !important}
   /* Modal de confirmação = mesmo estilo do modal do bordado */
   .modal-card{background:#fff;border-radius:24px;box-shadow:0 26px 64px rgba(17,24,46,.28)}
   .btn-cancelar{background:#f1f3f6;color:#243049}
   .btn-cancelar:hover{background:#e6eaef}
   .btn-confirmar{background:#eb4f71;color:#fff}
-  .btn-confirmar:hover{background:#d63f62}
+  .btn-confirmar:hover{background:#eb4f71;filter:brightness(1.05)}
   ::-webkit-scrollbar{height:6px;width:6px}::-webkit-scrollbar-thumb{background:#f3b8cd;border-radius:9px}
 </style>
 </head>
@@ -273,7 +274,7 @@ function renderDias(config){
     if (bloq.has(iso)) continue;
     mostrados++;
     const btn = document.createElement('button');
-    btn.className = 'diaBtn shrink-0 w-16 py-2 rounded-2xl bg-white border border-slate-200 hover:border-pink-400 text-center transition shadow-sm';
+    btn.className = 'diaBtn shrink-0 w-16 py-2 rounded-2xl bg-white border border-slate-200 hover:border-pink-500 text-center transition shadow-sm';
     btn.dataset.iso = iso;
     btn.innerHTML = '<div class="text-[11px] text-slate-400">'+DIAS_SEMANA_NOME[dow]+'</div><div class="text-lg font-semibold leading-none mt-1 text-slate-800">'+iso.slice(8,10)+'</div><div class="text-[10px] text-slate-400">'+mesNome(iso)+'</div>';
     btn.onclick = () => selecionarDia(btn, iso);
@@ -295,7 +296,7 @@ async function selecionarDia(btn, iso){
   cont.innerHTML = '';
   livres.forEach(s=>{
     const b = document.createElement('button');
-    b.className = 'slot py-2.5 rounded-2xl bg-white border border-slate-200 hover:border-pink-400 hover:bg-pink-50 text-sm font-semibold text-slate-700 transition shadow-sm';
+    b.className = 'slot py-2.5 rounded-2xl bg-white border border-slate-200 hover:border-pink-500 hover:bg-pink-50 text-sm font-semibold text-slate-700 transition shadow-sm';
     b.textContent = fmtHora(s.inicio);
     b.onclick = () => abrirModal(s);
     cont.appendChild(b);
