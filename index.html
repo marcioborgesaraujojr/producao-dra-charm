@@ -1514,6 +1514,7 @@ function boardType(boardOrId){
   const n = (b?.name || '').toLowerCase();
   if (n.includes('personaliza')) return 'bordado';
   if (n.includes('produ')) return 'producao';
+  if (n.includes('estoque')) return 'estoque';   // quadro "Estoque de Tecidos"
   if (n.includes('corte')) return 'corte';
   if (n.includes('marketing')) return 'marketing';
   if (n.includes('atend')) return 'atendimento';
@@ -1527,13 +1528,28 @@ function corteListKind(listId){
   return /cortar|cortad|conclu/.test(n) ? 'corte' : 'estoque';
 }
 // Opções do seletor de Tecido = nomes das colunas de estoque do quadro (sem o prefixo "ESTOQUE ")
-function fillCorteTecidoSelect(cur){
+let _tecidoTiposCache = null;
+async function fillCorteTecidoSelect(cur){
   const sel = document.getElementById('cgTecido'); if (!sel) return;
-  const ests = lists.filter(l => corteListKind(l.id) === 'estoque')
+  // 1) colunas de estoque no quadro atual (antes da separação em 2 quadros)
+  let ests = lists.filter(l => corteListKind(l.id) === 'estoque')
     .map(l => (l.name||'').replace(/^estoque\s*/i,'').trim()).filter(Boolean);
+  // 2) senão, busca do quadro "Estoque de Tecidos" (depois da separação), com cache
+  if (!ests.length){
+    if (!_tecidoTiposCache){
+      try {
+        const { data: bs } = await sb.from('boards').select('id,name');
+        const eb = (bs||[]).find(b => /estoque/i.test(b.name));
+        if (eb){ const { data: ls } = await sb.from('lists').select('name').eq('board_id', eb.id); _tecidoTiposCache = (ls||[]).map(l => (l.name||'').replace(/^estoque\s*/i,'').trim()).filter(Boolean); }
+        else _tecidoTiposCache = [];
+      } catch(_){ _tecidoTiposCache = []; }
+    }
+    ests = _tecidoTiposCache;
+  }
   const uniq = [...new Set(ests)];
   if (cur && !uniq.includes(cur)) uniq.push(cur);
   sel.innerHTML = '<option value="">— tecido —</option>' + uniq.map(t => `<option>${escapeHtml(t)}</option>`).join('');
+  if (cur) sel.value = cur;
 }
 
 async function initAuth(){
@@ -2574,14 +2590,14 @@ async function openCard(id){
   document.getElementById('totaisGrid').className = _ehProd ? 'grid grid-cols-4 gap-2' : 'grid grid-cols-2 gap-2';
   lancAtual = null;
   if (_ehProd){ loadGrades(c.id).then(renderGrades); } else { gradeRows = []; gradeOks = []; }
-  document.getElementById('corteFields').classList.toggle('hidden', bType !== 'corte');
+  document.getElementById('corteFields').classList.toggle('hidden', bType !== 'corte' && bType !== 'estoque');
   document.getElementById('marketingFields').classList.toggle('hidden', bType !== 'marketing');
   document.getElementById('bordadoFields').classList.toggle('hidden', bType !== 'bordado');
   document.getElementById('tecidoField').classList.toggle('hidden', bType !== 'producao');
   document.getElementById('faccaoField').classList.toggle('hidden', labels.length === 0);
   // Descrição: aparece em TODOS os quadros (estilo feed, sem borda). Fica discreta quando vazia.
   document.getElementById('cardDescBox').classList.remove('hidden');
-  document.getElementById('cardChecklistBox').classList.toggle('hidden', bType === 'producao' || bType === 'bordado' || bType === 'corte');
+  document.getElementById('cardChecklistBox').classList.toggle('hidden', bType === 'producao' || bType === 'bordado' || bType === 'corte' || bType === 'estoque');
   document.getElementById('cardTitle').value = c.title || '';
   document.getElementById('cardDesc').value = c.description || '';
   // Descrição estilo "feed" em TODOS os quadros (sem borda, recolhida, esmaecido + "Desça para ver mais").
@@ -2627,8 +2643,9 @@ async function openCard(id){
   const mEl = document.getElementById('cardMetragem'); if (mEl) mEl.value = c.metragem ?? '';
   const rEl = document.getElementById('cardQtdRolos'); if (rEl) rEl.value = c.qtd_rolos ?? '';
   // Corte: grade de riscos nas colunas de corte; campos de estoque nas demais
-  if (bType === 'corte'){
-    const _kind = corteListKind(c.list_id);
+  if (bType === 'corte' || bType === 'estoque'){
+    // No quadro de Estoque de Tecidos todo card é estoque; no de Corte depende da coluna.
+    const _kind = bType === 'estoque' ? 'estoque' : corteListKind(c.list_id);
     const _est = document.getElementById('corteEstoqueFields');
     const _grd = document.getElementById('corteGradeWrap');
     if (_est) _est.classList.toggle('hidden', _kind !== 'estoque');
@@ -5560,9 +5577,23 @@ async function calcPainelKPIs(){
   const listCortarC = findL(corteLists, /para\s*cortar/i);
   const listConcluidoC = findL(corteLists, /conclu/i);
   const mCortar = corteCards.filter(c => c.list_id === listCortarC?.id).reduce((s,c)=>s+(parseFloat(c.metragem)||0),0);
-  const rolosTotal = corteCards.reduce((s,c)=>s+(c.qtd_rolos||0),0);
+  let rolosTotal = corteCards.reduce((s,c)=>s+(c.qtd_rolos||0),0);
   const fluxoRx = /para\s*cortar|conclu|entrada|acaba|finaliz|estoque$/i;
-  const estoqueTecidos = corteLists.filter(l => !fluxoRx.test(l.name)).map(l => ({ nome: l.name, rolos: rolosByList[l.id]||0 })).filter(t=>t.rolos>0 || /malha|alfaiat|scuba|two|tecido|linho|crepe|jeans|moletom|viscose/i.test(t.nome)).sort((a,b)=>b.rolos-a.rolos);
+  let estoqueTecidos = corteLists.filter(l => !fluxoRx.test(l.name)).map(l => ({ nome: l.name, rolos: rolosByList[l.id]||0 })).filter(t=>t.rolos>0 || /malha|alfaiat|scuba|two|tecido|linho|crepe|jeans|moletom|viscose/i.test(t.nome)).sort((a,b)=>b.rolos-a.rolos);
+  // Se existir um quadro separado "Estoque de Tecidos", rolos/tecidos vêm de lá
+  try {
+    const eb = ((await sb.from('boards').select('id,name')).data||[]).find(b=>/estoque/i.test(b.name));
+    if (eb){
+      const { data: eLists } = await sb.from('lists').select('id,name').eq('board_id', eb.id);
+      const eListIds = (eLists||[]).map(l=>l.id);
+      const eCardsR = eListIds.length ? await sb.from('cards').select('list_id,qtd_rolos').eq('archived',false).in('list_id',eListIds) : {data:[]};
+      const eCards = eCardsR.data||[];
+      const rby = {}; (eLists||[]).forEach(l=>rby[l.id]=0);
+      eCards.forEach(c=>{ rby[c.list_id]=(rby[c.list_id]||0)+(c.qtd_rolos||0); });
+      estoqueTecidos = (eLists||[]).map(l=>({ nome:(l.name||'').replace(/^estoque\s*/i,'').trim(), rolos:rby[l.id]||0 })).sort((a,b)=>b.rolos-a.rolos);
+      rolosTotal = eCards.reduce((s,c)=>s+(c.qtd_rolos||0),0);
+    }
+  } catch(_){}
 
   // PRODUÇÃO: por setor, OCs rodando, peças, atrasadas
   const doneRx = /finaliz|estoque|expedi|entregue|dado entrada/i;
