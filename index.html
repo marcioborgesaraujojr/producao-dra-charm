@@ -260,7 +260,7 @@
   }
   /* ===== Grade do Corte (colunas PARA CORTAR / CORTADA/CONCLUÍDO) ===== */
   .cg-rtbl{width:100%;border-collapse:collapse;font-size:11px}
-  .cg-rtbl th{font-size:8.5px;color:#94a3b8;font-weight:700;text-transform:uppercase;padding:1px 2px;text-align:center;white-space:nowrap}
+  .cg-rtbl th{font-size:9.5px;color:#94a3b8;font-weight:600;text-transform:uppercase;padding:1px 2px;text-align:center;white-space:nowrap}
   .cg-rtbl th.l{text-align:left;padding-left:2px}
   .cg-rtbl td{padding:2px;text-align:center;vertical-align:middle}
   .cg-rtbl td.l{text-align:left}
@@ -274,7 +274,7 @@
   .cg-mt:focus{border-color:#2563eb;outline:none}
   .dark .cg-mt{background:#0f172a;border-color:#334155;color:#e2e8f0}
   .cg-pf{font-size:10.5px;color:#64748b;font-weight:700}
-  .cg-rr{font-size:11px;color:#2563eb;font-weight:800}
+  .cg-rr{font-size:11px;color:#2563eb;font-weight:700}
   .cg-del{color:#cbd5e1;cursor:pointer;font-size:16px;border:none;background:none;line-height:1;padding:0 2px}
   .cg-del:hover{color:#ef4444}
   .cg-add{border:1px dashed #cbd5e1;color:#64748b;background:none;border-radius:10px;padding:7px 13px;font-size:12px;cursor:pointer;font-weight:700}
@@ -289,13 +289,13 @@
   .cg-cun{font-size:10px;color:#64748b}
   .cg-final{border:1px solid #e2e8f0;border-radius:13px;overflow:hidden}
   .dark .cg-final{border-color:#334155}
-  .cg-hd{background:#f8fafc;color:#475569;padding:7px 12px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;font-weight:800;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e2e8f0}
+  .cg-hd{background:#f8fafc;color:#475569;padding:7px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;font-weight:700;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e2e8f0}
   .dark .cg-hd{background:#1e293b;color:#cbd5e1;border-color:#334155}
   .cg-hd .cg-sub{font-weight:500;opacity:.7;text-transform:none;letter-spacing:0;font-size:10.5px}
   .cg-tbl{width:100%;border-collapse:collapse;font-size:12px}
   .cg-tbl th,.cg-tbl td{padding:6px 4px;text-align:center;border-bottom:1px solid #f1f5f9}
   .dark .cg-tbl th,.dark .cg-tbl td{border-color:#1e293b}
-  .cg-tbl th{background:#f8fafc;color:#64748b;font-size:9.5px;text-transform:uppercase;font-weight:800}
+  .cg-tbl th{background:#f8fafc;color:#64748b;font-size:10px;text-transform:uppercase;font-weight:600}
   .dark .cg-tbl th{background:#1e293b}
   .cg-tbl th.l,.cg-tbl td.l{text-align:left}
   .cg-corrow{cursor:pointer}
@@ -305,13 +305,13 @@
   .cg-caret{color:#cbd5e1;font-size:9px;margin-left:5px}
   .cg-corrow.open .cg-caret{color:#ff3c6f}
   .cg-sw{width:14px;height:14px;border-radius:4px;border:1px solid rgba(0,0,0,.15);display:inline-block;vertical-align:middle;margin-right:7px}
-  .cg-tbl tr.cg-tot td{font-weight:800;background:#fdf2f6;color:#ec2560;font-size:12.5px}
+  .cg-tbl tr.cg-tot td{font-weight:700;background:#fff1f4;color:#ec2560;font-size:12.5px}
   .dark .cg-tbl tr.cg-tot td{background:#3f1d2b;color:#ff9db4}
   .cg-detrow td{background:#f8fafc;padding:0}
   .dark .cg-detrow td{background:#0f172a}
   .cg-detbox{padding:9px 11px 11px}
   .cg-dettbl{width:100%;border-collapse:collapse;font-size:12px}
-  .cg-dettbl th{color:#64748b;font-size:9px;text-transform:uppercase;font-weight:800;text-align:center;padding:4px 5px}
+  .cg-dettbl th{color:#64748b;font-size:10px;text-transform:uppercase;font-weight:600;text-align:center;padding:4px 5px}
   .cg-dettbl th.l{text-align:left}
   .cg-dettbl td{text-align:center;padding:4px 5px;border-top:1px solid #eef2f7}
   .dark .cg-dettbl td{border-color:#1e293b}
@@ -2395,7 +2395,16 @@ function renderCard(c, compact){
     if (c.metragem) totalsChips.push(`<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z"/><path d="m14.5 12.5 2-2"/><path d="m11.5 9.5 2-2"/><path d="m8.5 6.5 2-2"/><path d="m17.5 15.5 2-2"/></svg>${c.metragem}m</span>`);
     if (c.qtd_rolos) totalsChips.push(`<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>${c.qtd_rolos} rolos</span>`);
   } else if (bType === 'marketing'){
-    if (c.aprovacao) totalsChips.push(`<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>${escapeHtml(c.aprovacao)}</span>`);
+    if (c.aprovacao){
+      const _ap = String(c.aprovacao).toLowerCase();
+      const _apC = _ap.startsWith('aprov') ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                 : _ap.startsWith('reprov') ? 'bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'
+                 : 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+      const _apI = _ap.startsWith('aprov') ? '<polyline points="20 6 9 17 4 12"/>'
+                 : _ap.startsWith('reprov') ? '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'
+                 : '<circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/>';
+      totalsChips.push(`<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded ${_apC}"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${_apI}</svg>${escapeHtml(c.aprovacao)}</span>`);
+    }
     if (c.valor) totalsChips.push(`<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>R$ ${c.valor}</span>`);
   } else if (bType === 'bordado'){
     if (c.pedido_numero) totalsChips.push(`<span class="inline-flex items-center gap-1 text-[11px] font-extrabold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8H8"/><path d="M16 12H8"/><path d="M13 16H8"/></svg>#${escapeHtml(c.pedido_numero)}</span>`);
@@ -4988,6 +4997,10 @@ window.DC_LOGO = window.DC_LOGO || 'https://wwytzoyeibekhstinott.supabase.co/sto
 function dcLoad(){ return '<div class="dc-load"><img src="'+window.DC_LOGO+'" class="dc-logo-img" alt="" onerror="this.onerror=null;this.src=\'/aragao-loading.png\'"></div>'; }
 // Carregando do quadro: overlay FIXO na tela (fora do zoom do #board) → fica sempre no centro, inclusive no mobile.
 function showBoardLoading(){
+  // Nunca mostra o "A" carregando quando a Suíte (hub) está aberta — só dentro de um quadro.
+  // (No boot, switchBoard() roda mesmo estando na suíte pra deixar o quadro pronto; sem isso o "A" piscava por cima do hub.)
+  const _hub = document.getElementById('hubScreen');
+  if (_hub && !_hub.classList.contains('hidden')) return;
   let el = document.getElementById('boardLoadingOverlay');
   if (!el){ el = document.createElement('div'); el.id = 'boardLoadingOverlay'; el.className = 'fixed z-20 flex items-center justify-center pointer-events-none'; document.body.appendChild(el); }
   // Centraliza na ÁREA DO BOARD (abaixo do cabeçalho), não na tela toda.

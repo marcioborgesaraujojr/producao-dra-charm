@@ -65,6 +65,9 @@ tailwind.config = {
       +   '--dc-pink-50:#fff1f4;--dc-pink-100:#ffe1e8;--dc-pink-200:#ffc9d6;--dc-pink-300:#ff9db4;'
       +   '--dc-lift:0 4px 12px rgba(15,23,42,.10);'
       + '}'
+      /* Fonte única em TODO o sistema: campos/botões herdam a Poppins do body
+         (input/textarea/select/button não herdam font-family sozinhos → sem isso, cada campo virava uma fonte diferente). */
+      + 'input,textarea,select,button{font-family:inherit}'
       /* card clicável: leve 3D no hover (mesmo efeito em todo lugar) */
       + '.dc-lift{transition:transform .16s ease, box-shadow .16s ease}'
       + '.dc-lift:hover{box-shadow:var(--dc-lift)}'
