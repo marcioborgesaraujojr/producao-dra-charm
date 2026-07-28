@@ -2793,7 +2793,7 @@ function renderFaccaoDropdownMenu(){
   none.type = 'button';
   none.className = 'w-full text-left flex items-center gap-2 p-2 hover:bg-slate-100 dark:hover:bg-ink-700 text-sm';
   none.innerHTML = '<span class="w-3 h-3 rounded-full flex-shrink-0" style="background:#94a3b8"></span><span class="text-slate-500">Limpar seleção</span>';
-  none.onclick = () => clearFaccoes();
+  none.onclick = (e) => { e.stopPropagation(); clearFaccoes(); };
   menu.appendChild(none);
   labels.slice().sort((a,b) => a.name.localeCompare(b.name)).forEach(l => {
     const on = cardSelLabels.has(l.id);
@@ -2803,7 +2803,7 @@ function renderFaccaoDropdownMenu(){
     b.type = 'button';
     b.className = 'flex-1 min-w-0 text-left flex items-center gap-2 p-2 text-sm';
     b.innerHTML = `<span class="w-4 flex-shrink-0 text-center" style="color:${l.color}">${on ? '✓' : ''}</span><span class="w-3 h-3 rounded-full flex-shrink-0" style="background:${l.color}"></span><span class="truncate" style="color:${l.color};font-weight:600">${escapeHtml(l.name)}</span>`;
-    b.onclick = () => toggleFaccao(l);
+    b.onclick = (e) => { e.stopPropagation(); toggleFaccao(l); };
     row.appendChild(b);
     if (canEditBoard){
       const edit = document.createElement('button');
