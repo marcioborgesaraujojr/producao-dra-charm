@@ -257,24 +257,22 @@
     .fixed.bottom-4.right-4{display:none}
   }
   /* ===== Grade do Corte (colunas PARA CORTAR / CORTADA/CONCLUÍDO) ===== */
-  .cg-risco{display:flex;align-items:center;gap:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:11px;padding:8px 10px;margin-bottom:7px;flex-wrap:wrap}
-  .dark .cg-risco{background:#1e293b;border-color:#334155}
-  .cg-rn{width:92px;font-size:12.5px;font-weight:700;border:1px solid transparent;background:#fff;border-radius:7px;padding:5px 7px;color:#0f172a}
+  .cg-rtbl{width:100%;border-collapse:collapse;font-size:12.5px}
+  .cg-rtbl th{font-size:9px;color:#64748b;font-weight:800;text-transform:uppercase;padding:2px 3px;text-align:center;white-space:nowrap}
+  .cg-rtbl th.l{text-align:left;padding-left:2px}
+  .cg-rtbl td{padding:3px;text-align:center;vertical-align:middle}
+  .cg-rtbl td.l{text-align:left}
+  .cg-rn{width:100%;min-width:78px;font-size:12px;font-weight:700;border:1px solid #e2e8f0;background:#fff;border-radius:7px;padding:5px 7px;color:#0f172a}
   .cg-rn:focus{border-color:#ff3c6f;outline:none}
-  .dark .cg-rn{background:#0f172a;color:#e2e8f0}
-  .cg-gcell{display:flex;flex-direction:column;align-items:center}
-  .cg-gcell span{font-size:9px;color:#64748b;font-weight:700}
-  .cg-gcell input{width:36px;text-align:center;border:1px solid #e2e8f0;border-radius:7px;padding:4px 2px;font-size:12.5px;background:#fff;margin-top:1px;color:#0f172a}
-  .cg-gcell input:focus{border-color:#059669;outline:none}
-  .dark .cg-gcell input{background:#0f172a;border-color:#334155;color:#e2e8f0}
-  .cg-metr{display:flex;flex-direction:column;align-items:center;margin-left:2px}
-  .cg-metr span{font-size:9px;color:#64748b;font-weight:700}
-  .cg-metr input{width:52px;text-align:right;border:1px solid #e2e8f0;border-radius:7px;padding:4px 5px;font-size:12.5px;background:#fff;margin-top:1px;color:#0f172a}
-  .cg-metr input:focus{border-color:#2563eb;outline:none}
-  .dark .cg-metr input{background:#0f172a;border-color:#334155;color:#e2e8f0}
-  .cg-rsum{font-size:10.5px;color:#334155;font-weight:700;margin-left:auto;text-align:right;line-height:1.35}
-  .dark .cg-rsum{color:#cbd5e1}
-  .cg-rsum b{color:#2563eb}
+  .dark .cg-rn{background:#0f172a;color:#e2e8f0;border-color:#334155}
+  .cg-g{width:34px;text-align:center;border:1px solid #e2e8f0;border-radius:6px;padding:5px 2px;font-size:12px;background:#fff;color:#0f172a}
+  .cg-g:focus{border-color:#059669;outline:none}
+  .dark .cg-g{background:#0f172a;border-color:#334155;color:#e2e8f0}
+  .cg-mt{width:52px;text-align:right;border:1px solid #e2e8f0;border-radius:6px;padding:5px;font-size:12px;background:#fff;color:#0f172a}
+  .cg-mt:focus{border-color:#2563eb;outline:none}
+  .dark .cg-mt{background:#0f172a;border-color:#334155;color:#e2e8f0}
+  .cg-pf{font-size:11px;color:#64748b;font-weight:700}
+  .cg-rr{font-size:11.5px;color:#2563eb;font-weight:800}
   .cg-del{color:#cbd5e1;cursor:pointer;font-size:16px;border:none;background:none;line-height:1;padding:0 2px}
   .cg-del:hover{color:#ef4444}
   .cg-add{border:1px dashed #cbd5e1;color:#64748b;background:none;border-radius:10px;padding:7px 13px;font-size:12px;cursor:pointer;font-weight:700}
@@ -289,7 +287,8 @@
   .cg-cun{font-size:10px;color:#64748b}
   .cg-final{border:1px solid #e2e8f0;border-radius:13px;overflow:hidden}
   .dark .cg-final{border-color:#334155}
-  .cg-hd{background:#0f172a;color:#fff;padding:10px 14px;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;font-weight:800;display:flex;justify-content:space-between;align-items:center}
+  .cg-hd{background:#f8fafc;color:#475569;padding:9px 14px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;font-weight:800;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e2e8f0}
+  .dark .cg-hd{background:#1e293b;color:#cbd5e1;border-color:#334155}
   .cg-hd .cg-sub{font-weight:500;opacity:.7;text-transform:none;letter-spacing:0;font-size:10.5px}
   .cg-tbl{width:100%;border-collapse:collapse;font-size:13px}
   .cg-tbl th,.cg-tbl td{padding:8px 5px;text-align:center;border-bottom:1px solid #f1f5f9}
@@ -962,7 +961,7 @@
               <div class="grid grid-cols-2 gap-3">
                 <div>
                   <label class="text-xs font-medium uppercase text-slate-500">Tecido</label>
-                  <input id="cgTecido" type="text" placeholder="Ex: Alfaiataria" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"/>
+                  <select id="cgTecido" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"><option value="">— tecido —</option></select>
                 </div>
                 <div>
                   <label class="text-xs font-medium uppercase text-blue-600">Média real (m/pç)</label>
@@ -1525,6 +1524,15 @@ function corteListKind(listId){
   const l = lists.find(x => x.id === listId);
   const n = (l?.name || '').toLowerCase();
   return /cortar|cortad|conclu/.test(n) ? 'corte' : 'estoque';
+}
+// Opções do seletor de Tecido = nomes das colunas de estoque do quadro (sem o prefixo "ESTOQUE ")
+function fillCorteTecidoSelect(cur){
+  const sel = document.getElementById('cgTecido'); if (!sel) return;
+  const ests = lists.filter(l => corteListKind(l.id) === 'estoque')
+    .map(l => (l.name||'').replace(/^estoque\s*/i,'').trim()).filter(Boolean);
+  const uniq = [...new Set(ests)];
+  if (cur && !uniq.includes(cur)) uniq.push(cur);
+  sel.innerHTML = '<option value="">— tecido —</option>' + uniq.map(t => `<option>${escapeHtml(t)}</option>`).join('');
 }
 
 async function initAuth(){
@@ -2624,7 +2632,7 @@ async function openCard(id){
     const _grd = document.getElementById('corteGradeWrap');
     if (_est) _est.classList.toggle('hidden', _kind !== 'estoque');
     if (_grd) _grd.classList.toggle('hidden', _kind !== 'corte');
-    if (_kind === 'corte') CorteGrade.load(c.corte_grade);
+    if (_kind === 'corte'){ fillCorteTecidoSelect(c.corte_grade && c.corte_grade.tecido); CorteGrade.load(c.corte_grade); }
     // Nas colunas de corte a grade substitui a descrição
     document.getElementById('cardDescBox').classList.toggle('hidden', _kind === 'corte');
   }
@@ -3572,16 +3580,16 @@ window.CorteGrade = (function(){
 
   function renderRiscos(){
     const el=document.getElementById('cgRiscos'); if(!el) return;
-    el.innerHTML=S.riscos.map(r=>{
-      const cells=SIZES.map(z=>`<div class="cg-gcell"><span>${SLBL[z]}</span><input value="${r.g[z]||''}" inputmode="numeric" oninput="CorteGrade.setGrade(${r.id},'${z}',this.value)"></div>`).join('');
-      return `<div class="cg-risco">
-        <input class="cg-rn" value="${esc(r.nome)}" oninput="CorteGrade.setRiscoNome(${r.id},this.value)">
-        ${cells}
-        <div class="cg-metr"><span>METRAGEM</span><input value="${r.metr||''}" inputmode="decimal" oninput="CorteGrade.setMetr(${r.id},this.value)"></div>
-        <div class="cg-rsum"><span id="cgRS${r.id}">${rsumHtml(r)}</span></div>
-        <button type="button" class="cg-del" onclick="CorteGrade.delRisco(${r.id})">×</button>
-      </div>`;
-    }).join('');
+    const head=`<thead><tr><th class="l">Risco</th>${SIZES.map(z=>`<th>${SLBL[z]}</th>`).join('')}<th>Metr.</th><th>pç/f</th><th>Rend</th><th></th></tr></thead>`;
+    const rows=S.riscos.map(r=>`<tr>
+        <td class="l"><input class="cg-rn" value="${esc(r.nome)}" oninput="CorteGrade.setRiscoNome(${r.id},this.value)"></td>
+        ${SIZES.map(z=>`<td><input class="cg-g" value="${r.g[z]||''}" inputmode="numeric" oninput="CorteGrade.setGrade(${r.id},'${z}',this.value)"></td>`).join('')}
+        <td><input class="cg-mt" value="${r.metr||''}" inputmode="decimal" oninput="CorteGrade.setMetr(${r.id},this.value)"></td>
+        <td class="cg-pf" id="cgPF${r.id}">${sumGrade(r)}</td>
+        <td class="cg-rr" id="cgRS${r.id}">${rendRisco(r).toFixed(2)}</td>
+        <td><button type="button" class="cg-del" onclick="CorteGrade.delRisco(${r.id})">×</button></td>
+      </tr>`).join('');
+    el.innerHTML=`<div style="overflow-x:auto"><table class="cg-rtbl">${head}<tbody>${rows}</tbody></table></div>`;
   }
 
   function renderCores(){
@@ -3634,7 +3642,7 @@ window.CorteGrade = (function(){
 
   // Atualiza só os números (sem rebuild) — preserva foco
   function recalc(){
-    S.riscos.forEach(r=>{const e=document.getElementById('cgRS'+r.id); if(e) e.innerHTML=rsumHtml(r);});
+    S.riscos.forEach(r=>{const pf=document.getElementById('cgPF'+r.id); if(pf) pf.textContent=sumGrade(r); const rs=document.getElementById('cgRS'+r.id); if(rs) rs.textContent=rendRisco(r).toFixed(2);});
     const tot={}; SIZES.forEach(z=>tot[z]=0); let tp=0,tm=0;
     S.cores.forEach(c=>{
       const g={}; SIZES.forEach(z=>g[z]=0);
