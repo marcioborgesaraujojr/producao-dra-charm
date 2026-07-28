@@ -5,7 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes,interactive-widget=resizes-content">
 <title>Produção Dra. Charm</title>
-<link id="faviconLink" rel="icon" type="image/png" href="https://wwytzoyeibekhstinott.supabase.co/storage/v1/object/public/system-assets/favicon.png">
+<link id="faviconLink" rel="icon" type="image/png" href="https://cdn.awsli.com.br/1930/1930166/arquivos/logo.png">
 <link rel="apple-touch-icon" href="/icone-app.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/icone-app.png">
 <meta name="apple-mobile-web-app-title" content="Grupo Aragão">
@@ -256,6 +256,71 @@
     /* Atalhos widget — some no mobile */
     .fixed.bottom-4.right-4{display:none}
   }
+  /* ===== Grade do Corte (colunas PARA CORTAR / CORTADA/CONCLUÍDO) ===== */
+  .cg-risco{display:flex;align-items:center;gap:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:11px;padding:8px 10px;margin-bottom:7px;flex-wrap:wrap}
+  .dark .cg-risco{background:#1e293b;border-color:#334155}
+  .cg-rn{width:92px;font-size:12.5px;font-weight:700;border:1px solid transparent;background:#fff;border-radius:7px;padding:5px 7px;color:#0f172a}
+  .cg-rn:focus{border-color:#ff3c6f;outline:none}
+  .dark .cg-rn{background:#0f172a;color:#e2e8f0}
+  .cg-gcell{display:flex;flex-direction:column;align-items:center}
+  .cg-gcell span{font-size:9px;color:#64748b;font-weight:700}
+  .cg-gcell input{width:36px;text-align:center;border:1px solid #e2e8f0;border-radius:7px;padding:4px 2px;font-size:12.5px;background:#fff;margin-top:1px;color:#0f172a}
+  .cg-gcell input:focus{border-color:#059669;outline:none}
+  .dark .cg-gcell input{background:#0f172a;border-color:#334155;color:#e2e8f0}
+  .cg-metr{display:flex;flex-direction:column;align-items:center;margin-left:2px}
+  .cg-metr span{font-size:9px;color:#64748b;font-weight:700}
+  .cg-metr input{width:52px;text-align:right;border:1px solid #e2e8f0;border-radius:7px;padding:4px 5px;font-size:12.5px;background:#fff;margin-top:1px;color:#0f172a}
+  .cg-metr input:focus{border-color:#2563eb;outline:none}
+  .dark .cg-metr input{background:#0f172a;border-color:#334155;color:#e2e8f0}
+  .cg-rsum{font-size:10.5px;color:#334155;font-weight:700;margin-left:auto;text-align:right;line-height:1.35}
+  .dark .cg-rsum{color:#cbd5e1}
+  .cg-rsum b{color:#2563eb}
+  .cg-del{color:#cbd5e1;cursor:pointer;font-size:16px;border:none;background:none;line-height:1;padding:0 2px}
+  .cg-del:hover{color:#ef4444}
+  .cg-add{border:1px dashed #cbd5e1;color:#64748b;background:none;border-radius:10px;padding:7px 13px;font-size:12px;cursor:pointer;font-weight:700}
+  .cg-add:hover{border-color:#ff3c6f;color:#ff3c6f}
+  .cg-cores{display:flex;flex-wrap:wrap;gap:8px}
+  .cg-cor{display:flex;align-items:center;gap:7px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:11px;padding:6px 9px}
+  .dark .cg-cor{background:#1e293b;border-color:#334155}
+  .cg-cor input[type=color]{width:24px;height:24px;border:none;background:none;padding:0;border-radius:6px;cursor:pointer}
+  .cg-cnm{font-size:12.5px;font-weight:600;width:78px;border:none;background:none;outline:none;color:inherit}
+  .cg-cro{width:40px;font-size:12px;text-align:right;border:none;background:#eef2f7;border-radius:6px;padding:3px 4px;color:#0f172a}
+  .dark .cg-cro{background:#0f172a;color:#e2e8f0}
+  .cg-cun{font-size:10px;color:#64748b}
+  .cg-final{border:1px solid #e2e8f0;border-radius:13px;overflow:hidden}
+  .dark .cg-final{border-color:#334155}
+  .cg-hd{background:#0f172a;color:#fff;padding:10px 14px;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;font-weight:800;display:flex;justify-content:space-between;align-items:center}
+  .cg-hd .cg-sub{font-weight:500;opacity:.7;text-transform:none;letter-spacing:0;font-size:10.5px}
+  .cg-tbl{width:100%;border-collapse:collapse;font-size:13px}
+  .cg-tbl th,.cg-tbl td{padding:8px 5px;text-align:center;border-bottom:1px solid #f1f5f9}
+  .dark .cg-tbl th,.dark .cg-tbl td{border-color:#1e293b}
+  .cg-tbl th{background:#f8fafc;color:#64748b;font-size:9.5px;text-transform:uppercase;font-weight:800}
+  .dark .cg-tbl th{background:#1e293b}
+  .cg-tbl th.l,.cg-tbl td.l{text-align:left}
+  .cg-corrow{cursor:pointer}
+  .cg-corrow:hover{background:#fff7fa}
+  .dark .cg-corrow:hover{background:#3f1d2b}
+  .cg-corrow td.l{font-weight:600}
+  .cg-caret{color:#cbd5e1;font-size:9px;margin-left:5px}
+  .cg-corrow.open .cg-caret{color:#ff3c6f}
+  .cg-sw{width:14px;height:14px;border-radius:4px;border:1px solid rgba(0,0,0,.15);display:inline-block;vertical-align:middle;margin-right:7px}
+  .cg-tbl tr.cg-tot td{font-weight:800;background:#fdf2f6;color:#ec2560;font-size:13.5px}
+  .dark .cg-tbl tr.cg-tot td{background:#3f1d2b;color:#ff9db4}
+  .cg-detrow td{background:#f8fafc;padding:0}
+  .dark .cg-detrow td{background:#0f172a}
+  .cg-detbox{padding:9px 11px 11px}
+  .cg-dettbl{width:100%;border-collapse:collapse;font-size:12px}
+  .cg-dettbl th{color:#64748b;font-size:9px;text-transform:uppercase;font-weight:800;text-align:center;padding:4px 5px}
+  .cg-dettbl th.l{text-align:left}
+  .cg-dettbl td{text-align:center;padding:4px 5px;border-top:1px solid #eef2f7}
+  .dark .cg-dettbl td{border-color:#1e293b}
+  .cg-dettbl td.l{text-align:left;font-weight:600}
+  .cg-folhas{width:52px;text-align:center;border:1px solid #e2e8f0;border-radius:7px;padding:5px 2px;font-size:12.5px;background:#fff;font-weight:700;color:#0f172a}
+  .dark .cg-folhas{background:#1e293b;border-color:#334155;color:#e2e8f0}
+  .cg-folhas:focus{border-color:#ff3c6f;outline:none}
+  .cg-rend{font-weight:800;color:#2563eb}
+  .cg-calc{font-weight:700;color:#334155}
+  .dark .cg-calc{color:#cbd5e1}
 </style>
 </head>
 <body class="bg-slate-100 dark:bg-ink-900 text-slate-900 dark:text-slate-100 transition-colors">
@@ -397,18 +462,6 @@
         <div class="hub-card-body">
           <div class="hub-card-title">Atendimento ao Cliente</div>
           <div class="hub-card-desc">Central de mensagens e notificações inteligentes</div>
-        </div>
-        <span class="hub-card-badge bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">Ativo</span>
-      </button>
-
-      <!-- Agendamento de Visitas -->
-      <button type="button" onclick="location.href='/agendamento.html'" data-access="agendamento" class="hub-card group text-left hidden">
-        <div class="hub-card-icon text-white" style="background:linear-gradient(135deg,#ec4899,#d946ef)">
-          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/><path d="M9 15l2 2 4-4"/></svg>
-        </div>
-        <div class="hub-card-body">
-          <div class="hub-card-title">Agendamento de Visitas</div>
-          <div class="hub-card-desc">Marque horários dos clientes no showroom de fábrica para escolher as peças</div>
         </div>
         <span class="hub-card-badge bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">Ativo</span>
       </button>
@@ -578,8 +631,8 @@
     <div class="px-4 py-2 flex flex-wrap items-center gap-x-2 gap-y-2">
       <!-- Identidade (esq.) -->
       <div class="order-1 flex items-center gap-2 min-w-0">
-        <div class="system-logo shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-white bg-gradient-to-br from-pink-500 to-rose-500" data-keep-icon>
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="10" rx="1"/></svg>
+        <div class="system-logo shrink-0 w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-white">
+          <img src="https://cdn.awsli.com.br/1930/1930166/arquivos/logo.png" class="w-full h-full object-contain">
         </div>
         <div class="leading-tight min-w-0">
           <div class="flex items-center gap-1">
@@ -891,7 +944,7 @@
           </div>
           </div>
           <div id="corteFields" class="hidden space-y-4">
-            <div class="grid grid-cols-2 gap-3">
+            <div id="corteEstoqueFields" class="grid grid-cols-2 gap-3">
               <div>
                 <label class="text-xs font-medium uppercase text-blue-600 inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z"/><path d="m14.5 12.5 2-2"/><path d="m11.5 9.5 2-2"/><path d="m8.5 6.5 2-2"/><path d="m17.5 15.5 2-2"/></svg>Metragem</label>
                 <div class="flex gap-1 mt-1 items-center">
@@ -902,6 +955,53 @@
               <div>
                 <label class="text-xs font-medium uppercase text-blue-600 inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>Quantidade de rolos</label>
                 <input id="cardQtdRolos" type="number" min="0" placeholder="0" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-blue-500 text-sm"/>
+              </div>
+            </div>
+            <!-- GRADE DE CORTE (colunas PARA CORTAR / CORTADA/CONCLUÍDO) -->
+            <div id="corteGradeWrap" class="hidden space-y-4">
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="text-xs font-medium uppercase text-slate-500">Tecido</label>
+                  <input id="cgTecido" type="text" placeholder="Ex: Alfaiataria" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 text-sm"/>
+                </div>
+                <div>
+                  <label class="text-xs font-medium uppercase text-blue-600">Média real (m/pç)</label>
+                  <input id="cgMedia" type="text" readonly value="—" class="mt-1 w-full p-2 rounded-lg bg-blue-50 dark:bg-blue-900/25 border border-blue-200 dark:border-blue-800 text-sm font-bold text-blue-700 dark:text-blue-200"/>
+                </div>
+              </div>
+              <div>
+                <label class="text-xs font-medium uppercase text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/></svg>Riscos <span class="text-[10px] normal-case font-normal text-slate-400">— grade de 1 folha + metragem</span></label>
+                <div id="cgRiscos" class="mt-1.5"></div>
+                <button type="button" class="cg-add mt-1" onclick="CorteGrade.addRisco()">+ Adicionar risco</button>
+              </div>
+              <div>
+                <label class="text-xs font-medium uppercase text-violet-600 dark:text-violet-400 inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg>Cores do tecido &amp; rolos</label>
+                <div id="cgCores" class="cg-cores mt-1.5"></div>
+              </div>
+              <div class="cg-final">
+                <div class="cg-hd"><span>Grade final somada</span><span class="cg-sub">clique numa cor pra ver detalhes ↓</span></div>
+                <table class="cg-tbl">
+                  <thead><tr><th class="l">Cor</th><th>PP</th><th>P</th><th>M</th><th>G</th><th>GG</th><th>XG</th><th>Total</th></tr></thead>
+                  <tbody id="cgFinal"></tbody>
+                </table>
+              </div>
+              <div class="grid grid-cols-4 gap-2">
+                <div class="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/25 border border-emerald-200 dark:border-emerald-800">
+                  <div class="text-[10px] uppercase tracking-wide font-semibold text-emerald-700 dark:text-emerald-300">Total peças</div>
+                  <div class="text-lg font-bold leading-none mt-1 text-emerald-700 dark:text-emerald-200"><span id="cgTotPecas">0</span><span class="text-[10px] font-normal opacity-70"> pç</span></div>
+                </div>
+                <div class="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/25 border border-blue-200 dark:border-blue-800">
+                  <div class="text-[10px] uppercase tracking-wide font-semibold text-blue-700 dark:text-blue-300">Total metros</div>
+                  <div class="text-lg font-bold leading-none mt-1 text-blue-700 dark:text-blue-200"><span id="cgTotMetros">0</span><span class="text-[10px] font-normal opacity-70"> m</span></div>
+                </div>
+                <div class="p-2 rounded-lg bg-amber-50 dark:bg-amber-900/25 border border-amber-200 dark:border-amber-800">
+                  <div class="text-[10px] uppercase tracking-wide font-semibold text-amber-700 dark:text-amber-300">Rend. médio</div>
+                  <div class="text-lg font-bold leading-none mt-1 text-amber-700 dark:text-amber-200"><span id="cgRendMedio">0</span><span class="text-[10px] font-normal opacity-70"> m/pç</span></div>
+                </div>
+                <div class="p-2 rounded-lg bg-violet-50 dark:bg-violet-900/25 border border-violet-200 dark:border-violet-800">
+                  <div class="text-[10px] uppercase tracking-wide font-semibold text-violet-700 dark:text-violet-300">Nº riscos</div>
+                  <div class="text-lg font-bold leading-none mt-1 text-violet-700 dark:text-violet-200"><span id="cgTotRiscos">0</span></div>
+                </div>
               </div>
             </div>
           </div>
@@ -1419,6 +1519,13 @@ function boardType(boardOrId){
   if (n.includes('atend')) return 'atendimento';
   return 'producao';
 }
+// No quadro Corte e Tecidos: colunas PARA CORTAR / CORTADA-CONCLUÍDO usam a grade de riscos;
+// as demais (ESTOQUE ALFAIATARIA, MALHA, TWO WAY, SCUBA) são estoque de tecido (abordagem antiga).
+function corteListKind(listId){
+  const l = lists.find(x => x.id === listId);
+  const n = (l?.name || '').toLowerCase();
+  return /cortar|cortad|conclu/.test(n) ? 'corte' : 'estoque';
+}
 
 async function initAuth(){
   // Chegou por um link de redefinição de senha? Mostra a tela de nova senha e para aqui.
@@ -1659,23 +1766,17 @@ function renderBoardSelect(){
   sel.value = currentBoardId || boards[0]?.id;
 }
 
-async function switchBoard(boardId, opts){
-  opts = opts || {};
+async function switchBoard(boardId){
   currentBoardId = boardId;
   // Mantém o seletor de quadro sempre igual ao quadro realmente carregado
   const _bs = document.getElementById('boardSelect'); if (_bs && _bs.value !== boardId) _bs.value = boardId;
   try { localStorage.setItem('dc_last_board', boardId); } catch(e){}
   renderBoardMembers(boardId);
-  if (!opts.silent){
-    // Só reseta filtros e mostra "carregando" numa troca de quadro de verdade —
-    // NÃO numa atualização automática (realtime), pra não piscar o logo nem apagar o filtro do usuário.
-    filters.faccao.clear();
-    filters.alerta = 'todos';
-    { const _af = document.getElementById('alertaFilter'); if (_af) _af.value = 'todos'; }
-    document.getElementById('board').innerHTML = '';
-    showBoardLoading();
-  }
-  try {
+  filters.faccao.clear();
+  filters.alerta = 'todos';
+  { const _af = document.getElementById('alertaFilter'); if (_af) _af.value = 'todos'; }
+  document.getElementById('board').innerHTML = '';
+  showBoardLoading();
   const b = boards.find(x => x.id === boardId);
   applyBoardBackground(b?.background_url);
   // Divergências já aprovadas por mim (pra não repintar card que eu já dei ok)
@@ -1747,12 +1848,6 @@ async function switchBoard(boardId, opts){
     await Promise.all(tarefas);
   }
   renderBoard();
-  } catch(e){
-    // Se uma consulta falhar (instabilidade de rede), NÃO deixa o "carregando" preso pra sempre.
-    console.error('switchBoard falhou:', e);
-    hideBoardLoading();
-    if (!opts.silent && typeof toast === 'function') toast('Não consegui carregar o quadro. Tente de novo.');
-  }
 }
 
 function closeAllListMenus(){ document.querySelectorAll('.list-menu').forEach(m=>m.remove()); }
@@ -2477,7 +2572,7 @@ async function openCard(id){
   document.getElementById('faccaoField').classList.toggle('hidden', labels.length === 0);
   // Descrição: aparece em TODOS os quadros (estilo feed, sem borda). Fica discreta quando vazia.
   document.getElementById('cardDescBox').classList.remove('hidden');
-  document.getElementById('cardChecklistBox').classList.toggle('hidden', bType === 'producao' || bType === 'bordado');
+  document.getElementById('cardChecklistBox').classList.toggle('hidden', bType === 'producao' || bType === 'bordado' || bType === 'corte');
   document.getElementById('cardTitle').value = c.title || '';
   document.getElementById('cardDesc').value = c.description || '';
   // Descrição estilo "feed" em TODOS os quadros (sem borda, recolhida, esmaecido + "Desça para ver mais").
@@ -2522,6 +2617,17 @@ async function openCard(id){
   // Campos de Corte
   const mEl = document.getElementById('cardMetragem'); if (mEl) mEl.value = c.metragem ?? '';
   const rEl = document.getElementById('cardQtdRolos'); if (rEl) rEl.value = c.qtd_rolos ?? '';
+  // Corte: grade de riscos nas colunas de corte; campos de estoque nas demais
+  if (bType === 'corte'){
+    const _kind = corteListKind(c.list_id);
+    const _est = document.getElementById('corteEstoqueFields');
+    const _grd = document.getElementById('corteGradeWrap');
+    if (_est) _est.classList.toggle('hidden', _kind !== 'estoque');
+    if (_grd) _grd.classList.toggle('hidden', _kind !== 'corte');
+    if (_kind === 'corte') CorteGrade.load(c.corte_grade);
+    // Nas colunas de corte a grade substitui a descrição
+    document.getElementById('cardDescBox').classList.toggle('hidden', _kind === 'corte');
+  }
   // Campos de Marketing
   const aEl = document.getElementById('cardAprovacao'); if (aEl) aEl.value = c.aprovacao || '';
   const vEl = document.getElementById('cardValor'); if (vEl) vEl.value = c.valor ?? '';
@@ -3301,8 +3407,16 @@ window.saveCard = async (silent = false) => {
       pago_costura: document.getElementById('cardPagoCostura').checked,
     });
   } else if (bType === 'corte'){
-    updates.metragem = parseFloat(document.getElementById('cardMetragem').value) || null;
-    updates.qtd_rolos = parseInt(document.getElementById('cardQtdRolos').value) || null;
+    const _kind = corteListKind(document.getElementById('cardList').value);
+    if (_kind === 'corte'){
+      updates.corte_grade = CorteGrade.serialize();
+      // Espelha totais nas colunas antigas pra alimentar o dashboard de Corte
+      updates.metragem = CorteGrade.totalMetros() || null;
+      updates.qtd_rolos = CorteGrade.totalRolos() || null;
+    } else {
+      updates.metragem = parseFloat(document.getElementById('cardMetragem').value) || null;
+      updates.qtd_rolos = parseInt(document.getElementById('cardQtdRolos').value) || null;
+    }
   } else if (bType === 'marketing'){
     updates.aprovacao = document.getElementById('cardAprovacao').value || null;
     updates.valor = parseFloat(document.getElementById('cardValor').value) || null;
@@ -3404,6 +3518,163 @@ window.deleteCard = async () => {
   cards = cards.filter(c=>c.id!==activeCardId);
   renderBoard(); closeCard();
 };
+
+// ===== Grade do Corte (colunas PARA CORTAR / CORTADA/CONCLUÍDO) =====
+// Cortador define riscos (grade de 1 folha + metragem) e cores; a tabela final soma sozinha.
+// Guarda tudo num JSON em cards.corte_grade. Atualização de números é direcionada (sem rebuild)
+// pra não perder o foco enquanto digita.
+window.CorteGrade = (function(){
+  const SIZES=['pp','p','m','g','gg','xg'];
+  const SLBL={pp:'PP',p:'P',m:'M',g:'G',gg:'GG',xg:'XG'};
+  const num=v=>{const n=parseFloat(v);return isNaN(n)?0:n};
+  const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+  let S={tecido:'',riscos:[],cores:[],folhas:{},open:new Set(),_seq:0};
+
+  const nid=()=>++S._seq;
+  const R=id=>S.riscos.find(r=>r.id===id);
+  const C=id=>S.cores.find(c=>c.id===id);
+  const folKey=(rid,cid)=>'r'+rid+'c'+cid;
+  const folha=(rid,cid)=>{const v=S.folhas[folKey(rid,cid)];return v==null?'':v};
+  const sumGrade=r=>SIZES.reduce((s,z)=>s+num(r.g[z]),0);
+  const rendRisco=r=>{const pf=sumGrade(r);return pf?num(r.metr)/pf:0};
+  const gradeTxt=r=>SIZES.filter(z=>num(r.g[z])>0).map(z=>num(r.g[z])+SLBL[z]).join(' ')||'—';
+  const rsumHtml=r=>sumGrade(r)+' pç/folha<br><b>'+rendRisco(r).toFixed(2)+'</b> m/pç';
+
+  function load(data){
+    S={tecido:'',riscos:[],cores:[],folhas:{},open:new Set(),_seq:0};
+    if (data && typeof data==='object' && Array.isArray(data.riscos)){
+      S.tecido = data.tecido||'';
+      S.riscos = data.riscos.map(r=>({id:nid(),nome:r.nome||'',g:Object.assign({},r.g||{}),metr:(r.metr==null?'':r.metr)}));
+      S.cores  = (data.cores||[]).map(c=>({id:nid(),nome:c.nome||'',hex:c.hex||'#cccccc',rolos:(c.rolos==null?'':c.rolos)}));
+      const fol = data.folhas||{};
+      Object.keys(fol).forEach(k=>{
+        const p=k.split('|'); const ri=+p[0], ci=+p[1];
+        const r=S.riscos[ri], c=S.cores[ci];
+        if (r && c) S.folhas[folKey(r.id,c.id)] = fol[k];
+      });
+    }
+    if (!S.riscos.length) S.riscos=[{id:nid(),nome:'Risco 1',g:{},metr:''}];
+    if (!S.cores.length)  S.cores=[{id:nid(),nome:'Cor 1',hex:'#3b82f6',rolos:''}];
+    const t=document.getElementById('cgTecido'); if(t) t.value=S.tecido;
+    renderAll();
+  }
+
+  function serialize(){
+    const riscos=S.riscos.map(r=>{const g={};SIZES.forEach(z=>{const v=parseInt(r.g[z]); if(v) g[z]=v;});return {nome:r.nome||'', g, metr:num(r.metr)||null};});
+    const cores=S.cores.map(c=>({nome:c.nome||'', hex:c.hex||'#cccccc', rolos:parseInt(c.rolos)||null}));
+    const folhas={};
+    S.riscos.forEach((r,ri)=>S.cores.forEach((c,ci)=>{const v=parseInt(folha(r.id,c.id)); if(v) folhas[ri+'|'+ci]=v;}));
+    const tEl=document.getElementById('cgTecido');
+    return {tecido:(tEl?tEl.value:S.tecido)||'', riscos, cores, folhas};
+  }
+  function totalMetros(){let tm=0;S.riscos.forEach(r=>S.cores.forEach(c=>{tm+=num(folha(r.id,c.id))*num(r.metr);}));return Math.round(tm*100)/100;}
+  function totalRolos(){return S.cores.reduce((s,c)=>s+(parseInt(c.rolos)||0),0);}
+
+  function renderRiscos(){
+    const el=document.getElementById('cgRiscos'); if(!el) return;
+    el.innerHTML=S.riscos.map(r=>{
+      const cells=SIZES.map(z=>`<div class="cg-gcell"><span>${SLBL[z]}</span><input value="${r.g[z]||''}" inputmode="numeric" oninput="CorteGrade.setGrade(${r.id},'${z}',this.value)"></div>`).join('');
+      return `<div class="cg-risco">
+        <input class="cg-rn" value="${esc(r.nome)}" oninput="CorteGrade.setRiscoNome(${r.id},this.value)">
+        ${cells}
+        <div class="cg-metr"><span>METRAGEM</span><input value="${r.metr||''}" inputmode="decimal" oninput="CorteGrade.setMetr(${r.id},this.value)"></div>
+        <div class="cg-rsum"><span id="cgRS${r.id}">${rsumHtml(r)}</span></div>
+        <button type="button" class="cg-del" onclick="CorteGrade.delRisco(${r.id})">×</button>
+      </div>`;
+    }).join('');
+  }
+
+  function renderCores(){
+    const el=document.getElementById('cgCores'); if(!el) return;
+    el.innerHTML=S.cores.map(c=>`
+      <div class="cg-cor">
+        <input type="color" value="${c.hex}" oninput="CorteGrade.setHex(${c.id},this.value)">
+        <input class="cg-cnm" value="${esc(c.nome)}" oninput="CorteGrade.setCorNome(${c.id},this.value)">
+        <input class="cg-cro" value="${c.rolos||''}" placeholder="0" inputmode="numeric" oninput="CorteGrade.setRolos(${c.id},this.value)">
+        <span class="cg-cun">rolos</span>
+        <button type="button" class="cg-del" onclick="CorteGrade.delCor(${c.id})">×</button>
+      </div>`).join('') +
+      `<button type="button" class="cg-add" onclick="CorteGrade.addCor()">+ Cor</button>`;
+  }
+
+  function detHtml(c){
+    const rows=S.riscos.map(r=>{
+      const f=folha(r.id,c.id); const pc=num(f)*sumGrade(r), mt=num(f)*num(r.metr);
+      return `<tr>
+        <td class="l">${esc(r.nome)} <span style="color:#94a3b8">(${gradeTxt(r)})</span></td>
+        <td><input class="cg-folhas" value="${f}" placeholder="0" inputmode="numeric" oninput="CorteGrade.setFolha(${r.id},${c.id},this.value)"></td>
+        <td class="cg-calc" id="cgDP${c.id}_${r.id}">${pc||'–'}</td>
+        <td class="cg-calc" id="cgDM${c.id}_${r.id}">${mt?mt.toFixed(2):'–'}</td>
+        <td class="cg-rend" id="cgDR${c.id}_${r.id}">${rendRisco(r).toFixed(2)}</td>
+      </tr>`;
+    }).join('');
+    return `<div class="cg-detbox"><table class="cg-dettbl"><thead><tr><th class="l">Risco</th><th>Folhas</th><th>Peças</th><th>Metros</th><th>Rend. m/pç</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+
+  function renderFinal(){
+    const el=document.getElementById('cgFinal'); if(!el) return;
+    let html='';
+    S.cores.forEach(c=>{
+      const g={}; SIZES.forEach(z=>g[z]=0); let rt=0;
+      S.riscos.forEach(r=>{const f=num(folha(r.id,c.id));SIZES.forEach(z=>g[z]+=num(r.g[z])*f);});
+      SIZES.forEach(z=>rt+=g[z]);
+      const op=S.open.has(c.id);
+      const tds=SIZES.map(z=>`<td id="cgGF${c.id}_${z}">${g[z]||'–'}</td>`).join('');
+      html+=`<tr class="cg-corrow ${op?'open':''}" onclick="CorteGrade.toggleCor(${c.id})">
+        <td class="l"><span class="cg-sw" id="cgSW${c.id}" style="background:${c.hex}"></span><span id="cgCN${c.id}">${esc(c.nome)}</span><span class="cg-caret">${op?'▲':'▼'}</span></td>
+        ${tds}<td id="cgGF${c.id}_tot"><b>${rt}</b></td></tr>`;
+      if(op) html+=`<tr class="cg-detrow"><td colspan="8">${detHtml(c)}</td></tr>`;
+    });
+    const tot={}; SIZES.forEach(z=>tot[z]=0);
+    S.cores.forEach(c=>S.riscos.forEach(r=>{const f=num(folha(r.id,c.id));SIZES.forEach(z=>tot[z]+=num(r.g[z])*f);}));
+    let all=0; const ttds=SIZES.map(z=>{all+=tot[z];return `<td id="cgGT_${z}">${tot[z]}</td>`}).join('');
+    html+=`<tr class="cg-tot"><td class="l">TOTAL</td>${ttds}<td id="cgGT_all">${all}</td></tr>`;
+    el.innerHTML=html;
+  }
+
+  // Atualiza só os números (sem rebuild) — preserva foco
+  function recalc(){
+    S.riscos.forEach(r=>{const e=document.getElementById('cgRS'+r.id); if(e) e.innerHTML=rsumHtml(r);});
+    const tot={}; SIZES.forEach(z=>tot[z]=0); let tp=0,tm=0;
+    S.cores.forEach(c=>{
+      const g={}; SIZES.forEach(z=>g[z]=0);
+      S.riscos.forEach(r=>{
+        const f=num(folha(r.id,c.id));
+        SIZES.forEach(z=>g[z]+=num(r.g[z])*f);
+        tp+=f*sumGrade(r); tm+=f*num(r.metr);
+        const pc=f*sumGrade(r), mt=f*num(r.metr);
+        const ep=document.getElementById('cgDP'+c.id+'_'+r.id); if(ep) ep.textContent=pc||'–';
+        const em=document.getElementById('cgDM'+c.id+'_'+r.id); if(em) em.textContent=mt?mt.toFixed(2):'–';
+        const er=document.getElementById('cgDR'+c.id+'_'+r.id); if(er) er.textContent=rendRisco(r).toFixed(2);
+      });
+      let rt=0; SIZES.forEach(z=>{rt+=g[z];tot[z]+=g[z];const e=document.getElementById('cgGF'+c.id+'_'+z);if(e)e.textContent=g[z]||'–';});
+      const et=document.getElementById('cgGF'+c.id+'_tot'); if(et) et.innerHTML='<b>'+rt+'</b>';
+    });
+    let all=0; SIZES.forEach(z=>{all+=tot[z];const e=document.getElementById('cgGT_'+z);if(e)e.textContent=tot[z];});
+    const ea=document.getElementById('cgGT_all'); if(ea) ea.textContent=all;
+    const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+    set('cgTotPecas',tp); set('cgTotMetros',tm.toFixed(2)); set('cgRendMedio',tp?(tm/tp).toFixed(2):'0'); set('cgTotRiscos',S.riscos.length);
+    const md=document.getElementById('cgMedia'); if(md) md.value=tp?(tm/tp).toFixed(2):'—';
+  }
+
+  function renderAll(){renderRiscos();renderCores();renderFinal();recalc();}
+
+  // Handlers
+  function setGrade(rid,z,v){const r=R(rid); if(r){r.g[z]=v; recalc();}}
+  function setMetr(rid,v){const r=R(rid); if(r){r.metr=v; recalc();}}
+  function setRiscoNome(rid,v){const r=R(rid); if(r) r.nome=v;}
+  function setFolha(rid,cid,v){S.folhas[folKey(rid,cid)]=v; recalc();}
+  function setHex(cid,v){const c=C(cid); if(c){c.hex=v; const sw=document.getElementById('cgSW'+cid); if(sw) sw.style.background=v;}}
+  function setCorNome(cid,v){const c=C(cid); if(c){c.nome=v; const e=document.getElementById('cgCN'+cid); if(e) e.textContent=v;}}
+  function setRolos(cid,v){const c=C(cid); if(c) c.rolos=v;}
+  function addRisco(){S.riscos.push({id:nid(),nome:'Risco '+(S.riscos.length+1),g:{},metr:''}); renderRiscos(); renderFinal(); recalc();}
+  function delRisco(rid){ if(S.riscos.length<=1){S.riscos=[{id:nid(),nome:'Risco 1',g:{},metr:''}];} else {S.riscos=S.riscos.filter(r=>r.id!==rid);} Object.keys(S.folhas).forEach(k=>{if(k.indexOf('r'+rid+'c')===0) delete S.folhas[k];}); renderRiscos(); renderFinal(); recalc();}
+  function addCor(){S.cores.push({id:nid(),nome:'Cor '+(S.cores.length+1),hex:'#cccccc',rolos:''}); renderCores(); renderFinal(); recalc();}
+  function delCor(cid){ if(S.cores.length<=1){S.cores=[{id:nid(),nome:'Cor 1',hex:'#3b82f6',rolos:''}];} else {S.cores=S.cores.filter(c=>c.id!==cid); S.open.delete(cid);} Object.keys(S.folhas).forEach(k=>{if(k.indexOf('c'+cid)>=0 && k.endsWith('c'+cid)) delete S.folhas[k];}); renderCores(); renderFinal(); recalc();}
+  function toggleCor(cid){ S.open.has(cid)?S.open.delete(cid):S.open.add(cid); renderFinal(); recalc();}
+
+  return {load,serialize,totalMetros,totalRolos,setGrade,setMetr,setRiscoNome,setFolha,setHex,setCorNome,setRolos,addRisco,delRisco,addCor,delCor,toggleCor};
+})();
 
 // ===== Anexos do card (upload de qualquer arquivo, listar, baixar, remover) =====
 function _fmtBytes(n){ n = Number(n)||0; if (n < 1024) return n + ' B'; if (n < 1048576) return (n/1024).toFixed(0) + ' KB'; return (n/1048576).toFixed(1) + ' MB'; }
@@ -4202,7 +4473,7 @@ document.addEventListener('change', async e => {
 function applyLogo(url){
   if (!url) return;
   try { window.DC_LOGO = url; } catch(e){}   // loading passa a usar o logo atual do sistema
-  document.querySelectorAll('.system-logo:not([data-keep-icon])').forEach(el => {
+  document.querySelectorAll('.system-logo').forEach(el => {
     el.innerHTML = '<img src="'+url+'" class="w-full h-full object-cover">';
     el.classList.remove('bg-pink-500');
   });
@@ -4385,16 +4656,6 @@ function playNotifSound(){
 // Deixa o áudio "destravado" no primeiro clique/tecla do usuário (política de autoplay dos navegadores)
 document.addEventListener('click', () => { try{ _audioCtx = _audioCtx || new (window.AudioContext||window.webkitAudioContext)(); if(_audioCtx.state==='suspended') _audioCtx.resume(); }catch(e){} }, { once: true });
 
-// Atualização automática (realtime) SEM piscar o "carregando": recarrega o quadro em silêncio
-// e junta várias mudanças seguidas numa só atualização (debounce), pra não recarregar a cada card.
-let _boardRefreshTimer = null;
-function scheduleBoardRefresh(){
-  if (_boardRefreshTimer) return;
-  _boardRefreshTimer = setTimeout(async () => {
-    _boardRefreshTimer = null;
-    if (currentBoardId){ try { await switchBoard(currentBoardId, { silent: true }); } catch(e){ console.warn('refresh silencioso falhou:', e); } }
-  }, 600);
-}
 function subscribeRealtime(){
   sb.channel('notifs')
     .on('postgres_changes', {event:'INSERT', schema:'public', table:'notifications', filter:`user_id=eq.${user.id}`}, payload => {
@@ -4404,13 +4665,9 @@ function subscribeRealtime(){
       playNotifSound();
     }).subscribe();
   sb.channel('board-changes')
-    .on('postgres_changes', {event:'*', schema:'public', table:'cards'}, (payload) => {
+    .on('postgres_changes', {event:'*', schema:'public', table:'cards'}, async () => {
       if (Date.now() - _localMoveAt < 1500) return; // mudança feita aqui mesmo, já aplicada localmente (evita render duplo/piscada)
-      // Só atualiza se a mudança for de um card DESTE quadro — não recarrega quando mexem em OUTRO quadro.
-      const _row = (payload && (payload.new || payload.old)) || {};
-      const _lid = _row.list_id;
-      if (_lid && Array.isArray(lists) && lists.length && !lists.some(l => l.id === _lid)) return;
-      scheduleBoardRefresh();
+      if (currentBoardId) await switchBoard(currentBoardId);
     })
     .on('postgres_changes', {event:'*', schema:'public', table:'comments'}, () => {
       if (activeCardId) loadComments(activeCardId);
@@ -4615,10 +4872,6 @@ window.DC_LOGO = window.DC_LOGO || 'https://wwytzoyeibekhstinott.supabase.co/sto
 function dcLoad(){ return '<div class="dc-load"><img src="'+window.DC_LOGO+'" class="dc-logo-img" alt="" onerror="this.onerror=null;this.src=\'/aragao-loading.png\'"></div>'; }
 // Carregando do quadro: overlay FIXO na tela (fora do zoom do #board) → fica sempre no centro, inclusive no mobile.
 function showBoardLoading(){
-  // Não mostrar o "carregando" do quadro por cima da SUÍTE (hub). Ao dar refresh na suíte,
-  // o app pré-carrega o último quadro em 2º plano — isso não deve piscar o logo no meio do hub.
-  const _hub = document.getElementById('hubScreen');
-  if (_hub && !_hub.classList.contains('hidden')) return;
   let el = document.getElementById('boardLoadingOverlay');
   if (!el){ el = document.createElement('div'); el.id = 'boardLoadingOverlay'; el.className = 'fixed z-20 flex items-center justify-center pointer-events-none'; document.body.appendChild(el); }
   // Centraliza na ÁREA DO BOARD (abaixo do cabeçalho), não na tela toda.
@@ -4884,7 +5137,6 @@ function showHub(){
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('app').classList.add('hidden');
   document.getElementById('hubScreen').classList.remove('hidden');
-  try { hideBoardLoading(); } catch(e){}  // nunca deixar o "carregando" do quadro por cima da suíte
   (document.getElementById('appBg')||document.body).style.backgroundImage = '';
   document.body.classList.add('has-bg');
   applySuiteBg();
@@ -4968,7 +5220,6 @@ window.openUsers = async () => {
       {key:'cep', label:'CEP'},
       {key:'atendimento', label:'Atendimento'},
       {key:'cade_pedido', label:'Rastreio de Pedido'},
-      {key:'agendamento', label:'Agendamento de Visitas'},
       {key:'marketing', label:'Marketing'},
       {key:'painel', label:'Painel'},
     ];
@@ -5679,7 +5930,7 @@ initAuth().catch(function(e){ console.error('initAuth falhou:', e); if(window.mo
 <div id="painelModal" class="hidden fixed inset-0 z-40 modal-bg items-center justify-center p-4">
   <div class="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[92vh] overflow-hidden flex flex-col">
     <div class="p-6 border-b border-slate-200 dark:border-ink-700 flex items-center gap-3">
-      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center text-white">
+      <div class="w-10 h-10 rounded-xl bg-pink-500 flex items-center justify-center text-white">
         <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
       </div>
       <div class="flex-1">
