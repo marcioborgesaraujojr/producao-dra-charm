@@ -1531,22 +1531,18 @@ function corteListKind(listId){
 let _tecidoTiposCache = null;
 async function fillCorteTecidoSelect(cur){
   const sel = document.getElementById('cgTecido'); if (!sel) return;
-  // 1) colunas de estoque no quadro atual (antes da separação em 2 quadros)
-  let ests = lists.filter(l => corteListKind(l.id) === 'estoque')
-    .map(l => (l.name||'').replace(/^estoque\s*/i,'').trim()).filter(Boolean);
-  // 2) senão, busca do quadro "Estoque de Tecidos" (depois da separação), com cache
-  if (!ests.length){
-    if (!_tecidoTiposCache){
-      try {
-        const { data: bs } = await sb.from('boards').select('id,name');
-        const eb = (bs||[]).find(b => /estoque/i.test(b.name));
-        if (eb){ const { data: ls } = await sb.from('lists').select('name').eq('board_id', eb.id); _tecidoTiposCache = (ls||[]).map(l => (l.name||'').replace(/^estoque\s*/i,'').trim()).filter(Boolean); }
-        else _tecidoTiposCache = [];
-      } catch(_){ _tecidoTiposCache = []; }
-    }
-    ests = _tecidoTiposCache;
+  // Tipos de tecido = colunas do quadro "Estoque de Tecidos". Cai pra colunas locais só se não houver esse quadro.
+  let ests = _tecidoTiposCache;
+  if (!ests){
+    try {
+      const { data: bs } = await sb.from('boards').select('id,name');
+      const eb = (bs||[]).find(b => /estoque/i.test(b.name));
+      if (eb){ const { data: ls } = await sb.from('lists').select('name').eq('board_id', eb.id); ests = (ls||[]).map(l => (l.name||'').replace(/^estoque\s*/i,'').trim()).filter(Boolean); }
+      else ests = lists.filter(l => corteListKind(l.id) === 'estoque').map(l => (l.name||'').replace(/^estoque\s*/i,'').trim()).filter(Boolean);
+      _tecidoTiposCache = ests;
+    } catch(_){ ests = _tecidoTiposCache || []; }
   }
-  const uniq = [...new Set(ests)];
+  const uniq = [...new Set(ests||[])];
   if (cur && !uniq.includes(cur)) uniq.push(cur);
   sel.innerHTML = '<option value="">— tecido —</option>' + uniq.map(t => `<option>${escapeHtml(t)}</option>`).join('');
   if (cur) sel.value = cur;
@@ -2642,10 +2638,9 @@ async function openCard(id){
   // Campos de Corte
   const mEl = document.getElementById('cardMetragem'); if (mEl) mEl.value = c.metragem ?? '';
   const rEl = document.getElementById('cardQtdRolos'); if (rEl) rEl.value = c.qtd_rolos ?? '';
-  // Corte: grade de riscos nas colunas de corte; campos de estoque nas demais
+  // Quadros separados: no Corte todo card é corte (grade); no Estoque de Tecidos todo card é estoque.
   if (bType === 'corte' || bType === 'estoque'){
-    // No quadro de Estoque de Tecidos todo card é estoque; no de Corte depende da coluna.
-    const _kind = bType === 'estoque' ? 'estoque' : corteListKind(c.list_id);
+    const _kind = bType === 'estoque' ? 'estoque' : 'corte';
     const _est = document.getElementById('corteEstoqueFields');
     const _grd = document.getElementById('corteGradeWrap');
     if (_est) _est.classList.toggle('hidden', _kind !== 'estoque');
@@ -3447,16 +3442,13 @@ window.saveCard = async (silent = false) => {
       pago_costura: document.getElementById('cardPagoCostura').checked,
     });
   } else if (bType === 'corte'){
-    const _kind = corteListKind(document.getElementById('cardList').value);
-    if (_kind === 'corte'){
-      updates.corte_grade = CorteGrade.serialize();
-      // Espelha totais nas colunas antigas pra alimentar o dashboard de Corte
-      updates.metragem = CorteGrade.totalMetros() || null;
-      updates.qtd_rolos = CorteGrade.totalRolos() || null;
-    } else {
-      updates.metragem = parseFloat(document.getElementById('cardMetragem').value) || null;
-      updates.qtd_rolos = parseInt(document.getElementById('cardQtdRolos').value) || null;
-    }
+    updates.corte_grade = CorteGrade.serialize();
+    // Espelha totais nas colunas pra alimentar o dashboard
+    updates.metragem = CorteGrade.totalMetros() || null;
+    updates.qtd_rolos = CorteGrade.totalRolos() || null;
+  } else if (bType === 'estoque'){
+    updates.metragem = parseFloat(document.getElementById('cardMetragem').value) || null;
+    updates.qtd_rolos = parseInt(document.getElementById('cardQtdRolos').value) || null;
   } else if (bType === 'marketing'){
     updates.aprovacao = document.getElementById('cardAprovacao').value || null;
     updates.valor = parseFloat(document.getElementById('cardValor').value) || null;
