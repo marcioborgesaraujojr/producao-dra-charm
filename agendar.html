@@ -146,7 +146,7 @@
         <p class="text-sm font-semibold text-slate-700">Quer adiantar sua visita? <span class="font-normal text-slate-400">(opcional)</span></p>
         <p class="text-xs text-slate-500 mt-0.5 mb-2">Marque as peças que você tem interesse em ver — a gente já separa pra sua visita ser rápida.</p>
         <input id="pecaBusca" type="text" placeholder="Buscar peça…" class="w-full mb-2 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:border-pink-400 outline-none"/>
-        <div id="pecaLista" class="max-h-52 overflow-y-auto grid gap-0.5 pr-1"></div>
+        <div id="pecaLista" class="max-h-80 overflow-y-auto grid gap-0.5 pr-1"></div>
         <button id="pecaSalvar" class="mt-3 w-full py-2.5 rounded-2xl bg-pink-500 hover:bg-pink-600 text-white text-sm font-semibold transition">Salvar minhas peças</button>
         <p id="pecaMsg" class="text-center text-xs mt-2"></p>
       </div>
@@ -350,8 +350,13 @@ async function carregarPecas(){
     try {
       const url = CONFIG.SUPABASE_URL + '/storage/v1/object/public/reposicao-data/reposicao/estoque.json';
       const r = await fetch(url); const j = await r.json();
-      const arr = ((j && j.produtos) || []).map(p => p.nome).filter(Boolean);
-      PECAS_PROD = [...new Set(arr)].sort((a,b)=>a.localeCompare(b));
+      const seen = new Set(); const out = [];
+      ((j && j.produtos) || []).forEach(p => {
+        if (!p || !p.nome || seen.has(p.nome)) return;
+        seen.add(p.nome); out.push({ nome: p.nome, imagem: p.imagem || '' });
+      });
+      out.sort((a,b)=>a.nome.localeCompare(b.nome));
+      PECAS_PROD = out;
     } catch(e){ PECAS_PROD = []; }
   }
   renderPecas('');
@@ -360,12 +365,17 @@ async function carregarPecas(){
 }
 function renderPecas(q){
   const nq = (q||'').toLowerCase().trim();
-  const lista = PECAS_PROD.filter(n => !nq || n.toLowerCase().includes(nq)).slice(0,400);
+  const lista = PECAS_PROD.filter(p => !nq || p.nome.toLowerCase().includes(nq)).slice(0,400);
   const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
-  $('pecaLista').innerHTML = lista.length ? lista.map(n =>
-    `<label class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-pink-50 cursor-pointer text-sm text-slate-700">
-      <input type="checkbox" ${PECAS_SEL.has(n)?'checked':''} data-peca="${esc(n)}" class="accent-pink-500 shrink-0"><span>${esc(n)}</span></label>`
-  ).join('') : '<p class="text-xs text-slate-400 py-3 text-center">Nada encontrado.</p>';
+  $('pecaLista').innerHTML = lista.length ? lista.map(p => {
+    const n = p.nome, sel = PECAS_SEL.has(n);
+    const thumb = p.imagem
+      ? `<img src="${esc(p.imagem)}" loading="lazy" alt="" class="w-12 h-12 rounded-xl object-cover bg-slate-100 shrink-0 border border-slate-200/70" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"/><div class="w-12 h-12 rounded-xl bg-slate-100 shrink-0" style="display:none"></div>`
+      : `<div class="w-12 h-12 rounded-xl bg-slate-100 shrink-0"></div>`;
+    return `<label class="flex items-center gap-3 px-2 py-1.5 rounded-xl hover:bg-pink-50 ${sel?'bg-pink-50':''} cursor-pointer text-sm text-slate-700 transition">
+      ${thumb}<span class="flex-1 min-w-0 leading-tight">${esc(n)}</span>
+      <input type="checkbox" ${sel?'checked':''} data-peca="${esc(n)}" class="accent-pink-500 shrink-0 w-5 h-5"></label>`;
+  }).join('') : '<p class="text-xs text-slate-400 py-3 text-center">Nada encontrado.</p>';
   $('pecaLista').querySelectorAll('[data-peca]').forEach(cb => cb.onchange = () => {
     const n = cb.getAttribute('data-peca'); if (cb.checked) PECAS_SEL.add(n); else PECAS_SEL.delete(n);
   });
