@@ -48,6 +48,8 @@
   html.dark .act-del{color:#fda4af;background:rgba(244,63,94,.15);border-color:rgba(244,63,94,.32)}
   html.dark .act-neutral{color:#cbd5e1;background:rgba(148,163,184,.14);border-color:rgba(148,163,184,.28)}
   #dcModalIcon svg{width:20px;height:20px}
+  .dc-danger{background:#e11d48;color:#fff}
+  .dc-danger:hover{background:#be123c}
   ::-webkit-scrollbar{height:6px;width:6px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:9px}
   html.dark ::-webkit-scrollbar-thumb{background:#334155}
 </style>
@@ -235,9 +237,9 @@ function dcConfirm(o){
     $('dcModalOk').textContent = o.okText || 'Confirmar';
     $('dcModalCancel').textContent = o.cancelText || 'Voltar';
     const danger = !!o.danger;
-    $('dcModalOk').className = 'py-2.5 rounded-xl text-white text-sm font-semibold ' + (danger?'bg-red-500 hover:bg-red-600':'bg-pink-500 hover:bg-pink-600');
+    $('dcModalOk').className = 'py-2.5 rounded-xl text-sm font-semibold ' + (danger?'dc-danger':'text-white bg-pink-500 hover:bg-pink-600');
     const ic = $('dcModalIcon');
-    ic.className = 'w-10 h-10 rounded-xl grid place-items-center shrink-0 ' + (danger?'bg-red-50 text-red-500 dark:bg-red-500/15':'bg-pink-50 text-pink-500 dark:bg-pink-500/15');
+    ic.className = 'w-10 h-10 rounded-xl grid place-items-center shrink-0 ' + (danger?'bg-rose-50 text-rose-600 dark:bg-rose-500/15':'bg-pink-50 text-pink-500 dark:bg-pink-500/15');
     ic.innerHTML = o.icon || IC.x;
     const m = $('dcModal'); m.classList.remove('hidden');
     const done = (v)=>{ m.classList.add('hidden'); res(v); };
