@@ -62,7 +62,8 @@
 <script>
   const CONFIG = {
     SUPABASE_URL: 'https://wwytzoyeibekhstinott.supabase.co', // fallback; a chave é puxada da suíte
-    PAGINA_CLIENTE: 'agendar.html'
+    PAGINA_CLIENTE: 'agendar.html',
+    ENDERECO: 'Rua Carlos Câmara, 1738D — Damas, Fortaleza/CE (porta ao lado do Açaí Açailândia)'
   };
 </script>
 <!-- ================================================= -->
@@ -181,6 +182,15 @@
             <button id="btnAddBloq" class="px-3 py-2 rounded-xl bg-slate-100 dark:bg-ink-700 hover:bg-slate-200 dark:hover:bg-ink-600 text-sm">Adicionar</button>
           </div>
           <div id="cfgListaBloq" class="flex flex-wrap gap-2 mt-2"></div></div>
+        <div class="border-t border-slate-100 dark:border-ink-700 pt-3">
+          <label class="text-xs text-slate-400">Bloquear horários específicos (só afeta novos agendamentos)</label>
+          <div class="flex gap-2 mt-1">
+            <input id="bloqData" type="date" class="bg-slate-50 dark:bg-ink-900 border border-slate-200 dark:border-ink-600 rounded-xl px-3 py-2 text-sm" />
+            <button id="btnVerBloq" type="button" class="px-3 py-2 rounded-xl bg-slate-100 dark:bg-ink-700 hover:bg-slate-200 dark:hover:bg-ink-600 text-sm">Ver horários</button>
+          </div>
+          <div id="bloqSlots" class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2"></div>
+          <button id="bloqSalvar" type="button" class="hidden mt-2 w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium">Salvar bloqueios do dia</button>
+        </div>
         <button id="btnSalvarCfg" class="w-full py-2.5 rounded-xl bg-pink-500 hover:bg-pink-600 text-white font-medium text-sm">Salvar configuração</button>
         <p id="cfgMsg" class="text-center text-xs text-emerald-500 h-4"></p>
       </div>
@@ -217,6 +227,24 @@
 <!-- Aviso rápido (toast) -->
 <div id="dcToast" class="hidden"></div>
 
+<!-- Modal Reagendar -->
+<div id="reagModal" class="hidden fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+  <div class="bg-white dark:bg-ink-800 w-full max-w-md rounded-2xl p-5 shadow-xl max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-1">
+      <h2 class="font-semibold text-lg">Reagendar visita</h2>
+      <button id="reagFechar" class="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
+    </div>
+    <p class="text-sm text-slate-500">Cliente: <b id="reagNome" class="text-slate-700 dark:text-slate-200"></b></p>
+    <p class="text-xs text-slate-400 mb-3">Horário atual: <span id="reagAtual"></span></p>
+    <p class="text-[11px] uppercase tracking-wide text-pink-500 font-semibold mb-1">Novo dia</p>
+    <div id="reagDias" class="flex gap-2 overflow-x-auto pb-1 mb-3"></div>
+    <p class="text-[11px] uppercase tracking-wide text-pink-500 font-semibold mb-1">Novo horário</p>
+    <div id="reagSlots" class="grid grid-cols-3 gap-2"></div>
+    <button id="reagConfirmar" type="button" class="hidden mt-4 w-full py-2.5 rounded-xl bg-pink-500 hover:bg-pink-600 text-white font-semibold text-sm">Confirmar reagendamento</button>
+    <a id="reagWa" href="#" target="_blank" rel="noopener" class="hidden mt-3 w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-sm flex items-center justify-center gap-2">Avisar cliente no WhatsApp</a>
+  </div>
+</div>
+
 <script>
 const $ = (id)=>document.getElementById(id);
 
@@ -226,7 +254,8 @@ const IC = {
   send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>',
   copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>',
   x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/></svg>',
-  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6M10 11v6M14 11v6"/></svg>'
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6M10 11v6M14 11v6"/></svg>',
+  cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 15h3"/></svg>'
 };
 
 // ---- modal de confirmação (Promise<boolean>) ----
@@ -300,6 +329,124 @@ function fmtDia(iso){ return new Intl.DateTimeFormat('pt-BR',{timeZone:TZ,weekda
 function fmtHora(iso){ return new Intl.DateTimeFormat('pt-BR',{timeZone:TZ,hour:'2-digit',minute:'2-digit'}).format(new Date(iso)); }
 function soDigitos(s){ return (s||'').replace(/\D/g,''); }
 function telParaWhats(t){ let d=soDigitos(t); if(!d) return ''; if(d.length<=11) d='55'+d; return d; }
+function primeiroNome(n){ return (n||'').trim().split(/\s+/)[0] || n; }
+
+// ===== Reagendar + Bloquear (reusa a config; horários iguais aos do cliente) =====
+let AG_CFG = null;
+async function getCfg(force){ if (AG_CFG && !force) return AG_CFG; const { data } = await sb.from('ag_config').select('*').eq('id',1).single(); AG_CFG = data || {}; return AG_CFG; }
+function hojeFortaleza(){ return new Intl.DateTimeFormat('en-CA',{timeZone:TZ}).format(new Date()); }
+function addDias(iso,i){ const d=new Date(iso+'T12:00:00Z'); d.setUTCDate(d.getUTCDate()+i); return d.toISOString().slice(0,10); }
+function dowISO(iso){ return new Date(iso+'T12:00:00Z').getUTCDay(); }
+function _mkDate(iso,hhmm){ return new Date(iso+'T'+hhmm+':00-03:00'); } // Fortaleza = UTC-3, sem horário de verão
+// Gera os horários do dia com a MESMA regra do banco: dia da semana, expediente, almoço, capacidade, futuro.
+function gerarSlotsDia(cfg, iso, appts, excludeId){
+  const dias = cfg.dias_semana || [1,2,3,4,5];
+  if (!dias.includes(dowISO(iso))) return [];
+  const diaBloq = (cfg.datas_bloqueadas||[]).includes(iso);
+  const dur = cfg.duracao_min || 120, cap = cfg.capacidade || 1;
+  const toMin = t => { const p=(t||'').slice(0,5).split(':'); return (+p[0])*60+(+p[1]); };
+  const startM = toMin(cfg.hora_inicio||'08:00'), endM = toMin(cfg.hora_fim||'18:00');
+  const almI = cfg.almoco_inicio? toMin(cfg.almoco_inicio):null, almF = cfg.almoco_fim? toMin(cfg.almoco_fim):null;
+  const agora = Date.now(); const out=[];
+  for (let m=startM; m+dur<=endM; m+=dur){
+    if (almI!=null && almF!=null && m<almF && m+dur>almI) continue;
+    const hh = String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+    const dIni = _mkDate(iso,hh), dFim = new Date(dIni.getTime()+dur*60000);
+    const noSlot = (appts||[]).filter(a => a.id!==excludeId && new Date(a.inicio).getTime()===dIni.getTime());
+    const bloco = noSlot.find(a => a.bloqueio);
+    out.push({ inicio:dIni.toISOString(), fim:dFim.toISOString(), hh,
+      futuro: dIni.getTime()>agora, ocupadoReal: noSlot.some(a=>!a.bloqueio),
+      bloqueado: !!bloco, blocoId: bloco?bloco.id:null,
+      livre: (dIni.getTime()>agora) && !diaBloq && noSlot.length < cap });
+  }
+  return out;
+}
+function diasDisponiveis(cfg, n){
+  const dias = cfg.dias_semana || [1,2,3,4,5]; const bloq = new Set(cfg.datas_bloqueadas||[]);
+  const hoje = hojeFortaleza(); const out=[];
+  for (let i=0;i<30 && out.length<(n||14);i++){ const iso=addDias(hoje,i); if (dias.includes(dowISO(iso)) && !bloq.has(iso)) out.push(iso); }
+  return out;
+}
+async function apptsDoDia(iso){
+  const { data } = await sb.from('ag_agendamentos').select('id,inicio,bloqueio,cliente_nome').eq('status','confirmado')
+    .gte('inicio', _mkDate(iso,'00:00').toISOString()).lte('inicio', _mkDate(iso,'23:59').toISOString());
+  return data||[];
+}
+function diaLabelBtn(iso){ const dow=['dom','seg','ter','qua','qui','sex','sáb'][dowISO(iso)]; return `<div class="text-[10px] text-slate-400">${dow}</div><div class="font-semibold leading-none mt-0.5">${iso.slice(8,10)}/${iso.slice(5,7)}</div>`; }
+
+// ---- REAGENDAR ----
+let REAG = {}, _reagId=null, _reagIso=null, _reagSlot=null;
+async function abrirReagendar(id){
+  const a = REAG[id]; if (!a) return;
+  _reagId=id; _reagIso=null; _reagSlot=null;
+  const cfg = await getCfg(true);
+  $('reagNome').textContent = a.cliente_nome || 'cliente';
+  $('reagAtual').textContent = fmtDia(a.inicio)+' · '+fmtHora(a.inicio);
+  const dias = diasDisponiveis(cfg, 14);
+  $('reagDias').innerHTML = dias.length ? dias.map(iso=>`<button data-iso="${iso}" class="reagDia shrink-0 w-16 py-2 rounded-xl bg-slate-50 dark:bg-ink-900 border border-slate-200 dark:border-ink-600 text-center">${diaLabelBtn(iso)}</button>`).join('') : '<span class="text-xs text-slate-400">Nenhum dia disponível.</span>';
+  $('reagSlots').innerHTML = '<p class="col-span-3 text-slate-400 text-xs py-4 text-center">Escolha um dia acima.</p>';
+  $('reagConfirmar').classList.add('hidden'); $('reagWa').classList.add('hidden');
+  $('reagDias').querySelectorAll('.reagDia').forEach(b=> b.onclick=()=>escolherDiaReag(b, b.dataset.iso));
+  $('reagModal').classList.remove('hidden');
+}
+async function escolherDiaReag(btn, iso){
+  $('reagDias').querySelectorAll('.reagDia').forEach(b=>b.classList.remove('ring-2','ring-pink-500'));
+  btn.classList.add('ring-2','ring-pink-500'); _reagIso=iso; _reagSlot=null; $('reagConfirmar').classList.add('hidden'); $('reagWa').classList.add('hidden');
+  const cfg = await getCfg();
+  const slots = gerarSlotsDia(cfg, iso, await apptsDoDia(iso), _reagId).filter(s=>s.livre);
+  const cont = $('reagSlots');
+  cont.innerHTML = slots.length ? slots.map(s=>`<button data-ini="${s.inicio}" data-fim="${s.fim}" class="reagSlot py-2 rounded-xl bg-slate-50 dark:bg-ink-900 border border-slate-200 dark:border-ink-600 text-sm font-semibold">${s.hh}</button>`).join('') : '<p class="col-span-3 text-slate-400 text-xs py-4 text-center">Sem horários livres nesse dia.</p>';
+  cont.querySelectorAll('.reagSlot').forEach(b=> b.onclick=()=>{ cont.querySelectorAll('.reagSlot').forEach(x=>x.classList.remove('ring-2','ring-pink-500')); b.classList.add('ring-2','ring-pink-500'); _reagSlot={inicio:b.dataset.ini,fim:b.dataset.fim}; $('reagConfirmar').classList.remove('hidden'); });
+}
+async function confirmarReagendar(){
+  if (!_reagId || !_reagSlot) return;
+  const a = REAG[_reagId];
+  const ok = await dcConfirm({ title:'Reagendar esta visita?', msg:`Mudar ${a.cliente_nome} de ${fmtDia(a.inicio)} ${fmtHora(a.inicio)} para ${fmtDia(_reagSlot.inicio)} ${fmtHora(_reagSlot.inicio)}?`, okText:'Reagendar', icon:IC.cal });
+  if (!ok) return;
+  const { error } = await sb.from('ag_agendamentos').update({ inicio:_reagSlot.inicio, fim:_reagSlot.fim }).eq('id', _reagId);
+  if (error){ dcToast('Erro ao reagendar.','err'); console.error(error); return; }
+  a.inicio = _reagSlot.inicio; a.fim = _reagSlot.fim; REAG[_reagId]=a;
+  const tel = telParaWhats(a.cliente_telefone||'');
+  const novo = fmtDia(_reagSlot.inicio)+' às '+fmtHora(_reagSlot.inicio);
+  if (tel){ const msg = encodeURIComponent(`Oi ${primeiroNome(a.cliente_nome)}! Sua visita foi remarcada para ${novo} no nosso showroom de fábrica. Endereço: ${CONFIG.ENDERECO}`);
+    const w=$('reagWa'); w.href='https://wa.me/'+tel+'?text='+msg; w.classList.remove('hidden'); $('reagConfirmar').classList.add('hidden'); dcToast('Reagendado! Envie a mensagem ao cliente.','ok'); }
+  else { dcToast('Visita reagendada!','ok'); $('reagModal').classList.add('hidden'); }
+  carregarAgenda();
+}
+
+// ---- BLOQUEAR HORÁRIOS INDIVIDUAIS (agendamento fantasma no horário) ----
+let _bloqSlots = [], _bloqIso = null;
+async function verBloqueiosDia(){
+  const iso = $('bloqData').value; if (!iso){ dcToast('Escolha uma data.','info'); return; }
+  _bloqIso = iso; const cfg = await getCfg(true);
+  const slots = gerarSlotsDia(cfg, iso, await apptsDoDia(iso), null);
+  _bloqSlots = slots; const cont = $('bloqSlots');
+  if (!slots.length){ cont.innerHTML='<p class="text-xs text-slate-400">Esse dia não tem expediente (ou está como dia inteiro bloqueado acima).</p>'; $('bloqSalvar').classList.add('hidden'); return; }
+  cont.innerHTML = slots.map((s,i)=>{
+    const oc = s.ocupadoReal; const dis = oc?'disabled':''; const chk = s.bloqueado?'checked':'';
+    const tag = oc?'<span class="text-[10px] text-amber-600 ml-auto">ocupado</span>':'';
+    return `<label class="flex items-center gap-2 px-2.5 py-2 rounded-lg border ${oc?'bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-700':'bg-slate-50 dark:bg-ink-900 border-slate-200 dark:border-ink-600 cursor-pointer'} text-sm">
+      <input type="checkbox" data-i="${i}" ${chk} ${dis} class="accent-pink-500"><span class="font-semibold">${s.hh}</span>${tag}</label>`;
+  }).join('');
+  $('bloqSalvar').classList.remove('hidden');
+}
+async function salvarBloqueiosDia(){
+  if (!_bloqIso) return;
+  const checks = [...$('bloqSlots').querySelectorAll('input[type=checkbox]')];
+  const inserts=[], deletes=[];
+  checks.forEach(cb=>{ const s=_bloqSlots[+cb.dataset.i]; if(!s || s.ocupadoReal) return;
+    if (cb.checked && !s.bloqueado) inserts.push(s);
+    if (!cb.checked && s.bloqueado && s.blocoId) deletes.push(s.blocoId);
+  });
+  if (!inserts.length && !deletes.length){ dcToast('Nada mudou.','info'); return; }
+  const btn=$('bloqSalvar'); btn.disabled=true; const _t=btn.textContent; btn.textContent='Salvando…';
+  try{
+    if (inserts.length) await sb.from('ag_agendamentos').insert(inserts.map(s=>({ cliente_nome:'🔒 Bloqueado', inicio:s.inicio, fim:s.fim, status:'confirmado', bloqueio:true })));
+    if (deletes.length) await sb.from('ag_agendamentos').delete().in('id', deletes);
+    dcToast('Bloqueios salvos ✓','ok'); await verBloqueiosDia();
+  }catch(e){ dcToast('Erro ao salvar bloqueios.','err'); console.error(e); }
+  btn.disabled=false; btn.textContent=_t;
+}
 function escapeHtml(s){ return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 // ---- config Supabase (puxa da suíte) ----
@@ -347,19 +494,25 @@ async function carregarAgenda(){
   const { data: ags, error } = await sb.from('ag_agendamentos').select('*').eq('status','confirmado').gte('inicio', agora).order('inicio');
   const cont = $('listaAgenda');
   if (error){ cont.innerHTML = '<p class="text-red-500 text-sm">Erro ao carregar.</p>'; return; }
-  cont.innerHTML = ags.length ? ags.map(cardAgenda).join('') : '<p class="text-slate-400 text-sm">Nenhuma visita marcada ainda.</p>';
+  const reais = (ags||[]).filter(a => !a.bloqueio);   // esconde os bloqueios (agendamentos fantasma)
+  cont.innerHTML = reais.length ? reais.map(cardAgenda).join('') : '<p class="text-slate-400 text-sm">Nenhuma visita marcada ainda.</p>';
   const { data: links } = await sb.from('ag_links').select('*').eq('status','ativo').order('criado_em',{ascending:false}).limit(30);
   const cp = $('listaPendentes');
   cp.innerHTML = (links && links.length) ? links.map(cardPendente).join('') : '<p class="text-slate-400 text-sm">Nenhum link pendente.</p>';
   ligarBotoes();
 }
 function cardAgenda(a){
+  REAG[a.id] = a;
   const tel = a.cliente_telefone ? soDigitos(a.cliente_telefone) : '';
   const whats = tel ? `<a href="https://wa.me/${telParaWhats(tel)}" target="_blank" rel="noopener" class="act act-wa">${IC.wa}<span>WhatsApp</span></a>` : '';
-  return `<div class="bg-slate-50 dark:bg-ink-900/60 border border-slate-200 dark:border-ink-600 rounded-xl p-3 flex items-center justify-between gap-2">
-    <div class="min-w-0"><p class="font-medium text-sm truncate">${escapeHtml(a.cliente_nome)}</p>
-    <p class="text-xs text-slate-400">${fmtDia(a.inicio)} · ${fmtHora(a.inicio)}–${fmtHora(a.fim)} ${a.cliente_telefone?('· '+escapeHtml(a.cliente_telefone)):''}</p></div>
-    <div class="flex items-center gap-2 shrink-0">${whats}<button data-cancelar="${a.id}" data-link="${a.link_id||''}" class="act act-del">${IC.x}<span>Cancelar</span></button></div></div>`;
+  const pcs = (Array.isArray(a.pecas_interesse) && a.pecas_interesse.length)
+    ? `<div class="mt-2 flex flex-wrap gap-1"><span class="text-[10px] text-slate-400 mr-0.5">Quer ver:</span>${a.pecas_interesse.slice(0,25).map(p=>`<span class="text-[10px] bg-pink-50 text-pink-600 dark:bg-pink-500/15 dark:text-pink-300 rounded px-1.5 py-0.5">${escapeHtml(p)}</span>`).join('')}</div>` : '';
+  return `<div class="bg-slate-50 dark:bg-ink-900/60 border border-slate-200 dark:border-ink-600 rounded-xl p-3">
+    <div class="flex items-center justify-between gap-2">
+      <div class="min-w-0"><p class="font-medium text-sm truncate">${escapeHtml(a.cliente_nome)}</p>
+      <p class="text-xs text-slate-400">${fmtDia(a.inicio)} · ${fmtHora(a.inicio)}–${fmtHora(a.fim)} ${a.cliente_telefone?('· '+escapeHtml(a.cliente_telefone)):''}</p></div>
+      <div class="flex items-center gap-2 shrink-0 flex-wrap justify-end">${whats}<button data-reagendar="${a.id}" class="act act-copy">${IC.cal}<span>Reagendar</span></button><button data-cancelar="${a.id}" data-link="${a.link_id||''}" class="act act-del">${IC.x}<span>Cancelar</span></button></div>
+    </div>${pcs}</div>`;
 }
 function cardPendente(l){
   const url = location.origin + '/' + CONFIG.PAGINA_CLIENTE + '?t=' + l.token;
@@ -373,6 +526,7 @@ function cardPendente(l){
 }
 function ligarBotoes(){
   document.querySelectorAll('[data-cancelar]').forEach(b=> b.onclick = ()=>cancelarAgendamento(b.dataset.cancelar, b.dataset.link));
+  document.querySelectorAll('[data-reagendar]').forEach(b=> b.onclick = ()=>abrirReagendar(b.dataset.reagendar));
   document.querySelectorAll('[data-cancelarlink]').forEach(b=> b.onclick = ()=>excluirLink(b.dataset.cancelarlink));
   document.querySelectorAll('[data-copy]').forEach(b=> b.onclick = ()=>{ navigator.clipboard.writeText(b.dataset.copy); const l=b.querySelector('.lbl'); if(l){ l.textContent='Copiado!'; setTimeout(()=>l.textContent='Copiar',1500);} });
 }
@@ -439,6 +593,12 @@ function renderBloq(){
   document.querySelectorAll('[data-del]').forEach(b=> b.onclick=()=>{ cfgBloq = cfgBloq.filter(x=>x!==b.dataset.del); renderBloq(); });
 }
 $('btnAddBloq').onclick = ()=>{ const v=$('cfgDataBloq').value; if(v && !cfgBloq.includes(v)){ cfgBloq.push(v); renderBloq(); } };
+// Reagendar (modal) + bloqueio de horários
+$('reagConfirmar').onclick = confirmarReagendar;
+$('reagFechar').onclick = ()=> $('reagModal').classList.add('hidden');
+$('reagModal').addEventListener('click', e=>{ if(e.target===$('reagModal')) $('reagModal').classList.add('hidden'); });
+$('btnVerBloq').onclick = verBloqueiosDia;
+$('bloqSalvar').onclick = salvarBloqueiosDia;
 $('btnSalvarCfg').onclick = async ()=>{
   const dias = [...document.querySelectorAll('.diaBtn')].filter(b=>b.classList.contains('bg-pink-500')).map(b=>parseInt(b.dataset.dia));
   const payload = { dias_semana: dias.length?dias:[1,2,3,4,5], hora_inicio: $('cfgIni').value||'08:00', hora_fim: $('cfgFim').value||'18:00',

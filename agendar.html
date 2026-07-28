@@ -141,6 +141,15 @@
       </div>
       <div id="sucBotoes" class="mt-5 grid gap-2"></div>
       <p class="text-center text-xs text-slate-400 mt-4">Adicione à sua agenda para não esquecer.</p>
+      <!-- Peças de interesse (opcional) -->
+      <div id="pecasBox" class="mt-5 pt-4 border-t border-slate-200/70 hidden">
+        <p class="text-sm font-semibold text-slate-700">Quer adiantar sua visita? <span class="font-normal text-slate-400">(opcional)</span></p>
+        <p class="text-xs text-slate-500 mt-0.5 mb-2">Marque as peças que você tem interesse em ver — a gente já separa pra sua visita ser rápida.</p>
+        <input id="pecaBusca" type="text" placeholder="Buscar peça…" class="w-full mb-2 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:border-pink-400 outline-none"/>
+        <div id="pecaLista" class="max-h-52 overflow-y-auto grid gap-0.5 pr-1"></div>
+        <button id="pecaSalvar" class="mt-3 w-full py-2.5 rounded-2xl bg-pink-500 hover:bg-pink-600 text-white text-sm font-semibold transition">Salvar minhas peças</button>
+        <p id="pecaMsg" class="text-center text-xs mt-2"></p>
+      </div>
     </div>
 
     <!-- Logo Dra. Charm no rodapé -->
@@ -328,6 +337,46 @@ async function confirmar(){
   $('sucEndereco').textContent = CONFIG.ENDERECO ? CONFIG.ENDERECO : '';
   botoesCalendario($('sucBotoes'), data.inicio, data.fim);
   show('sucesso');
+  carregarPecas();
+}
+
+// ===== Peças de interesse (opcional) — puxa os produtos do site (reposição) =====
+let PECAS_PROD = null; const PECAS_SEL = new Set();
+async function carregarPecas(){
+  const box = $('pecasBox'); if (!box) return;
+  box.classList.remove('hidden');
+  if (!PECAS_PROD){
+    $('pecaLista').innerHTML = '<p class="text-xs text-slate-400 py-3 text-center">Carregando peças…</p>';
+    try {
+      const url = CONFIG.SUPABASE_URL + '/storage/v1/object/public/reposicao-data/reposicao/estoque.json';
+      const r = await fetch(url); const j = await r.json();
+      const arr = ((j && j.produtos) || []).map(p => p.nome).filter(Boolean);
+      PECAS_PROD = [...new Set(arr)].sort((a,b)=>a.localeCompare(b));
+    } catch(e){ PECAS_PROD = []; }
+  }
+  renderPecas('');
+  $('pecaBusca').oninput = e => renderPecas(e.target.value);
+  $('pecaSalvar').onclick = salvarPecas;
+}
+function renderPecas(q){
+  const nq = (q||'').toLowerCase().trim();
+  const lista = PECAS_PROD.filter(n => !nq || n.toLowerCase().includes(nq)).slice(0,400);
+  const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  $('pecaLista').innerHTML = lista.length ? lista.map(n =>
+    `<label class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-pink-50 cursor-pointer text-sm text-slate-700">
+      <input type="checkbox" ${PECAS_SEL.has(n)?'checked':''} data-peca="${esc(n)}" class="accent-pink-500 shrink-0"><span>${esc(n)}</span></label>`
+  ).join('') : '<p class="text-xs text-slate-400 py-3 text-center">Nada encontrado.</p>';
+  $('pecaLista').querySelectorAll('[data-peca]').forEach(cb => cb.onchange = () => {
+    const n = cb.getAttribute('data-peca'); if (cb.checked) PECAS_SEL.add(n); else PECAS_SEL.delete(n);
+  });
+}
+async function salvarPecas(){
+  const btn = $('pecaSalvar'), m = $('pecaMsg'); btn.disabled = true; btn.textContent = 'Salvando…';
+  const arr = [...PECAS_SEL];
+  const { error } = await sb.rpc('ag_set_pecas', { p_token: TOKEN, p_pecas: arr });
+  btn.disabled = false; btn.textContent = 'Salvar minhas peças';
+  if (error){ m.textContent = 'Não foi possível salvar. Tente de novo.'; m.className = 'text-center text-xs mt-2 text-red-500'; }
+  else { m.textContent = arr.length ? ('✓ '+arr.length+' peça(s) enviada(s)! A gente já separa pra você.') : '✓ Salvo.'; m.className = 'text-center text-xs mt-2 text-emerald-600'; }
 }
 init();
 </script>
