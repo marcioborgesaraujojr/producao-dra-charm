@@ -4,40 +4,38 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Agendar visita — Dra. Charm</title>
-<link id="faviconLink" rel="icon" type="image/png" href="https://cdn.awsli.com.br/1930/1930166/arquivos/logo.png">
-<link rel="apple-touch-icon" href="/icone-app.png">
-<script>
-  // Favicon igual ao resto da suíte (system-assets/favicon.png; cai no default se não existir)
-  (function(){ try{ var u='https://wwytzoyeibekhstinott.supabase.co/storage/v1/object/public/system-assets/favicon.png?t='+Date.now(); var img=new Image(); img.onload=function(){ var f=document.getElementById('faviconLink'); if(f) f.href=u; }; img.src=u; }catch(e){} })();
-</script>
+<link id="faviconLink" rel="icon" type="image/png" href="/dra-charm-logo.png">
+<link rel="apple-touch-icon" href="/dra-charm-logo.png">
+<meta name="theme-color" content="#ff4b7d">
+<!-- Pré-visualização (WhatsApp, redes) -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Agendar visita — Dra. Charm">
+<meta property="og:description" content="Escolha o melhor horário para vir à Dra. Charm escolher as peças.">
+<meta property="og:image" content="https://producao-dra-charm.vercel.app/dra-charm-logo.png">
+<meta name="twitter:card" content="summary">
 <script src="https://cdn.tailwindcss.com"></script>
-<script>
-  tailwind.config = { darkMode:'class', theme:{ extend:{ colors:{ ink:{600:'#243049',700:'#182036',800:'#111a2e',900:'#0b1220'} } } } };
-  if (localStorage.getItem('dc_dark') === '1') document.documentElement.classList.add('dark');
-</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-  html{background:#f1f5f9}html.dark{background:#0b1220}
-  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background-color:transparent}
-  #appBg{position:fixed;inset:0;width:100vw;height:100vh;z-index:-1;background-size:cover;background-position:center;background-repeat:no-repeat;pointer-events:none}
-  body.has-bg #appBg::after{content:'';position:absolute;inset:0;background:rgba(15,23,42,.35);pointer-events:none}
-  html.dark body.has-bg #appBg::after{background:rgba(0,0,0,.5)}
-  body.has-bg::before{content:'';position:fixed;inset:0;background:rgba(255,255,255,.30);pointer-events:none;z-index:0}
-  body.has-bg #appWrap{position:relative;z-index:1;background:transparent !important;background-image:none !important}
-  body.has-bg header{background:rgba(255,255,255,.85)!important;backdrop-filter:blur(12px)}
-  html.dark body.has-bg header{background:rgba(17,26,46,.85)!important}
-  .fade{animation:fade .25s ease}@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-  /* Carregando: logo "A" pulsando, igual ao quadro de produção */
-  .dc-load{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:56px 16px;min-height:40vh}
-  .dc-logo-img{width:72px;height:72px;object-fit:contain;animation:dc-breathe 1.5s ease-in-out infinite}
-  @keyframes dc-breathe{0%,100%{opacity:.5;transform:scale(.9)}50%{opacity:1;transform:scale(1)}}
+  html,body{margin:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    min-height:100vh;color:#334155;
+    background:url('/agendar-fundo.png') center center / cover no-repeat fixed, #fce7f0;
+  }
+  /* Filtro suave sobre o fundo colorido, pra o conteúdo se destacar */
+  body::before{content:'';position:fixed;inset:0;background:rgba(255,255,255,.28);backdrop-filter:blur(2px);z-index:0;pointer-events:none}
+  .wrap{position:relative;z-index:1}
+  /* Cartão translúcido (o "balão" que segura tudo) */
+  .card{background:rgba(255,255,255,.86);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.6);border-radius:26px;box-shadow:0 18px 50px rgba(190,24,93,.16),0 2px 8px rgba(0,0,0,.06)}
+  .fade{animation:fade .28s ease}@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .dc-load{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:40px 8px}
+  .dc-logo-img{width:76px;height:76px;object-fit:contain;animation:dc-breathe 1.5s ease-in-out infinite}
+  @keyframes dc-breathe{0%,100%{opacity:.55;transform:scale(.92)}50%{opacity:1;transform:scale(1)}}
   .slot:disabled{opacity:.35;cursor:not-allowed}
-  ::-webkit-scrollbar{height:6px;width:6px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:9px}
-  html.dark ::-webkit-scrollbar-thumb{background:#334155}
+  ::-webkit-scrollbar{height:6px;width:6px}::-webkit-scrollbar-thumb{background:#f3b8cd;border-radius:9px}
 </style>
 </head>
-<body class="text-slate-800 dark:text-slate-100 antialiased">
-<div id="appBg"></div>
+<body class="antialiased">
 
 <!-- ===================== CONFIG ===================== -->
 <script>
@@ -51,87 +49,73 @@
 </script>
 <!-- ================================================= -->
 
-<div id="appWrap" class="min-h-screen bg-gradient-to-br from-pink-50 via-white to-slate-50 dark:from-ink-900 dark:via-ink-800 dark:to-ink-900">
+<div class="wrap min-h-screen flex items-center justify-center px-4 py-8">
+  <div class="card w-full max-w-lg p-6 sm:p-7 fade">
 
-  <!-- Barra do topo (padrão da suíte) -->
-  <header class="h-14 flex items-center justify-between px-3 sm:px-4 gap-2 bg-white/95 dark:bg-ink-800/95 border-b border-slate-200 dark:border-ink-600 sticky top-0 z-30 backdrop-blur">
-    <div class="flex items-center gap-2.5 min-w-0">
-      <a href="/" title="Ir para a Suíte" class="w-9 h-9 rounded-xl overflow-hidden shadow hover:scale-105 transition flex-shrink-0 block"><img src="/icone-app.png" alt="Dra. Charm" class="w-full h-full object-cover"></a>
-      <div class="leading-tight min-w-0">
-        <div class="text-sm font-semibold truncate" id="hdrTitulo">Agendar visita</div>
-        <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate" id="hdrSub">Dra. Charm</div>
-      </div>
+    <!-- Logo Dra. Charm -->
+    <div class="flex justify-center mb-2">
+      <img src="/dra-charm-logo.png" alt="Dra. Charm" class="h-16 sm:h-20 object-contain" />
     </div>
-    <div class="flex items-center gap-1">
-      <button onclick="document.getElementById('bgInput').click()" title="Trocar fundo" class="w-9 h-9 rounded-lg grid place-items-center text-slate-500 hover:text-pink-500 hover:bg-slate-100 dark:hover:bg-ink-700 transition">
-        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-      </button>
-      <button onclick="toggleDark()" title="Tema claro/escuro" class="w-9 h-9 rounded-lg grid place-items-center text-slate-500 hover:text-pink-500 hover:bg-slate-100 dark:hover:bg-ink-700 transition">
-        <svg id="iconSol" class="w-5 h-5 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
-        <svg class="w-5 h-5 block dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
-      </button>
-    </div>
-  </header>
-  <input type="file" id="bgInput" accept="image/*" class="hidden" />
-
-  <div class="max-w-lg mx-auto px-4 py-8">
 
     <!-- carregando -->
-    <div id="loading" class="fade">
-      <div class="dc-load"><img src="/aragao-loading.png" class="dc-logo-img" alt="" /><span class="text-xs text-slate-400">Carregando…</span></div>
+    <div id="loading">
+      <div class="dc-load"><img src="/dra-charm-logo.png" class="dc-logo-img" alt="" /><span class="text-xs text-slate-400">Carregando…</span></div>
     </div>
 
     <!-- erro -->
-    <div id="erro" class="hidden bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 text-center fade shadow-sm">
+    <div id="erro" class="hidden text-center py-4 fade">
       <svg class="w-10 h-10 mx-auto mb-2 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L14.7 3.9a2 2 0 00-3.4 0z"/></svg>
-      <p id="erroMsg" class="text-slate-600 dark:text-slate-300">Este link não é válido.</p>
+      <p id="erroMsg" class="text-slate-600">Este link não é válido.</p>
       <p class="text-xs text-slate-400 mt-2">Fale com a nossa equipe para receber um novo link.</p>
     </div>
 
     <!-- já agendou -->
-    <div id="jaAgendou" class="hidden bg-white dark:bg-ink-800 border border-emerald-300 dark:border-emerald-700/60 rounded-2xl p-6 fade shadow-sm">
+    <div id="jaAgendou" class="hidden fade">
       <div class="text-center">
         <svg class="w-11 h-11 mx-auto mb-2 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
-        <p class="font-medium text-emerald-600 dark:text-emerald-300">Você já tem uma visita marcada!</p>
-        <p id="jaData" class="text-lg font-semibold mt-1"></p>
+        <p class="font-semibold text-emerald-600">Você já tem uma visita marcada!</p>
+        <p id="jaData" class="text-lg font-semibold mt-1 text-slate-800"></p>
       </div>
       <div id="jaBotoes" class="mt-5 grid gap-2"></div>
     </div>
 
     <!-- escolher horário -->
     <div id="agendador" class="hidden fade">
-      <p class="text-sm text-slate-600 dark:text-slate-300 mb-4" id="saudacao"></p>
-      <p class="text-xs uppercase tracking-wide text-slate-400 mb-2">Escolha o dia</p>
+      <div class="text-center mb-4">
+        <h1 id="hdrTitulo" class="text-xl font-bold text-slate-800">Olá!</h1>
+        <p class="text-sm text-slate-500" id="saudacao"></p>
+      </div>
+      <p class="text-xs uppercase tracking-wide text-pink-500 font-semibold mb-2">Escolha o dia</p>
       <div id="dias" class="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1"></div>
-      <p class="text-xs uppercase tracking-wide text-slate-400 mt-5 mb-2">Horários disponíveis</p>
+      <p class="text-xs uppercase tracking-wide text-pink-500 font-semibold mt-5 mb-2">Horários disponíveis</p>
       <div id="slots" class="grid grid-cols-3 gap-2">
         <p class="col-span-3 text-slate-400 text-sm py-6 text-center" id="slotsVazio">Selecione um dia acima.</p>
       </div>
     </div>
 
     <!-- sucesso -->
-    <div id="sucesso" class="hidden bg-white dark:bg-ink-800 border border-emerald-300 dark:border-emerald-700/60 rounded-2xl p-6 fade shadow-sm">
+    <div id="sucesso" class="hidden fade">
       <div class="text-center">
-        <svg class="w-11 h-11 mx-auto mb-2 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
-        <p class="font-medium text-emerald-600 dark:text-emerald-300">Visita confirmada!</p>
-        <p id="sucData" class="text-lg font-semibold mt-1"></p>
-        <p class="text-xs text-slate-400 mt-1" id="sucEndereco"></p>
+        <svg class="w-12 h-12 mx-auto mb-2 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+        <p class="font-semibold text-emerald-600 text-lg">Visita confirmada!</p>
+        <p id="sucData" class="text-lg font-semibold mt-1 text-slate-800"></p>
+        <p class="text-xs text-slate-500 mt-1" id="sucEndereco"></p>
       </div>
       <div id="sucBotoes" class="mt-5 grid gap-2"></div>
       <p class="text-center text-xs text-slate-400 mt-4">Adicione à sua agenda para não esquecer.</p>
     </div>
 
-    <p class="text-center text-[11px] text-slate-400 mt-10">Dra. Charm · Agendamento</p>
+    <p class="text-center text-[11px] text-slate-400 mt-6">Dra. Charm · Agendamento</p>
   </div>
 </div>
 
 <!-- Modal -->
-<div id="modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
-  <div class="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 w-full max-w-sm fade shadow-xl">
-    <p class="text-slate-500 dark:text-slate-300 text-sm">Confirmar sua visita para:</p>
-    <p id="modalData" class="text-lg font-semibold my-2"></p>
+<div id="modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
+  <div class="card w-full max-w-sm p-6 fade">
+    <p class="text-slate-500 text-sm">Confirmar sua visita para:</p>
+    <p id="modalData" class="text-lg font-semibold my-2 text-slate-800"></p>
     <div class="grid grid-cols-2 gap-2 mt-4">
-      <button id="modalCancelar" class="py-2.5 rounded-xl bg-slate-100 dark:bg-ink-700 hover:bg-slate-200 dark:hover:bg-ink-600 text-sm font-medium">Voltar</button>
+      <button id="modalCancelar" class="py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium">Voltar</button>
       <button id="modalConfirmar" class="py-2.5 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-sm font-medium">Confirmar</button>
     </div>
   </div>
@@ -141,37 +125,9 @@
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const TOKEN = params.get('t');
-let sb, LINK = null, cfgTz = 'America/Fortaleza', duracao = 60;
+let sb, LINK = null, cfgTz = 'America/Fortaleza', duracao = 120;
 let escolhido = null;
 const DIAS_SEMANA_NOME = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-
-// ---- tema + wallpaper ----
-function toggleDark(){
-  const on = document.documentElement.classList.toggle('dark');
-  localStorage.setItem('dc_dark', on ? '1' : '0');
-}
-(function initWall(){
-  const w = localStorage.getItem('dc_wall');
-  if (w){ $('appBg').style.backgroundImage = `url(${w})`; document.body.classList.add('has-bg'); }
-})();
-$('bgInput').onchange = (e) => {
-  const f = e.target.files[0]; if(!f) return;
-  const r = new FileReader();
-  r.onload = () => {
-    const img = new Image();
-    img.onload = () => {
-      const max = 1920; let w = img.width, h = img.height;
-      const s = Math.min(1, max/Math.max(w,h)); w = Math.round(w*s); h = Math.round(h*s);
-      const c = document.createElement('canvas'); c.width = w; c.height = h;
-      c.getContext('2d').drawImage(img, 0, 0, w, h);
-      let data; try { data = c.toDataURL('image/jpeg', 0.82); } catch(err){ alert('Não foi possível processar a imagem.'); return; }
-      try { localStorage.setItem('dc_wall', data); } catch(err){ alert('Imagem muito grande, tente outra.'); return; }
-      $('appBg').style.backgroundImage = `url(${data})`; document.body.classList.add('has-bg');
-    };
-    img.src = r.result;
-  };
-  r.readAsDataURL(f);
-};
 
 function show(id){ ['loading','erro','jaAgendou','agendador','sucesso'].forEach(x=>$(x).classList.add('hidden')); $(id).classList.remove('hidden'); }
 function erro(msg){ $('erroMsg').textContent = msg; show('erro'); }
@@ -206,10 +162,10 @@ function botoesCalendario(container, inicio, fim){
   container.innerHTML = '';
   const base = 'flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium';
   const g = document.createElement('a'); g.href = googleUrl(inicio, fim); g.target='_blank'; g.rel='noopener';
-  g.className = base+' bg-slate-100 dark:bg-ink-700 hover:bg-slate-200 dark:hover:bg-ink-600';
+  g.className = base+' bg-slate-100 hover:bg-slate-200 text-slate-700';
   g.innerHTML = SVG_CAL+'<span>Adicionar ao Google Agenda</span>';
   const a = document.createElement('a'); a.href = icsBlobUrl(inicio, fim); a.download = 'visita-dra-charm.ics';
-  a.className = base+' bg-slate-100 dark:bg-ink-700 hover:bg-slate-200 dark:hover:bg-ink-600';
+  a.className = base+' bg-slate-100 hover:bg-slate-200 text-slate-700';
   a.innerHTML = SVG_APPLE+'<span>Apple / Outlook (.ics)</span>';
   container.appendChild(g); container.appendChild(a);
   if (CONFIG.WHATSAPP_FABRICA){
@@ -250,16 +206,15 @@ async function init(){
   }
   LINK = data;
   cfgTz = (data.config && data.config.fuso) || cfgTz;
-  duracao = (data.config && data.config.duracao_min) || 60;
-  $('hdrTitulo').textContent = 'Olá, ' + primeiroNome(data.cliente_nome) + '!';
-  $('hdrSub').textContent = 'Dra. Charm · escolher peças';
+  duracao = (data.config && data.config.duracao_min) || 120;
   if (data.ja_agendou && data.agendamento){
     LINK.agid = 'existente';
     $('jaData').textContent = fmtDataHora(data.agendamento.inicio);
     botoesCalendario($('jaBotoes'), data.agendamento.inicio, data.agendamento.fim);
     show('jaAgendou'); return;
   }
-  $('saudacao').textContent = 'Escolha um dia e um horário para vir à '+CONFIG.EMPRESA_NOME+' escolher as peças. Leva cerca de '+duracao+' minutos.';
+  $('hdrTitulo').textContent = 'Olá, ' + primeiroNome(data.cliente_nome) + '!';
+  $('saudacao').textContent = 'Escolha um dia e um horário para vir à '+CONFIG.EMPRESA_NOME+' escolher as peças.';
   renderDias(data.config);
   show('agendador');
 }
@@ -280,9 +235,9 @@ function renderDias(config){
     if (bloq.has(iso)) continue;
     mostrados++;
     const btn = document.createElement('button');
-    btn.className = 'diaBtn shrink-0 w-16 py-2 rounded-xl bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 hover:border-pink-400 text-center transition';
+    btn.className = 'diaBtn shrink-0 w-16 py-2 rounded-xl bg-white border border-slate-200 hover:border-pink-400 text-center transition shadow-sm';
     btn.dataset.iso = iso;
-    btn.innerHTML = '<div class="text-[11px] text-slate-400">'+DIAS_SEMANA_NOME[dow]+'</div><div class="text-lg font-semibold leading-none mt-1">'+iso.slice(8,10)+'</div><div class="text-[10px] text-slate-400">'+mesNome(iso)+'</div>';
+    btn.innerHTML = '<div class="text-[11px] text-slate-400">'+DIAS_SEMANA_NOME[dow]+'</div><div class="text-lg font-semibold leading-none mt-1 text-slate-800">'+iso.slice(8,10)+'</div><div class="text-[10px] text-slate-400">'+mesNome(iso)+'</div>';
     btn.onclick = () => selecionarDia(btn, iso);
     cont.appendChild(btn);
   }
@@ -291,8 +246,8 @@ function renderDias(config){
 function mesNome(iso){ return new Intl.DateTimeFormat('pt-BR',{month:'short',timeZone:'UTC'}).format(new Date(iso+'T12:00:00Z')).replace('.',''); }
 
 async function selecionarDia(btn, iso){
-  [...$('dias').children].forEach(b=>b.classList.remove('border-pink-500','bg-pink-50','dark:bg-pink-500/10','ring-1','ring-pink-400'));
-  btn.classList.add('border-pink-500','bg-pink-50','dark:bg-pink-500/10','ring-1','ring-pink-400');
+  [...$('dias').children].forEach(b=>b.classList.remove('border-pink-500','bg-pink-50','ring-1','ring-pink-400'));
+  btn.classList.add('border-pink-500','bg-pink-50','ring-1','ring-pink-400');
   const cont = $('slots');
   cont.innerHTML = '<p class="col-span-3 text-slate-400 text-sm py-6 text-center">Buscando horários…</p>';
   const { data, error } = await sb.rpc('ag_slots_livres', { p_token: TOKEN, p_data: iso });
@@ -302,7 +257,7 @@ async function selecionarDia(btn, iso){
   cont.innerHTML = '';
   livres.forEach(s=>{
     const b = document.createElement('button');
-    b.className = 'slot py-2.5 rounded-xl bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 hover:border-pink-400 hover:bg-pink-50 dark:hover:bg-pink-500/10 text-sm font-medium transition';
+    b.className = 'slot py-2.5 rounded-xl bg-white border border-slate-200 hover:border-pink-400 hover:bg-pink-50 text-sm font-medium text-slate-700 transition shadow-sm';
     b.textContent = fmtHora(s.inicio);
     b.onclick = () => abrirModal(s);
     cont.appendChild(b);
