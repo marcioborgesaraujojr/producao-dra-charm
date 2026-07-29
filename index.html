@@ -283,7 +283,7 @@
   .cg-cor{display:flex;align-items:center;gap:6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:5px 8px;min-width:0}
   .dark .cg-cor{background:#1e293b;border-color:#334155}
   .cg-cor input[type=color]{width:22px;height:22px;border:none;background:none;padding:0;border-radius:6px;cursor:pointer;flex:none}
-  .cg-cnm{font-size:12px;font-weight:500;flex:1;min-width:0;width:auto;border:none;background:none;outline:none;color:inherit}
+  .cg-cnm{font-size:12px;font-weight:500;flex:1;min-width:0;width:auto;border:none;background:none;outline:none;color:inherit;text-transform:uppercase}
   .cg-cro{width:34px;font-size:12px;text-align:right;border:none;background:#eef2f7;border-radius:6px;padding:3px 4px;color:#0f172a;flex:none}
   .dark .cg-cro{background:#0f172a;color:#e2e8f0}
   .cg-cun{font-size:10px;color:#64748b}
@@ -1353,6 +1353,7 @@ window.sb = sb;
 let user = null, profile = null, profiles = [];
 let boards = [], currentBoardId = null;
 let lists = [], labels = [], tecidos = [], cards = [];
+let TECIDO_CORES = {};   // { 'NOMEUPPER': '#hex' } — cores puxadas do quadro "Estoque de Tecidos"
 let cardLabels = {}, cardMembers = {}, checklistsByCard = {};
 let cardSelLabels = new Set(); // etiquetas selecionadas no card aberto (multi)
 let comments = [], activity = [], notifications = [];
@@ -1595,6 +1596,25 @@ async function fillCorteTecidoSelect(cur){
   if (cur && !uniq.includes(cur)) uniq.push(cur);
   sel.innerHTML = '<option value="">— tecido —</option>' + uniq.map(t => `<option>${escapeHtml(t)}</option>`).join('');
   if (cur) sel.value = cur;
+}
+
+// Carrega o mapa NOME->cor do quadro "Estoque de Tecidos" (cada card = uma cor com cor_hex).
+// Usado no Corte pra já preencher a cor do pano do jeito que está cadastrado no estoque.
+let _tecidoCoresCache = null;
+async function loadTecidoCores(force){
+  if (_tecidoCoresCache && !force){ TECIDO_CORES = _tecidoCoresCache; return; }
+  try {
+    const { data: bs } = await sb.from('boards').select('id,name');
+    const eb = (bs||[]).find(b => /estoque/i.test(b.name));
+    if (!eb) return;
+    const { data: ls } = await sb.from('lists').select('id').eq('board_id', eb.id);
+    const ids = (ls||[]).map(l => l.id);
+    if (!ids.length) return;
+    const { data: cs } = await sb.from('cards').select('title,cor_hex').eq('archived', false).in('list_id', ids);
+    const map = {};
+    (cs||[]).forEach(c => { if (c.title && c.cor_hex) map[String(c.title).trim().toUpperCase()] = c.cor_hex; });
+    TECIDO_CORES = map; _tecidoCoresCache = map;
+  } catch(_){}
 }
 
 async function initAuth(){
@@ -2705,7 +2725,7 @@ async function openCard(id){
     const _grd = document.getElementById('corteGradeWrap');
     if (_est) _est.classList.toggle('hidden', _kind !== 'estoque');
     if (_grd) _grd.classList.toggle('hidden', _kind !== 'corte');
-    if (_kind === 'corte'){ fillCorteTecidoSelect(c.corte_grade && c.corte_grade.tecido); CorteGrade.load(c.corte_grade); }
+    if (_kind === 'corte'){ loadTecidoCores(); fillCorteTecidoSelect(c.corte_grade && c.corte_grade.tecido); CorteGrade.load(c.corte_grade); }
     if (_kind === 'estoque'){ const ch=document.getElementById('cardCorHex'); if(ch){ ch.value=c.cor_hex||'#cccccc'; const t=document.getElementById('cardCorHexTxt'); if(t) t.textContent=c.cor_hex||'#cccccc'; } }
     // Nas colunas de corte a grade substitui a descrição
     document.getElementById('cardDescBox').classList.toggle('hidden', _kind === 'corte');
@@ -3636,7 +3656,13 @@ window.CorteGrade = (function(){
     'bege':'#e3d5b8','nude':'#e6ccb2','creme':'#f5efe0','gelo':'#eef2f7','marrom':'#78350f','caramelo':'#b45309','mostarda':'#ca8a04','marrocos':'#8a5a2b',
     'turquesa':'#14b8a6','cereja':'#b91c1c','coral':'#fb7185','salmao':'#fda4af','terracota':'#c2410c','deep red':'#7f1d1d','deep gray':'#4b5563','mid blue':'#3b6ea5'
   };
-  const lookupCor=nome=>{const n=_norm(nome); if(!n) return null; if(COR_HEX[n]) return COR_HEX[n]; const w=n.split(/[\s*]+/)[0]; return COR_HEX[w]||null;};
+  const lookupCor=nome=>{
+    // 1º) cor cadastrada no quadro Estoque de Tecidos (casa pelo nome exato, em maiúsculas)
+    const raw=String(nome||'').trim().toUpperCase();
+    if(raw && typeof TECIDO_CORES!=='undefined' && TECIDO_CORES[raw]) return TECIDO_CORES[raw];
+    // 2º) dicionário fixo de cores conhecidas (branco, preto, marinho...)
+    const n=_norm(nome); if(!n) return null; if(COR_HEX[n]) return COR_HEX[n]; const w=n.split(/[\s*]+/)[0]; return COR_HEX[w]||null;
+  };
   let S={tecido:'',riscos:[],cores:[],folhas:{},open:new Set(),_seq:0};
 
   const nid=()=>++S._seq;
@@ -3681,7 +3707,7 @@ window.CorteGrade = (function(){
 
   function renderRiscos(){
     const el=document.getElementById('cgRiscos'); if(!el) return;
-    const head=`<thead><tr><th class="l">Risco</th>${SIZES.map(z=>`<th>${SLBL[z]}</th>`).join('')}<th>Metr.</th><th>pç/f</th><th>Rend</th><th></th></tr></thead>`;
+    const head=`<thead><tr><th class="l">Risco</th>${SIZES.map(z=>`<th>${SLBL[z]}</th>`).join('')}<th>Comp.</th><th>pç/f</th><th>Rend</th><th></th></tr></thead>`;
     const rows=S.riscos.map(r=>`<tr>
         <td class="l"><input class="cg-rn" value="${esc(r.nome)}" oninput="CorteGrade.setRiscoNome(${r.id},this.value)"></td>
         ${SIZES.map(z=>`<td><input class="cg-g" value="${r.g[z]||''}" inputmode="numeric" oninput="CorteGrade.setGrade(${r.id},'${z}',this.value)"></td>`).join('')}
@@ -3774,7 +3800,7 @@ window.CorteGrade = (function(){
   function setRiscoNome(rid,v){const r=R(rid); if(r) r.nome=v;}
   function setFolha(rid,cid,v){S.folhas[folKey(rid,cid)]=v; recalc();}
   function setHex(cid,v){const c=C(cid); if(c){c.hex=v; const sw=document.getElementById('cgSW'+cid); if(sw) sw.style.background=v;}}
-  function setCorNome(cid,v){const c=C(cid); if(!c) return; c.nome=v; const e=document.getElementById('cgCN'+cid); if(e) e.textContent=v;
+  function setCorNome(cid,v){const c=C(cid); if(!c) return; v=String(v||'').toUpperCase(); c.nome=v; const e=document.getElementById('cgCN'+cid); if(e) e.textContent=v;
     const hex=lookupCor(v); if(hex){ c.hex=hex; const col=document.getElementById('cgCol'+cid); if(col) col.value=hex; const sw=document.getElementById('cgSW'+cid); if(sw) sw.style.background=hex; }}
   function setRolos(cid,v){const c=C(cid); if(c) c.rolos=v;}
   function addRisco(){S.riscos.push({id:nid(),nome:'Risco '+(S.riscos.length+1),g:{},metr:''}); renderRiscos(); renderFinal(); recalc();}
