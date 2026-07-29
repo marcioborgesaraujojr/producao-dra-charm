@@ -394,10 +394,30 @@ async function enviar(){
   cv.msgs.push(isNota?{t:'nota',txt,hora}:{t:'out',txt,hora});
   if(!isNota){ cv.preview=txt; cv.ultimaAtividade=new Date().toLocaleString('pt-BR'); }
   inp.value=''; updCount(); renderChat(cv); if(isNota){NOTA=false;setNotaUI();} renderList();
+  const destino = cv.waid || (cv.tel||'').replace(/\D/g,'');   // número do cliente (formato internacional, ex: 5585...)
   try{ const c=await getSb();
-    await c.from('at_mensagens').insert({ conversa_id:cv.id, direcao:isNota?'out':'out', tipo:isNota?'nota':'texto', conteudo:txt, autor:AGENTE });
-    if(!isNota) await c.from('at_conversas').update({ ultima_msg_preview:txt, ultima_msg_em:new Date().toISOString() }).eq('id',cv.id);
-  }catch(e){ console.warn('persist msg falhou:',e.message); }
+    if(isNota){
+      // Nota interna: só registra, NÃO envia pro cliente.
+      await c.from('at_mensagens').insert({ conversa_id:cv.id, direcao:'out', tipo:'nota', conteudo:txt, autor:AGENTE });
+    } else if(destino){
+      // WhatsApp oficial: envia de verdade pela API da Meta (o endpoint grava a mensagem com a service role).
+      const { data:{ session } } = await c.auth.getSession();
+      const r = await fetch('/api/whatsapp-send', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+(session&&session.access_token) },
+        body: JSON.stringify({ to: destino, text: txt, conversa_id: cv.id })
+      });
+      const j = await r.json().catch(()=>({}));
+      if(!r.ok){
+        cv.msgs.push({ t:'sys', txt:'⚠️ Não enviou: '+(j.error||('erro '+r.status)) });
+        renderChat(cv);
+      }
+    } else {
+      // Conversa sem número (criada só pra anotação): grava local, sem enviar.
+      await c.from('at_mensagens').insert({ conversa_id:cv.id, direcao:'out', tipo:'texto', conteudo:txt, autor:AGENTE });
+      await c.from('at_conversas').update({ ultima_msg_preview:txt, ultima_msg_em:new Date().toISOString() }).eq('id',cv.id);
+    }
+  }catch(e){ console.warn('enviar falhou:',e.message); cv.msgs.push({ t:'sys', txt:'⚠️ Falha de conexão ao enviar.' }); renderChat(cv); }
 }
 async function toggleResolver(){
   const cv=cur(); if(!cv) return;
