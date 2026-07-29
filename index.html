@@ -1204,10 +1204,18 @@
               <span class="text-xs text-slate-500">m</span>
             </div>
           </div>
-          <div>
+          <div id="dueField">
             <label class="text-xs font-medium uppercase text-slate-500">Data limite</label>
             <input id="cardDue" type="date" class="mt-1 w-full p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm"/>
             <div id="cardDueHint" class="text-[10px] text-slate-400 mt-0.5"></div>
+          </div>
+          <div id="separadasField" class="hidden">
+            <label class="text-xs font-medium uppercase text-slate-500">Etiquetas/Composições separadas</label>
+            <label class="mt-1 flex items-center gap-2 p-2 rounded-lg bg-slate-50 dark:bg-ink-700 text-sm cursor-pointer select-none">
+              <input id="cardSeparadas" type="checkbox" class="accent-pink-500 w-4 h-4 shrink-0">
+              <span>Marcar quando estiver separado p/ a oficina</span>
+            </label>
+            <div id="cardSeparadasHint" class="text-[10px] text-slate-400 mt-0.5"></div>
           </div>
           <!-- ANEXOS -->
           <div id="anexoSection" class="pt-3 border-t border-slate-200 dark:border-ink-700">
@@ -1600,6 +1608,8 @@ async function fillCorteTecidoSelect(cur){
 
 // Carrega o mapa NOME->cor do quadro "Estoque de Tecidos" (cada card = uma cor com cor_hex).
 // Usado no Corte pra já preencher a cor do pano do jeito que está cadastrado no estoque.
+// Normaliza nome do tecido pra casar SEM acento e SEM ç (ex.: "MELAÇO" == "MELACO").
+function _norTec(s){ return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toUpperCase(); }
 let _tecidoCoresCache = null;
 async function loadTecidoCores(force){
   if (_tecidoCoresCache && !force){ TECIDO_CORES = _tecidoCoresCache; return; }
@@ -1612,7 +1622,7 @@ async function loadTecidoCores(force){
     if (!ids.length) return;
     const { data: cs } = await sb.from('cards').select('title,cor_hex').eq('archived', false).in('list_id', ids);
     const map = {};
-    (cs||[]).forEach(c => { if (c.title && c.cor_hex) map[String(c.title).trim().toUpperCase()] = c.cor_hex; });
+    (cs||[]).forEach(c => { if (c.title && c.cor_hex) map[_norTec(c.title)] = c.cor_hex; });
     TECIDO_CORES = map; _tecidoCoresCache = map;
   } catch(_){}
 }
@@ -1893,7 +1903,7 @@ async function switchBoard(boardId, opts){
   lists = listsData || [];
   // v78: se hideFinalizado ativo, exclui a lista FINALIZADO da query inicial (grande win mobile: 771->120 cards)
   let listIdsArr = lists.map(l=>l.id);
-  const finalizadoIdsInit = new Set(lists.filter(l => /finaliz|expedido/i.test(l.name)).map(l=>l.id));
+  const finalizadoIdsInit = new Set(lists.filter(l => /finaliz|expedido|entregue/i.test(l.name)).map(l=>l.id));
   if (filters.hideFinalizado) listIdsArr = listIdsArr.filter(id => !finalizadoIdsInit.has(id));
   const [laR, tR, cR] = await Promise.all([
     sb.from('labels').select('*').eq('board_id', boardId).order('name'),
@@ -1979,7 +1989,7 @@ function renderBoard(){
   // Zoom do quadro (100% = Confortável). CSS zoom mantém coords consistentes p/ o drag.
   board.style.zoom = filters.zoom || 1;
   const qTokens = normTxt(filters.search).split(/\s+/).filter(Boolean);
-  const finalizadoIds = new Set(lists.filter(l => /finaliz|expedido/i.test(l.name)).map(l=>l.id));
+  const finalizadoIds = new Set(lists.filter(l => /finaliz|expedido|entregue/i.test(l.name)).map(l=>l.id));
   const compact = false; // densidade agora é via zoom do quadro; cards sempre renderizam completos
   const bType = boardType(currentBoardId);
   // Filtro de alerta só faz sentido onde a pintura existe: produção + admin.
@@ -2582,7 +2592,7 @@ function renderCard(c, compact){
 }
 
 function updateStats(){
-  const finalizadoIds = new Set(lists.filter(l => /finaliz|expedido/i.test(l.name)).map(l=>l.id));
+  const finalizadoIds = new Set(lists.filter(l => /finaliz|expedido|entregue/i.test(l.name)).map(l=>l.id));
   const finalizados = cards.filter(c => finalizadoIds.has(c.list_id)).length;
   const ativos = cards.length - finalizados;
   document.getElementById('statsLine').textContent = `${ativos} em produção · ${finalizados} finalizados · ${labels.length} facções`;
@@ -2670,6 +2680,9 @@ async function openCard(id){
   document.getElementById('marketingFields').classList.toggle('hidden', bType !== 'marketing');
   document.getElementById('bordadoFields').classList.toggle('hidden', bType !== 'bordado');
   document.getElementById('tecidoField').classList.toggle('hidden', bType !== 'producao');
+  // No Corte a "Data limite" dá lugar ao check "Etiquetas/Composições separadas".
+  document.getElementById('dueField').classList.toggle('hidden', bType === 'corte');
+  document.getElementById('separadasField').classList.toggle('hidden', bType !== 'corte');
   document.getElementById('faccaoField').classList.toggle('hidden', labels.length === 0);
   // Descrição: aparece em TODOS os quadros (estilo feed, sem borda). Fica discreta quando vazia.
   document.getElementById('cardDescBox').classList.remove('hidden');
@@ -2725,7 +2738,11 @@ async function openCard(id){
     const _grd = document.getElementById('corteGradeWrap');
     if (_est) _est.classList.toggle('hidden', _kind !== 'estoque');
     if (_grd) _grd.classList.toggle('hidden', _kind !== 'corte');
-    if (_kind === 'corte'){ loadTecidoCores(); fillCorteTecidoSelect(c.corte_grade && c.corte_grade.tecido); CorteGrade.load(c.corte_grade); }
+    if (_kind === 'corte'){ loadTecidoCores(); fillCorteTecidoSelect(c.corte_grade && c.corte_grade.tecido); CorteGrade.load(c.corte_grade);
+      const _sep = !!(c.corte_grade && c.corte_grade.separadas);
+      const _cbSep = document.getElementById('cardSeparadas'); if (_cbSep) _cbSep.checked = _sep;
+      const _shSep = document.getElementById('cardSeparadasHint'); if (_shSep) _shSep.textContent = _sep ? 'Logística já foi avisada por menção.' : 'Ao marcar, a logística é avisada automaticamente por menção.';
+    }
     if (_kind === 'estoque'){ const ch=document.getElementById('cardCorHex'); if(ch){ ch.value=c.cor_hex||'#cccccc'; const t=document.getElementById('cardCorHexTxt'); if(t) t.textContent=c.cor_hex||'#cccccc'; } }
     // Nas colunas de corte a grade substitui a descrição
     document.getElementById('cardDescBox').classList.toggle('hidden', _kind === 'corte');
@@ -3523,7 +3540,11 @@ window.saveCard = async (silent = false) => {
       pago_costura: document.getElementById('cardPagoCostura').checked,
     });
   } else if (bType === 'corte'){
-    updates.corte_grade = CorteGrade.serialize();
+    const _cg = CorteGrade.serialize();
+    // Preserva o flag de "separado p/ oficina" (não faz parte da grade).
+    const _cbSep = document.getElementById('cardSeparadas');
+    if (_cbSep) _cg.separadas = _cbSep.checked;
+    updates.corte_grade = _cg;
     // Espelha totais nas colunas pra alimentar o dashboard
     updates.metragem = CorteGrade.totalMetros() || null;
     updates.qtd_rolos = CorteGrade.totalRolos() || null;
@@ -3657,9 +3678,9 @@ window.CorteGrade = (function(){
     'turquesa':'#14b8a6','cereja':'#b91c1c','coral':'#fb7185','salmao':'#fda4af','terracota':'#c2410c','deep red':'#7f1d1d','deep gray':'#4b5563','mid blue':'#3b6ea5'
   };
   const lookupCor=nome=>{
-    // 1º) cor cadastrada no quadro Estoque de Tecidos (casa pelo nome exato, em maiúsculas)
-    const raw=String(nome||'').trim().toUpperCase();
-    if(raw && typeof TECIDO_CORES!=='undefined' && TECIDO_CORES[raw]) return TECIDO_CORES[raw];
+    // 1º) cor cadastrada no quadro Estoque de Tecidos (casa pelo nome, ignorando acento e ç)
+    const key=(typeof _norTec==='function') ? _norTec(nome) : String(nome||'').trim().toUpperCase();
+    if(key && typeof TECIDO_CORES!=='undefined' && TECIDO_CORES[key]) return TECIDO_CORES[key];
     // 2º) dicionário fixo de cores conhecidas (branco, preto, marinho...)
     const n=_norm(nome); if(!n) return null; if(COR_HEX[n]) return COR_HEX[n]; const w=n.split(/[\s*]+/)[0]; return COR_HEX[w]||null;
   };
@@ -4869,6 +4890,30 @@ window.addTecido = async () => {
 
 document.getElementById('search').oninput = e => { filters.search = e.target.value; renderBoard(); };
 document.getElementById('hideFinalizado').onchange = async e => { filters.hideFinalizado = e.target.checked; if (!e.target.checked) { await switchBoard(currentBoardId); } else { renderBoard(); } };
+// Corte: ao marcar "Etiquetas/Composições separadas", persiste o flag e avisa a Logística por menção.
+const LOGISTICA_EMAIL = 'logisticaaragaoaraujo@gmail.com';
+async function avisarLogisticaSeparado(card){
+  const logi = profiles.find(p => (p.email||'').toLowerCase() === LOGISTICA_EMAIL);
+  const slug = logi ? (logi.full_name||'').trim().replace(/\s+/g,'.') : 'logistica.aragao.araujo';
+  const body = '@' + slug + ' etiquetas/composições separadas ✔ — pronto para entregar na oficina: ' + (card.title || 'corte');
+  const { data: comment } = await sb.from('comments').insert({ card_id: card.id, author_id: user.id, body }).select().single();
+  if (comment && logi){
+    try { await sb.from('mentions').insert([{ comment_id: comment.id, mentioned_user_id: logi.id }]); } catch(_){}
+    if (logi.id !== user.id){ try { await sb.from('notifications').insert([{ user_id: logi.id, actor_id: user.id, type: 'mention', card_id: card.id, read: false }]); } catch(_){} }
+  }
+  if (activeCardId === card.id) { try { await loadComments(card.id); } catch(_){} }
+}
+document.getElementById('cardSeparadas')?.addEventListener('change', async e => {
+  const card = cards.find(x => x.id === activeCardId);
+  if (!card) return;
+  const checked = e.target.checked;
+  const cg = { ...(card.corte_grade || {}), separadas: checked };
+  card.corte_grade = cg;
+  try { await sb.from('cards').update({ corte_grade: cg }).eq('id', card.id); } catch(err){ console.warn('separadas update falhou:', err); }
+  const _sh = document.getElementById('cardSeparadasHint');
+  if (_sh) _sh.textContent = checked ? 'Logística avisada por menção.' : 'Ao marcar, a logística é avisada automaticamente por menção.';
+  if (checked) { try { await avisarLogisticaSeparado(card); } catch(err){ console.warn('aviso logística falhou:', err); } }
+});
 document.getElementById('zoom').onchange = e => { filters.zoom = parseFloat(e.target.value) || 1; try{ localStorage.setItem('dc_zoom', filters.zoom); }catch(_){} renderBoard(); };
 document.getElementById('alertaFilter').onchange = e => { filters.alerta = e.target.value; renderBoard(); };
 setTimeout(() => { const d = document.getElementById('zoom'); if (d) d.value = String(filters.zoom); }, 100);
