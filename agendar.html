@@ -44,9 +44,8 @@
   .dc-logo-img{width:76px;height:76px;object-fit:contain;animation:dc-breathe 1.5s ease-in-out infinite}
   @keyframes dc-breathe{0%,100%{opacity:.55;transform:scale(.92)}50%{opacity:1;transform:scale(1)}}
   /* Efeito "desenhando" a florzinha */
-  .draw-flor path,.draw-flor circle{stroke-dasharray:100;animation:dcdraw 2s ease-in-out infinite}
-  .draw-flor circle{animation-delay:.15s}
-  @keyframes dcdraw{0%{stroke-dashoffset:100}45%{stroke-dashoffset:0}55%{stroke-dashoffset:0}100%{stroke-dashoffset:-100}}
+  /* Logo do carregamento: florzinha SEMPRE completa, só respirando (antes ela desenhava/apagava e parecia "incompleta"). */
+  .draw-flor{animation:dc-breathe 1.4s ease-in-out infinite}
   .slot:disabled{opacity:.35;cursor:not-allowed}
   /* Botões de dia/horário na mesma linguagem do modal "Personalizar bordado" */
   .diaBtn,.slot{border-width:1.5px}
@@ -101,7 +100,7 @@
 
     <!-- erro -->
     <div id="erro" class="hidden text-center py-4 fade">
-      <svg class="w-10 h-10 mx-auto mb-2 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L14.7 3.9a2 2 0 00-3.4 0z"/></svg>
+      <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-pink-50 flex items-center justify-center"><svg class="w-7 h-7 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L14.7 3.9a2 2 0 00-3.4 0z"/></svg></div>
       <p id="erroMsg" class="text-slate-600">Este link não é válido.</p>
       <p class="text-xs text-slate-400 mt-2">Fale com a nossa equipe para receber um novo link.</p>
     </div>
