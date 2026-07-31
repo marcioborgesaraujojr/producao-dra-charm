@@ -15,6 +15,21 @@ async function liGet(path){
   return {status:r.status, j};
 }
 
+// Telefone do cliente da LI: testa vários nomes de campo (mesma lógica do rastreio).
+function acharTelefone(obj){
+  if(!obj || typeof obj!=='object') return null;
+  const campos=['telefone','celular','fone','telefone_celular','telefone_principal','telefone_comercial','whatsapp','phone','phone_number'];
+  for(const c of campos) if(obj[c]) return String(obj[c]);
+  const arr=obj.telefones||obj.contatos||obj.phones;
+  if(Array.isArray(arr)&&arr[0]){ const t=arr[0]; return String(t.numero||t.telefone||t.number||t.value||t); }
+  return null;
+}
+function telClienteDoPedido(d){
+  if(!d) return null;
+  const t = acharTelefone(d.cliente) || acharTelefone(d.endereco_entrega) || acharTelefone(d.entrega) || acharTelefone(d) || d.cliente_telefone || d.telefone || null;
+  return t ? String(t).trim() : null;
+}
+
 // Extrai todos os campos "-- Label: valor" do cliente_obs num objeto plano (first-wins), igual à extensão
 function parseFields(obs){
   const fields={};
@@ -205,7 +220,7 @@ export default async function handler(req,res){
       if(!d || !d.itens) return res.status(404).json({error:'Pedido '+num+' não encontrado na Loja Integrada'});
       const cliente=(d.cliente&&(d.cliente.nome||d.cliente.email))||null;
       const rb=await buildProdutos(d.itens, {}, d.cliente_obs);
-      return res.status(200).json({ ok:true, numero:num, cliente, produtos: rb.produtos||[] });
+      return res.status(200).json({ ok:true, numero:num, cliente, telefone:telClienteDoPedido(d), produtos: rb.produtos||[] });
     }catch(e){ return res.status(500).json({error:e.message}); }
   }
   const commit = q.commit==='1';
@@ -307,6 +322,7 @@ export default async function handler(req,res){
         const hasLogoFb=skusFb.includes(SKU_LOGOMARCA), hasPersoFb=skusFb.includes(SKU_PERSONALIZACAO);
         const patch={pedido_produtos:prod, bordado_linha3:cb.linha3, bordado_lado:cb.lado, bordado_lado_logo:cb.ladoLogo};
         if(hasLogoFb||hasPersoFb) patch.bordado_tipo=(hasLogoFb&&hasPersoFb)?'ambos':(hasLogoFb?'logomarca':'nome_profissao');
+        const telFb=telClienteDoPedido(d); if(telFb) patch.pedido_telefone=telFb;   // telefone do cliente (só se veio no pedido)
         if(commit && (force || prod)){ const up=await sbREST('PATCH','cards?id=eq.'+cd.id, patch); if(up.status>=200&&up.status<300) updated++; else updErr=up.j; }
         results.push({num, found:true, nProd:(rb.produtos||[]).length, comBordado:(rb.produtos||[]).filter(p=>p.bordado).length});
       }
@@ -344,7 +360,7 @@ export default async function handler(req,res){
         const sit=d.situacao;
         if(sit){ if(typeof sit==='string'){ try{ const sd=await liGet(sit); sitTxt=((sd.j&&(sd.j.codigo||sd.j.nome))||''); }catch(e){} } else { sitTxt=(sit.codigo||sit.nome||sit.situacao||''); } }
         const b=buildBordado(tipoOrder, d.cliente_obs);
-        candidatos.push({ numero:String(d.numero), id_li:d.id, cliente:(d.cliente&&(d.cliente.nome||d.cliente.email))||null, b, situacao:String(sitTxt||'?'), itens:d.itens, obs:d.cliente_obs });
+        candidatos.push({ numero:String(d.numero), id_li:d.id, cliente:(d.cliente&&(d.cliente.nome||d.cliente.email))||null, telefone:telClienteDoPedido(d), b, situacao:String(sitTxt||'?'), itens:d.itens, obs:d.cliente_obs });
       }
       if(objs.length<perPage) break; pagina++;
     }
@@ -368,7 +384,7 @@ export default async function handler(req,res){
     for(const c of toUpdate){ const r=await buildProdutos(c.itens, imgCache, c.obs); c.produtos=r.produtos; c._dbg=r.dbg; }
     const rows=toCreate.map(c=>({
       list_id:PERSO_LIST, title:(c.cliente||('Pedido '+c.numero)), position:Date.now(), created_by:userId,
-      pedido_numero:c.numero, pedido_cliente:c.cliente,
+      pedido_numero:c.numero, pedido_cliente:c.cliente, pedido_telefone:c.telefone,
       bordado_tipo:c.b.tipo, bordado_linha1:c.b.linha1, bordado_linha2:c.b.linha2, bordado_linha3:c.b.linha3,
       bordado_cor_hex:c.b.corHex, bordado_cor_nome:c.b.corNome, bordado_fonte:c.b.fonte, bordado_lado:c.b.lado, bordado_lado_logo:c.b.ladoLogo,
       bordado_imagem_url:c.b.imagem, bordado_detalhes:c.b.detalhes,
@@ -391,6 +407,7 @@ export default async function handler(req,res){
           bordado_imagem_url:c.b.imagem, bordado_detalhes:c.b.detalhes,
           pedido_produtos:(c.produtos&&c.produtos.length)?c.produtos:null
         };
+        if(c.telefone) patch.pedido_telefone=c.telefone;   // só preenche se veio no pedido (não apaga o existente)
         const up=await sbREST('PATCH','cards?pedido_numero=eq.'+c.numero, patch);
         if(up.status>=200&&up.status<300){ updated++; } else { updErr=up.j; }
       }
