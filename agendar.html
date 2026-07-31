@@ -180,10 +180,6 @@
         <label class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">CPF</label>
         <input id="fCpf" type="text" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00" class="mt-1 w-full px-3 py-2.5 rounded-2xl border border-slate-200 text-sm focus:border-pink-400 outline-none">
       </div>
-      <label class="flex items-start gap-2 text-[11px] text-slate-500 leading-snug cursor-pointer">
-        <input id="fConsent" type="checkbox" class="accent-pink-500 mt-0.5 shrink-0 w-4 h-4">
-        <span>Autorizo o uso dos meus dados (nome, telefone e CPF) para confirmar e gerenciar meu agendamento, conforme a LGPD.</span>
-      </label>
       <p id="fErro" class="hidden text-[12px] text-red-500 font-medium"></p>
     </div>
     <div class="grid grid-cols-2 gap-3 mt-6">
@@ -362,11 +358,9 @@ async function confirmar(){
   const nome = $('fNome').value.trim();
   const tel = soDig($('fTel').value);
   const cpf = soDig($('fCpf').value);
-  const consent = $('fConsent').checked;
   if (nome.split(/\s+/).filter(Boolean).length < 2) return falha('Digite seu nome completo (nome e sobrenome).');
   if (tel.length < 10) return falha('Digite um telefone/WhatsApp válido com DDD.');
   if (!cpfValido(cpf)) return falha('CPF inválido. Confira os números.');
-  if (!consent) return falha('É preciso aceitar o uso dos dados para agendar.');
   const btn = $('modalConfirmar'); btn.disabled = true; btn.textContent = 'Confirmando…';
   const { data, error } = await sb.rpc('ag_agendar', { p_token: TOKEN, p_inicio: escolhido.inicio });
   if (error || !data || !data.ok){
