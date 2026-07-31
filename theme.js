@@ -80,3 +80,40 @@ tailwind.config = {
     (document.head || document.documentElement).appendChild(s);
   } catch(e){}
 })();
+
+/* ============================================================
+   AUTO-ATUALIZAÇÃO — quando sai um deploy novo, os apps recarregam
+   sozinhos, SEM interromper quem está digitando. A Vercel preenche
+   /api/version com o hash do commit a cada deploy (automático).
+   Recarrega ao detectar versão nova quando: nada está sendo digitado,
+   ou quando o usuário volta pra aba. Assim ninguém fica com versão velha.
+   ============================================================ */
+(function(){
+  var loaded = null, pending = false;
+  function podeReload(){
+    var el = document.activeElement;
+    if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return false; // não recarrega no meio de uma digitação
+    return true;
+  }
+  function doReload(){ try { location.reload(); } catch(e){} }
+  function fetchV(){
+    return fetch('/api/version', { cache:'no-store' })
+      .then(function(r){ return r.json(); })
+      .then(function(j){ return (j && j.v) || null; })
+      .catch(function(){ return null; });
+  }
+  function check(){
+    fetchV().then(function(v){
+      if (!v) return;
+      if (loaded === null){ loaded = v; return; }         // 1ª leitura: guarda a versão atual
+      if (v !== loaded){ pending = true; if (podeReload()) doReload(); }
+    });
+  }
+  function checkOrReload(){ if (pending && podeReload()) doReload(); else check(); }
+  try {
+    setInterval(check, 120000);  // checa a cada 2 min
+    document.addEventListener('visibilitychange', function(){ if (!document.hidden) checkOrReload(); });
+    window.addEventListener('focus', checkOrReload);
+    check();
+  } catch(e){}
+})();
