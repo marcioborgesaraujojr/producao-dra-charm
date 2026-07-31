@@ -167,6 +167,25 @@
     <div class="my-4 border-t border-slate-100"></div>
     <p class="text-[11px] uppercase tracking-wide text-pink-500 font-semibold mb-1">Dia e horário</p>
     <p id="modalData" class="text-lg font-bold text-[#1a2036] first-letter:uppercase"></p>
+    <div class="mt-5 space-y-3 text-left">
+      <div>
+        <label class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Nome completo</label>
+        <input id="fNome" type="text" autocomplete="name" placeholder="Seu nome completo" class="mt-1 w-full px-3 py-2.5 rounded-2xl border border-slate-200 text-sm focus:border-pink-400 outline-none">
+      </div>
+      <div>
+        <label class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">WhatsApp / Telefone</label>
+        <input id="fTel" type="tel" inputmode="tel" autocomplete="tel" placeholder="(85) 91234-5678" class="mt-1 w-full px-3 py-2.5 rounded-2xl border border-slate-200 text-sm focus:border-pink-400 outline-none">
+      </div>
+      <div>
+        <label class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">CPF</label>
+        <input id="fCpf" type="text" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00" class="mt-1 w-full px-3 py-2.5 rounded-2xl border border-slate-200 text-sm focus:border-pink-400 outline-none">
+      </div>
+      <label class="flex items-start gap-2 text-[11px] text-slate-500 leading-snug cursor-pointer">
+        <input id="fConsent" type="checkbox" class="accent-pink-500 mt-0.5 shrink-0 w-4 h-4">
+        <span>Autorizo o uso dos meus dados (nome, telefone e CPF) para confirmar e gerenciar meu agendamento, conforme a LGPD.</span>
+      </label>
+      <p id="fErro" class="hidden text-[12px] text-red-500 font-medium"></p>
+    </div>
     <div class="grid grid-cols-2 gap-3 mt-6">
       <button id="modalCancelar" class="py-3 rounded-2xl btn-cancelar text-sm font-semibold transition">Cancelar</button>
       <button id="modalConfirmar" class="py-3 rounded-2xl btn-confirmar text-sm font-semibold transition">Confirmar</button>
@@ -317,21 +336,49 @@ async function selecionarDia(btn, iso){
     cont.appendChild(b);
   });
 }
-function abrirModal(s){ escolhido = s; $('modalData').textContent = fmtDataHora(s.inicio); $('modal').classList.remove('hidden'); }
+function soDig(v){ return String(v||'').replace(/\D/g,''); }
+function cpfValido(v){
+  const c = soDig(v);
+  if (c.length !== 11 || /^(\d)\1{10}$/.test(c)) return false;
+  let s=0; for(let i=0;i<9;i++) s+=parseInt(c[i],10)*(10-i);
+  let d1=(s*10)%11; if(d1===10) d1=0; if(d1!==parseInt(c[9],10)) return false;
+  s=0; for(let i=0;i<10;i++) s+=parseInt(c[i],10)*(11-i);
+  let d2=(s*10)%11; if(d2===10) d2=0; return d2===parseInt(c[10],10);
+}
+function abrirModal(s){
+  escolhido = s; $('modalData').textContent = fmtDataHora(s.inicio);
+  if (LINK){ if(!$('fNome').value) $('fNome').value = LINK.cliente_nome||''; if(!$('fTel').value) $('fTel').value = LINK.cliente_telefone||''; }
+  const e=$('fErro'); if(e) e.classList.add('hidden');
+  $('modal').classList.remove('hidden');
+}
 $('modalCancelar').onclick = ()=> $('modal').classList.add('hidden');
 $('modalConfirmar').onclick = confirmar;
 
 async function confirmar(){
   if (!escolhido) return;
+  const erroEl = $('fErro');
+  const falha = (msg) => { erroEl.textContent = msg; erroEl.classList.remove('hidden'); };
+  erroEl.classList.add('hidden');
+  const nome = $('fNome').value.trim();
+  const tel = soDig($('fTel').value);
+  const cpf = soDig($('fCpf').value);
+  const consent = $('fConsent').checked;
+  if (nome.split(/\s+/).filter(Boolean).length < 2) return falha('Digite seu nome completo (nome e sobrenome).');
+  if (tel.length < 10) return falha('Digite um telefone/WhatsApp válido com DDD.');
+  if (!cpfValido(cpf)) return falha('CPF inválido. Confira os números.');
+  if (!consent) return falha('É preciso aceitar o uso dos dados para agendar.');
   const btn = $('modalConfirmar'); btn.disabled = true; btn.textContent = 'Confirmando…';
   const { data, error } = await sb.rpc('ag_agendar', { p_token: TOKEN, p_inicio: escolhido.inicio });
-  btn.disabled = false; btn.textContent = 'Confirmar'; $('modal').classList.add('hidden');
-  if (error){ alert('Não foi possível confirmar. Tente novamente.'); return; }
-  if (!data.ok){
-    if (data.erro === 'cheio'){ alert('Esse horário acabou de ser preenchido. Escolha outro, por favor.'); return; }
+  if (error || !data || !data.ok){
+    btn.disabled = false; btn.textContent = 'Confirmar';
+    if (error){ falha('Não foi possível confirmar. Tente novamente.'); return; }
+    if (data.erro === 'cheio'){ $('modal').classList.add('hidden'); alert('Esse horário acabou de ser preenchido. Escolha outro, por favor.'); return; }
     if (data.erro === 'ja_agendado'){ alert('Você já tem uma visita marcada com este link.'); location.reload(); return; }
-    alert('Não foi possível confirmar ('+data.erro+').'); return;
+    falha('Não foi possível confirmar ('+data.erro+').'); return;
   }
+  // Salva nome/telefone/CPF + consentimento no agendamento (não bloqueia o sucesso se falhar).
+  try { await sb.rpc('ag_set_contato', { p_token: TOKEN, p_nome: nome, p_telefone: tel, p_cpf: cpf, p_consent: true }); } catch(e){ console.warn('ag_set_contato falhou:', e); }
+  btn.disabled = false; btn.textContent = 'Confirmar'; $('modal').classList.add('hidden');
   LINK.agid = data.id;
   $('sucData').textContent = fmtDataHora(data.inicio);
   $('sucEndereco').textContent = CONFIG.ENDERECO ? CONFIG.ENDERECO : '';
