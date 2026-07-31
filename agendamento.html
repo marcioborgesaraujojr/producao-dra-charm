@@ -540,6 +540,7 @@ async function carregarAgenda(){
     if (rb) rb.classList.remove('loading');
   }
 }
+function fmtCPF(v){ const c=String(v||'').replace(/\D/g,''); return c.length===11 ? c.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4') : (v||''); }
 function cardAgenda(a){
   REAG[a.id] = a;
   const tel = a.cliente_telefone ? soDigitos(a.cliente_telefone) : '';
@@ -549,7 +550,8 @@ function cardAgenda(a){
   return `<div class="bg-slate-50 dark:bg-ink-900/60 border border-slate-200 dark:border-ink-600 rounded-xl p-3">
     <div class="flex items-center justify-between gap-2">
       <div class="min-w-0"><p class="font-medium text-sm truncate">${escapeHtml(a.cliente_nome)}</p>
-      <p class="text-xs text-slate-400">${fmtDia(a.inicio)} · ${fmtHora(a.inicio)}–${fmtHora(a.fim)} ${a.cliente_telefone?('· '+escapeHtml(a.cliente_telefone)):''}</p></div>
+      <p class="text-xs text-slate-400">${fmtDia(a.inicio)} · ${fmtHora(a.inicio)}–${fmtHora(a.fim)} ${a.cliente_telefone?('· '+escapeHtml(a.cliente_telefone)):''}</p>
+      ${a.cliente_cpf?`<p class="text-[11px] text-slate-400">CPF: ${escapeHtml(fmtCPF(a.cliente_cpf))}</p>`:''}</div>
       <div class="flex items-center gap-2 shrink-0 flex-wrap justify-end">${whats}<button data-reagendar="${a.id}" class="act act-copy">${IC.cal}<span>Reagendar</span></button><button data-cancelar="${a.id}" data-link="${a.link_id||''}" class="act act-del">${IC.x}<span>Cancelar</span></button></div>
     </div>${pcs}</div>`;
 }
