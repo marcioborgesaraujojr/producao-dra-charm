@@ -2768,7 +2768,14 @@ async function openCard(id){
   // Campos de Bordado (Personalização)
   const pnEl = document.getElementById('cardPedidoNumero'); if (pnEl) pnEl.value = c.pedido_numero || '';
   const pcEl = document.getElementById('cardPedidoCliente'); if (pcEl) pcEl.value = c.pedido_cliente || '';
-  const ptEl = document.getElementById('cardPedidoTelefone'); if (ptEl) ptEl.value = c.pedido_telefone || '';
+  const ptEl = document.getElementById('cardPedidoTelefone');
+  if (ptEl){
+    ptEl.value = c.pedido_telefone || '';
+    // Veio do pedido (Loja Integrada) => trava a edição. Vazio => deixa digitar (não vira beco sem saída).
+    ptEl.readOnly = !!c.pedido_telefone;
+    ptEl.placeholder = c.pedido_telefone ? '' : 'Sem telefone no pedido — pode digitar';
+    ptEl.style.cursor = c.pedido_telefone ? 'default' : '';
+  }
   if (window.updateWaLink) window.updateWaLink();
   const btEl = document.getElementById('cardBordadoTipo'); if (btEl) btEl.value = c.bordado_tipo || '';
   const bl1El = document.getElementById('cardBordadoLinha1');
