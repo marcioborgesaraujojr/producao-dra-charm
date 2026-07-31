@@ -111,7 +111,7 @@ tailwind.config = {
   }
   function checkOrReload(){ if (pending && podeReload()) doReload(); else check(); }
   try {
-    setInterval(check, 120000);  // checa a cada 2 min
+    setInterval(check, 600000);  // reforço bem leve a cada 10 min (o gatilho principal é voltar pra aba)
     document.addEventListener('visibilitychange', function(){ if (!document.hidden) checkOrReload(); });
     window.addEventListener('focus', checkOrReload);
     check();
