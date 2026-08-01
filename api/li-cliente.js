@@ -42,16 +42,32 @@ export default async function handler(req,res){
   // Só leitura. Retorna se o filtro foi respeitado (todos os retornados batem com o email pedido).
   if(q.checkemail){
     const email = String(q.checkemail).trim().toLowerCase();
-    const r = await liGet('/v1/cliente/?email='+encodeURIComponent(email)+'&limit=5');
-    const objs = (r.j && (r.j.objects||r.j.results)) || [];
-    const emails = objs.map(o => String(o.email||'').toLowerCase());
-    const todosBatem = emails.length>0 && emails.every(e => e===email);
+    const e = encodeURIComponent(email);
+    // testa varias sintaxes de filtro do Tastypie pra ver se ALGUMA restringe de verdade
+    const variantes = [
+      'email='+e, 'email__exact='+e, 'email__iexact='+e,
+      'q='+e, 'search='+e, 'busca='+e
+    ];
+    const testes = [];
+    for(const v of variantes){
+      const r = await liGet('/v1/cliente/?'+v+'&limit=5');
+      const objs = (r.j && (r.j.objects||r.j.results)) || [];
+      const emails = objs.map(o => String(o.email||'').toLowerCase());
+      const todosBatem = emails.length>0 && emails.every(x => x===email);
+      testes.push({
+        filtro: v.split('=')[0],
+        status: r.status,
+        achou: objs.length,
+        restringiu: todosBatem,       // true => filtro respeitado
+        erro: r.status>=400 ? (r.j && (r.j.error_message||JSON.stringify(r.j).slice(0,120))) : null
+      });
+    }
+    const algumFunciona = testes.find(t => t.restringiu);
     return res.status(200).json({
-      ok:true, status:r.status, emailPedido: email,
-      achou: objs.length,
-      emailsRetornados: emails,
-      filtroFunciona: todosBatem,   // true => dá pra deduplicar por email com segurança
-      erro: r.status>=400 ? (r.j && (r.j.error_message||JSON.stringify(r.j).slice(0,160))) : null
+      ok:true, emailPedido: email,
+      dedupPossivel: !!algumFunciona,
+      filtroQueFunciona: algumFunciona ? algumFunciona.filtro : null,
+      testes
     });
   }
 
