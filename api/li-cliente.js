@@ -25,6 +25,19 @@ export default async function handler(req,res){
   const uid = await validUser((req.headers.authorization||'').replace('Bearer ',''));
   if(!uid) return res.status(401).json({error:'precisa estar logado (probe restrito)'});
 
+  // schema=1: pergunta pra própria LI quais métodos o recurso "cliente" aceita (só leitura, não cria nada).
+  if(q.schema==='1'){
+    const sc = await liGet('/v1/cliente/schema/');
+    const s = sc.j || {};
+    return res.status(200).json({
+      ok:true, status: sc.status,
+      metodos_lista: s.allowed_list_http_methods || null,     // se tiver "post" => dá pra CRIAR cliente
+      metodos_item:  s.allowed_detail_http_methods || null,   // "put"/"patch" => dá pra editar
+      campos: s.fields ? Object.keys(s.fields) : null,
+      erro: sc.status>=400 ? (s.error_message||JSON.stringify(s).slice(0,160)) : null
+    });
+  }
+
   let cpf = String(q.cpf||'').replace(/\D/g,'');
   let cpfOrigem = 'informado';
   // auto=1: pega o CPF de um pedido recente da própria LI (pra auto-testar sem manusear CPF de ninguém)
