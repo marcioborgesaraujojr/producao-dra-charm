@@ -66,6 +66,25 @@ export default async function handler(req,res){
   const secretOk = !!process.env.LI_SYNC_SECRET && q.secret === process.env.LI_SYNC_SECRET;
   if(!uid && !secretOk) return res.status(401).json({ error:'nao autorizado' });
 
+  // estado=1: só lê quantas linhas tem no espelho + estado da sync (não puxa nada da LI).
+  if(q.estado==='1'){
+    const st = await sbGetState();
+    let linhas = null;
+    try{
+      const r = await fetch(SB+'/rest/v1/li_clientes?select=email', {
+        headers:{ apikey:SRV, Authorization:'Bearer '+SRV, Prefer:'count=exact', Range:'0-0' } });
+      const cr = r.headers.get('content-range');
+      linhas = cr && cr.includes('/') ? parseInt(cr.split('/')[1],10) : null;
+    }catch(e){}
+    return res.status(200).json({
+      ok:true,
+      linhas_no_espelho: linhas,     // quantos emails únicos já estão na cópia
+      total_na_li: st.total || null,
+      pos_atual: st.pos || 0,
+      ultimo_full: st.ultimo_full || null
+    });
+  }
+
   const LIMIT = 50;  // tamanho de página na LI (Tastypie costuma capar aqui)
   const paginasPorChamada = Math.min(Math.max(parseInt(q.paginas||'12',10)||12, 1), 40);
 
