@@ -176,11 +176,11 @@
         <h2 class="font-medium mb-1">Gerar link para um cliente</h2>
         <p class="text-xs text-slate-400 mb-4">Preencha os dados. O link já vem identificado — o cliente só escolhe o horário.</p>
         <div class="space-y-3">
-          <div><label class="text-xs text-slate-400">Nome do cliente *</label>
+          <div class="min-w-0"><label class="text-xs text-slate-400">Nome do cliente *</label>
             <input id="gNome" class="w-full mt-1 bg-slate-50 dark:bg-ink-900 border border-slate-200 dark:border-ink-600 rounded-xl px-3 py-2 text-sm focus:border-pink-400 outline-none" placeholder="Ex.: Maria Silva" /></div>
-          <div><label class="text-xs text-slate-400">WhatsApp / telefone (com DDD)</label>
+          <div class="min-w-0"><label class="text-xs text-slate-400">WhatsApp / telefone (com DDD)</label>
             <input id="gTel" inputmode="numeric" class="w-full mt-1 bg-slate-50 dark:bg-ink-900 border border-slate-200 dark:border-ink-600 rounded-xl px-3 py-2 text-sm focus:border-pink-400 outline-none" placeholder="Ex.: 85 99999-9999" /></div>
-          <div><label class="text-xs text-slate-400">Observação (opcional)</label>
+          <div class="min-w-0"><label class="text-xs text-slate-400">Observação (opcional)</label>
             <input id="gObs" class="w-full mt-1 bg-slate-50 dark:bg-ink-900 border border-slate-200 dark:border-ink-600 rounded-xl px-3 py-2 text-sm focus:border-pink-400 outline-none" placeholder="Ex.: interesse em anéis" /></div>
           <button id="btnGerar" class="w-full py-2.5 rounded-xl bg-pink-500 hover:bg-pink-600 text-white font-medium text-sm">Gerar link</button>
         </div>
@@ -203,27 +203,27 @@
     <section id="tab-config" class="hidden fade">
       <div class="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-5 space-y-4 shadow-sm">
         <h2 class="font-medium">Horários de atendimento</h2>
-        <div><label class="text-xs text-slate-400">Dias que a loja atende</label>
+        <div class="min-w-0"><label class="text-xs text-slate-400">Dias que a loja atende</label>
           <div id="cfgDias" class="flex flex-wrap gap-2 mt-2"></div></div>
         <div class="grid grid-cols-2 gap-3">
-          <div><label class="text-xs text-slate-400">Abre às</label><input id="cfgIni" type="time" class="w-full mt-1 bg-slate-50 dark:bg-ink-900 border border-slate-200 dark:border-ink-600 rounded-xl px-3 py-2 text-sm" /></div>
-          <div><label class="text-xs text-slate-400">Fecha às</label><input id="cfgFim" type="time" class="w-full mt-1 bg-slate-50 dark:bg-ink-900 border border-slate-200 dark:border-ink-600 rounded-xl px-3 py-2 text-sm" /></div>
-          <div><label class="text-xs text-slate-400">Duração de cada atendimento (min)</label><input id="cfgDur" type="number" min="10" step="5" class="w-full mt-1 bg-slate-50 dark:bg-ink-900 border border-slate-200 dark:border-ink-600 rounded-xl px-3 py-2 text-sm" /></div>
-          <div><label class="text-xs text-slate-400">Clientes por horário</label><input id="cfgCap" type="number" min="1" step="1" class="w-full mt-1 bg-slate-50 dark:bg-ink-900 border border-slate-200 dark:border-ink-600 rounded-xl px-3 py-2 text-sm" /></div>
-          <div><label class="text-xs text-slate-400">Almoço — início (opcional)</label><input id="cfgAlmoIni" type="time" class="w-full mt-1 bg-slate-50 dark:bg-ink-900 border border-slate-200 dark:border-ink-600 rounded-xl px-3 py-2 text-sm" /></div>
-          <div><label class="text-xs text-slate-400">Almoço — fim (opcional)</label><input id="cfgAlmoFim" type="time" class="w-full mt-1 bg-slate-50 dark:bg-ink-900 border border-slate-200 dark:border-ink-600 rounded-xl px-3 py-2 text-sm" /></div>
+          <div class="min-w-0"><label class="text-xs text-slate-400">Abre às</label><input id="cfgIni" type="time" class="w-full min-w-0 mt-1 bg-slate-50 dark:bg-ink-900 border border-slate-200 dark:border-ink-600 rounded-xl px-3 py-2 text-sm" style="box-sizing:border-box" /></div>
+          <div class="min-w-0"><label class="text-xs text-slate-400">Fecha às</label><input id="cfgFim" type="time" class="w-full min-w-0 mt-1 bg-slate-50 dark:bg-ink-900 border border-slate-200 dark:border-ink-600 rounded-xl px-3 py-2 text-sm" style="box-sizing:border-box" /></div>
+          <div class="min-w-0"><label class="text-xs text-slate-400">Duração de cada atendimento (min)</label><input id="cfgDur" type="number" min="10" step="5" class="w-full min-w-0 mt-1 bg-slate-50 dark:bg-ink-900 border border-slate-200 dark:border-ink-600 rounded-xl px-3 py-2 text-sm" style="box-sizing:border-box" /></div>
+          <div class="min-w-0"><label class="text-xs text-slate-400">Clientes por horário</label><input id="cfgCap" type="number" min="1" step="1" class="w-full min-w-0 mt-1 bg-slate-50 dark:bg-ink-900 border border-slate-200 dark:border-ink-600 rounded-xl px-3 py-2 text-sm" style="box-sizing:border-box" /></div>
+          <div class="min-w-0"><label class="text-xs text-slate-400">Almoço — início (opcional)</label><input id="cfgAlmoIni" type="time" class="w-full min-w-0 mt-1 bg-slate-50 dark:bg-ink-900 border border-slate-200 dark:border-ink-600 rounded-xl px-3 py-2 text-sm" style="box-sizing:border-box" /></div>
+          <div class="min-w-0"><label class="text-xs text-slate-400">Almoço — fim (opcional)</label><input id="cfgAlmoFim" type="time" class="w-full min-w-0 mt-1 bg-slate-50 dark:bg-ink-900 border border-slate-200 dark:border-ink-600 rounded-xl px-3 py-2 text-sm" style="box-sizing:border-box" /></div>
         </div>
-        <div><label class="text-xs text-slate-400">Datas bloqueadas (feriados/folgas)</label>
+        <div class="min-w-0"><label class="text-xs text-slate-400">Datas bloqueadas (feriados/folgas)</label>
           <div class="flex gap-2 mt-1">
-            <input id="cfgDataBloq" type="date" class="bg-slate-50 dark:bg-ink-900 border border-slate-200 dark:border-ink-600 rounded-xl px-3 py-2 text-sm" />
-            <button id="btnAddBloq" class="px-3 py-2 rounded-xl bg-slate-100 dark:bg-ink-700 hover:bg-slate-200 dark:hover:bg-ink-600 text-sm">Adicionar</button>
+            <input id="cfgDataBloq" type="date" class="flex-1 min-w-0 w-full bg-slate-50 dark:bg-ink-900 border border-slate-200 dark:border-ink-600 rounded-xl px-3 py-2 text-sm" style="-webkit-appearance:none;appearance:none;box-sizing:border-box" />
+            <button id="btnAddBloq" class="shrink-0 whitespace-nowrap px-3 py-2 rounded-xl bg-slate-100 dark:bg-ink-700 hover:bg-slate-200 dark:hover:bg-ink-600 text-sm">Adicionar</button>
           </div>
           <div id="cfgListaBloq" class="flex flex-wrap gap-2 mt-2"></div></div>
         <div class="border-t border-slate-100 dark:border-ink-700 pt-3">
           <label class="text-xs text-slate-400">Bloquear horários específicos (só afeta novos agendamentos)</label>
           <div class="flex gap-2 mt-1">
-            <input id="bloqData" type="date" class="bg-slate-50 dark:bg-ink-900 border border-slate-200 dark:border-ink-600 rounded-xl px-3 py-2 text-sm" />
-            <button id="btnVerBloq" type="button" class="px-3 py-2 rounded-xl bg-slate-100 dark:bg-ink-700 hover:bg-slate-200 dark:hover:bg-ink-600 text-sm">Ver horários</button>
+            <input id="bloqData" type="date" class="flex-1 min-w-0 w-full bg-slate-50 dark:bg-ink-900 border border-slate-200 dark:border-ink-600 rounded-xl px-3 py-2 text-sm" style="-webkit-appearance:none;appearance:none;box-sizing:border-box" />
+            <button id="btnVerBloq" type="button" class="shrink-0 whitespace-nowrap px-3 py-2 rounded-xl bg-slate-100 dark:bg-ink-700 hover:bg-slate-200 dark:hover:bg-ink-600 text-sm">Ver horários</button>
           </div>
           <div id="bloqSlots" class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2"></div>
           <button id="bloqSalvar" type="button" class="hidden mt-2 w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium">Salvar bloqueios do dia</button>
