@@ -177,6 +177,10 @@
         <input id="fTel" type="tel" inputmode="tel" autocomplete="tel" placeholder="(85) 91234-5678" class="mt-1 w-full px-3 py-2.5 rounded-2xl border border-slate-200 text-sm focus:border-pink-400 outline-none">
       </div>
       <div>
+        <label class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">E-mail</label>
+        <input id="fEmail" type="email" inputmode="email" autocomplete="email" placeholder="seu@email.com" class="mt-1 w-full px-3 py-2.5 rounded-2xl border border-slate-200 text-sm focus:border-pink-400 outline-none">
+      </div>
+      <div>
         <label class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">CPF</label>
         <input id="fCpf" type="text" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00" class="mt-1 w-full px-3 py-2.5 rounded-2xl border border-slate-200 text-sm focus:border-pink-400 outline-none">
       </div>
@@ -193,6 +197,9 @@
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const TOKEN = params.get('t');
+// Liga/desliga a criação do lead na Loja Integrada. Fica FALSE até validarmos
+// 1 cadastro de teste; depois vira TRUE pra passar a criar em todo agendamento.
+const LEAD_ATIVO = false;
 let sb, LINK = null, cfgTz = 'America/Fortaleza', duracao = 120;
 let escolhido = null;
 const DIAS_SEMANA_NOME = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
@@ -358,8 +365,10 @@ async function confirmar(){
   const nome = $('fNome').value.trim();
   const tel = soDig($('fTel').value);
   const cpf = soDig($('fCpf').value);
+  const email = ($('fEmail').value||'').trim().toLowerCase();
   if (nome.split(/\s+/).filter(Boolean).length < 2) return falha('Digite seu nome completo (nome e sobrenome).');
   if (tel.length < 10) return falha('Digite um telefone/WhatsApp válido com DDD.');
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return falha('Digite um e-mail válido.');
   if (!cpfValido(cpf)) return falha('CPF inválido. Confira os números.');
   const btn = $('modalConfirmar'); btn.disabled = true; btn.textContent = 'Confirmando…';
   const { data, error } = await sb.rpc('ag_agendar', { p_token: TOKEN, p_inicio: escolhido.inicio });
@@ -372,6 +381,11 @@ async function confirmar(){
   }
   // Salva nome/telefone/CPF + consentimento no agendamento (não bloqueia o sucesso se falhar).
   try { await sb.rpc('ag_set_contato', { p_token: TOKEN, p_nome: nome, p_telefone: tel, p_cpf: cpf, p_consent: true }); } catch(e){ console.warn('ag_set_contato falhou:', e); }
+  // Cria o lead na Loja Integrada (sem duplicar email) — só quando LEAD_ATIVO. Não bloqueia o sucesso.
+  if (LEAD_ATIVO) {
+    try { fetch('/api/li-lead', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token: TOKEN, nome, email, telefone: tel, cpf }) }); }
+    catch(e){ console.warn('li-lead falhou:', e); }
+  }
   btn.disabled = false; btn.textContent = 'Confirmar'; $('modal').classList.add('hidden');
   LINK.agid = data.id;
   $('sucData').textContent = fmtDataHora(data.inicio);
