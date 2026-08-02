@@ -167,6 +167,14 @@
         <div id="listaAgenda" class="space-y-2"></div>
         <h2 class="text-xs uppercase tracking-wide text-slate-500 font-semibold mt-8 mb-3">Links enviados aguardando o cliente</h2>
         <div id="listaPendentes" class="space-y-2"></div>
+
+        <div class="mt-8 pt-4 border-t border-slate-100 dark:border-ink-700 flex items-center justify-between gap-3 flex-wrap">
+          <div class="min-w-0">
+            <h2 class="text-xs uppercase tracking-wide text-slate-500 font-semibold">Leads — base de e-mail</h2>
+            <p class="text-[11px] text-slate-400 mt-0.5" id="leadsInfo">Baixe a lista (formato da Loja Integrada) pra importar quando quiser.</p>
+          </div>
+          <button id="btnExportLeads" class="act act-ok shrink-0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg><span>Exportar leads (LI)</span></button>
+        </div>
       </div>
     </section>
 
@@ -527,6 +535,62 @@ document.querySelectorAll('.tab').forEach(b=>{
 
 // ---- AGENDA ----
 $('btnRefresh').onclick = carregarAgenda;
+
+// ---- EXPORTAR LEADS (formato de importação de clientes da Loja Integrada) ----
+$('btnExportLeads').onclick = exportarLeads;
+async function exportarLeads(){
+  const btn = $('btnExportLeads'); const info = $('leadsInfo');
+  btn.disabled = true; btn.classList.add('loading');
+  try {
+    // pega todos os agendamentos que têm e-mail (qualquer status = base completa de leads)
+    const { data, error } = await sb.from('ag_agendamentos')
+      .select('cliente_nome,cliente_email,cliente_telefone,cliente_cpf,inicio')
+      .not('cliente_email','is',null)
+      .neq('bloqueio', true)
+      .order('inicio',{ascending:false});
+    if (error){ dcToast('Erro ao buscar leads: '+error.message,'err'); return; }
+    // dedup por e-mail (mantém o mais recente, que vem primeiro)
+    const vistos = new Set(); const linhas = [];
+    for (const a of (data||[])){
+      const email = (a.cliente_email||'').trim().toLowerCase();
+      if (!email || vistos.has(email)) continue;
+      vistos.add(email);
+      const nomeCompleto = (a.cliente_nome||'').trim().replace(/\s+/g,' ');
+      const partes = nomeCompleto.split(' ');
+      const nome = partes.shift() || '';
+      const sobrenome = partes.join(' ');
+      const tel = (a.cliente_telefone||'').replace(/\D/g,'');
+      const cpf = (a.cliente_cpf||'').replace(/\D/g,'');
+      linhas.push({ email, nome, sobrenome, tel, cpf });
+    }
+    if (!linhas.length){ dcToast('Ainda não há leads com e-mail.','info'); return; }
+    // colunas no formato de importação de clientes da Loja Integrada
+    const cols = ['email','nome','sobrenome','telefone_principal','telefone_comercial','telefone_celular','cpf','razao_social','cnpj','endereco','numero','complemento','bairro','cidade','estado','cep','pais','sexo','aceita_newsletter','grupo_id','tipo','rg','ie','data_nascimento'];
+    const esc = (v)=>{ v = (v==null?'':String(v)); return /[",;\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
+    const linhasCsv = [ cols.join(',') ];
+    for (const l of linhas){
+      const row = {
+        email: l.email, nome: l.nome, sobrenome: l.sobrenome,
+        telefone_principal: l.tel, telefone_comercial: '', telefone_celular: l.tel,
+        cpf: l.cpf, razao_social:'', cnpj:'', endereco:'', numero:'', complemento:'',
+        bairro:'', cidade:'', estado:'', cep:'', pais:'Brasil', sexo:'',
+        aceita_newsletter:'sim', grupo_id:'', tipo:'PF', rg:'', ie:'', data_nascimento:''
+      };
+      linhasCsv.push(cols.map(c=>esc(row[c])).join(','));
+    }
+    const csv = '﻿' + linhasCsv.join('\r\n');   // BOM p/ acentos no Excel
+    const blob = new Blob([csv], { type:'text/csv;charset=utf-8' });
+    const d = new Date();
+    const nomeArq = 'leads-dra-charm-' + d.toISOString().slice(0,10) + '.csv';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = nomeArq;
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    if (info) info.textContent = linhas.length + ' lead(s) exportado(s). Importe em Clientes → Importar na Loja Integrada.';
+    dcToast(linhas.length+' lead(s) exportado(s). 📥','ok');
+  } finally {
+    btn.disabled = false; btn.classList.remove('loading');
+  }
+}
 async function carregarAgenda(){
   const rb = $('btnRefresh'); const t0 = Date.now(); if (rb) rb.classList.add('loading');
   try {
@@ -556,6 +620,7 @@ function cardAgenda(a){
     <div class="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
       <div class="min-w-0"><p class="font-medium text-sm break-words">${escapeHtml(a.cliente_nome)}</p>
       <p class="text-xs text-slate-400 break-words">${fmtDia(a.inicio)} · ${fmtHora(a.inicio)}–${fmtHora(a.fim)} ${a.cliente_telefone?('· '+escapeHtml(a.cliente_telefone)):''}</p>
+      ${a.cliente_email?`<p class="text-[11px] text-slate-400 break-words">✉ ${escapeHtml(a.cliente_email)}</p>`:''}
       ${a.cliente_cpf?`<p class="text-[11px] text-slate-400">CPF: ${escapeHtml(fmtCPF(a.cliente_cpf))}</p>`:''}</div>
       <div class="flex items-center gap-2 flex-wrap sm:shrink-0 sm:justify-end">${whats}<button data-atendido="${a.id}" class="act act-ok">${IC.check}<span>Atendido</span></button><button data-reagendar="${a.id}" class="act act-copy">${IC.cal}<span>Reagendar</span></button><button data-cancelar="${a.id}" data-link="${a.link_id||''}" class="act act-del">${IC.x}<span>Cancelar</span></button></div>
     </div>${pcs}</div>`;

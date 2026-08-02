@@ -381,6 +381,8 @@ async function confirmar(){
   }
   // Salva nome/telefone/CPF + consentimento no agendamento (não bloqueia o sucesso se falhar).
   try { await sb.rpc('ag_set_contato', { p_token: TOKEN, p_nome: nome, p_telefone: tel, p_cpf: cpf, p_consent: true }); } catch(e){ console.warn('ag_set_contato falhou:', e); }
+  // Salva o e-mail do cliente (vira lead pra base de email marketing / export LI).
+  try { await sb.rpc('ag_set_email', { p_token: TOKEN, p_email: email }); } catch(e){ console.warn('ag_set_email falhou:', e); }
   // Cria o lead na Loja Integrada (sem duplicar email) — só quando LEAD_ATIVO. Não bloqueia o sucesso.
   if (LEAD_ATIVO) {
     try { fetch('/api/li-lead', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token: TOKEN, nome, email, telefone: tel, cpf }) }); }
