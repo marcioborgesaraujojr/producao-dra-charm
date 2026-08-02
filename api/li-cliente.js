@@ -25,6 +25,21 @@ export default async function handler(req,res){
   const uid = await validUser((req.headers.authorization||'').replace('Bearer ',''));
   if(!uid) return res.status(401).json({error:'precisa estar logado (probe restrito)'});
 
+  // post=1: testa CRIAR cliente com o corpo enviado (body.cliente) e devolve a resposta CRUA da LI.
+  // Auth-gated. Serve pra descobrir o formato certo do POST. (Um POST bem-sucedido cria 1 cliente.)
+  if(q.post==='1'){
+    let body = req.body; if(typeof body==='string'){ try{ body=JSON.parse(body); }catch(e){ body={}; } }
+    body = body || {};
+    const cli = body.cliente || {};
+    const _k = await getLIKeys();
+    const u = new URL(LI+'/v1/cliente/');
+    u.searchParams.set('chave_api', _k.api||''); u.searchParams.set('chave_aplicacao', _k.app||'');
+    const r = await fetch(u.toString(), { method:'POST', headers:{ Accept:'application/json', 'Content-Type':'application/json' }, body: JSON.stringify(cli) });
+    let txt=''; try{ txt = await r.text(); }catch(e){}
+    let j=null; try{ j = JSON.parse(txt); }catch(e){}
+    return res.status(200).json({ ok:true, enviado:cli, liStatus:r.status, liJson:j, liText: j?null:txt.slice(0,600) });
+  }
+
   // count=1: quantos clientes existem na loja (pra saber se dá pra espelhar no nosso banco).
   if(q.count==='1'){
     const r = await liGet('/v1/cliente/?limit=1');
