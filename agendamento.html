@@ -565,10 +565,10 @@ function cardPendente(l){
   const tel = l.cliente_telefone ? telParaWhats(l.cliente_telefone) : '';
   const msg = encodeURIComponent('Oi '+ (l.cliente_nome||'') +'! Para marcar sua visita e escolher as peças, é só acessar: '+url);
   const whats = tel ? `<a href="https://wa.me/${tel}?text=${msg}" target="_blank" rel="noopener" class="act act-wa">${IC.send}<span>Enviar</span></a>` : '';
-  return `<div class="bg-slate-50 dark:bg-ink-900/60 border border-slate-200 dark:border-ink-600 rounded-xl p-3 flex items-center justify-between gap-2">
-    <div class="min-w-0"><p class="font-medium text-sm truncate">${escapeHtml(l.cliente_nome)}</p>
-    <p class="text-xs text-slate-400 truncate max-w-[200px]">${escapeHtml(l.cliente_telefone||'sem telefone')}</p></div>
-    <div class="flex items-center gap-2 shrink-0 flex-wrap justify-end"><button data-copy="${escapeHtml(url)}" class="act act-copy">${IC.copy}<span class="lbl">Copiar</span></button>${whats}<button data-cancelarlink="${l.id}" class="act act-del">${IC.trash}<span>Excluir</span></button></div></div>`;
+  return `<div class="bg-slate-50 dark:bg-ink-900/60 border border-slate-200 dark:border-ink-600 rounded-xl p-3 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+    <div class="min-w-0"><p class="font-medium text-sm break-words">${escapeHtml(l.cliente_nome)}</p>
+    <p class="text-xs text-slate-400 break-words">${escapeHtml(l.cliente_telefone||'sem telefone')}</p></div>
+    <div class="flex items-center gap-2 flex-wrap sm:shrink-0 sm:justify-end"><button data-copy="${escapeHtml(url)}" class="act act-copy">${IC.copy}<span class="lbl">Copiar</span></button>${whats}<button data-cancelarlink="${l.id}" class="act act-del">${IC.trash}<span>Excluir</span></button></div></div>`;
 }
 function ligarBotoes(){
   document.querySelectorAll('[data-cancelar]').forEach(b=> b.onclick = ()=>cancelarAgendamento(b.dataset.cancelar, b.dataset.link));
