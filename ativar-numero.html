@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ativar número WhatsApp — Dra Charm</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+  .wrap { max-width:640px; margin:0 auto; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  .sub { color:#94a3b8; font-size:13px; margin-bottom:20px; }
+  .card { background:#1e293b; border:1px solid #334155; border-radius:14px; padding:18px; margin-bottom:14px; }
+  .step-num { display:inline-flex; width:24px; height:24px; border-radius:50%; background:#0ea5e9; color:#fff; align-items:center; justify-content:center; font-size:13px; font-weight:700; margin-right:8px; }
+  .card h2 { font-size:15px; margin:0 0 10px; display:flex; align-items:center; }
+  label { display:block; font-size:12px; color:#94a3b8; margin:8px 0 4px; }
+  input { width:100%; padding:11px 12px; border-radius:9px; border:1px solid #475569; background:#0f172a; color:#e2e8f0; font-size:15px; }
+  input:focus { outline:none; border-color:#0ea5e9; }
+  button { background:#0ea5e9; color:#fff; border:0; border-radius:9px; padding:11px 16px; font-size:14px; font-weight:600; cursor:pointer; margin-top:10px; }
+  button:hover { background:#0284c7; }
+  button.sec { background:#334155; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; }
+  .row button { flex:1; min-width:120px; }
+  .out { margin-top:10px; font-size:13px; padding:10px 12px; border-radius:8px; white-space:pre-wrap; word-break:break-word; display:none; }
+  .out.ok { background:#052e1a; border:1px solid #16a34a; color:#86efac; display:block; }
+  .out.err { background:#3b0d0d; border:1px solid #dc2626; color:#fca5a5; display:block; }
+  .out.info { background:#0c2740; border:1px solid #0ea5e9; color:#7dd3fc; display:block; }
+  .hint { font-size:12px; color:#94a3b8; margin-top:6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Ativar número na API oficial</h1>
+  <div class="sub">Número da Dra Charm · 85 98201-5980 · faça os passos na ordem.</div>
+
+  <div class="card">
+    <label>Chave de segurança (o valor de <b>WA_VERIFY_TOKEN</b> do Vercel)</label>
+    <input id="chave" type="password" placeholder="cole aqui a chave" autocomplete="off">
+    <label>WABA id</label>
+    <input id="waba" type="text" value="4294941704161663" autocomplete="off">
+    <div class="hint">A chave é a mesma que você configurou no Vercel. Ela não é enviada pra ninguém além do seu próprio sistema.</div>
+  </div>
+
+  <div class="card">
+    <h2><span class="step-num">0</span>Conferir situação (opcional)</h2>
+    <button class="sec" onclick="call('status', this)">Ver situação do número</button>
+    <div class="out" id="out-status"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="step-num">1</span>Receber o código</h2>
+    <div class="hint">A Meta vai mandar um código de 6 dígitos no número 85 98201-5980. Esteja com o celular em mãos.</div>
+    <div class="row">
+      <button onclick="call('request_code', this, {code_method:'SMS'})">Receber por SMS</button>
+      <button class="sec" onclick="call('request_code', this, {code_method:'VOICE'})">Receber por ligação</button>
+    </div>
+    <div class="out" id="out-request_code"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="step-num">2</span>Confirmar o código</h2>
+    <label>Código que chegou no celular</label>
+    <input id="code" type="text" inputmode="numeric" placeholder="ex: 123456" autocomplete="off">
+    <button onclick="call('verify_code', this, {code: v('code')})">Confirmar código</button>
+    <div class="out" id="out-verify_code"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="step-num">3</span>Criar o PIN e ativar</h2>
+    <label>Crie um PIN de 6 dígitos (anote e guarde — é a senha do número)</label>
+    <input id="pin" type="text" inputmode="numeric" maxlength="6" placeholder="ex: 654321" autocomplete="off">
+    <button onclick="call('register', this, {pin: v('pin')})">Ativar número</button>
+    <div class="out" id="out-register"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="step-num">4</span>Ligar o recebimento no sistema</h2>
+    <div class="hint">Aponta as mensagens que chegam nesse número direto pro seu painel de atendimento.</div>
+    <button onclick="call('subscribe', this)">Ligar recebimento</button>
+    <button class="sec" onclick="call('subscribed', this)">Conferir</button>
+    <div class="out" id="out-subscribe"></div>
+    <div class="out" id="out-subscribed"></div>
+  </div>
+</div>
+
+<script>
+  function v(id){ return document.getElementById(id).value.trim(); }
+  function show(step, cls, txt){
+    var el = document.getElementById('out-'+step);
+    el.className = 'out ' + cls;
+    el.textContent = txt;
+  }
+  async function call(step, btn, extra){
+    var chave = v('chave');
+    if(!chave){ alert('Cole a chave de segurança primeiro (campo do topo).'); return; }
+    var payload = Object.assign({ step: step, chave: chave, waba_id: v('waba') }, extra || {});
+    if(btn){ btn.disabled = true; }
+    show(step, 'info', 'Processando...');
+    try{
+      var r = await fetch('/api/whatsapp-ativar', {
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+      });
+      var j = await r.json();
+      if(r.ok && (j.ok === undefined || j.ok)){
+        show(step, 'ok', 'OK ✓\n' + JSON.stringify(j.data || j, null, 2));
+      } else {
+        var msg = (j && (j.error || (j.data && j.data.error && j.data.error.message))) || 'Falha';
+        show(step, 'err', 'Erro: ' + msg + '\n' + JSON.stringify(j.data || j, null, 2));
+      }
+    }catch(e){
+      show(step, 'err', 'Erro de conexão: ' + e.message);
+    }finally{
+      if(btn){ btn.disabled = false; }
+    }
+  }
+</script>
+</body>
+</html>
