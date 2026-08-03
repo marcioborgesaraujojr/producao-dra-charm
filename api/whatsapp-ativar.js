@@ -103,6 +103,15 @@ export default async function handler(req, res) {
       return res.status(out.ok ? 200 : 400).json(out);
     }
 
+    if (step === 'debug') {
+      // Diagnóstico: qual app, quais permissões (incl. granular_scopes com as WABAs), e o dono do token.
+      const tok = process.env.WA_ACCESS_TOKEN;
+      const me   = await graph(GRAPH + '/me?fields=id,name', { headers: { Authorization: AUTH } });
+      const dbg  = await graph(GRAPH + '/debug_token?input_token=' + encodeURIComponent(tok) + '&access_token=' + encodeURIComponent(tok), { headers: { Authorization: AUTH } });
+      const wabas = await graph(GRAPH + '/' + PID + '?fields=id', { headers: { Authorization: AUTH } });
+      return res.status(200).json({ ok: true, me: me.data, debug_token: dbg.data, phone_check: wabas.data, phone_id_env: PID });
+    }
+
     return res.status(400).json({ error: 'step inválido' });
   } catch (e) {
     return res.status(500).json({ error: String((e && e.message) || e) });
