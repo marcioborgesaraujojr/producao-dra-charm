@@ -96,6 +96,13 @@ export default async function handler(req, res) {
     for (const entry of entries) {
       for (const change of (entry.changes || [])) {
         const value = change.value || {};
+        // Só processa o número configurado (WA_PHONE_NUMBER_ID). A WABA pode ter outros números
+        // (ex.: o número ao vivo no Martz) — esses são ignorados pra não poluir o painel nem
+        // interferir neles. Se algum dia quiser receber todos, é só remover este filtro.
+        const numeroDestino = value?.metadata?.phone_number_id;
+        if (process.env.WA_PHONE_NUMBER_ID && numeroDestino && numeroDestino !== process.env.WA_PHONE_NUMBER_ID) {
+          continue;
+        }
         const messages = value.messages || [];
         const contatoNome = value.contacts?.[0]?.profile?.name || null;
         for (const m of messages) {
