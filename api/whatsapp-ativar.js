@@ -89,12 +89,15 @@ export default async function handler(req, res) {
 
     if (step === 'subscribe') {
       if (!WABA) return res.status(400).json({ error: 'Falta o WABA id.' });
-      // Assina o app na WABA e aponta o webhook (recebimento) pra este sistema (override no nível da WABA).
-      const out = await graph(GRAPH + '/' + WABA + '/subscribed_apps', {
+      // 1) Assina nosso app na WABA (aditivo — não remove outros apps já inscritos, ex.: Martz).
+      const sub = await graph(GRAPH + '/' + WABA + '/subscribed_apps', { method: 'POST', headers: JSONH, body: JSON.stringify({}) });
+      // 2) Aponta o webhook (recebimento) pra este sistema (override no nível da WABA, só pro nosso app).
+      const over = await graph(GRAPH + '/' + WABA + '/subscribed_apps', {
         method: 'POST', headers: JSONH,
         body: JSON.stringify({ override_callback_uri: WEBHOOK_URL, verify_token: process.env.WA_VERIFY_TOKEN })
       });
-      return res.status(out.ok ? 200 : 400).json(out);
+      const ok = sub.ok && over.ok;
+      return res.status(ok ? 200 : 400).json({ ok, assinar: sub.data, apontar_webhook: over.data });
     }
 
     if (step === 'subscribed') {
