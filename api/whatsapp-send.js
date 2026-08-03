@@ -14,6 +14,18 @@
 
 const GRAPH = 'https://graph.facebook.com/v20.0';
 
+// Brasil / 9º dígito: o webhook do WhatsApp às vezes devolve o wa_id SEM o 9
+// (ex.: 558588736100). A API aceita e devolve um ID de mensagem, mas NÃO entrega.
+// Pra entregar de verdade o número de celular precisa dos 13 dígitos: 55 + DDD(2) + 9 + 8.
+// Se vier com 12 dígitos (55 + DDD + 8, sem o 9), a gente insere o 9 depois do DDD.
+function normalizeWa(raw) {
+  let n = String(raw || '').replace(/\D/g, '');
+  if (n.startsWith('55') && n.length === 12) {
+    n = '55' + n.slice(2, 4) + '9' + n.slice(4);
+  }
+  return n;
+}
+
 async function sbInsertMsg(conversaId, texto, autor) {
   await fetch(process.env.SUPABASE_URL + '/rest/v1/at_mensagens', {
     method: 'POST',
@@ -69,15 +81,17 @@ export default async function handler(req, res) {
   const conversaId = body && body.conversa_id;
   if (!to || !text) return res.status(400).json({ error: 'Campos "to" e "text" são obrigatórios.' });
 
+  const toNorm = normalizeWa(to);
   const r = await fetch(GRAPH + '/' + process.env.WA_PHONE_NUMBER_ID + '/messages', {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + process.env.WA_ACCESS_TOKEN, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messaging_product: 'whatsapp', to: String(to), type: 'text', text: { body: String(text) } })
+    body: JSON.stringify({ messaging_product: 'whatsapp', to: toNorm, type: 'text', text: { body: String(text) } })
   });
   let j = null; try { j = await r.json(); } catch (e) {}
   if (!r.ok) {
     return res.status(400).json({ error: (j && j.error && j.error.message) || 'Falha ao enviar', detalhe: j });
   }
   if (conversaId) { try { await sbInsertMsg(conversaId, text, email); } catch (e) {} }
-  return res.status(200).json({ ok: true, id: j?.messages?.[0]?.id || null });
+  // "para" = número normalizado usado no envio; "contatos" = wa_id que a Meta resolveu (útil pra depurar entrega).
+  return res.status(200).json({ ok: true, id: j?.messages?.[0]?.id || null, para: toNorm, contatos: j?.contacts || null });
 }
