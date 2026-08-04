@@ -14,27 +14,11 @@
 <style>
   html{background:#f1f5f9}html.dark{background:#0b1220}
   body{font-family:'Poppins',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0}
-  .icon-btn{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#64748b}
-  .icon-btn:hover{background:#f1f5f9;color:#ec2560}.dark .icon-btn{color:#94a3b8}.dark .icon-btn:hover{background:#1f2937}
-  .card{background:rgba(255,255,255,.9);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(226,232,240,.9);box-shadow:0 1px 3px rgba(15,23,42,.08);border-radius:1rem;padding:20px}
-  .dark .card{background:rgba(17,24,39,.72);border-color:rgba(255,255,255,.08);box-shadow:0 8px 24px rgba(0,0,0,.35)}
-  .lbl{font-size:12px;font-weight:600;color:#64748b;margin:10px 0 5px}.dark .lbl{color:#94a3b8}
-  .inp{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #e2e8f0;background:#fff;font-size:15px;color:#0f172a;outline:none}
-  .inp:focus{border-color:#ec2560}.dark .inp{background:#0f172a;border-color:#334155;color:#e2e8f0}
-  .btn{background:#ec2560;color:#fff;border:0;border-radius:10px;padding:10px 16px;font-size:14px;font-weight:600;cursor:pointer;transition:filter .15s}
-  .btn:hover{filter:brightness(1.05)}.btn:disabled{opacity:.5;cursor:not-allowed}
-  .btn-sec{background:#f1f5f9;color:#475569}.btn-sec:hover{background:#e2e8f0}.dark .btn-sec{background:#1f2937;color:#cbd5e1}.dark .btn-sec:hover{background:#374151}
-  .badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px}
-  .badge-ok{background:#dcfce7;color:#15803d}.dark .badge-ok{background:#052e1a;color:#86efac}
-  .badge-warn{background:#fef9c3;color:#a16207}.dark .badge-warn{background:#3a2f10;color:#fde68a}
-  .badge-off{background:#fee2e2;color:#b91c1c}.dark .badge-off{background:#3b0d0d;color:#fca5a5}
-  .out{margin-top:10px;font-size:12.5px;padding:9px 12px;border-radius:9px;white-space:pre-wrap;word-break:break-word;display:none;font-family:ui-monospace,Menlo,monospace}
+  .step-n{display:inline-flex;width:22px;height:22px;border-radius:50%;background:#ec2560;color:#fff;align-items:center;justify-content:center;font-size:12px;font-weight:700;margin-right:8px;flex-shrink:0}
+  .out{margin-top:10px;font-size:12.5px;padding:9px 12px;border-radius:9px;white-space:pre-wrap;word-break:break-word;display:none;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
   .out.ok{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;display:block}.dark .out.ok{background:#052e1a;border-color:#166534;color:#86efac}
   .out.err{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;display:block}.dark .out.err{background:#3b0d0d;border-color:#7f1d1d;color:#fca5a5}
   .out.info{background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;display:block}.dark .out.info{background:#0c2740;border-color:#1e40af;color:#93c5fd}
-  .hint{font-size:12.5px;color:#64748b}.dark .hint{color:#94a3b8}
-  .step-n{display:inline-flex;width:22px;height:22px;border-radius:50%;background:#ec2560;color:#fff;align-items:center;justify-content:center;font-size:12px;font-weight:700;margin-right:8px;flex-shrink:0}
-  .soon{opacity:.65}
 </style>
 </head>
 <body class="text-slate-800 dark:text-slate-100">
@@ -51,91 +35,82 @@
 <div id="appWrap" class="hidden">
   <header class="h-14 flex items-center justify-between px-4 bg-white/95 dark:bg-ink-800/95 border-b border-slate-200 dark:border-ink-600 sticky top-0 z-30 backdrop-blur">
     <div class="flex items-center gap-3">
-      <button onclick="location.href='/atendimento.html'" title="Voltar ao Atendimento" class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center shadow hover:scale-105 transition flex-shrink-0">
-        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-      </button>
-      <div class="leading-tight">
-        <div class="text-sm font-semibold">Conexão WhatsApp</div>
-        <div class="text-[11px] text-slate-500 dark:text-slate-400">API Oficial · Configuração da conta e números</div>
-      </div>
+      <button onclick="location.href='/'" title="Voltar à Suíte" class="w-9 h-9 rounded-xl shadow hover:scale-105 hover:shadow-md transition flex items-center justify-center text-white bg-gradient-to-br from-amber-500 to-orange-500"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+      <div class="leading-tight"><div class="text-sm font-semibold">Conexão WhatsApp</div><div class="text-[11px] text-slate-500 dark:text-slate-400">API Oficial · Conta e números · Grupo Aragão</div></div>
     </div>
     <div class="flex items-center gap-1">
-      <button onclick="location.href='/atendimento.html'" class="icon-btn" title="Voltar ao Atendimento"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button>
-      <button onclick="toggleDark&&toggleDark()" class="icon-btn" title="Tema"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
-      <div id="userAvatar" class="w-8 h-8 ml-1 rounded-full bg-pink-500 text-white flex items-center justify-center font-bold text-sm">?</div>
+      <button onclick="location.href='/'" class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 hover:text-pink-500 flex items-center justify-center text-slate-500" title="Voltar à Suíte"><img src="/icone-app.png" alt="Suíte" class="w-6 h-6 rounded-md object-cover"></button>
+      <button onclick="document.documentElement.classList.toggle('dark')" class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 hover:text-pink-500 flex items-center justify-center text-slate-500" title="Tema"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
     </div>
   </header>
 
-  <main class="max-w-3xl mx-auto px-4 py-6 space-y-5">
+  <div class="px-4 pt-4 pb-10 max-w-4xl mx-auto space-y-5">
 
-    <!-- Conta conectada + números -->
-    <section class="card">
+    <!-- Número conectado -->
+    <div class="rounded-2xl border bg-white dark:bg-ink-800 p-5">
       <div class="flex items-center justify-between gap-3 mb-2">
-        <h2 class="text-base font-semibold flex items-center gap-2">
-          <svg class="w-5 h-5 text-pink-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 5.5 18.4L22 22l-1.6-4.5A10 10 0 0 0 12 2z"/></svg>
-          Número conectado
-        </h2>
-        <button class="btn-sec btn" style="padding:7px 12px" onclick="carregarStatus()">Atualizar</button>
+        <div class="text-sm font-semibold text-slate-700 dark:text-slate-200">Número conectado</div>
+        <button onclick="carregarStatus()" class="text-sm font-semibold px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-ink-700 hover:bg-slate-200 dark:hover:bg-ink-600 text-slate-600 dark:text-slate-300">Atualizar</button>
       </div>
-      <div id="numeroBox" class="hint">Carregando...</div>
-    </section>
+      <div id="numeroBox" class="text-sm text-slate-500 dark:text-slate-400">Carregando...</div>
+    </div>
 
     <!-- Ativar um número novo -->
-    <section class="card">
-      <h2 class="text-base font-semibold mb-1">Ativar um número novo</h2>
-      <p class="hint mb-3">Use quando adicionar um número novo na conta (pelo WhatsApp Manager). O número precisa já estar na conta; aqui você verifica e ativa. Você recebe o código por SMS no celular do número e cria um PIN.</p>
+    <div class="rounded-2xl border bg-white dark:bg-ink-800 p-5">
+      <div class="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Ativar um número novo</div>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Use quando adicionar um número novo na conta (pelo WhatsApp Manager). O número precisa já estar na conta; aqui você verifica e ativa. Você recebe o código por SMS no celular do número e cria um PIN.</p>
 
-      <div class="lbl"><span class="step-n">1</span>Receber o código</div>
+      <div class="text-[13px] font-semibold text-slate-600 dark:text-slate-300 flex items-center mb-2"><span class="step-n">1</span>Receber o código</div>
       <div class="flex gap-2 flex-wrap">
-        <button class="btn" onclick="call('request_code', this, {code_method:'SMS'})">Receber por SMS</button>
-        <button class="btn btn-sec" onclick="call('request_code', this, {code_method:'VOICE'})">Receber por ligação</button>
+        <button onclick="call('request_code', this, {code_method:'SMS'})" class="text-sm font-semibold px-4 py-2 rounded-lg bg-pink-500 hover:bg-pink-600 text-white">Receber por SMS</button>
+        <button onclick="call('request_code', this, {code_method:'VOICE'})" class="text-sm font-semibold px-4 py-2 rounded-lg bg-slate-100 dark:bg-ink-700 hover:bg-slate-200 dark:hover:bg-ink-600 text-slate-600 dark:text-slate-300">Receber por ligação</button>
       </div>
       <div class="out" id="out-request_code"></div>
 
-      <div class="lbl" style="margin-top:16px"><span class="step-n">2</span>Confirmar o código</div>
-      <input id="code" class="inp" inputmode="numeric" placeholder="código de 6 dígitos" autocomplete="off">
-      <button class="btn" style="margin-top:8px" onclick="call('verify_code', this, {code: v('code')})">Confirmar código</button>
+      <div class="text-[13px] font-semibold text-slate-600 dark:text-slate-300 flex items-center mb-2 mt-5"><span class="step-n">2</span>Confirmar o código</div>
+      <input id="code" inputmode="numeric" placeholder="código de 6 dígitos" autocomplete="off" class="w-full p-2 text-sm rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-pink-500 outline-none">
+      <button onclick="call('verify_code', this, {code: v('code')})" class="mt-2 text-sm font-semibold px-4 py-2 rounded-lg bg-pink-500 hover:bg-pink-600 text-white">Confirmar código</button>
       <div class="out" id="out-verify_code"></div>
 
-      <div class="lbl" style="margin-top:16px"><span class="step-n">3</span>Criar o PIN e ativar</div>
-      <input id="pin" class="inp" inputmode="numeric" maxlength="6" placeholder="crie um PIN de 6 dígitos (anote!)" autocomplete="off">
-      <button class="btn" style="margin-top:8px" onclick="call('register', this, {pin: v('pin')})">Ativar número</button>
+      <div class="text-[13px] font-semibold text-slate-600 dark:text-slate-300 flex items-center mb-2 mt-5"><span class="step-n">3</span>Criar o PIN e ativar</div>
+      <input id="pin" inputmode="numeric" maxlength="6" placeholder="crie um PIN de 6 dígitos (anote!)" autocomplete="off" class="w-full p-2 text-sm rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-pink-500 outline-none">
+      <button onclick="call('register', this, {pin: v('pin')})" class="mt-2 text-sm font-semibold px-4 py-2 rounded-lg bg-pink-500 hover:bg-pink-600 text-white">Ativar número</button>
       <div class="out" id="out-register"></div>
-    </section>
+    </div>
 
     <!-- Recebimento (webhook) -->
-    <section class="card">
-      <h2 class="text-base font-semibold mb-1">Recebimento no sistema (webhook)</h2>
-      <p class="hint mb-3">Liga as mensagens que chegam neste número direto no seu painel de Atendimento.</p>
+    <div class="rounded-2xl border bg-white dark:bg-ink-800 p-5">
+      <div class="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Recebimento no sistema (webhook)</div>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">Liga as mensagens que chegam neste número direto no seu painel de Atendimento.</p>
       <div class="flex gap-2 flex-wrap">
-        <button class="btn" onclick="call('subscribe', this)">Ligar recebimento</button>
-        <button class="btn btn-sec" onclick="call('subscribed', this)">Conferir status</button>
+        <button onclick="call('subscribe', this)" class="text-sm font-semibold px-4 py-2 rounded-lg bg-pink-500 hover:bg-pink-600 text-white">Ligar recebimento</button>
+        <button onclick="call('subscribed', this)" class="text-sm font-semibold px-4 py-2 rounded-lg bg-slate-100 dark:bg-ink-700 hover:bg-slate-200 dark:hover:bg-ink-600 text-slate-600 dark:text-slate-300">Conferir status</button>
       </div>
       <div class="out" id="out-subscribe"></div>
       <div class="out" id="out-subscribed"></div>
-    </section>
+    </div>
 
     <!-- Mensagens da API (em breve) -->
-    <section class="card soon">
-      <h2 class="text-base font-semibold mb-1 flex items-center gap-2">Mensagens da API oficial <span class="badge badge-warn">Em breve</span></h2>
-      <p class="hint">Aqui vão entrar: modelos de mensagem (templates), saudação automática, mensagem de ausência e horários. Vamos montar isso na sequência.</p>
-    </section>
+    <div class="rounded-2xl border bg-white dark:bg-ink-800 p-5">
+      <div class="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1 flex items-center gap-2">Mensagens da API oficial <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">Em breve</span></div>
+      <p class="text-sm text-slate-500 dark:text-slate-400">Aqui vão entrar: modelos de mensagem (templates), saudação automática, mensagem de ausência e horários. Vamos montar isso na sequência.</p>
+    </div>
 
-    <!-- Config avançada (WABA id + chave fallback) -->
-    <section class="card">
+    <!-- Config avançada -->
+    <div class="rounded-2xl border bg-white dark:bg-ink-800 p-5">
       <details>
-        <summary class="text-sm font-semibold cursor-pointer">Configuração avançada</summary>
-        <div class="lbl">Conta do WhatsApp (WABA id)</div>
-        <input id="waba" class="inp" value="579587495233435" autocomplete="off">
+        <summary class="text-sm font-semibold text-slate-700 dark:text-slate-200 cursor-pointer">Configuração avançada</summary>
+        <div class="text-[13px] font-semibold text-slate-500 dark:text-slate-400 mt-3 mb-1">Conta do WhatsApp (WABA id)</div>
+        <input id="waba" value="579587495233435" autocomplete="off" class="w-full p-2 text-sm rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-pink-500 outline-none">
         <div id="chaveWrap" style="display:none">
-          <div class="lbl">Chave (só se não estiver logado)</div>
-          <input id="chave" class="inp" placeholder="WA_VERIFY_TOKEN" autocomplete="off">
+          <div class="text-[13px] font-semibold text-slate-500 dark:text-slate-400 mt-3 mb-1">Chave (só se não estiver logado)</div>
+          <input id="chave" placeholder="WA_VERIFY_TOKEN" autocomplete="off" class="w-full p-2 text-sm rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-pink-500 outline-none">
         </div>
-        <div id="authStatus" class="out info" style="display:block;margin-top:10px">Verificando login...</div>
+        <div class="out info" id="authStatus" style="display:block;margin-top:12px">Verificando login...</div>
       </details>
-    </section>
+    </div>
 
-  </main>
+  </div>
 </div>
 
 <script src="/nav.js"></script>
@@ -158,7 +133,6 @@
     if(!isAdmin){ document.getElementById('gateMsg').textContent='Esta área é só para administradores.'; document.getElementById('authGate').classList.remove('hidden'); return; }
     TOKEN = session.access_token;
     document.getElementById('appWrap').classList.remove('hidden');
-    document.getElementById('userAvatar').textContent = (email[0]||'A').toUpperCase();
     const st=document.getElementById('authStatus'); st.className='out ok'; st.textContent='✓ Logado como '+email;
     document.getElementById('chaveWrap').style.display='none';
     carregarStatus();
@@ -187,27 +161,28 @@
     finally{ if(btn) btn.disabled=false; }
   };
 
-  function badge(cls, txt){ return '<span class="badge '+cls+'">'+txt+'</span>'; }
+  function badge(kind, txt){
+    const map={ ok:'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300', warn:'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300', off:'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' };
+    return '<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold '+(map[kind]||map.warn)+'">'+txt+'</span>';
+  }
   window.carregarStatus = async ()=>{
     const box=document.getElementById('numeroBox');
     box.innerHTML='Carregando...';
     try{
       const { httpOk, j } = await apiCall('status', {});
-      if(!httpOk){ box.innerHTML='<span class="badge badge-off">Erro</span> '+((j&&j.error)||'Não foi possível ler'); return; }
+      if(!httpOk){ box.innerHTML=badge('off','Erro')+' '+((j&&j.error)||'Não foi possível ler'); return; }
       const d=j.data||{};
-      const ver = d.code_verification_status==='VERIFIED';
-      const conn = d.status==='CONNECTED';
-      const nome = d.name_status==='APPROVED';
+      const ver=d.code_verification_status==='VERIFIED', conn=d.status==='CONNECTED', nome=d.name_status==='APPROVED';
       box.innerHTML =
-        '<div class="text-lg font-semibold mb-1">'+(d.display_phone_number||'—')+'</div>'+
-        '<div class="hint mb-2">'+(d.verified_name||'')+'</div>'+
+        '<div class="text-lg font-semibold text-slate-800 dark:text-slate-100">'+(d.display_phone_number||'—')+'</div>'+
+        '<div class="text-sm text-slate-500 dark:text-slate-400 mb-2">'+(d.verified_name||'')+'</div>'+
         '<div class="flex flex-wrap gap-2">'+
-          badge(conn?'badge-ok':'badge-off', (conn?'● ':'')+(d.status||'?'))+
-          badge(ver?'badge-ok':'badge-warn', ver?'Verificado':'Não verificado')+
-          badge(nome?'badge-ok':'badge-warn', nome?'Nome aprovado':'Nome '+(d.name_status||'?'))+
-          (d.quality_rating&&d.quality_rating!=='UNKNOWN'?badge('badge-ok','Qualidade '+d.quality_rating):'')+
+          badge(conn?'ok':'off', (conn?'● ':'')+(d.status||'?'))+
+          badge(ver?'ok':'warn', ver?'Verificado':'Não verificado')+
+          badge(nome?'ok':'warn', nome?'Nome aprovado':'Nome '+(d.name_status||'?'))+
+          (d.quality_rating&&d.quality_rating!=='UNKNOWN'?badge('ok','Qualidade '+d.quality_rating):'')+
         '</div>';
-    }catch(e){ box.innerHTML='<span class="badge badge-off">Erro</span> '+e.message; }
+    }catch(e){ box.innerHTML=badge('off','Erro')+' '+e.message; }
   };
 
   init();
