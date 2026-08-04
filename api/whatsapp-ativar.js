@@ -18,10 +18,32 @@
 
 const GRAPH = 'https://graph.facebook.com/v20.0';
 const WEBHOOK_URL = 'https://sistema-grupo-aragao.vercel.app/api/whatsapp-webhook';
+const SUPERADMIN = 'marcioborgesaraujojr@gmail.com';
+
+// Admin via login da suíte (Supabase). Aceita o super-admin (dono) ou quem tem access.atendimento=true.
+async function adminViaSessao(req) {
+  const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
+  if (!token || !process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return false;
+  try {
+    const r = await fetch(process.env.SUPABASE_URL + '/auth/v1/user', {
+      headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY, Authorization: 'Bearer ' + token }
+    });
+    const u = await r.json();
+    const email = (u && u.email ? String(u.email) : '').toLowerCase();
+    if (!email) return false;
+    if (email === SUPERADMIN) return true;
+    const pr = await fetch(process.env.SUPABASE_URL + '/rest/v1/profiles?id=eq.' + u.id + '&select=access', {
+      headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY, Authorization: 'Bearer ' + process.env.SUPABASE_SERVICE_ROLE_KEY }
+    });
+    const rows = await pr.json();
+    const acc = Array.isArray(rows) && rows[0] && rows[0].access;
+    return !!(acc && acc.atendimento === true);
+  } catch (e) { return false; }
+}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'content-type');
+  res.setHeader('Access-Control-Allow-Headers', 'authorization, content-type');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
@@ -30,9 +52,11 @@ export default async function handler(req, res) {
   if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = {}; } }
   body = body || {};
 
-  // proteção: precisa da chave (= WA_VERIFY_TOKEN do Vercel)
-  if (!process.env.WA_VERIFY_TOKEN || String(body.chave || '') !== String(process.env.WA_VERIFY_TOKEN)) {
-    return res.status(403).json({ error: 'Chave inválida. Cole exatamente o valor de WA_VERIFY_TOKEN do Vercel.' });
+  // proteção: login admin da suíte OU a chave (= WA_VERIFY_TOKEN). Basta um dos dois.
+  const chaveOk = !!(process.env.WA_VERIFY_TOKEN && String(body.chave || '') === String(process.env.WA_VERIFY_TOKEN));
+  const adminOk = chaveOk ? true : await adminViaSessao(req);
+  if (!adminOk) {
+    return res.status(403).json({ error: 'Acesso negado. Faça login como admin na suíte (ou informe a chave).' });
   }
   if (!process.env.WA_ACCESS_TOKEN || !process.env.WA_PHONE_NUMBER_ID) {
     return res.status(503).json({ error: 'Faltam WA_ACCESS_TOKEN / WA_PHONE_NUMBER_ID no Vercel.' });
