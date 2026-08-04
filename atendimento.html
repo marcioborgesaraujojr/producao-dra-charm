@@ -82,6 +82,7 @@
   <div class="flex items-center gap-1">
     <button onclick="location.href='/'" class="icon-btn" title="Voltar à Suíte"><img src="/icone-app.png" alt="Suíte" class="w-6 h-6 rounded-md object-cover"></button>
     <button onclick="toggleDark()" class="icon-btn" title="Tema"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+    <button id="btnConexaoWA" onclick="location.href='/ativar-numero.html'" class="icon-btn hidden" title="Conexão WhatsApp (admin)"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
     <div id="userAvatar" class="w-8 h-8 ml-1 rounded-full bg-pink-500 text-white flex items-center justify-center font-bold text-sm">?</div>
   </div>
 </header>
@@ -227,6 +228,8 @@ async function bootstrap(){
     if(!(_pf && _pf.access && _pf.access.atendimento===true)){ window.location.href='/'; return; }
   }
   document.getElementById('appWrap').classList.remove('hidden');
+  // botão de Conexão WhatsApp só pro admin dono
+  if(_em==='marcioborgesaraujojr@gmail.com'){ var _bwa=document.getElementById('btnConexaoWA'); if(_bwa) _bwa.classList.remove('hidden'); }
   // identidade do atendente
   ATEND_ID = session.user.id;
   const email = session.user.email||'';

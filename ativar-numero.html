@@ -35,11 +35,14 @@
   <div class="sub">Número da Dra Charm · 85 98201-5980 · faça os passos na ordem.</div>
 
   <div class="card">
-    <label>Chave de segurança (o valor de <b>WA_VERIFY_TOKEN</b> do Vercel)</label>
-    <input id="chave" type="password" placeholder="cole aqui a chave" autocomplete="off">
-    <label>WABA id</label>
-    <input id="waba" type="text" value="4294941704161663" autocomplete="off">
-    <div class="hint">A chave é a mesma que você configurou no Vercel. Ela não é enviada pra ninguém além do seu próprio sistema.</div>
+    <div id="authStatus" class="out info" style="display:block">Verificando seu login da suíte...</div>
+    <label style="margin-top:12px">WABA id (conta do WhatsApp)</label>
+    <input id="waba" type="text" value="579587495233435" autocomplete="off">
+    <div id="chaveWrap" style="display:none">
+      <label style="margin-top:8px">Chave de segurança (opcional — só se não estiver logado)</label>
+      <input id="chave" type="text" placeholder="chave (WA_VERIFY_TOKEN)" autocomplete="off">
+    </div>
+    <div class="hint">Acesso liberado pelo seu login de admin na suíte. Se você não estiver logado, <a href="/" style="color:#7dd3fc">entre na suíte</a> primeiro.</div>
   </div>
 
   <div class="card">
@@ -84,36 +87,62 @@
   </div>
 </div>
 
-<script>
-  function v(id){ return document.getElementById(id).value.trim(); }
-  function show(step, cls, txt){
-    var el = document.getElementById('out-'+step);
-    el.className = 'out ' + cls;
-    el.textContent = txt;
-  }
-  async function call(step, btn, extra){
-    var chave = v('chave');
-    if(!chave){ alert('Cole a chave de segurança primeiro (campo do topo).'); return; }
-    var payload = Object.assign({ step: step, chave: chave, waba_id: v('waba') }, extra || {});
-    if(btn){ btn.disabled = true; }
-    show(step, 'info', 'Processando...');
-    try{
-      var r = await fetch('/api/whatsapp-ativar', {
-        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
-      });
-      var j = await r.json();
-      if(r.ok && (j.ok === undefined || j.ok)){
-        show(step, 'ok', 'OK ✓\n' + JSON.stringify(j.data || j, null, 2));
+<script type="module">
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+  const SUPA = { url:'https://wwytzoyeibekhstinott.supabase.co', key:'sb_publishable_uMoCEK4Ed_u8ZIfjVZ7Jrg_tdR4b9bO' };
+  const sb = createClient(SUPA.url, SUPA.key, { auth:{ persistSession:true, autoRefreshToken:true } });
+  let TOKEN = null;
+
+  async function initAuth(){
+    const st = document.getElementById('authStatus');
+    try {
+      const { data:{ session } } = await sb.auth.getSession();
+      if(session){
+        TOKEN = session.access_token;
+        st.className = 'out ok';
+        st.textContent = '✓ Logado como ' + (session.user.email||'admin') + ' — acesso liberado.';
+        document.getElementById('chaveWrap').style.display = 'none';
       } else {
-        var msg = (j && (j.error || (j.data && j.data.error && j.data.error.message))) || 'Falha';
-        show(step, 'err', 'Erro: ' + msg + '\n' + JSON.stringify(j.data || j, null, 2));
+        TOKEN = null;
+        st.className = 'out err';
+        st.innerHTML = 'Você não está logado na suíte. <a href="/" style="color:#fca5a5">Entrar na suíte</a> (ou use a chave abaixo).';
+        document.getElementById('chaveWrap').style.display = 'block';
       }
-    }catch(e){
-      show(step, 'err', 'Erro de conexão: ' + e.message);
-    }finally{
-      if(btn){ btn.disabled = false; }
+    } catch(e){
+      st.className='out err'; st.textContent='Erro ao checar login: '+e.message;
+      document.getElementById('chaveWrap').style.display='block';
     }
   }
+  initAuth();
+
+  window.v = function(id){ var el=document.getElementById(id); return el?el.value.trim():''; };
+  window.show = function(step, cls, txt){
+    var el = document.getElementById('out-'+step);
+    el.className = 'out ' + cls; el.textContent = txt;
+  };
+  window.call = async function(step, btn, extra){
+    var payload = Object.assign({ step: step, waba_id: window.v('waba') }, extra || {});
+    var headers = { 'Content-Type':'application/json' };
+    if(TOKEN){ headers['Authorization'] = 'Bearer ' + TOKEN; }
+    else {
+      var chave = window.v('chave');
+      if(!chave){ alert('Faça login na suíte, ou informe a chave.'); return; }
+      payload.chave = chave;
+    }
+    if(btn){ btn.disabled = true; }
+    window.show(step, 'info', 'Processando...');
+    try{
+      var r = await fetch('/api/whatsapp-ativar', { method:'POST', headers: headers, body: JSON.stringify(payload) });
+      var j = await r.json();
+      if(r.ok && (j.ok === undefined || j.ok)){
+        window.show(step, 'ok', 'OK ✓\n' + JSON.stringify(j.data || j, null, 2));
+      } else {
+        var msg = (j && (j.error || (j.data && j.data.error && j.data.error.message))) || 'Falha';
+        window.show(step, 'err', 'Erro: ' + msg + '\n' + JSON.stringify(j.data || j, null, 2));
+      }
+    }catch(e){ window.show(step, 'err', 'Erro de conexão: ' + e.message); }
+    finally{ if(btn){ btn.disabled = false; } }
+  };
 </script>
 </body>
 </html>
