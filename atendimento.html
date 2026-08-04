@@ -141,7 +141,7 @@
         <button id="btnResolver" onclick="toggleResolver()" class="text-xs font-semibold px-3 py-1.5 rounded-lg"></button>
       </div>
     </div>
-    <div id="resolvBanner" class="hidden shrink-0 bg-rose-500 text-white text-center text-xs font-semibold py-2">Essa conversa não está resolvida</div>
+    <div id="resolvBanner" onclick="toggleResolver()" class="hidden shrink-0 text-white text-center text-xs font-semibold py-2 cursor-pointer transition-colors"></div>
     <div id="chatArea" class="flex-1 overflow-y-auto list-scroll px-6 py-5 space-y-3"></div>
     <div id="emptyState" class="flex-1 flex items-center justify-center text-center text-slate-400 px-6">
       <div><svg class="w-16 h-16 mx-auto mb-3 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -211,7 +211,9 @@ const QUICK_REPLIES = [
 ];
 const CORES = ['#ff3c6f','#f59e0b','#3b82f6','#14b8a6','#a855f7','#22c55e','#ef4444','#0ea5e9'];
 
-let sb=null, CONVERSAS=[], TAB='minhas', SEL=null, NOTA=false, PROFILES=[], SORT='recentes', IS_ADMIN=false;
+let sb=null, CONVERSAS=[], TAB='minhas', SEL=null, NOTA=false, PROFILES=[], SORT='recentes', IS_ADMIN=false, AT_CONFIG={identificacao:false,formato:'primeiro_nome'};
+async function loadAtConfig(){ try{ const r=await fetch('https://wwytzoyeibekhstinott.supabase.co/storage/v1/object/public/system-assets/at-config.json?t='+Date.now()); if(r.ok){ const j=await r.json(); if(j&&typeof j==='object') AT_CONFIG=Object.assign(AT_CONFIG,j); } }catch(e){} }
+function nomeAtendente(){ const n=(AGENTE||'').trim(); if(!n) return ''; return AT_CONFIG.formato==='completo'? n : n.split(' ')[0]; }
 async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2'); sb=createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true}}); } return sb; }
 const cur=()=>CONVERSAS.find(x=>x.id===SEL);
 
@@ -260,6 +262,7 @@ async function bootstrap(){
   document.getElementById('userAvatar').textContent = AGENTE[0].toUpperCase();
   const { data: profs } = await c.from('profiles').select('id, full_name, email');
   PROFILES = profs||[];
+  await loadAtConfig();
   CONVERSAS = await loadConversas();
   renderList();
   document.getElementById('emptyState').classList.toggle('hidden', false);
@@ -344,7 +347,7 @@ async function selecionar(id){
   if(cv.status==='encerrada'){ br.textContent='Reabrir'; br.className='text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-ink-700 dark:text-slate-300'; }
   else { br.textContent='Resolver'; br.className='text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600'; }
   renderChat(cv); renderProfile(cv);
-  document.getElementById('resolvBanner').classList.toggle('hidden', cv.status==='encerrada');
+  { const rb=document.getElementById('resolvBanner'); if(cv.status==='encerrada'){ rb.className='shrink-0 text-white text-center text-xs font-semibold py-2 cursor-pointer transition-colors bg-emerald-500 hover:bg-emerald-600'; rb.textContent='Conversa resolvida ✓ — clique para reabrir'; } else { rb.className='shrink-0 text-white text-center text-xs font-semibold py-2 cursor-pointer transition-colors bg-rose-500 hover:bg-rose-600'; rb.textContent='Esta conversa não está resolvida — clique para resolver'; } }
   document.getElementById('composer').classList.toggle('hidden', cv.status==='encerrada');
   document.getElementById('composerEncerrada').classList.toggle('hidden', cv.status!=='encerrada');
   document.getElementById('qrBox').classList.add('hidden');
@@ -416,9 +419,10 @@ function spc(s){ if(/entreg/i.test(s))return'bg-emerald-100 text-emerald-700 dar
 
 /* ===== Interações (persistem no Supabase, com fallback local) ===== */
 async function enviar(){
-  const cv=cur(); if(!cv) return; const inp=document.getElementById('msgInput'); const txt=inp.value.trim(); if(!txt) return;
+  const cv=cur(); if(!cv) return; const inp=document.getElementById('msgInput'); let txt=inp.value.trim(); if(!txt) return;
   const hora=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
   const isNota=NOTA;
+  if(!isNota && AT_CONFIG && AT_CONFIG.identificacao){ const _n=nomeAtendente(); if(_n) txt=_n+':\n'+txt; }
   cv.msgs.push(isNota?{t:'nota',txt,hora}:{t:'out',txt,hora});
   if(!isNota){ cv.preview=txt; cv.ultimaAtividade=new Date().toLocaleString('pt-BR'); }
   inp.value=''; updCount(); renderChat(cv); if(isNota){NOTA=false;setNotaUI();} renderList();

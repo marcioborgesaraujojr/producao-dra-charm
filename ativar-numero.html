@@ -55,6 +55,25 @@
       <div id="numeroBox" class="text-sm text-slate-500 dark:text-slate-400">Carregando...</div>
     </div>
 
+    <!-- Identificação do atendente -->
+    <div class="rounded-2xl border bg-white dark:bg-ink-800 p-5">
+      <div class="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Identificação do atendente</div>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Quando ligado, toda mensagem enviada sai com o nome do atendente na frente — o cliente sabe quem está falando (ex.: <span class="font-semibold">Camila:</span> e a mensagem embaixo).</p>
+      <label class="flex items-center gap-3 cursor-pointer mb-4">
+        <input type="checkbox" id="idcAtiva" class="w-5 h-5 accent-pink-500">
+        <span class="text-sm text-slate-700 dark:text-slate-200">Colocar o nome do atendente nas mensagens</span>
+      </label>
+      <div class="text-[13px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Formato do nome</div>
+      <select id="idcFormato" class="w-full sm:w-72 p-2 text-sm rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-pink-500 outline-none">
+        <option value="primeiro_nome">Primeiro nome (ex.: Camila)</option>
+        <option value="completo">Nome completo (ex.: Camila Souza)</option>
+      </select>
+      <div class="mt-4 flex items-center gap-3">
+        <button onclick="saveIdc()" class="text-sm font-semibold px-4 py-2 rounded-lg bg-pink-500 hover:bg-pink-600 text-white">Salvar</button>
+        <span id="idcMsg" class="text-sm"></span>
+      </div>
+    </div>
+
     <!-- Ativar um número novo -->
     <div class="rounded-2xl border bg-white dark:bg-ink-800 p-5">
       <div class="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Ativar um número novo</div>
@@ -136,6 +155,7 @@
     const st=document.getElementById('authStatus'); st.className='out ok'; st.textContent='✓ Logado como '+email;
     document.getElementById('chaveWrap').style.display='none';
     carregarStatus();
+    loadIdc();
   }
 
   window.v = (id)=>{ const el=document.getElementById(id); return el?el.value.trim():''; };
@@ -183,6 +203,19 @@
           (d.quality_rating&&d.quality_rating!=='UNKNOWN'?badge('ok','Qualidade '+d.quality_rating):'')+
         '</div>';
     }catch(e){ box.innerHTML=badge('off','Erro')+' '+e.message; }
+  };
+
+  window.loadIdc = async ()=>{
+    try{ const r=await fetch(SUPA.url+'/storage/v1/object/public/system-assets/at-config.json?t='+Date.now());
+      if(r.ok){ const j=await r.json(); const a=document.getElementById('idcAtiva'); const f=document.getElementById('idcFormato'); if(a) a.checked=!!j.identificacao; if(f&&j.formato) f.value=j.formato; } }catch(e){}
+  };
+  window.saveIdc = async ()=>{
+    const msg=document.getElementById('idcMsg'); msg.textContent='Salvando…'; msg.className='text-sm text-slate-500';
+    try{ const cfg={ identificacao: document.getElementById('idcAtiva').checked, formato: document.getElementById('idcFormato').value };
+      const blob=new Blob([JSON.stringify(cfg)],{type:'application/json'});
+      const { error }=await sb.storage.from('system-assets').upload('at-config.json', blob, {upsert:true, contentType:'application/json', cacheControl:'0'});
+      if(error) throw error; msg.textContent='Salvo! ✓'; msg.className='text-sm font-semibold text-emerald-600';
+    }catch(e){ msg.textContent='Erro ao salvar: '+(e.message||e); msg.className='text-sm text-rose-600'; }
   };
 
   init();
