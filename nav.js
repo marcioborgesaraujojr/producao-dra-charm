@@ -19,6 +19,8 @@
       icon: '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="12" r="3"/><path d="M9 6h6a3 3 0 0 1 3 3v0M9 18h6a3 3 0 0 0 3-3v0"/>' },
     { href: '/pipelines.html', label: 'Funil de Leads', admin: true,
       icon: '<rect x="3" y="4" width="4" height="16" rx="1"/><rect x="10" y="4" width="4" height="10" rx="1"/><rect x="17" y="4" width="4" height="6" rx="1"/>' },
+    { href: '/ativar-numero.html', label: 'Conexão WhatsApp', admin: true,
+      icon: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>' },
   ];
   const path = location.pathname;
   const isActive = (href) => path === href || path.endsWith(href) || (path === '/' && href === '/atendimento.html');
