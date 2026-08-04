@@ -211,7 +211,7 @@ const QUICK_REPLIES = [
 ];
 const CORES = ['#ff3c6f','#f59e0b','#3b82f6','#14b8a6','#a855f7','#22c55e','#ef4444','#0ea5e9'];
 
-let sb=null, CONVERSAS=[], TAB='minhas', SEL=null, NOTA=false, PROFILES=[], SORT='recentes';
+let sb=null, CONVERSAS=[], TAB='minhas', SEL=null, NOTA=false, PROFILES=[], SORT='recentes', IS_ADMIN=false;
 async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2'); sb=createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true}}); } return sb; }
 const cur=()=>CONVERSAS.find(x=>x.id===SEL);
 
@@ -245,9 +245,11 @@ async function bootstrap(){
   if(!session){ document.getElementById('authGate').classList.remove('hidden'); return; }
   // Checa acesso ao módulo (não basta estar logado — precisa ter 'atendimento' liberado)
   const _em=(session.user.email||'').toLowerCase();
-  if(_em!=='marcioborgesaraujojr@gmail.com'){
+  if(_em==='marcioborgesaraujojr@gmail.com'){ IS_ADMIN=true; }
+  else {
     const { data:_pf } = await c.from('profiles').select('access').eq('id',session.user.id).maybeSingle();
     if(!(_pf && _pf.access && _pf.access.atendimento===true)){ window.location.href='/'; return; }
+    IS_ADMIN = !!(_pf.access && _pf.access.admin===true);
   }
   document.getElementById('appWrap').classList.remove('hidden');
   // identidade do atendente
@@ -486,13 +488,13 @@ function toggleDark(){ document.documentElement.classList.toggle('dark'); }
 function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[x])); }
 document.addEventListener('click',e=>{ if(!e.target.closest('#qrBox')&&!e.target.closest('[title="Respostas rápidas"]')){ const q=document.getElementById('qrBox'); if(q)q.classList.add('hidden'); }});
 
-function convMenu(ev,id){ ev.stopPropagation(); const cv=CONVERSAS.find(x=>x.id===id); if(!cv) return; let m=document.getElementById('convCtx'); if(!m){ m=document.createElement('div'); m.id='convCtx'; m.className='fixed z-[60] bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-xl shadow-lg py-1 text-sm min-w-[210px]'; document.body.appendChild(m); } const res=cv.status==='encerrada'; m.innerHTML='<div class="qr-item" onclick="marcarNaoLida(\''+id+'\')">Marcar como não lida</div><div class="qr-item" onclick="marcarResolvida(\''+id+'\')">'+(res?'Reabrir conversa':'Marcar como resolvida')+'</div><div class="qr-item text-rose-600" onclick="excluirConversa(\''+id+'\')">Excluir conversa</div>'; const r=ev.currentTarget.getBoundingClientRect(); m.style.display='block'; m.style.top=(r.bottom+4)+'px'; m.style.left=Math.min(r.left, window.innerWidth-230)+'px'; }
+function convMenu(ev,id){ ev.stopPropagation(); const cv=CONVERSAS.find(x=>x.id===id); if(!cv) return; let m=document.getElementById('convCtx'); if(!m){ m=document.createElement('div'); m.id='convCtx'; m.className='fixed z-[60] bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-xl shadow-lg py-1 text-sm min-w-[210px]'; document.body.appendChild(m); } const res=cv.status==='encerrada'; m.innerHTML='<div class="qr-item" onclick="marcarNaoLida(\''+id+'\')">Marcar como não lida</div><div class="qr-item" onclick="marcarResolvida(\''+id+'\')">'+(res?'Reabrir conversa':'Marcar como resolvida')+'</div>'+(IS_ADMIN?'<div class="qr-item text-rose-600" onclick="excluirConversa(\''+id+'\')">Excluir conversa</div>':''); const r=ev.currentTarget.getBoundingClientRect(); m.style.display='block'; m.style.top=(r.bottom+4)+'px'; m.style.left=Math.min(r.left, window.innerWidth-230)+'px'; }
 function hideConvCtx(){ const m=document.getElementById('convCtx'); if(m) m.style.display='none'; }
 async function marcarNaoLida(id){ hideConvCtx(); const cv=CONVERSAS.find(x=>x.id===id); if(!cv) return; cv.naoLida=true; renderList(); try{ (await getSb()).from('at_conversas').update({nao_lida:true}).eq('id',id).then(()=>{}); }catch(e){} }
 async function marcarResolvida(id){ hideConvCtx(); const cv=CONVERSAS.find(x=>x.id===id); if(!cv) return; const novo=cv.status==='encerrada'?'aberta':'encerrada'; cv.status=novo; renderList(); if(SEL===id) selecionar(id); try{ const c=await getSb(); await c.from('at_conversas').update({status:novo}).eq('id',id); await c.from('at_mensagens').insert({conversa_id:id,direcao:'sys',tipo:'evento',conteudo:(novo==='encerrada'?AGENTE+' resolveu a conversa':AGENTE+' reabriu a conversa'),meta:{evento:novo==='encerrada'?'resolvida':'reabriu'},autor:'sistema'}); }catch(e){} }
 document.addEventListener('click',e=>{ if(!e.target.closest('#convCtx')&&!e.target.closest('.conv-dots')) hideConvCtx(); });
 
-async function excluirConversa(id){ hideConvCtx(); if(!confirm('Excluir esta conversa e todas as mensagens dela? Esta ação não pode ser desfeita.')) return; try{ const c=await getSb(); await c.from('at_mensagens').delete().eq('conversa_id',id); try{ await c.from('at_conversa_tags').delete().eq('conversa_id',id); }catch(e){} const { error }=await c.from('at_conversas').delete().eq('id',id); if(error) throw error; CONVERSAS=CONVERSAS.filter(x=>x.id!==id); if(SEL===id){ SEL=null; document.getElementById('chatArea').classList.add('hidden'); document.getElementById('composer').classList.add('hidden'); document.getElementById('composerEncerrada').classList.add('hidden'); document.getElementById('resolvBanner').classList.add('hidden'); document.getElementById('profile').classList.add('hidden'); document.getElementById('emptyState').classList.remove('hidden'); } renderList(); }catch(e){ alert('Não foi possível excluir: '+(e.message||e)+' — pode ser permissão do banco; me avise que eu ajusto.'); } }
+async function excluirConversa(id){ hideConvCtx(); if(!IS_ADMIN){ alert('Apenas o administrador da suíte pode excluir conversas.'); return; } if(!confirm('Excluir esta conversa e todas as mensagens dela? Esta ação não pode ser desfeita.')) return; try{ const c=await getSb(); await c.from('at_mensagens').delete().eq('conversa_id',id); try{ await c.from('at_conversa_tags').delete().eq('conversa_id',id); }catch(e){} const { error }=await c.from('at_conversas').delete().eq('id',id); if(error) throw error; CONVERSAS=CONVERSAS.filter(x=>x.id!==id); if(SEL===id){ SEL=null; document.getElementById('chatArea').classList.add('hidden'); document.getElementById('composer').classList.add('hidden'); document.getElementById('composerEncerrada').classList.add('hidden'); document.getElementById('resolvBanner').classList.add('hidden'); document.getElementById('profile').classList.add('hidden'); document.getElementById('emptyState').classList.remove('hidden'); } renderList(); }catch(e){ alert('Não foi possível excluir: '+(e.message||e)+' — pode ser permissão do banco; me avise que eu ajusto.'); } }
 
 const DC_BG_KEY='bg-atendimento.jpg';
 const DC_BG_URL='https://wwytzoyeibekhstinott.supabase.co/storage/v1/object/public/system-assets/'+DC_BG_KEY;
