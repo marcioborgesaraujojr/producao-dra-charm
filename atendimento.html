@@ -212,7 +212,7 @@ const QUICK_REPLIES = [
 const CORES = ['#ff3c6f','#f59e0b','#3b82f6','#14b8a6','#a855f7','#22c55e','#ef4444','#0ea5e9'];
 
 let sb=null, CONVERSAS=[], TAB='minhas', SEL=null, NOTA=false, PROFILES=[], SORT='recentes', IS_ADMIN=false, AT_CONFIG={identificacao:false,formato:'primeiro_nome'};
-async function loadAtConfig(){ try{ const r=await fetch('https://wwytzoyeibekhstinott.supabase.co/storage/v1/object/public/system-assets/at-config.json?t='+Date.now()); if(r.ok){ const j=await r.json(); if(j&&typeof j==='object') AT_CONFIG=Object.assign(AT_CONFIG,j); } }catch(e){} }
+async function loadAtConfig(){ try{ const r=await fetch('https://wwytzoyeibekhstinott.supabase.co/storage/v1/object/public/system-assets/at-config.json?t='+Date.now()); if(r.ok){ const j=JSON.parse(await r.text()); if(j&&typeof j==='object') AT_CONFIG=Object.assign(AT_CONFIG,j); } }catch(e){} }
 function nomeAtendente(){ const n=(AGENTE||'').trim(); if(!n) return ''; return AT_CONFIG.formato==='completo'? n : n.split(' ')[0]; }
 async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2'); sb=createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true}}); } return sb; }
 const cur=()=>CONVERSAS.find(x=>x.id===SEL);
@@ -263,11 +263,13 @@ async function bootstrap(){
   const { data: profs } = await c.from('profiles').select('id, full_name, email');
   PROFILES = profs||[];
   await loadAtConfig();
+  document.getElementById('emptyState').classList.add('hidden');
+  renderLoading();
   CONVERSAS = await loadConversas();
-  { let _t=0; while(CONVERSAS.length===0 && _t<3){ await new Promise(r=>setTimeout(r,450)); CONVERSAS = await loadConversas(); _t++; } }
+  { let _t=0; while(CONVERSAS.length===0 && _t<6){ await new Promise(r=>setTimeout(r,500)); CONVERSAS = await loadConversas(); _t++; } }
   renderList();
-  document.getElementById('emptyState').classList.toggle('hidden', false);
   if(CONVERSAS.length){ document.getElementById('emptyState').classList.add('hidden'); selecionar(CONVERSAS[0].id); }
+  else { document.getElementById('emptyState').classList.remove('hidden'); }
   subscribeRealtime();
 }
 
@@ -275,6 +277,7 @@ async function bootstrap(){
 let _rtTimer=null;
 async function subscribeRealtime(){
   const c = await getSb();
+  c.auth.onAuthStateChange((ev,sess)=>{ if(sess && CONVERSAS.length===0) softReload(); });
   c.channel('at-realtime')
    .on('postgres_changes',{event:'*',schema:'public',table:'at_conversas'}, softReload)
    .on('postgres_changes',{event:'*',schema:'public',table:'at_mensagens'}, softReload)
@@ -308,6 +311,7 @@ function filtroTab(cv){ if(TAB==='minhas')return cv.status!=='encerrada'; if(TAB
 const statusDot=cv=>({aberta:'#22c55e',pendente:'#f59e0b',encerrada:'#94a3b8'}[cv.status]||'#94a3b8');
 function relTime(iso){ if(!iso) return ''; const d=Date.now()-new Date(iso).getTime(); if(d<0) return 'agora'; const m=Math.floor(d/60000); if(m<1) return 'agora'; if(m<60) return m+'m'; const h=Math.floor(m/60); if(h<24) return h+'h'; const dias=Math.floor(h/24); if(dias<7) return dias+'d'; return Math.floor(dias/7)+'sem'; }
 function statusBadge(cv){ const base='absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-white dark:border-ink-800 flex items-center justify-center'; if(cv.status==='encerrada') return '<span class="'+base+' bg-emerald-500" title="Resolvida"><svg class="w-2.5 h-2.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="M5 13l4 4L19 7"/></svg></span>'; return '<span class="'+base+' bg-rose-500" title="Nao resolvida"><svg class="w-2.5 h-2.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="M6 6l12 12M18 6L6 18"/></svg></span>'; }
+function renderLoading(){ const el=document.getElementById('convList'); if(el) el.innerHTML='<div class="flex flex-col items-center justify-center gap-3 py-20 text-slate-400"><img src="/aragao-loading.png" class="w-14 h-14 animate-pulse" alt="Carregando"><div class="text-sm font-medium">Carregando…</div></div>'; }
 function renderList(){
   const q=(document.getElementById('search').value||'').toLowerCase();
   const arr=CONVERSAS.filter(filtroTab).filter(cv=>!q||cv.nome.toLowerCase().includes(q)||(cv.tel||'').includes(q)||(cv.email||'').toLowerCase().includes(q)||(cv.pedidoNumero||'').includes(q));
