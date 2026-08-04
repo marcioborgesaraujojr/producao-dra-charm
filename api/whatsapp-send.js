@@ -59,6 +59,25 @@ async function callerEmail(token) {
   } catch (e) { return null; }
 }
 
+// ESCUDO ANTIBANIMENTOS (fail-open): só BLOQUEIA se a qualidade estiver CONFIRMADAMENTE
+// ruim E o toggle correspondente estiver ligado. Qualquer dúvida/erro/desconhecido -> LIBERA.
+// Assim o envio nunca quebra por causa do escudo; ele só age no caso crítico de verdade.
+async function escudoBloqueia() {
+  try {
+    const r = await fetch(process.env.SUPABASE_URL + '/rest/v1/wa_saude?id=eq.1&select=quality_rating,auto_moderado,auto_ruim', {
+      headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY, Authorization: 'Bearer ' + process.env.SUPABASE_SERVICE_ROLE_KEY }
+    });
+    if (!r.ok) return null;
+    const rows = await r.json();
+    const s = Array.isArray(rows) && rows.length ? rows[0] : null;
+    if (!s) return null;
+    const q = String(s.quality_rating || '').toUpperCase();
+    if (s.auto_ruim && q === 'RED') return 'RED';
+    if (s.auto_moderado && q === 'YELLOW') return 'YELLOW';
+    return null;
+  } catch (e) { return null; }
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'authorization, content-type');
@@ -72,6 +91,17 @@ export default async function handler(req, res) {
 
   if (!process.env.WA_ACCESS_TOKEN || !process.env.WA_PHONE_NUMBER_ID) {
     return res.status(503).json({ error: 'WhatsApp ainda não configurado (faltam WA_ACCESS_TOKEN / WA_PHONE_NUMBER_ID no Vercel).' });
+  }
+
+  // Escudo antibanimentos: se ligado e a qualidade estiver crítica, segura o envio.
+  const bloq = await escudoBloqueia();
+  if (bloq) {
+    return res.status(423).json({
+      escudo: bloq,
+      error: bloq === 'RED'
+        ? 'Escudo antibanimentos: envios pausados — a qualidade do número está "Ruim" (crítica). Ajuste no Escudo antibanimentos.'
+        : 'Escudo antibanimentos: envios pausados — a qualidade do número está em nível médio. Ajuste no Escudo antibanimentos.'
+    });
   }
 
   let body = req.body;
