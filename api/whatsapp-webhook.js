@@ -65,10 +65,13 @@ async function getOrCreateConversa(clienteId) {
 function parseMsg(m) {
   switch (m.type) {
     case 'text':     return { tipo: 'texto',      conteudo: m.text?.body || '' };
+    case 'reaction': return { tipo: 'texto',      conteudo: m.reaction?.emoji ? ('reagiu ' + m.reaction.emoji) : '[reação removida]' };
+    case 'sticker':  return { tipo: 'imagem',     conteudo: '[figurinha]' };
     case 'image':    return { tipo: 'imagem',     conteudo: m.image?.caption || '[imagem]' };
     case 'audio':    return { tipo: 'audio',      conteudo: '[áudio]' };
     case 'document': return { tipo: 'documento',  conteudo: m.document?.filename || '[documento]' };
     case 'video':    return { tipo: 'documento',  conteudo: m.video?.caption || '[vídeo]' };
+    case 'location': return { tipo: 'texto',      conteudo: '[localização]' };
     default:         return { tipo: 'texto',      conteudo: '[' + m.type + ']' };
   }
 }
