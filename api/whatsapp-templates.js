@@ -63,13 +63,14 @@ export default async function handler(req, res) {
       const r = await fetch(url);
       const j = await r.json();
       if (!r.ok) return res.status(r.status).json({ error: (j.error && j.error.message) || 'Erro ao listar templates', data: j });
+      const todos = ['1', 'true'].includes(String((req.query && req.query.all) || ''));
       const templates = (j.data || [])
-        .filter(t => t.status === 'APPROVED')
+        .filter(t => todos || t.status === 'APPROVED')   // envio usa só APPROVED; gestão (?all=1) vê todos os status
         .map(t => {
           const bodyC = (t.components || []).find(c => c.type === 'BODY');
           const bodyTxt = (bodyC && bodyC.text) || '';
           const vars = (bodyTxt.match(/\{\{\s*\d+\s*\}\}/g) || []).length;
-          return { name: t.name, language: t.language, category: t.category, body: bodyTxt, vars };
+          return { name: t.name, language: t.language, category: t.category, status: t.status, body: bodyTxt, vars };
         })
         .sort((a, b) => a.name.localeCompare(b.name));
       return res.status(200).json({ templates });
