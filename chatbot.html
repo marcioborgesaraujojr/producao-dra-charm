@@ -78,8 +78,13 @@
       <div id="swAtivo" class="switch" data-on="0" onclick="toggleAtivo()"></div>
       <div><div class="text-sm font-semibold">Chatbot ativo</div><div class="text-[11px] text-slate-400">Quando ligado, responde automaticamente (após conectar o WhatsApp).</div></div>
     </div>
-    <div><label>Nome do robô</label><input id="nome" class="fld mt-1"></div>
-    <div><label>Personalidade / instruções</label><textarea id="persona" rows="5" class="fld mt-1"></textarea></div>
+    <div class="grid grid-cols-2 gap-3">
+      <div><label>Nome do robô</label><input id="nome" class="fld mt-1" placeholder="Ex.: Aline"></div>
+      <div><label>Cargo / função</label><input id="cargo" class="fld mt-1" placeholder="Ex.: Sucesso do cliente"></div>
+    </div>
+    <div><label>Personalidade / instruções (comportamento)</label><textarea id="persona" rows="6" class="fld mt-1"></textarea>
+      <div class="text-[11px] text-slate-400 mt-1">O nome do cliente entra automático — pode chamar pelo nome. Quanto mais detalhe de comportamento, melhor.</div>
+    </div>
     <div><label>Base de conhecimento (FAQ, prazos, políticas…)</label><textarea id="base" rows="5" class="fld mt-1" placeholder="Ex.: Prazo de entrega 5-10 dias úteis. Trocas em até 7 dias. Frete grátis acima de R$199…"></textarea></div>
     <div class="grid grid-cols-2 gap-3">
       <div><label>Modelo</label>
@@ -124,6 +129,7 @@ async function bootstrap(){
   CFG=data||{};
   document.getElementById('swAtivo').dataset.on=CFG.ativo?1:0;
   document.getElementById('nome').value=CFG.nome||'';
+  document.getElementById('cargo').value=CFG.cargo||'';
   document.getElementById('persona').value=CFG.persona||'';
   document.getElementById('base').value=CFG.base_conhecimento||'';
   document.getElementById('saudacao').value=CFG.saudacao||'';
@@ -135,11 +141,12 @@ function toggleAtivo(){ const s=document.getElementById('swAtivo'); s.dataset.on
 async function salvar(){
   const btn=document.getElementById('btnSalvar'); btn.textContent='Salvando…'; btn.disabled=true;
   const patch={ ativo:document.getElementById('swAtivo').dataset.on==='1', nome:document.getElementById('nome').value,
+    cargo:document.getElementById('cargo').value,
     persona:document.getElementById('persona').value, base_conhecimento:document.getElementById('base').value,
     modelo:document.getElementById('modelo').value, saudacao:document.getElementById('saudacao').value,
     handoff_termos:document.getElementById('handoff').value, updated_at:new Date().toISOString() };
   try{ await (await getSb()).from('at_chatbot').update(patch).eq('id',1); CFG={...CFG,...patch}; btn.textContent='Salvo ✓'; }
-  catch(e){ alert('Erro: '+e.message); btn.textContent='Salvar configuração'; }
+  catch(e){ btn.textContent='⚠️ Erro ao salvar'; }
   finally{ btn.disabled=false; setTimeout(()=>btn.textContent='Salvar configuração',1500); }
 }
 function addMsg(quem,txt){
