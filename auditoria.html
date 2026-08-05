@@ -26,7 +26,7 @@
   html.dark .fld{background:#0f172a;border-color:#334155;color:#e5e7eb}
   .chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px}
   .diff-k{color:#64748b}.dark .diff-k{color:#94a3b8}
-  .diff-old{color:#e11d48;text-decoration:line-through;opacity:.8}
+  .diff-old{color:#e11d48;text-decoration:line-through;opacity:.75}
   .diff-new{color:#059669;font-weight:600}
   details>summary{list-style:none;cursor:pointer}
   details>summary::-webkit-details-marker{display:none}
@@ -49,7 +49,7 @@
 <div id="appWrap" class="hidden">
 <header class="h-14 flex items-center justify-between px-3 sm:px-4 gap-2 bg-white/95 dark:bg-ink-800/95 border-b border-slate-200 dark:border-ink-600 sticky top-0 z-30 backdrop-blur">
   <div class="flex items-center gap-2.5 min-w-0">
-    <a href="/" title="Voltar à Suíte" class="w-9 h-9 rounded-xl overflow-hidden shadow hover:scale-105 transition flex-shrink-0 block"><span class="w-full h-full flex items-center justify-center text-white" style="background:linear-gradient(135deg,#334155,#0f172a)"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span></a>
+    <a href="/" title="Voltar à Suíte" class="w-9 h-9 rounded-xl overflow-hidden shadow hover:scale-105 transition flex-shrink-0 block"><span class="w-full h-full flex items-center justify-center text-white" style="background:linear-gradient(135deg,#334155,#0f172a)"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></span></a>
     <div class="leading-tight min-w-0">
       <div class="text-sm font-semibold truncate">Auditoria · Log do Sistema</div>
       <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate">Cada criação, edição e exclusão — quem fez e o que mudou</div>
@@ -64,14 +64,14 @@
 <div class="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-5">
   <div class="card p-3 sm:p-4 mb-4">
     <div class="grid grid-cols-2 sm:grid-cols-6 gap-2 items-end">
-      <div class="col-span-2 sm:col-span-2"><label class="text-[11px] text-slate-400">Buscar (usuário, registro, conteúdo)</label><input id="fBusca" oninput="renderLogs()" placeholder="ex.: edilene, OC 480…" class="fld w-full mt-0.5"></div>
+      <div class="col-span-2 sm:col-span-2"><label class="text-[11px] text-slate-400">Buscar (pessoa, item, conteúdo)</label><input id="fBusca" oninput="renderLogs()" placeholder="ex.: edilene, OC 480…" class="fld w-full mt-0.5"></div>
       <div><label class="text-[11px] text-slate-400">Área</label><select id="fTabela" onchange="renderLogs()" class="fld w-full mt-0.5"><option value="">Todas</option></select></div>
       <div><label class="text-[11px] text-slate-400">Ação</label><select id="fOp" onchange="renderLogs()" class="fld w-full mt-0.5"><option value="">Todas</option><option value="INSERT">Criação</option><option value="UPDATE">Edição</option><option value="DELETE">Exclusão</option></select></div>
       <div><label class="text-[11px] text-slate-400">De</label><input id="fDe" type="date" onchange="loadLogs()" class="fld w-full mt-0.5"></div>
       <div><label class="text-[11px] text-slate-400">Até</label><input id="fAte" type="date" onchange="loadLogs()" class="fld w-full mt-0.5"></div>
     </div>
     <div class="flex items-center gap-3 mt-3 flex-wrap">
-      <label class="flex items-center gap-1.5 text-[12px] text-slate-600 dark:text-slate-300 cursor-pointer"><input id="fCards" type="checkbox" checked onchange="loadLogs()" class="accent-indigo-600"> Incluir movimentações do quadro (cards)</label>
+      <label class="flex items-center gap-1.5 text-[12px] text-slate-600 dark:text-slate-300 cursor-pointer"><input id="fCards" type="checkbox" onchange="loadLogs()" class="accent-indigo-600"> Mostrar movimentações do quadro (kanban) — mais técnico e volumoso</label>
       <button onclick="loadLogs()" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700">Atualizar</button>
       <div id="resumo" class="text-[12px] text-slate-500 ml-auto"></div>
     </div>
@@ -86,7 +86,8 @@
 
 <script type="module">
 const SUPA={url:'https://wwytzoyeibekhstinott.supabase.co',key:'sb_publishable_uMoCEK4Ed_u8ZIfjVZ7Jrg_tdR4b9bO'};
-let sb=null, LOGS=[], LIMIT=300, PROFS={};
+let sb=null, LOGS=[], LIMIT=300;
+const PROFS={}, LISTS={}, BOARDS={}, OPERS={}, CARDS={};
 async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2'); sb=createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true}}); } return sb; }
 window.toggleDark=()=>{ document.documentElement.classList.toggle('dark'); try{localStorage.setItem('dc_dark',document.documentElement.classList.contains('dark')?'1':'0');}catch(e){} };
 try{ if(localStorage.getItem('dc_dark')==='1') document.documentElement.classList.add('dark'); }catch(e){}
@@ -95,22 +96,69 @@ function applyBg(){ const url=SUPA.url+'/storage/v1/object/public/system-assets/
 const pad=n=>String(n).padStart(2,'0');
 const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function dt(s){ const d=new Date(s); return pad(d.getDate())+'/'+pad(d.getMonth()+1)+' '+pad(d.getHours())+':'+pad(d.getMinutes()); }
-const IGN=new Set(['updated_at','created_at','ts','position','id']);
 const opInfo={INSERT:{l:'Criou',c:'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'},UPDATE:{l:'Editou',c:'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'},DELETE:{l:'Excluiu',c:'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'}};
-const areaNome=t=>({ac_producao:'Acabamento · produção',ac_ocs:'Acabamento · OCs',ac_operadoras:'Acabamento · revisoras',ac_config:'Acabamento · config',at_conversas:'Atendimento · conversa',at_mensagens:'Atendimento · mensagem',at_clientes:'Atendimento · cliente',at_conversa_tags:'Atendimento · tag',at_tags:'Atendimento · tag',at_chatbot:'Atendimento · chatbot',profiles:'Usuários / permissões',ag_agendamentos:'Agendamento',ag_config:'Agendamento · config',cards:'Quadro · card',lists:'Quadro · lista',boards:'Quadro',comments:'Quadro · comentário',tecidos:'Tecidos'}[t]||t);
+const areaNome=t=>({ac_producao:'Acabamento · produção',ac_ocs:'Acabamento · OCs',ac_operadoras:'Acabamento · revisoras',ac_config:'Acabamento · metas',at_conversas:'Atendimento · conversa',at_mensagens:'Atendimento · mensagem',at_clientes:'Atendimento · cliente',at_conversa_tags:'Atendimento · tag',at_tags:'Atendimento · tag',at_chatbot:'Atendimento · chatbot',profiles:'Usuários / permissões',ag_agendamentos:'Agendamento',ag_config:'Agendamento · config',ag_links:'Agendamento · link',cards:'Quadro · card',lists:'Quadro · lista',boards:'Quadro',comments:'Quadro · comentário',tecidos:'Tecidos',app_settings:'Configuração do sistema'}[t]||t);
 
-function short(v){ if(v==null) return '—'; if(typeof v==='object') { try{ return JSON.stringify(v).slice(0,60); }catch(e){ return '[obj]'; } } const s=String(v); return s.length>60?s.slice(0,60)+'…':s; }
-function diffHtml(antes,depois){
-  const a=antes||{}, d=depois||{};
-  const keys=[...new Set([...Object.keys(a),...Object.keys(d)])].filter(k=>!IGN.has(k));
-  const rows=keys.filter(k=>JSON.stringify(a[k])!==JSON.stringify(d[k])).map(k=>{
-    if(!(k in a)) return `<div><span class="diff-k">${esc(k)}:</span> <span class="diff-new">${esc(short(d[k]))}</span></div>`;
-    if(!(k in d)) return `<div><span class="diff-k">${esc(k)}:</span> <span class="diff-old">${esc(short(a[k]))}</span></div>`;
-    return `<div><span class="diff-k">${esc(k)}:</span> <span class="diff-old">${esc(short(a[k]))}</span> → <span class="diff-new">${esc(short(d[k]))}</span></div>`;
-  });
-  return rows.length? rows.join('') : '<div class="text-slate-400">(sem mudanças relevantes)</div>';
+const nm=(map,id)=> id ? (map[id] || ('#'+String(id).slice(0,6))) : '';
+// campos "ruído" que não ajudam a entender
+const IGN=new Set(['updated_at','created_at','ts','position','id','trello_id','cf_values','bordado_alterado_em']);
+function valTxt(k,v){
+  if(v==null||v==='') return '—';
+  if(k==='list_id') return nm(LISTS,v);
+  if(k==='board_id') return nm(BOARDS,v);
+  if(k==='operadora_id') return nm(OPERS,v);
+  if(k==='atendente_id'||k==='actor_id'||k==='created_by') return nm(PROFS,v) || ('#'+String(v).slice(0,6));
+  if(typeof v==='object'){ try{ return JSON.stringify(v).slice(0,70); }catch(e){ return '[obj]'; } }
+  const s=String(v); return s.length>70? s.slice(0,70)+'…' : s;
 }
-function insHtml(rec){ const d=rec||{}; const keys=Object.keys(d).filter(k=>!IGN.has(k) && d[k]!=null && d[k]!=='').slice(0,10); return keys.map(k=>`<div><span class="diff-k">${esc(k)}:</span> <span class="diff-new">${esc(short(d[k]))}</span></div>`).join('')||'<div class="text-slate-400">—</div>'; }
+
+// frase em português do que aconteceu
+function resumo(l){
+  const t=l.tabela, d=l.depois||l.antes||{};
+  if(t==='cards'){
+    const title = CARDS[l.rid] ? '«'+CARDS[l.rid]+'»' : 'um card';
+    const m = l.meta ? (typeof l.meta==='string'? (function(){try{return JSON.parse(l.meta)}catch(e){return {}}})() : l.meta) : null;
+    if(m && m.list_id && (m.list_id.from||m.list_id.to)) return 'Moveu '+title+': '+ (nm(LISTS,m.list_id.from)||'?') +' → '+ (nm(LISTS,m.list_id.to)||'?');
+    if(l.op==='INSERT') return 'Criou o card '+title;
+    if(l.op==='DELETE') return 'Excluiu o card '+title;
+    return 'Editou o card '+title;
+  }
+  if(t==='ac_producao'){ return 'Produção de '+(nm(OPERS,d.operadora_id)||'revisora')+(d.data?(' — '+String(d.data).split('-').reverse().join('/')):''); }
+  if(t==='ac_ocs'){ return 'OC '+(d.oc||'?')+' · '+(d.modelo||'?')+(d.tamanho?(' · '+d.tamanho):'')+' — '+(d.operadora_nome||nm(OPERS,d.operadora_id)||'?')+(d.qtd?(' ('+d.qtd+' pç)'):''); }
+  if(t==='ac_operadoras'){ return 'Revisora '+(d.nome||''); }
+  if(t==='ac_config'){ return 'Metas/faixas do Acabamento'; }
+  if(t==='profiles'){ return 'Usuário / permissões: '+(d.full_name||d.email||nm(PROFS,l.rid)||''); }
+  if(t==='at_conversas'){ return 'Conversa do atendimento'; }
+  if(t==='at_conversa_tags'||t==='at_tags'){ return 'Etiqueta do atendimento'; }
+  if(t==='at_chatbot'){ return 'Configuração do chatbot'; }
+  if(t==='at_clientes'){ return 'Cliente '+(d.nome||''); }
+  if(t==='ag_agendamentos'){ return 'Agendamento de visita'+(d.nome?(' — '+d.nome):''); }
+  if(t==='tecidos'){ return 'Tecido '+(d.title||d.nome||''); }
+  return areaNome(t);
+}
+
+function detalhe(l){
+  if(l.fonte==='card' && l.meta){ return diffMeta(l.meta); }
+  const a=l.antes||{}, d=l.depois||{};
+  if(l.op==='INSERT' || (!l.antes && l.depois)){
+    const keys=Object.keys(d).filter(k=>!IGN.has(k) && d[k]!=null && d[k]!=='').slice(0,12);
+    return keys.map(k=>`<div><span class="diff-k">${esc(k)}:</span> <span class="diff-new">${esc(valTxt(k,d[k]))}</span></div>`).join('')||'<div class="text-slate-400">—</div>';
+  }
+  if(l.op==='DELETE'){
+    const keys=Object.keys(a).filter(k=>!IGN.has(k) && a[k]!=null && a[k]!=='').slice(0,12);
+    return keys.map(k=>`<div><span class="diff-k">${esc(k)}:</span> <span class="diff-old">${esc(valTxt(k,a[k]))}</span></div>`).join('')||'<div class="text-slate-400">—</div>';
+  }
+  const keys=[...new Set([...Object.keys(a),...Object.keys(d)])].filter(k=>!IGN.has(k) && JSON.stringify(a[k])!==JSON.stringify(d[k]));
+  const rows=keys.map(k=>`<div><span class="diff-k">${esc(k)}:</span> <span class="diff-old">${esc(valTxt(k,a[k]))}</span> → <span class="diff-new">${esc(valTxt(k,d[k]))}</span></div>`);
+  return rows.length? rows.join('') : '<div class="text-slate-400">(sem mudança de conteúdo)</div>';
+}
+function diffMeta(meta){ try{ const m=typeof meta==='string'?JSON.parse(meta):meta; return Object.keys(m||{}).filter(k=>!IGN.has(k)).map(k=>{ const v=m[k]; if(v&&typeof v==='object'&&('from'in v||'to'in v)) return `<div><span class="diff-k">${esc(k)}:</span> <span class="diff-old">${esc(valTxt(k,v.from))}</span> → <span class="diff-new">${esc(valTxt(k,v.to))}</span></div>`; return `<div><span class="diff-k">${esc(k)}:</span> ${esc(valTxt(k,v))}</div>`; }).join('')||'<div class="text-slate-400">—</div>'; }catch(e){ return '<div class="text-slate-400">—</div>'; } }
+
+async function loadLookups(c){
+  try{ const [ls,bs,ops]=await Promise.all([ c.from('lists').select('id,name'), c.from('boards').select('id,name'), c.from('ac_operadoras').select('id,nome') ]);
+    (ls.data||[]).forEach(x=>LISTS[x.id]=x.name); (bs.data||[]).forEach(x=>BOARDS[x.id]=x.name); (ops.data||[]).forEach(x=>OPERS[x.id]=x.nome);
+  }catch(e){}
+}
 
 window.loadLogs=async function(){
   const c=await getSb();
@@ -128,9 +176,12 @@ window.loadLogs=async function(){
     }catch(e){}
   }
   LOGS=[...sys,...cards].sort((a,b)=>new Date(b.ts)-new Date(a.ts));
-  // popula filtro de área
+  // busca os nomes dos cards citados
+  const cardIds=[...new Set(LOGS.filter(l=>l.tabela==='cards'&&l.rid&&!CARDS[l.rid]).map(l=>l.rid))].slice(0,400);
+  if(cardIds.length){ try{ const r=await c.from('cards').select('id,title').in('id',cardIds); (r.data||[]).forEach(x=>CARDS[x.id]=x.title); }catch(e){} }
+  // filtro de área
   const sel=document.getElementById('fTabela'); const cur=sel.value;
-  const areas=[...new Set(LOGS.map(l=>l.tabela))].sort();
+  const areas=[...new Set(LOGS.map(l=>l.tabela))].sort((a,b)=>areaNome(a).localeCompare(areaNome(b)));
   sel.innerHTML='<option value="">Todas</option>'+areas.map(a=>`<option value="${a}">${esc(areaNome(a))}</option>`).join('');
   sel.value=cur;
   renderLogs();
@@ -139,33 +190,27 @@ window.renderLogs=function(){
   const q=(document.getElementById('fBusca').value||'').toLowerCase().trim();
   const ft=document.getElementById('fTabela').value, fo=document.getElementById('fOp').value;
   let arr=LOGS.filter(l=> (!ft||l.tabela===ft) && (!fo||l.op===fo));
-  if(q) arr=arr.filter(l=>{ const blob=(l.who||'')+' '+l.tabela+' '+(l.rid||'')+' '+JSON.stringify(l.antes||l.depois||l.meta||''); return blob.toLowerCase().includes(q); });
-  document.getElementById('resumo').textContent = arr.length+' registro(s)';
+  if(q) arr=arr.filter(l=>{ const blob=(l.who||'')+' '+resumo(l)+' '+l.tabela+' '+JSON.stringify(l.antes||l.depois||l.meta||''); return blob.toLowerCase().includes(q); });
+  document.getElementById('resumo').textContent = arr.length+' ação(ões)';
   document.getElementById('lista').innerHTML = arr.length? arr.map(l=>{
     const oi=opInfo[l.op]||{l:l.op,c:'bg-slate-100 text-slate-600'};
-    let corpo;
-    if(l.fonte==='card' && l.meta){ corpo=diffMeta(l.meta); }
-    else if(l.op==='INSERT') corpo=insHtml(l.depois);
-    else if(l.op==='DELETE') corpo=insHtml(l.antes);
-    else corpo=diffHtml(l.antes,l.depois);
-    const quem = l.who ? esc(l.who) : '<span class="text-slate-400">sistema/automático</span>';
+    const quem = l.who ? esc(l.who) : '<span class="text-slate-300 dark:text-slate-600">—</span>';
     return `<div class="card p-3">
       <details>
         <summary class="flex items-center gap-2 flex-wrap">
-          <span class="text-[11px] text-slate-400 tabular-nums w-24">${dt(l.ts)}</span>
+          <span class="text-[11px] text-slate-400 tabular-nums w-24 shrink-0">${dt(l.ts)}</span>
           <span class="chip ${oi.c}">${oi.l}</span>
-          <span class="text-sm font-semibold">${esc(areaNome(l.tabela))}</span>
-          ${l.rid?`<span class="text-[11px] text-slate-400">#${esc(String(l.rid).slice(0,8))}</span>`:''}
+          <span class="text-sm font-medium">${esc(resumo(l))}</span>
+          <span class="text-[10px] text-slate-400 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-ink-700">${esc(areaNome(l.tabela))}</span>
           <span class="text-[12px] text-slate-500 ml-auto">${quem}</span>
-          <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+          <svg class="w-4 h-4 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
         </summary>
-        <div class="mt-2 pt-2 border-t border-slate-100 dark:border-ink-700 text-[12px] space-y-0.5 font-mono">${corpo}</div>
+        <div class="mt-2 pt-2 border-t border-slate-100 dark:border-ink-700 text-[12px] space-y-0.5 font-mono">${detalhe(l)}</div>
       </details>
     </div>`;
-  }).join('') : '<div class="card p-8 text-center text-sm text-slate-400">Nenhum registro no período. Ajuste os filtros ou o período.</div>';
+  }).join('') : '<div class="card p-8 text-center text-sm text-slate-400">Nenhuma ação no período. Conforme as pessoas forem usando o sistema, tudo aparece aqui.</div>';
   document.getElementById('btnMais').classList.toggle('hidden', LOGS.length<LIMIT);
 };
-function diffMeta(meta){ try{ const m=typeof meta==='string'?JSON.parse(meta):meta; return Object.keys(m||{}).filter(k=>!IGN.has(k)).map(k=>{ const v=m[k]; if(v&&typeof v==='object'&&('from'in v||'to'in v)) return `<div><span class="diff-k">${esc(k)}:</span> <span class="diff-old">${esc(short(v.from))}</span> → <span class="diff-new">${esc(short(v.to))}</span></div>`; return `<div><span class="diff-k">${esc(k)}:</span> ${esc(short(v))}</div>`; }).join('')||'<div class="text-slate-400">—</div>'; }catch(e){ return '<div class="text-slate-400">—</div>'; } }
 window.mais=function(){ LIMIT+=500; loadLogs(); };
 
 (async()=>{
@@ -179,6 +224,7 @@ window.mais=function(){ LIMIT+=500; loadLogs(); };
   document.getElementById('appWrap').classList.remove('hidden');
   applyBg();
   try{ const {data:ps}=await c.from('profiles').select('id,full_name,email'); (ps||[]).forEach(p=>PROFS[p.id]=p.full_name||p.email||p.id); }catch(e){}
+  await loadLookups(c);
   const hoje=new Date(); const de=new Date(hoje.getTime()-7*86400000);
   document.getElementById('fAte').value=hoje.getFullYear()+'-'+pad(hoje.getMonth()+1)+'-'+pad(hoje.getDate());
   document.getElementById('fDe').value=de.getFullYear()+'-'+pad(de.getMonth()+1)+'-'+pad(de.getDate());
