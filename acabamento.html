@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Produção · Acabamento — Sistema Grupo Aragão</title>
+<link rel="icon" type="image/svg+xml" href="/logo_500x500.svg">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="/theme.js"></script>
+<script src="/suite-user.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body{font-family:'Poppins',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  html{background:#f1f5f9}html.dark{background:#0b1220}
+  /* caixinhas no padrão da suíte: borda fina clara, sem sombra */
+  .card{background:#fff;border:1px solid #eef2f7;border-radius:16px}
+  html.dark .card{background:#1f2937;border-color:#334155}
+  .inp{width:100%;text-align:center;padding:7px 4px;font-size:14px;font-weight:600;border-radius:9px;background:#f8fafc;border:1px solid #e2e8f0;outline:none}
+  .inp:focus{border-color:#8b5cf6;background:#fff}
+  html.dark .inp{background:#0f172a;border-color:#334155;color:#e5e7eb}
+  .inp:disabled{background:#f1f5f9;color:#94a3b8}
+  html.dark .inp:disabled{background:#111827;color:#475569}
+  .tab{padding:8px 14px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;color:#64748b}
+  .tab[data-on="1"]{background:#ede9fe;color:#6d28d9}
+  html.dark .tab[data-on="1"]{background:#3730a3;color:#e0e7ff}
+  th{font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.02em}
+  html.dark th{color:#94a3b8}
+  .chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px}
+  .bar{height:10px;border-radius:999px;background:#8b5cf6}
+  .switch{width:40px;height:23px;border-radius:999px;background:#cbd5e1;position:relative;cursor:pointer;transition:.15s;flex:none}
+  .switch[data-on="1"]{background:#f43f5e}
+  .switch::after{content:'';position:absolute;top:3px;left:3px;width:17px;height:17px;border-radius:999px;background:#fff;transition:.15s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+  .switch[data-on="1"]::after{left:20px}
+</style>
+</head>
+<body class="text-slate-800 dark:text-slate-100">
+<div id="appBg"></div>
+
+<div id="authGate" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-50 dark:bg-ink-900">
+  <div class="text-center">
+    <div class="w-14 h-14 mx-auto rounded-2xl mb-4 flex items-center justify-center text-white" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">
+      <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/><path d="M9 13l2 2 4-4"/></svg>
+    </div>
+    <div class="font-semibold mb-1">Produção · Acabamento</div>
+    <div class="text-sm text-slate-500 mb-4">Você precisa estar logado na Suíte para acessar.</div>
+    <a href="/" class="inline-block text-sm font-semibold text-white bg-pink-500 hover:bg-pink-600 px-4 py-2 rounded-lg">Ir para o login da Suíte</a>
+  </div>
+</div>
+
+<div id="appWrap" class="hidden">
+<header class="h-14 flex items-center justify-between px-3 sm:px-4 gap-2 bg-white/95 dark:bg-ink-800/95 border-b border-slate-200 dark:border-ink-600 sticky top-0 z-30 backdrop-blur">
+  <div class="flex items-center gap-2.5 min-w-0">
+    <a href="/" title="Voltar à Suíte" class="w-9 h-9 rounded-xl overflow-hidden shadow hover:scale-105 transition flex-shrink-0 block"><span class="w-full h-full flex items-center justify-center text-white" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/><path d="M9 13l2 2 4-4"/></svg></span></a>
+    <div class="leading-tight min-w-0">
+      <div class="text-sm font-semibold truncate">Produção · Acabamento</div>
+      <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate">Sistema Grupo Aragão</div>
+    </div>
+  </div>
+  <div class="flex items-center gap-2">
+    <button onclick="toggleDark()" title="Tema" class="w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:text-pink-500 hover:bg-slate-100 dark:hover:bg-ink-700"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg></button>
+    <div id="userAvatar" class="w-8 h-8 rounded-full bg-pink-500 text-white flex items-center justify-center font-bold text-sm">?</div>
+  </div>
+</header>
+
+<div class="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-5">
+
+  <!-- Abas -->
+  <div class="flex items-center gap-2 mb-4">
+    <div class="tab" data-on="1" data-tab="lancamento" onclick="switchTab('lancamento')">Lançamento diário</div>
+    <div class="tab" data-on="0" data-tab="comparativo" onclick="switchTab('comparativo')">Comparativo</div>
+  </div>
+
+  <!-- ===================== LANÇAMENTO ===================== -->
+  <div id="tab-lancamento">
+    <div class="card p-3 sm:p-4 mb-4 flex flex-wrap items-center gap-2 sm:gap-3">
+      <div class="flex items-center gap-1">
+        <button onclick="stepDay(-1)" class="w-9 h-9 rounded-lg border border-slate-200 dark:border-ink-600 hover:bg-slate-50 dark:hover:bg-ink-700 flex items-center justify-center"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
+        <input id="data" type="date" class="p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm font-semibold" onchange="carregarDia()">
+        <button onclick="stepDay(1)" class="w-9 h-9 rounded-lg border border-slate-200 dark:border-ink-600 hover:bg-slate-50 dark:hover:bg-ink-700 flex items-center justify-center"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></button>
+      </div>
+      <button onclick="hoje()" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-ink-600 text-sm hover:bg-slate-50 dark:hover:bg-ink-700">Hoje</button>
+      <div id="metaChip" class="chip bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-200 cursor-pointer" onclick="editarMeta()" title="Clique para ajustar a meta">Meta: — /horário</div>
+      <div class="flex-1"></div>
+      <button onclick="addRevisora()" class="px-3 py-2 rounded-lg border border-violet-300 text-violet-700 dark:text-violet-300 dark:border-violet-700 text-sm font-semibold hover:bg-violet-50 dark:hover:bg-violet-900/20 inline-flex items-center gap-1"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Revisora</button>
+      <button id="btnSalvar" onclick="salvar()" class="px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 inline-flex items-center gap-1"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>Salvar dia</button>
+    </div>
+
+    <div class="card p-2 sm:p-3 overflow-x-auto">
+      <table class="w-full min-w-[720px] border-collapse">
+        <thead>
+          <tr class="border-b border-slate-100 dark:border-ink-700">
+            <th class="text-left px-2 py-2">Revisora</th>
+            <th id="h1" class="px-1 py-2">9:50</th>
+            <th id="h2" class="px-1 py-2">11:50</th>
+            <th id="h3" class="px-1 py-2">13:50</th>
+            <th id="h4" class="px-1 py-2">15:50</th>
+            <th class="px-1 py-2">Total</th>
+            <th class="px-1 py-2">Efic.</th>
+            <th class="px-1 py-2">Saldo</th>
+            <th class="px-2 py-2">Faltou</th>
+            <th class="text-left px-2 py-2">Motivo</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="grid"></tbody>
+        <tfoot>
+          <tr class="border-t-2 border-slate-200 dark:border-ink-600 font-bold">
+            <td class="px-2 py-2 text-sm">TOTAL</td>
+            <td id="t1" class="text-center text-sm">0</td>
+            <td id="t2" class="text-center text-sm">0</td>
+            <td id="t3" class="text-center text-sm">0</td>
+            <td id="t4" class="text-center text-sm">0</td>
+            <td id="tt" class="text-center text-sm text-violet-700 dark:text-violet-300">0</td>
+            <td id="tef" class="text-center text-sm">—</td>
+            <td colspan="4"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div id="msg" class="text-sm mt-2 h-5"></div>
+  </div>
+
+  <!-- ===================== COMPARATIVO ===================== -->
+  <div id="tab-comparativo" class="hidden">
+    <div class="card p-3 sm:p-4 mb-4 flex flex-wrap items-center gap-3">
+      <label class="text-sm font-semibold text-slate-600 dark:text-slate-300">Mês</label>
+      <input id="mes" type="month" class="p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm font-semibold" onchange="carregarMes()">
+      <button onclick="carregarMes()" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-ink-600 text-sm hover:bg-slate-50 dark:hover:bg-ink-700">Atualizar</button>
+    </div>
+    <div id="cmpCards" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4"></div>
+    <div class="card p-4 mb-4">
+      <div class="font-semibold mb-3 text-sm">Ranking do mês <span class="text-slate-400 font-normal">(por peças produzidas)</span></div>
+      <div id="ranking" class="space-y-2"></div>
+    </div>
+    <div class="card p-4">
+      <div class="font-semibold mb-3 text-sm">Faltas e justificativas</div>
+      <div id="faltas" class="space-y-1.5 text-sm"></div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<script type="module">
+const SUPA = { url:'https://wwytzoyeibekhstinott.supabase.co', key:'sb_publishable_uMoCEK4Ed_u8ZIfjVZ7Jrg_tdR4b9bO' };
+let sb=null, EMAIL=null, CFG={meta_checkpoint:40, horarios:['9:50','11:50','13:50','15:50']}, OPERS=[], PROD={};
+
+async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2'); sb=createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true}}); } return sb; }
+window.toggleDark=()=>{ document.documentElement.classList.toggle('dark'); try{localStorage.setItem('dc_dark',document.documentElement.classList.contains('dark')?'1':'0');}catch(e){} };
+try{ if(localStorage.getItem('dc_dark')==='1') document.documentElement.classList.add('dark'); }catch(e){}
+
+const pad=n=>String(n).padStart(2,'0');
+function hojeISO(){ const d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+const num=v=>{ const n=parseInt(String(v==null?'':v).replace(/\D/g,''),10); return isNaN(n)?0:n; };
+const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function metaDia(op){ return (op && op.meta_dia) ? op.meta_dia : CFG.meta_checkpoint*4; }
+function efClass(p){ return p>=100?'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : p>=90?'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'; }
+
+// ---------- LANÇAMENTO ----------
+function linha(op){
+  const p = PROD[op.id] || {};
+  const falta = !!p.falta;
+  return `<tr data-op="${op.id}" class="border-b border-slate-50 dark:border-ink-700/60">
+    <td class="px-2 py-1.5 font-semibold text-sm whitespace-nowrap">${esc(op.nome)}</td>
+    ${[1,2,3,4].map(i=>`<td class="px-1 py-1.5"><input class="inp ck" data-c="${i}" inputmode="numeric" value="${p['c'+i]!=null?p['c'+i]:''}" ${falta?'disabled':''} oninput="recalc()"></td>`).join('')}
+    <td class="text-center font-bold text-sm total">0</td>
+    <td class="text-center efic"></td>
+    <td class="text-center font-semibold text-sm saldo">0</td>
+    <td class="px-2 py-1.5 text-center"><div class="switch mx-auto" data-on="${falta?1:0}" onclick="toggleFalta(this)"></div></td>
+    <td class="px-2 py-1.5"><input class="inp motivo" style="text-align:left;min-width:150px" placeholder="${falta?'Obrigatório':'—'}" value="${esc(p.motivo||'')}" ${falta?'':'disabled'}></td>
+    <td class="px-1"><button onclick="removerRevisora(${op.id},'${esc(op.nome)}')" title="Remover" class="text-slate-300 hover:text-rose-500"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button></td>
+  </tr>`;
+}
+window.renderGrid=function(){
+  document.getElementById('h1').textContent=CFG.horarios[0]||'9:50';
+  document.getElementById('h2').textContent=CFG.horarios[1]||'11:50';
+  document.getElementById('h3').textContent=CFG.horarios[2]||'13:50';
+  document.getElementById('h4').textContent=CFG.horarios[3]||'15:50';
+  document.getElementById('metaChip').textContent='Meta: '+CFG.meta_checkpoint+' /horário  ·  '+(CFG.meta_checkpoint*4)+'/dia';
+  document.getElementById('grid').innerHTML = OPERS.map(linha).join('') || `<tr><td colspan="11" class="text-center text-slate-400 py-8 text-sm">Nenhuma revisora. Clique em “+ Revisora”.</td></tr>`;
+  recalc();
+};
+window.recalc=function(){
+  const tot=[0,0,0,0]; let somaTot=0;
+  document.querySelectorAll('#grid tr[data-op]').forEach(tr=>{
+    const op = OPERS.find(o=>o.id==tr.dataset.op)||{};
+    const falta = tr.querySelector('.switch').dataset.on==='1';
+    let t=0; tr.querySelectorAll('.ck').forEach((inp,idx)=>{ const v=num(inp.value); t+=v; if(!falta) tot[idx]+=v; });
+    const md = metaDia(op);
+    const ef = md>0 ? Math.round(t/md*100) : 0;
+    const saldo = t - md;
+    tr.querySelector('.total').textContent = falta?'—':t;
+    const efEl=tr.querySelector('.efic');
+    efEl.innerHTML = falta ? `<span class="chip bg-slate-100 text-slate-500 dark:bg-ink-700 dark:text-slate-400">falta</span>` : `<span class="chip ${efClass(ef)}">${ef}%</span>`;
+    const sEl=tr.querySelector('.saldo');
+    sEl.textContent = falta?'—':(saldo>0?'+'+saldo:saldo);
+    sEl.className = 'text-center font-semibold text-sm saldo '+(falta?'text-slate-400':(saldo<0?'text-rose-500':'text-emerald-600'));
+    if(!falta) somaTot+=t;
+  });
+  for(let i=0;i<4;i++) document.getElementById('t'+(i+1)).textContent=tot[i];
+  document.getElementById('tt').textContent=somaTot;
+  const metaTotal = OPERS.reduce((a,o)=>a+metaDia(o),0);
+  document.getElementById('tef').innerHTML = metaTotal>0? `<span class="chip ${efClass(Math.round(somaTot/metaTotal*100))}">${Math.round(somaTot/metaTotal*100)}%</span>`:'—';
+};
+window.toggleFalta=function(el){
+  const on = el.dataset.on==='1'?'0':'1'; el.dataset.on=on;
+  const tr=el.closest('tr');
+  tr.querySelectorAll('.ck').forEach(i=>{ i.disabled = on==='1'; if(on==='1') i.value=''; });
+  const m=tr.querySelector('.motivo'); m.disabled = on!=='1'; m.placeholder = on==='1'?'Obrigatório':'—';
+  recalc();
+};
+window.stepDay=function(d){ const el=document.getElementById('data'); const dt=new Date(el.value+'T12:00:00'); dt.setDate(dt.getDate()+d); el.value=dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate()); carregarDia(); };
+window.hoje=function(){ document.getElementById('data').value=hojeISO(); carregarDia(); };
+
+window.carregarDia=async function(){
+  const data=document.getElementById('data').value; if(!data) return;
+  msg('Carregando…','slate'); PROD={};
+  try{
+    const c=await getSb();
+    const {data:rows,error}=await c.from('ac_producao').select('*').eq('data',data);
+    if(error) throw error;
+    (rows||[]).forEach(r=>PROD[r.operadora_id]=r);
+    renderGrid(); msg('','slate');
+  }catch(e){ msg('Erro ao carregar: '+(e.message||e),'rose'); }
+};
+
+window.salvar=async function(){
+  const data=document.getElementById('data').value; if(!data) return;
+  const rows=[]; let faltaSemMotivo=false;
+  document.querySelectorAll('#grid tr[data-op]').forEach(tr=>{
+    const falta = tr.querySelector('.switch').dataset.on==='1';
+    const motivo = (tr.querySelector('.motivo').value||'').trim();
+    if(falta && !motivo) faltaSemMotivo=true;
+    const cs=[...tr.querySelectorAll('.ck')].map(i=> i.value===''?null:num(i.value));
+    rows.push({ data, operadora_id:Number(tr.dataset.op), c1:falta?null:cs[0], c2:falta?null:cs[1], c3:falta?null:cs[2], c4:falta?null:cs[3], falta, motivo:motivo||null, atualizado_por:EMAIL, updated_at:new Date().toISOString() });
+  });
+  if(faltaSemMotivo){ msg('Preencha o motivo de quem faltou antes de salvar.','rose'); return; }
+  const btn=document.getElementById('btnSalvar'); const old=btn.innerHTML; btn.disabled=true; btn.textContent='Salvando…';
+  try{
+    const c=await getSb();
+    const {error}=await c.from('ac_producao').upsert(rows,{onConflict:'data,operadora_id'});
+    if(error) throw error;
+    msg('Dia salvo ✓','emerald'); btn.innerHTML=old; btn.disabled=false;
+  }catch(e){ msg('Erro ao salvar: '+(e.message||e),'rose'); btn.innerHTML=old; btn.disabled=false; }
+};
+
+function msg(t,c){ const el=document.getElementById('msg'); el.textContent=t; el.className='text-sm mt-2 h-5 '+({emerald:'text-emerald-600',rose:'text-rose-500',slate:'text-slate-400'}[c]||'text-slate-400'); }
+
+// ---------- Revisoras / Meta ----------
+window.addRevisora=async function(){
+  const nome=(prompt('Nome da revisora:')||'').trim(); if(!nome) return;
+  try{
+    const c=await getSb();
+    const ordem=(OPERS.reduce((m,o)=>Math.max(m,o.ordem||0),0))+1;
+    const {data,error}=await c.from('ac_operadoras').insert({nome:nome.toUpperCase(),ordem}).select().single();
+    if(error) throw error;
+    OPERS.push(data); OPERS.sort((a,b)=>(a.ordem||0)-(b.ordem||0)); renderGrid();
+  }catch(e){ msg('Erro ao adicionar: '+(e.message||e),'rose'); }
+};
+window.removerRevisora=async function(id,nome){
+  if(!confirm('Remover “'+nome+'” da lista? (o histórico dela continua guardado)')) return;
+  try{
+    const c=await getSb();
+    const {error}=await c.from('ac_operadoras').update({ativo:false}).eq('id',id);
+    if(error) throw error;
+    OPERS=OPERS.filter(o=>o.id!=id); renderGrid();
+  }catch(e){ msg('Erro ao remover: '+(e.message||e),'rose'); }
+};
+window.editarMeta=async function(){
+  const v=prompt('Meta por horário (peças):', CFG.meta_checkpoint); if(v==null) return;
+  const m=num(v); if(m<=0){ msg('Meta inválida.','rose'); return; }
+  try{
+    const c=await getSb();
+    const {error}=await c.from('ac_config').update({meta_checkpoint:m,updated_at:new Date().toISOString()}).eq('id',1);
+    if(error) throw error;
+    CFG.meta_checkpoint=m; renderGrid();
+  }catch(e){ msg('Erro ao salvar meta: '+(e.message||e),'rose'); }
+};
+
+// ---------- COMPARATIVO ----------
+window.switchTab=function(t){
+  document.querySelectorAll('.tab').forEach(el=>el.dataset.on = el.dataset.tab===t?'1':'0');
+  document.getElementById('tab-lancamento').classList.toggle('hidden',t!=='lancamento');
+  document.getElementById('tab-comparativo').classList.toggle('hidden',t!=='comparativo');
+  if(t==='comparativo') carregarMes();
+};
+window.carregarMes=async function(){
+  const mes=document.getElementById('mes').value; if(!mes) return;
+  const [y,m]=mes.split('-').map(Number);
+  const ini=mes+'-01'; const fim=y+'-'+pad(m)+'-'+pad(new Date(y,m,0).getDate());
+  try{
+    const c=await getSb();
+    const {data:rows,error}=await c.from('ac_producao').select('*').gte('data',ini).lte('data',fim);
+    if(error) throw error;
+    const byOp={}; OPERS.forEach(o=>byOp[o.id]={op:o,total:0,dias:0,faltas:0,somaEf:0});
+    const faltasList=[];
+    (rows||[]).forEach(r=>{
+      const b=byOp[r.operadora_id]; if(!b) return;
+      if(r.falta){ b.faltas++; faltasList.push({data:r.data,nome:b.op.nome,motivo:r.motivo||'—'}); return; }
+      const t=num(r.c1)+num(r.c2)+num(r.c3)+num(r.c4);
+      b.total+=t; b.dias++; b.somaEf += metaDia(b.op)>0 ? t/metaDia(b.op) : 0;
+    });
+    const arr=Object.values(byOp);
+    const totalGeral=arr.reduce((a,b)=>a+b.total,0);
+    const totalFaltas=arr.reduce((a,b)=>a+b.faltas,0);
+    const efMedia = arr.reduce((a,b)=>a+(b.dias?b.somaEf/b.dias:0),0) / (arr.filter(b=>b.dias).length||1);
+    document.getElementById('cmpCards').innerHTML=`
+      ${cmpCard('Peças no mês', totalGeral.toLocaleString('pt-BR'), 'violet')}
+      ${cmpCard('Eficiência média', Math.round(efMedia*100)+'%', 'emerald')}
+      ${cmpCard('Faltas', totalFaltas, 'rose')}
+      ${cmpCard('Revisoras', arr.filter(b=>b.dias||b.faltas).length, 'sky')}`;
+    const rank=arr.filter(b=>b.dias).sort((a,b)=>b.total-a.total);
+    const max=rank.length?rank[0].total:1;
+    document.getElementById('ranking').innerHTML = rank.length ? rank.map((b,i)=>{
+      const efm=b.dias?Math.round(b.somaEf/b.dias*100):0;
+      return `<div class="flex items-center gap-3">
+        <div class="w-5 text-sm font-bold text-slate-400">${i+1}</div>
+        <div class="w-28 text-sm font-semibold truncate">${esc(b.op.nome)}</div>
+        <div class="flex-1 bg-slate-100 dark:bg-ink-700 rounded-full h-2.5 overflow-hidden"><div class="bar h-2.5" style="width:${Math.max(3,Math.round(b.total/max*100))}%"></div></div>
+        <div class="w-16 text-right text-sm font-bold">${b.total.toLocaleString('pt-BR')}</div>
+        <div class="w-14 text-right"><span class="chip ${efClass(efm)}">${efm}%</span></div>
+        ${b.faltas?`<div class="w-16 text-right text-xs text-rose-500">${b.faltas} falta(s)</div>`:'<div class="w-16"></div>'}
+      </div>`;
+    }).join('') : '<div class="text-sm text-slate-400">Sem lançamentos neste mês.</div>';
+    document.getElementById('faltas').innerHTML = faltasList.length ? faltasList.sort((a,b)=>a.data<b.data?1:-1).map(f=>
+      `<div class="flex items-center gap-2"><span class="chip bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">${f.data.split('-').reverse().join('/')}</span><b>${esc(f.nome)}</b><span class="text-slate-500">— ${esc(f.motivo)}</span></div>`
+    ).join('') : '<div class="text-slate-400">Nenhuma falta registrada.</div>';
+  }catch(e){ document.getElementById('ranking').innerHTML='<div class="text-sm text-rose-500">Erro: '+esc(e.message||e)+'</div>'; }
+};
+function cmpCard(t,v,c){ return `<div class="card p-3"><div class="text-[11px] font-semibold text-slate-400 uppercase">${t}</div><div class="text-2xl font-extrabold text-${c}-600 dark:text-${c}-400 mt-0.5">${v}</div></div>`; }
+
+// ---------- BOOT ----------
+(async()=>{
+  const c=await getSb();
+  const { data:{ session } } = await c.auth.getSession();
+  if(!session){ document.getElementById('authGate').classList.remove('hidden'); return; }
+  EMAIL=(session.user.email||'').toLowerCase();
+  document.getElementById('appWrap').classList.remove('hidden');
+  // config
+  try{ const {data:cfg}=await c.from('ac_config').select('*').eq('id',1).maybeSingle(); if(cfg){ CFG.meta_checkpoint=cfg.meta_checkpoint||40; if(Array.isArray(cfg.horarios)) CFG.horarios=cfg.horarios; } }catch(e){}
+  // operadoras
+  try{ const {data:ops}=await c.from('ac_operadoras').select('*').eq('ativo',true).order('ordem'); OPERS=ops||[]; }catch(e){ OPERS=[]; }
+  document.getElementById('data').value=hojeISO();
+  const now=new Date(); document.getElementById('mes').value=now.getFullYear()+'-'+pad(now.getMonth()+1);
+  await carregarDia();
+})();
+</script>
+</body>
+</html>
