@@ -63,3 +63,7 @@
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
+
+
+/* ---- carrega o botao "Voltar a Suite" (4 quadradinhos), padrao unico da suite ---- */
+(function(){ try{ if(document.querySelector("script[data-suite-back]")) return; var s=document.createElement("script"); s.src="/suite-back.js"; s.defer=true; s.setAttribute("data-suite-back","1"); (document.head||document.documentElement).appendChild(s); }catch(e){} })();
