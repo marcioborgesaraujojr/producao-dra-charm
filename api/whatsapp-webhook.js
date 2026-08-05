@@ -81,6 +81,28 @@ function parseMsg(m) {
   }
 }
 
+// ===== MÍDIA: baixa imagem/sticker do WhatsApp e sobe no storage (bucket at-media) =====
+async function baixarMidia(mediaId){
+  try{
+    if(!process.env.WA_ACCESS_TOKEN) return null;
+    const r1 = await fetch(GRAPH + '/' + mediaId, { headers: { Authorization: 'Bearer ' + process.env.WA_ACCESS_TOKEN } });
+    const j1 = await r1.json(); if(!j1 || !j1.url) return null;
+    const r2 = await fetch(j1.url, { headers: { Authorization: 'Bearer ' + process.env.WA_ACCESS_TOKEN } });
+    if(!r2.ok) return null;
+    const buf = Buffer.from(await r2.arrayBuffer());
+    const mime = String(j1.mime_type || r2.headers.get('content-type') || 'image/jpeg').split(';')[0];
+    const ext = (mime.split('/')[1] || 'jpg');
+    const path = 'in/' + Date.now() + '-' + String(mediaId).slice(-10) + '.' + ext;
+    const up = await fetch(SB() + '/storage/v1/object/at-media/' + path, {
+      method: 'POST',
+      headers: { apikey: KEY(), Authorization: 'Bearer ' + KEY(), 'Content-Type': mime, 'x-upsert': 'true' },
+      body: buf
+    });
+    if(!up.ok) return null;
+    return { url: SB() + '/storage/v1/object/public/at-media/' + path, mime };
+  }catch(e){ console.error('baixarMidia:', e.message); return null; }
+}
+
 // ===== CHATBOT IA: responde sozinho quando ATIVO e ninguém humano assumiu =====
 async function maybeBotReply(conversaId, clienteNome, inboundText, waid, host) {
   try {
@@ -165,12 +187,18 @@ export default async function handler(req, res) {
         for (const m of messages) {
           const waid = m.from;                       // wa_id (telefone do cliente)
           const { tipo, conteudo } = parseMsg(m);
+          // imagem/figurinha do cliente: baixa e guarda no storage
+          let midia_url = null, midia_tipo = null;
+          if ((m.type === 'image' && m.image && m.image.id) || (m.type === 'sticker' && m.sticker && m.sticker.id)) {
+            const dl = await baixarMidia(m.type === 'image' ? m.image.id : m.sticker.id);
+            if (dl) { midia_url = dl.url; midia_tipo = 'imagem'; }
+          }
           const cliente = await upsertCliente({ waid, nome: contatoNome, telefone: waid });
           const conversaId = await getOrCreateConversa(cliente.id);
           await sbFetch('at_mensagens', {
             method: 'POST',
             body: JSON.stringify({
-              conversa_id: conversaId, direcao: 'in', tipo, conteudo,
+              conversa_id: conversaId, direcao: 'in', tipo, conteudo, midia_url, midia_tipo,
               autor: contatoNome || waid, meta: { wa_id: waid, wamid: m.id },
               enviada_em: new Date(Number(m.timestamp) * 1000 || Date.now()).toISOString()
             })
