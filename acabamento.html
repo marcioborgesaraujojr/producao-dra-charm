@@ -448,6 +448,10 @@ window.renderOcs=function(){
   const { data:{ session } } = await c.auth.getSession();
   if(!session){ document.getElementById('authGate').classList.remove('hidden'); return; }
   EMAIL=(session.user.email||'').toLowerCase();
+  if(EMAIL!=='marcioborgesaraujojr@gmail.com'){
+    let _pf=null; try{ const r=await c.from('profiles').select('access').eq('id',session.user.id).maybeSingle(); _pf=r.data; }catch(e){}
+    if(!(_pf && _pf.access && _pf.access.acabamento===true)){ window.location.href='/'; return; }
+  }
   document.getElementById('appWrap').classList.remove('hidden');
   applyBg();
   // config
