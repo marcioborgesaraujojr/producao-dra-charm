@@ -162,6 +162,8 @@
         <button onclick="fmt('~')" class="hover:text-slate-600 line-through text-sm w-6" title="Tachado">S</button>
         <button onclick="toggleQR()" class="hover:text-pink-600" title="Respostas rápidas"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
         <button id="btnNota" onclick="toggleNota()" class="hover:text-amber-500" title="Nota interna"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></button>
+        <button onclick="escolherFoto()" class="hover:text-pink-600" title="Enviar foto"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
+        <input type="file" id="atImgInput" accept="image/*" class="hidden" onchange="if(this.files&&this.files[0]){enviarFoto(this.files[0]);this.value='';}">
         <button onclick="abrirTemplates()" class="hover:text-pink-600" title="Enviar modelo (fora da janela de 24h)"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></button>
         <span id="charCount" class="ml-auto text-[11px] tabular-nums">0 / 2.000</span>
       </div>
@@ -232,7 +234,7 @@ async function loadConversas(){
   return (data||[]).map((cv,i)=>{
     const cli=cv.cliente||{};
     const msgs=(cv.mensagens||[]).sort((a,b)=>new Date(a.enviada_em)-new Date(b.enviada_em)).map(m=>({
-      id:m.id, t: m.tipo==='nota'?'nota':m.direcao, k:(m.meta&&m.meta.evento)||undefined, txt:m.conteudo||'',
+      id:m.id, t: m.tipo==='nota'?'nota':m.direcao, k:(m.meta&&m.meta.evento)||undefined, txt:m.conteudo||'', midia:m.midia_url||null, midiaTipo:m.midia_tipo||null,
       hora:new Date(m.enviada_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) }));
     const j=cv.janela_expira_em?new Date(cv.janela_expira_em)-Date.now():0;
     return { id:cv.id, nome:cli.nome||'Cliente', inicial:(cli.nome||'C')[0].toUpperCase(), cor:CORES[i%CORES.length],
@@ -385,7 +387,9 @@ function renderChat(cv){
       if(m.t==='sys'){ const s={reabriu:'bg-orange-100 text-orange-700',resolvida:'bg-green-100 text-green-700'}; return `<div class="flex justify-center"><span class="sys-chip ${s[m.k]||'bg-slate-100 text-slate-600'}">${esc(m.txt)}</span></div>`; }
       if(m.t==='nota') return `<div class="flex justify-end"><div class="max-w-[70%] bubble-note rounded-2xl px-4 py-2 shadow-sm" data-fade><div class="text-[10px] font-semibold text-amber-600 mb-0.5">Nota interna</div><div class="text-sm whitespace-pre-wrap">${esc(m.txt)}</div><div class="text-[10px] text-amber-500/70 text-right mt-1">${m.hora}</div></div></div>`;
       const out=m.t==='out';
-      return `<div class="flex ${out?'justify-end':'justify-start'}"><div class="max-w-[70%] ${out?'bubble-out':'bubble-in'} rounded-2xl px-4 py-2 shadow-sm" data-fade><div class="text-sm whitespace-pre-wrap">${esc(m.txt)}</div><div class="text-[10px] text-slate-400 text-right mt-1">${m.hora}${out?' ✓✓':''}</div></div></div>`;
+      const _img = m.midia ? `<a href="${m.midia}" target="_blank" rel="noopener"><img src="${m.midia}" class="rounded-xl max-w-[240px] max-h-[280px] object-cover mb-1 block" loading="lazy"></a>` : '';
+      const _showTxt = m.txt && m.txt!=='[imagem]' && m.txt!=='[figurinha]';
+      return `<div class="flex ${out?'justify-end':'justify-start'}"><div class="max-w-[70%] ${out?'bubble-out':'bubble-in'} rounded-2xl px-4 py-2 shadow-sm" data-fade>${_img}${_showTxt?`<div class="text-sm whitespace-pre-wrap">${esc(m.txt)}</div>`:''}<div class="text-[10px] text-slate-400 text-right mt-1">${m.hora}${out?' ✓✓':''}</div></div></div>`;
     }).join('');
   chat.scrollTop=chat.scrollHeight;
 }
@@ -448,6 +452,30 @@ async function autoAtribuir(cv){ if(!cv || cv.atendenteId || !ATEND_ID) return; 
 function spc(s){ if(/entreg/i.test(s))return'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'; if(/envi|andamento/i.test(s))return'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'; if(/cancel/i.test(s))return'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'; return'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'; }
 
 /* ===== Interações (persistem no Supabase, com fallback local) ===== */
+window.escolherFoto=function(){ if(!cur()){ dcToast('Abra uma conversa primeiro.','err'); return; } document.getElementById('atImgInput').click(); };
+async function enviarFoto(file){
+  const cv=cur(); if(!cv||!file) return;
+  if(!/^image\//.test(file.type||'')){ dcToast('Envie uma imagem.','err'); return; }
+  if(file.size>5*1024*1024){ dcToast('Imagem muito grande (máx 5MB).','err'); return; }
+  const destino = cv.waid || (cv.tel||'').replace(/\D/g,''); if(!destino){ dcToast('Essa conversa não tem número pra enviar.','err'); return; }
+  const hora=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  const caption=(document.getElementById('msgInput').value||'').trim();
+  try{
+    const c=await getSb();
+    const ext=((file.type.split('/')[1]||'jpg').split(';')[0]);
+    const path='out/'+Date.now()+'-'+Math.round(Math.random()*1e9)+'.'+ext;
+    const up=await c.storage.from('at-media').upload(path, file, {contentType:file.type, upsert:true});
+    if(up.error) throw up.error;
+    const url=c.storage.from('at-media').getPublicUrl(path).data.publicUrl;
+    cv.msgs.push({t:'out', txt:caption, hora, midia:url, midiaTipo:'imagem'});
+    document.getElementById('msgInput').value=''; updCount(); renderChat(cv);
+    const {data:{session}}=await c.auth.getSession();
+    const r=await fetch('/api/whatsapp-send-media',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+(session&&session.access_token)},body:JSON.stringify({to:destino, midia_url:url, text:caption, conversa_id:cv.id})});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok){ cv.msgs.push({t:'sys',txt:'⚠️ Não enviou a foto: '+(j.error||('erro '+r.status))}); renderChat(cv); }
+    else { autoAtribuir(cv); }
+  }catch(e){ dcToast('Erro ao enviar foto: '+(e.message||e),'err'); }
+}
 async function enviar(){
   const cv=cur(); if(!cv) return; const inp=document.getElementById('msgInput'); let txt=inp.value.trim(); if(!txt) return;
   const hora=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
