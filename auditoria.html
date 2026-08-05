@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Auditoria · Log do Sistema — Grupo Aragão</title>
+<link rel="icon" type="image/svg+xml" href="/logo_500x500.svg">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="/theme.js"></script>
+<script src="/suite-user.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body{font-family:'Poppins',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  html{background:#f1f5f9}html.dark{background:#0b1220}
+  body{background-color:transparent}
+  #appBg{position:fixed;inset:0;width:100vw;height:100vh;z-index:-1;background-size:cover;background-position:center;background-repeat:no-repeat;pointer-events:none}
+  body.has-bg::before{content:'';position:fixed;inset:0;background:rgba(255,255,255,.42);pointer-events:none;z-index:0}
+  body.has-bg #appWrap{position:relative;z-index:1}
+  body.has-bg header{background:rgba(255,255,255,.85)!important;backdrop-filter:blur(8px)}
+  .card{background:#fff;border:1px solid #eef2f7;border-radius:16px}
+  html.dark .card{background:#1f2937;border-color:#334155}
+  .fld{padding:8px 10px;font-size:13px;border-radius:9px;background:#fff;border:1px solid #e2e8f0;outline:none}
+  .fld:focus{border-color:#6366f1}
+  html.dark .fld{background:#0f172a;border-color:#334155;color:#e5e7eb}
+  .chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px}
+  .diff-k{color:#64748b}.dark .diff-k{color:#94a3b8}
+  .diff-old{color:#e11d48;text-decoration:line-through;opacity:.8}
+  .diff-new{color:#059669;font-weight:600}
+  details>summary{list-style:none;cursor:pointer}
+  details>summary::-webkit-details-marker{display:none}
+</style>
+</head>
+<body class="text-slate-800 dark:text-slate-100">
+<div id="appBg"></div>
+
+<div id="authGate" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-50 dark:bg-ink-900">
+  <div class="text-center">
+    <div class="w-14 h-14 mx-auto rounded-2xl mb-4 flex items-center justify-center text-white" style="background:linear-gradient(135deg,#334155,#0f172a)">
+      <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    </div>
+    <div class="font-semibold mb-1">Auditoria</div>
+    <div id="gateMsg" class="text-sm text-slate-500 mb-4">Você precisa estar logado na Suíte para acessar.</div>
+    <a href="/" class="inline-block text-sm font-semibold text-white bg-pink-500 hover:bg-pink-600 px-4 py-2 rounded-lg">Voltar à Suíte</a>
+  </div>
+</div>
+
+<div id="appWrap" class="hidden">
+<header class="h-14 flex items-center justify-between px-3 sm:px-4 gap-2 bg-white/95 dark:bg-ink-800/95 border-b border-slate-200 dark:border-ink-600 sticky top-0 z-30 backdrop-blur">
+  <div class="flex items-center gap-2.5 min-w-0">
+    <a href="/" title="Voltar à Suíte" class="w-9 h-9 rounded-xl overflow-hidden shadow hover:scale-105 transition flex-shrink-0 block"><span class="w-full h-full flex items-center justify-center text-white" style="background:linear-gradient(135deg,#334155,#0f172a)"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span></a>
+    <div class="leading-tight min-w-0">
+      <div class="text-sm font-semibold truncate">Auditoria · Log do Sistema</div>
+      <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate">Cada criação, edição e exclusão — quem fez e o que mudou</div>
+    </div>
+  </div>
+  <div class="flex items-center gap-2">
+    <button onclick="toggleDark()" title="Tema" class="w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:text-pink-500 hover:bg-slate-100 dark:hover:bg-ink-700"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg></button>
+    <div id="userAvatar" class="w-8 h-8 rounded-full bg-pink-500 text-white flex items-center justify-center font-bold text-sm">?</div>
+  </div>
+</header>
+
+<div class="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-5">
+  <div class="card p-3 sm:p-4 mb-4">
+    <div class="grid grid-cols-2 sm:grid-cols-6 gap-2 items-end">
+      <div class="col-span-2 sm:col-span-2"><label class="text-[11px] text-slate-400">Buscar (usuário, registro, conteúdo)</label><input id="fBusca" oninput="renderLogs()" placeholder="ex.: edilene, OC 480…" class="fld w-full mt-0.5"></div>
+      <div><label class="text-[11px] text-slate-400">Área</label><select id="fTabela" onchange="renderLogs()" class="fld w-full mt-0.5"><option value="">Todas</option></select></div>
+      <div><label class="text-[11px] text-slate-400">Ação</label><select id="fOp" onchange="renderLogs()" class="fld w-full mt-0.5"><option value="">Todas</option><option value="INSERT">Criação</option><option value="UPDATE">Edição</option><option value="DELETE">Exclusão</option></select></div>
+      <div><label class="text-[11px] text-slate-400">De</label><input id="fDe" type="date" onchange="loadLogs()" class="fld w-full mt-0.5"></div>
+      <div><label class="text-[11px] text-slate-400">Até</label><input id="fAte" type="date" onchange="loadLogs()" class="fld w-full mt-0.5"></div>
+    </div>
+    <div class="flex items-center gap-3 mt-3 flex-wrap">
+      <label class="flex items-center gap-1.5 text-[12px] text-slate-600 dark:text-slate-300 cursor-pointer"><input id="fCards" type="checkbox" checked onchange="loadLogs()" class="accent-indigo-600"> Incluir movimentações do quadro (cards)</label>
+      <button onclick="loadLogs()" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700">Atualizar</button>
+      <div id="resumo" class="text-[12px] text-slate-500 ml-auto"></div>
+    </div>
+  </div>
+
+  <div id="lista" class="space-y-2"></div>
+  <div class="text-center mt-4">
+    <button id="btnMais" onclick="mais()" class="hidden px-4 py-2 rounded-lg border border-slate-200 dark:border-ink-600 text-sm hover:bg-slate-50 dark:hover:bg-ink-700">Carregar mais</button>
+  </div>
+</div>
+</div>
+
+<script type="module">
+const SUPA={url:'https://wwytzoyeibekhstinott.supabase.co',key:'sb_publishable_uMoCEK4Ed_u8ZIfjVZ7Jrg_tdR4b9bO'};
+let sb=null, LOGS=[], LIMIT=300, PROFS={};
+async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2'); sb=createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true}}); } return sb; }
+window.toggleDark=()=>{ document.documentElement.classList.toggle('dark'); try{localStorage.setItem('dc_dark',document.documentElement.classList.contains('dark')?'1':'0');}catch(e){} };
+try{ if(localStorage.getItem('dc_dark')==='1') document.documentElement.classList.add('dark'); }catch(e){}
+function applyBg(){ const url=SUPA.url+'/storage/v1/object/public/system-assets/suite-bg.jpg?t='+Date.now(); const img=new Image(); img.onload=()=>{ const el=document.getElementById('appBg'); if(el) el.style.backgroundImage="url('"+url+"')"; document.body.classList.add('has-bg'); }; img.src=url; }
+
+const pad=n=>String(n).padStart(2,'0');
+const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function dt(s){ const d=new Date(s); return pad(d.getDate())+'/'+pad(d.getMonth()+1)+' '+pad(d.getHours())+':'+pad(d.getMinutes()); }
+const IGN=new Set(['updated_at','created_at','ts','position','id']);
+const opInfo={INSERT:{l:'Criou',c:'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'},UPDATE:{l:'Editou',c:'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'},DELETE:{l:'Excluiu',c:'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'}};
+const areaNome=t=>({ac_producao:'Acabamento · produção',ac_ocs:'Acabamento · OCs',ac_operadoras:'Acabamento · revisoras',ac_config:'Acabamento · config',at_conversas:'Atendimento · conversa',at_mensagens:'Atendimento · mensagem',at_clientes:'Atendimento · cliente',at_conversa_tags:'Atendimento · tag',at_tags:'Atendimento · tag',at_chatbot:'Atendimento · chatbot',profiles:'Usuários / permissões',ag_agendamentos:'Agendamento',ag_config:'Agendamento · config',cards:'Quadro · card',lists:'Quadro · lista',boards:'Quadro',comments:'Quadro · comentário',tecidos:'Tecidos'}[t]||t);
+
+function short(v){ if(v==null) return '—'; if(typeof v==='object') { try{ return JSON.stringify(v).slice(0,60); }catch(e){ return '[obj]'; } } const s=String(v); return s.length>60?s.slice(0,60)+'…':s; }
+function diffHtml(antes,depois){
+  const a=antes||{}, d=depois||{};
+  const keys=[...new Set([...Object.keys(a),...Object.keys(d)])].filter(k=>!IGN.has(k));
+  const rows=keys.filter(k=>JSON.stringify(a[k])!==JSON.stringify(d[k])).map(k=>{
+    if(!(k in a)) return `<div><span class="diff-k">${esc(k)}:</span> <span class="diff-new">${esc(short(d[k]))}</span></div>`;
+    if(!(k in d)) return `<div><span class="diff-k">${esc(k)}:</span> <span class="diff-old">${esc(short(a[k]))}</span></div>`;
+    return `<div><span class="diff-k">${esc(k)}:</span> <span class="diff-old">${esc(short(a[k]))}</span> → <span class="diff-new">${esc(short(d[k]))}</span></div>`;
+  });
+  return rows.length? rows.join('') : '<div class="text-slate-400">(sem mudanças relevantes)</div>';
+}
+function insHtml(rec){ const d=rec||{}; const keys=Object.keys(d).filter(k=>!IGN.has(k) && d[k]!=null && d[k]!=='').slice(0,10); return keys.map(k=>`<div><span class="diff-k">${esc(k)}:</span> <span class="diff-new">${esc(short(d[k]))}</span></div>`).join('')||'<div class="text-slate-400">—</div>'; }
+
+window.loadLogs=async function(){
+  const c=await getSb();
+  const de=document.getElementById('fDe').value, ate=document.getElementById('fAte').value;
+  document.getElementById('resumo').textContent='Carregando…';
+  let q=c.from('sys_audit_log').select('*').order('ts',{ascending:false}).limit(LIMIT);
+  if(de) q=q.gte('ts', de+'T00:00:00'); if(ate) q=q.lte('ts', ate+'T23:59:59');
+  let sys=[]; try{ const r=await q; if(r.error) throw r.error; sys=(r.data||[]).map(x=>({ts:x.ts,who:x.actor_email,tabela:x.tabela,op:x.operacao,rid:x.registro_id,antes:x.dados_antes,depois:x.dados_depois,fonte:'sys'})); }
+  catch(e){ document.getElementById('resumo').textContent='Erro: '+(e.message||e); return; }
+  let cards=[];
+  if(document.getElementById('fCards').checked){
+    try{ let q2=c.from('activity_log').select('*').order('created_at',{ascending:false}).limit(LIMIT);
+      if(de) q2=q2.gte('created_at', de+'T00:00:00'); if(ate) q2=q2.lte('created_at', ate+'T23:59:59');
+      const r2=await q2; if(!r2.error){ cards=(r2.data||[]).map(x=>({ts:x.created_at,who:x.actor_id?(PROFS[x.actor_id]||''):'',tabela:'cards',op:(x.action==='created'?'INSERT':x.action==='deleted'?'DELETE':'UPDATE'),rid:x.card_id,meta:x.meta,fonte:'card'})); }
+    }catch(e){}
+  }
+  LOGS=[...sys,...cards].sort((a,b)=>new Date(b.ts)-new Date(a.ts));
+  // popula filtro de área
+  const sel=document.getElementById('fTabela'); const cur=sel.value;
+  const areas=[...new Set(LOGS.map(l=>l.tabela))].sort();
+  sel.innerHTML='<option value="">Todas</option>'+areas.map(a=>`<option value="${a}">${esc(areaNome(a))}</option>`).join('');
+  sel.value=cur;
+  renderLogs();
+};
+window.renderLogs=function(){
+  const q=(document.getElementById('fBusca').value||'').toLowerCase().trim();
+  const ft=document.getElementById('fTabela').value, fo=document.getElementById('fOp').value;
+  let arr=LOGS.filter(l=> (!ft||l.tabela===ft) && (!fo||l.op===fo));
+  if(q) arr=arr.filter(l=>{ const blob=(l.who||'')+' '+l.tabela+' '+(l.rid||'')+' '+JSON.stringify(l.antes||l.depois||l.meta||''); return blob.toLowerCase().includes(q); });
+  document.getElementById('resumo').textContent = arr.length+' registro(s)';
+  document.getElementById('lista').innerHTML = arr.length? arr.map(l=>{
+    const oi=opInfo[l.op]||{l:l.op,c:'bg-slate-100 text-slate-600'};
+    let corpo;
+    if(l.fonte==='card' && l.meta){ corpo=diffMeta(l.meta); }
+    else if(l.op==='INSERT') corpo=insHtml(l.depois);
+    else if(l.op==='DELETE') corpo=insHtml(l.antes);
+    else corpo=diffHtml(l.antes,l.depois);
+    const quem = l.who ? esc(l.who) : '<span class="text-slate-400">sistema/automático</span>';
+    return `<div class="card p-3">
+      <details>
+        <summary class="flex items-center gap-2 flex-wrap">
+          <span class="text-[11px] text-slate-400 tabular-nums w-24">${dt(l.ts)}</span>
+          <span class="chip ${oi.c}">${oi.l}</span>
+          <span class="text-sm font-semibold">${esc(areaNome(l.tabela))}</span>
+          ${l.rid?`<span class="text-[11px] text-slate-400">#${esc(String(l.rid).slice(0,8))}</span>`:''}
+          <span class="text-[12px] text-slate-500 ml-auto">${quem}</span>
+          <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <div class="mt-2 pt-2 border-t border-slate-100 dark:border-ink-700 text-[12px] space-y-0.5 font-mono">${corpo}</div>
+      </details>
+    </div>`;
+  }).join('') : '<div class="card p-8 text-center text-sm text-slate-400">Nenhum registro no período. Ajuste os filtros ou o período.</div>';
+  document.getElementById('btnMais').classList.toggle('hidden', LOGS.length<LIMIT);
+};
+function diffMeta(meta){ try{ const m=typeof meta==='string'?JSON.parse(meta):meta; return Object.keys(m||{}).filter(k=>!IGN.has(k)).map(k=>{ const v=m[k]; if(v&&typeof v==='object'&&('from'in v||'to'in v)) return `<div><span class="diff-k">${esc(k)}:</span> <span class="diff-old">${esc(short(v.from))}</span> → <span class="diff-new">${esc(short(v.to))}</span></div>`; return `<div><span class="diff-k">${esc(k)}:</span> ${esc(short(v))}</div>`; }).join('')||'<div class="text-slate-400">—</div>'; }catch(e){ return '<div class="text-slate-400">—</div>'; } }
+window.mais=function(){ LIMIT+=500; loadLogs(); };
+
+(async()=>{
+  const c=await getSb();
+  const { data:{ session } } = await c.auth.getSession();
+  if(!session){ document.getElementById('authGate').classList.remove('hidden'); return; }
+  const email=(session.user.email||'').toLowerCase();
+  let isAdmin = email==='marcioborgesaraujojr@gmail.com';
+  if(!isAdmin){ try{ const {data:pf}=await c.from('profiles').select('role,access').eq('id',session.user.id).maybeSingle(); isAdmin = !!(pf && (pf.role==='admin' || (pf.access && pf.access.admin===true))); }catch(e){} }
+  if(!isAdmin){ document.getElementById('gateMsg').textContent='Só administradores podem ver a auditoria.'; document.getElementById('authGate').classList.remove('hidden'); return; }
+  document.getElementById('appWrap').classList.remove('hidden');
+  applyBg();
+  try{ const {data:ps}=await c.from('profiles').select('id,full_name,email'); (ps||[]).forEach(p=>PROFS[p.id]=p.full_name||p.email||p.id); }catch(e){}
+  const hoje=new Date(); const de=new Date(hoje.getTime()-7*86400000);
+  document.getElementById('fAte').value=hoje.getFullYear()+'-'+pad(hoje.getMonth()+1)+'-'+pad(hoje.getDate());
+  document.getElementById('fDe').value=de.getFullYear()+'-'+pad(de.getMonth()+1)+'-'+pad(de.getDate());
+  await loadLogs();
+})();
+</script>
+</body>
+</html>
