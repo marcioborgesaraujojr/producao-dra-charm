@@ -43,7 +43,7 @@ async function sbInsertMsg(conversaId, texto, autor) {
       Authorization: 'Bearer ' + process.env.SUPABASE_SERVICE_ROLE_KEY,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ ultima_msg_preview: String(texto).slice(0, 120), ultima_msg_em: new Date().toISOString() })
+    body: JSON.stringify({ ultima_msg_preview: String(texto).slice(0, 120), ultima_msg_em: new Date().toISOString(), modo: 'humano' })
   });
 }
 

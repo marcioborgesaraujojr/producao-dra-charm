@@ -1,18 +1,23 @@
 // api/whatsapp-webhook.js
 // Webhook do WhatsApp Cloud API (oficial da Meta).
 // GET  = verificação do webhook (Meta chama com hub.challenge).
-// POST = recebimento de mensagens → grava em at_clientes/at_conversas/at_mensagens.
+// POST = recebimento de mensagens → grava em at_clientes/at_conversas/at_mensagens
+//        e, se o Chatbot IA estiver ATIVO, responde sozinho (modo robô).
 //
-// Env vars no Vercel (o Marcio cadastra; NUNCA no código):
-//   WA_VERIFY_TOKEN            (string qualquer que você define e repete na Meta)
-//   SUPABASE_URL               (já existe)
-//   SUPABASE_SERVICE_ROLE_KEY  (já existe)
-//
-// Configurar na Meta: URL do webhook = https://producao-dra-charm.vercel.app/api/whatsapp-webhook
-// Campo a assinar: "messages".
+// Env vars no Vercel:
+//   WA_VERIFY_TOKEN, WA_ACCESS_TOKEN, WA_PHONE_NUMBER_ID
+//   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 
+const GRAPH = 'https://graph.facebook.com/v20.0';
 const SB  = () => process.env.SUPABASE_URL;
 const KEY = () => process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+// Brasil / 9º dígito (mesma regra do whatsapp-send.js)
+function normalizeWa(raw) {
+  let n = String(raw || '').replace(/\D/g, '');
+  if (n.startsWith('55') && n.length === 12) { n = '55' + n.slice(2, 4) + '9' + n.slice(4); }
+  return n;
+}
 
 async function sbFetch(path, opts = {}) {
   const r = await fetch(SB() + '/rest/v1/' + path, {
@@ -76,6 +81,56 @@ function parseMsg(m) {
   }
 }
 
+// ===== CHATBOT IA: responde sozinho quando ATIVO e ninguém humano assumiu =====
+async function maybeBotReply(conversaId, clienteNome, inboundText, waid, host) {
+  try {
+    if (!process.env.WA_ACCESS_TOKEN || !process.env.WA_PHONE_NUMBER_ID) return;
+    let cfgRows = null; try { cfgRows = await sbFetch('at_chatbot?id=eq.1&select=ativo,nome,handoff_termos'); } catch (e) { return; }
+    const cfg = Array.isArray(cfgRows) ? cfgRows[0] : cfgRows;
+    if (!cfg || !cfg.ativo) return;                                   // chatbot desligado -> nada
+
+    let convRows = null; try { convRows = await sbFetch('at_conversas?id=eq.' + conversaId + '&select=modo,atendente_id'); } catch (e) {}
+    const cv = Array.isArray(convRows) ? convRows[0] : convRows;
+    if (cv && (cv.modo === 'humano' || cv.atendente_id)) return;      // humano assumiu -> robô quieto
+
+    // handoff por palavra-chave (antes de gastar IA)
+    const termos = String(cfg.handoff_termos || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+    if (termos.some(t => t && String(inboundText || '').toLowerCase().includes(t))) {
+      await sbFetch('at_conversas?id=eq.' + conversaId, { method: 'PATCH', body: JSON.stringify({ modo: 'humano', nao_lida: true }) });
+      await sbFetch('at_mensagens', { method: 'POST', body: JSON.stringify({ conversa_id: conversaId, direcao: 'in', tipo: 'nota', conteudo: '🙋 Cliente pediu atendente humano (palavra-chave). Robô pausado.', autor: 'Sistema' }) });
+      return;
+    }
+
+    // histórico (últimas 12 mensagens de texto)
+    let rows = []; try { rows = await sbFetch('at_mensagens?conversa_id=eq.' + conversaId + '&select=direcao,conteudo,tipo&order=enviada_em.desc&limit=12'); } catch (e) {}
+    const msgs = (Array.isArray(rows) ? rows : []).reverse()
+      .filter(m => (m.tipo === 'texto' || !m.tipo) && (m.direcao === 'in' || m.direcao === 'out'))
+      .map(m => ({ role: m.direcao === 'out' ? 'assistant' : 'user', content: m.conteudo || '' }));
+    if (!msgs.length) return;
+
+    // chama o cérebro (auth interna via service role)
+    const r = await fetch('https://' + host + '/api/chatbot-reply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-internal': KEY() },
+      body: JSON.stringify({ mensagens: msgs, cliente: { nome: clienteNome } })
+    });
+    let j = {}; try { j = await r.json(); } catch (e) {}
+    if (!r.ok || !j.reply) return;                                    // sem resposta -> deixa pro humano (fica não lida)
+
+    // envia a resposta pelo WhatsApp
+    const to = normalizeWa(waid);
+    await fetch(GRAPH + '/' + process.env.WA_PHONE_NUMBER_ID + '/messages', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + process.env.WA_ACCESS_TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messaging_product: 'whatsapp', to, type: 'text', text: { body: String(j.reply) } })
+    });
+    // grava a resposta do robô e mantém o modo bot
+    await sbFetch('at_mensagens', { method: 'POST', body: JSON.stringify({ conversa_id: conversaId, direcao: 'out', tipo: 'texto', conteudo: j.reply, autor: '🤖 ' + (cfg.nome || 'Assistente'), meta: { bot: true } }) });
+    await sbFetch('at_conversas?id=eq.' + conversaId, { method: 'PATCH', body: JSON.stringify({ modo: 'bot', ultima_msg_preview: String(j.reply).slice(0, 120), ultima_msg_em: new Date().toISOString(), nao_lida: false }) });
+    if (j.handoff) { await sbFetch('at_conversas?id=eq.' + conversaId, { method: 'PATCH', body: JSON.stringify({ modo: 'humano', nao_lida: true }) }); }
+  } catch (e) { console.error('bot reply erro:', e.message); }
+}
+
 export default async function handler(req, res) {
   // 1) Verificação (GET) exigida pela Meta ao configurar o webhook
   if (req.method === 'GET') {
@@ -90,6 +145,8 @@ export default async function handler(req, res) {
 
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
 
+  const host = req.headers['x-forwarded-host'] || req.headers.host || 'producao-dra-charm.vercel.app';
+
   // 2) Recebimento (POST). Responder 200 rápido é importante pra Meta não reenviar.
   try {
     let body = req.body;
@@ -99,9 +156,6 @@ export default async function handler(req, res) {
     for (const entry of entries) {
       for (const change of (entry.changes || [])) {
         const value = change.value || {};
-        // Só processa o número configurado (WA_PHONE_NUMBER_ID). A WABA pode ter outros números
-        // (ex.: o número ao vivo no Martz) — esses são ignorados pra não poluir o painel nem
-        // interferir neles. Se algum dia quiser receber todos, é só remover este filtro.
         const numeroDestino = value?.metadata?.phone_number_id;
         if (process.env.WA_PHONE_NUMBER_ID && numeroDestino && numeroDestino !== process.env.WA_PHONE_NUMBER_ID) {
           continue;
@@ -130,12 +184,15 @@ export default async function handler(req, res) {
               janela_expira_em: new Date(Date.now() + 24 * 3600 * 1000).toISOString()
             })
           });
+          // Chatbot IA: só reage a mensagem de TEXTO do cliente (não figurinha/áudio/etc)
+          if (m.type === 'text') {
+            await maybeBotReply(conversaId, contatoNome || 'Cliente', conteudo, waid, host);
+          }
         }
       }
     }
     return res.status(200).json({ received: true });
   } catch (err) {
-    // Mesmo com erro, responde 200 pra Meta não ficar reenviando em loop; loga pra debug.
     console.error('whatsapp-webhook erro:', err.message);
     return res.status(200).json({ received: true, error: err.message });
   }
