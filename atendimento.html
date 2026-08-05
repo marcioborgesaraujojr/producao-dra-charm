@@ -106,6 +106,7 @@
   <div class="flex items-center gap-1">
     <input type="file" id="bgInput" accept="image/*" class="hidden">
     <button onclick="document.getElementById('bgInput').click()" class="icon-btn" title="Trocar fundo"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
+    <button id="btnSom" onclick="toggleSom()" class="icon-btn" title="Som de notificação"><svg id="somIcon" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a9 9 0 0 1 0 14"/></svg></button>
     <button onclick="toggleDark()" class="icon-btn" title="Tema"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
     <div id="userAvatar" class="w-8 h-8 ml-1 rounded-full bg-pink-500 text-white flex items-center justify-center font-bold text-sm">?</div>
   </div>
@@ -258,6 +259,7 @@ async function bootstrap(){
     IS_ADMIN = !!(_pf.access && _pf.access.admin===true);
   }
   document.getElementById('appWrap').classList.remove('hidden');
+  setSomUI();
   // identidade do atendente
   ATEND_ID = session.user.id;
   const email = session.user.email||'';
@@ -284,13 +286,25 @@ async function subscribeRealtime(){
   c.auth.onAuthStateChange((ev,sess)=>{ if(sess && CONVERSAS.length===0) softReload(); });
   c.channel('at-realtime')
    .on('postgres_changes',{event:'*',schema:'public',table:'at_conversas'}, softReload)
-   .on('postgres_changes',{event:'*',schema:'public',table:'at_mensagens'}, softReload)
+   .on('postgres_changes',{event:'*',schema:'public',table:'at_mensagens'}, handleMsg)
    .subscribe();
 }
 function softReload(){ clearTimeout(_rtTimer); _rtTimer=setTimeout(async()=>{
   const keep=SEL; CONVERSAS=await loadConversas(); renderList();
   const cv=CONVERSAS.find(x=>x.id===keep); if(cv){ renderChat(cv); renderProfile(cv); enrichPedido(cv); }
 },350); }
+
+/* ===== Som + notificação de mensagem nova (igual Notificações) ===== */
+let SOM=true, _ac=null;
+try{ SOM = localStorage.getItem('at_som')!=='0'; }catch(e){}
+function ensureAudio(){ try{ if(!_ac) _ac=new (window.AudioContext||window.webkitAudioContext)(); if(_ac && _ac.state==='suspended') _ac.resume(); }catch(e){} return _ac; }
+function beep(){ const ac=ensureAudio(); if(!ac) return; const now=ac.currentTime; [[880,0],[1320,0.12]].forEach(([f,t])=>{ try{ const o=ac.createOscillator(), g=ac.createGain(); o.type='sine'; o.frequency.value=f; o.connect(g); g.connect(ac.destination); g.gain.setValueAtTime(0.0001, now+t); g.gain.exponentialRampToValueAtTime(0.25, now+t+0.02); g.gain.exponentialRampToValueAtTime(0.0001, now+t+0.18); o.start(now+t); o.stop(now+t+0.2); }catch(e){} }); }
+function notificar(texto){ if(!SOM) return; beep(); try{ if('Notification' in window && Notification.permission==='granted' && document.visibilityState!=='visible'){ const n=new Notification('Nova mensagem de cliente', { body:String(texto||'').slice(0,90), tag:'at-msg', silent:true }); setTimeout(()=>{try{n.close()}catch(e){}},6000); } }catch(e){} }
+function handleMsg(payload){ try{ if(payload && payload.eventType==='INSERT' && payload.new && payload.new.direcao==='in' && payload.new.tipo!=='nota'){ notificar(payload.new.conteudo||''); } }catch(e){} softReload(); }
+function atualizarTitulo(){ try{ const n=(CONVERSAS||[]).filter(c=>c.naoLida).length; document.title=(n>0?('('+n+') '):'')+'Atendimento ao Cliente — Sistema Grupo Aragão'; }catch(e){} }
+function setSomUI(){ const b=document.getElementById('btnSom'), ic=document.getElementById('somIcon'); if(!b||!ic) return; b.title = SOM?'Som de notificação: ligado (clique pra desligar)':'Som de notificação: desligado (clique pra ligar)'; b.style.color = SOM?'':'#cbd5e1'; ic.innerHTML = SOM ? '<path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a9 9 0 0 1 0 14"/>' : '<path d="M11 5 6 9H2v6h4l5 4V5z"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/>'; }
+window.toggleSom=function(){ SOM=!SOM; try{ localStorage.setItem('at_som', SOM?'1':'0'); }catch(e){} setSomUI(); if(SOM){ ensureAudio(); beep(); if('Notification' in window && Notification.permission==='default'){ try{ Notification.requestPermission(); }catch(e){} } } };
+document.addEventListener('click', ()=>{ ensureAudio(); if(SOM && 'Notification' in window && Notification.permission==='default'){ try{ Notification.requestPermission(); }catch(e){} } }, {once:true});
 
 /* ===== Nova conversa ===== */
 function abrirNovaConversa(){ document.getElementById('novaConversaModal').classList.remove('hidden'); document.getElementById('ncNome').focus(); }
@@ -317,6 +331,7 @@ function relTime(iso){ if(!iso) return ''; const d=Date.now()-new Date(iso).getT
 function statusBadge(cv){ const base='absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-white dark:border-ink-800 flex items-center justify-center'; if(cv.status==='encerrada') return '<span class="'+base+' bg-emerald-500" title="Resolvida"><svg class="w-2.5 h-2.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="M5 13l4 4L19 7"/></svg></span>'; return '<span class="'+base+' bg-rose-500" title="Nao resolvida"><svg class="w-2.5 h-2.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="M6 6l12 12M18 6L6 18"/></svg></span>'; }
 function renderLoading(){ const el=document.getElementById('convList'); if(el) el.innerHTML='<div class="flex flex-col items-center justify-center gap-3 py-20 text-slate-400"><img src="/aragao-loading.png" class="w-14 h-14 animate-pulse" alt="Carregando"><div class="text-sm font-medium">Carregando…</div></div>'; }
 function renderList(){
+  atualizarTitulo();
   const q=(document.getElementById('search').value||'').toLowerCase();
   const arr=CONVERSAS.filter(filtroTab).filter(cv=>!q||cv.nome.toLowerCase().includes(q)||(cv.tel||'').includes(q)||(cv.email||'').toLowerCase().includes(q)||(cv.pedidoNumero||'').includes(q));
   if(SORT==='naolidas') arr.sort((a,b)=>(b.naoLida?1:0)-(a.naoLida?1:0));

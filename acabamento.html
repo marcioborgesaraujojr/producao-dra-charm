@@ -80,6 +80,7 @@
   <div class="flex items-center gap-2 mb-4">
     <div class="tab" data-on="1" data-tab="lancamento" onclick="switchTab('lancamento')">Lançamento diário</div>
     <div class="tab" data-on="0" data-tab="comparativo" onclick="switchTab('comparativo')">Comparativo</div>
+    <div class="tab" data-on="0" data-tab="rastreio" onclick="switchTab('rastreio')">Rastreabilidade</div>
   </div>
 
   <!-- ===================== LANÇAMENTO ===================== -->
@@ -98,7 +99,7 @@
     </div>
 
     <div class="card p-2 sm:p-3 overflow-x-auto">
-      <table class="w-full min-w-[720px] border-collapse">
+      <table class="w-full min-w-[860px] border-collapse">
         <thead>
           <tr class="border-b border-slate-100 dark:border-ink-700">
             <th class="text-left px-2 py-2">Revisora</th>
@@ -109,6 +110,7 @@
             <th class="px-1 py-2">Total</th>
             <th class="px-1 py-2">Efic.</th>
             <th class="px-1 py-2">Saldo</th>
+            <th class="px-1 py-2">Defeitos</th>
             <th class="px-2 py-2">Faltou</th>
             <th class="text-left px-2 py-2">Motivo</th>
             <th></th>
@@ -124,7 +126,7 @@
             <td id="t4" class="text-center text-sm">0</td>
             <td id="tt" class="text-center text-sm text-violet-700 dark:text-violet-300">0</td>
             <td id="tef" class="text-center text-sm">—</td>
-            <td colspan="4"></td>
+            <td colspan="5"></td>
           </tr>
         </tfoot>
       </table>
@@ -138,10 +140,12 @@
       <label class="text-sm font-semibold text-slate-600 dark:text-slate-300">Mês</label>
       <input id="mes" type="month" class="p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm font-semibold" onchange="carregarMes()">
       <button onclick="carregarMes()" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-ink-600 text-sm hover:bg-slate-50 dark:hover:bg-ink-700">Atualizar</button>
+      <button onclick="editarFaixas()" class="px-3 py-2 rounded-lg border border-violet-300 text-violet-700 dark:text-violet-300 dark:border-violet-700 text-sm hover:bg-violet-50 dark:hover:bg-violet-900/20">⚙ Faixas & qualidade</button>
     </div>
     <div id="cmpCards" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4"></div>
     <div class="card p-4 mb-4">
       <div class="font-semibold mb-3 text-sm">Ranking do mês <span class="text-slate-400 font-normal">(por peças produzidas)</span></div>
+      <div id="faixasLegenda" class="text-[11px] text-slate-400 mb-3"></div>
       <div id="ranking" class="space-y-2"></div>
     </div>
     <div class="card p-4">
@@ -150,12 +154,34 @@
     </div>
   </div>
 
+  <!-- ===================== RASTREABILIDADE (OC / modelo / tamanho) ===================== -->
+  <div id="tab-rastreio" class="hidden">
+    <div class="card p-3 sm:p-4 mb-4">
+      <div class="text-sm font-semibold mb-3">Lançar peça · quem fez qual OC / modelo / tamanho</div>
+      <div class="grid grid-cols-2 sm:grid-cols-6 gap-2 items-end">
+        <div><label class="text-[11px] text-slate-400">Data</label><input id="ocData" type="date" class="w-full mt-0.5 p-2 text-sm rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900"></div>
+        <div><label class="text-[11px] text-slate-400">Revisora</label><select id="ocRev" class="w-full mt-0.5 p-2 text-sm rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900"></select></div>
+        <div><label class="text-[11px] text-slate-400">OC</label><input id="ocNum" placeholder="ex.: 480" class="w-full mt-0.5 p-2 text-sm rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900"></div>
+        <div><label class="text-[11px] text-slate-400">Modelo</label><input id="ocModelo" list="modelosList" placeholder="alice, gerbera…" class="w-full mt-0.5 p-2 text-sm rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900"><datalist id="modelosList"></datalist></div>
+        <div><label class="text-[11px] text-slate-400">Tamanho</label><select id="ocTam" class="w-full mt-0.5 p-2 text-sm rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900"><option value=""></option><option>PP</option><option>P</option><option>M</option><option>G</option><option>GG</option><option>XG</option><option>Único</option></select></div>
+        <div class="flex gap-1 items-end"><div class="flex-1"><label class="text-[11px] text-slate-400">Qtd</label><input id="ocQtd" inputmode="numeric" placeholder="0" class="w-full mt-0.5 p-2 text-sm rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900"></div><button onclick="addOc()" title="Adicionar" class="px-3 py-2 rounded-lg bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700">Add</button></div>
+      </div>
+    </div>
+    <div class="card p-3 sm:p-4">
+      <div class="flex items-center gap-2 mb-3 flex-wrap">
+        <div class="relative flex-1 min-w-[220px]"><input id="ocBusca" oninput="renderOcs()" placeholder="Buscar por OC, modelo, revisora ou tamanho…" class="w-full p-2 pl-9 text-sm rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900"><svg class="w-4 h-4 absolute left-3 top-2.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></div>
+        <div id="ocResumo" class="text-[12px] text-slate-500"></div>
+      </div>
+      <div class="overflow-x-auto"><table class="w-full text-sm min-w-[640px]"><thead><tr class="border-b border-slate-100 dark:border-ink-700"><th class="text-left px-2 py-2">Data</th><th class="text-left px-2 py-2">Revisora</th><th class="text-left px-2 py-2">OC</th><th class="text-left px-2 py-2">Modelo</th><th class="px-2 py-2">Tam.</th><th class="px-2 py-2">Qtd</th><th></th></tr></thead><tbody id="ocLista"></tbody></table></div>
+    </div>
+  </div>
+
 </div>
 </div>
 
 <script type="module">
 const SUPA = { url:'https://wwytzoyeibekhstinott.supabase.co', key:'sb_publishable_uMoCEK4Ed_u8ZIfjVZ7Jrg_tdR4b9bO' };
-let sb=null, EMAIL=null, CFG={meta_checkpoint:40, horarios:['9:50','11:50','13:50','15:50']}, OPERS=[], PROD={};
+let sb=null, EMAIL=null, CFG={meta_checkpoint:40, meta_bonus:180, meta_super:200, defeito_max:2, horarios:['9:50','11:50','13:50','15:50']}, OPERS=[], PROD={}, OCS=[];
 
 async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2'); sb=createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true}}); } return sb; }
 window.toggleDark=()=>{ document.documentElement.classList.toggle('dark'); try{localStorage.setItem('dc_dark',document.documentElement.classList.contains('dark')?'1':'0');}catch(e){} };
@@ -169,6 +195,7 @@ const num=v=>{ const n=parseInt(String(v==null?'':v).replace(/\D/g,''),10); retu
 const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function metaDia(op){ return (op && op.meta_dia) ? op.meta_dia : CFG.meta_checkpoint*4; }
 function efClass(p){ return p>=100?'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : p>=90?'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'; }
+function faixaInfo(media,dpct){ const piso=CFG.meta_checkpoint*4,bonus=CFG.meta_bonus,sup=CFG.meta_super,maxd=CFG.defeito_max; let tier='abaixo',label='Abaixo do piso',cls='bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',bar='#f43f5e'; if(media>=sup){tier='super';label='Superação';cls='bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300';bar='#10b981';} else if(media>=bonus){tier='meta';label='Meta';cls='bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-200';bar='#8b5cf6';} else if(media>=piso){tier='piso';label='Piso';cls='bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300';bar='#f59e0b';} const premiavel=(tier==='meta'||tier==='super'); const qualidadeOk=dpct<=maxd; return {tier,label,cls,bar,premiavel,qualidadeOk,premio:premiavel&&qualidadeOk}; }
 
 // ---------- LANÇAMENTO ----------
 function linha(op){
@@ -180,6 +207,7 @@ function linha(op){
     <td class="text-center font-bold text-sm total">0</td>
     <td class="text-center efic"></td>
     <td class="text-center font-semibold text-sm saldo">0</td>
+    <td class="px-1 py-1.5"><input class="inp dfk" inputmode="numeric" value="${p.defeitos!=null?p.defeitos:''}" ${falta?'disabled':''} placeholder="0"></td>
     <td class="px-2 py-1.5 text-center"><div class="switch mx-auto" data-on="${falta?1:0}" onclick="toggleFalta(this)"></div></td>
     <td class="px-2 py-1.5"><input class="inp motivo" style="text-align:left;min-width:150px" placeholder="${falta?'Obrigatório':'—'}" value="${esc(p.motivo||'')}" ${falta?'':'disabled'}></td>
     <td class="px-1"><button onclick="removerRevisora(${op.id},'${esc(op.nome)}')" title="Remover" class="text-slate-300 hover:text-rose-500"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button></td>
@@ -220,6 +248,7 @@ window.toggleFalta=function(el){
   const on = el.dataset.on==='1'?'0':'1'; el.dataset.on=on;
   const tr=el.closest('tr');
   tr.querySelectorAll('.ck').forEach(i=>{ i.disabled = on==='1'; if(on==='1') i.value=''; });
+  tr.querySelectorAll('.dfk').forEach(i=>{ i.disabled = on==='1'; if(on==='1') i.value=''; });
   const m=tr.querySelector('.motivo'); m.disabled = on!=='1'; m.placeholder = on==='1'?'Obrigatório':'—';
   recalc();
 };
@@ -246,7 +275,8 @@ window.salvar=async function(){
     const motivo = (tr.querySelector('.motivo').value||'').trim();
     if(falta && !motivo) faltaSemMotivo=true;
     const cs=[...tr.querySelectorAll('.ck')].map(i=> i.value===''?null:num(i.value));
-    rows.push({ data, operadora_id:Number(tr.dataset.op), c1:falta?null:cs[0], c2:falta?null:cs[1], c3:falta?null:cs[2], c4:falta?null:cs[3], falta, motivo:motivo||null, atualizado_por:EMAIL, updated_at:new Date().toISOString() });
+    const df=tr.querySelector('.dfk').value; const defeitos = df===''?null:num(df);
+    rows.push({ data, operadora_id:Number(tr.dataset.op), c1:falta?null:cs[0], c2:falta?null:cs[1], c3:falta?null:cs[2], c4:falta?null:cs[3], defeitos:falta?null:defeitos, falta, motivo:motivo||null, atualizado_por:EMAIL, updated_at:new Date().toISOString() });
   });
   if(faltaSemMotivo){ msg('Preencha o motivo de quem faltou antes de salvar.','rose'); return; }
   const btn=document.getElementById('btnSalvar'); const old=btn.innerHTML; btn.disabled=true; btn.textContent='Salvando…';
@@ -298,11 +328,20 @@ window.editarMeta=async function(){
 };
 
 // ---------- COMPARATIVO ----------
+window.editarFaixas=async function(){
+  const bonus=num(prompt('Meta (média/dia) pra ganhar prêmio:', CFG.meta_bonus)); if(!bonus) return;
+  const sup=num(prompt('Superação (média/dia) pra prêmio maior:', CFG.meta_super)); if(!sup) return;
+  const maxd=parseFloat(String(prompt('Defeito máximo pra ter prêmio (%):', CFG.defeito_max)||'').replace(',','.')); if(isNaN(maxd)) return;
+  try{ const c=await getSb(); const {error}=await c.from('ac_config').update({meta_bonus:bonus,meta_super:sup,defeito_max_pct:maxd,updated_at:new Date().toISOString()}).eq('id',1); if(error) throw error; CFG.meta_bonus=bonus; CFG.meta_super=sup; CFG.defeito_max=maxd; carregarMes(); }
+  catch(e){ alert('Erro ao salvar faixas: '+(e.message||e)); }
+};
 window.switchTab=function(t){
   document.querySelectorAll('.tab').forEach(el=>el.dataset.on = el.dataset.tab===t?'1':'0');
   document.getElementById('tab-lancamento').classList.toggle('hidden',t!=='lancamento');
   document.getElementById('tab-comparativo').classList.toggle('hidden',t!=='comparativo');
+  document.getElementById('tab-rastreio').classList.toggle('hidden',t!=='rastreio');
   if(t==='comparativo') carregarMes();
+  if(t==='rastreio') loadOcs();
 };
 window.carregarMes=async function(){
   const mes=document.getElementById('mes').value; if(!mes) return;
@@ -312,34 +351,49 @@ window.carregarMes=async function(){
     const c=await getSb();
     const {data:rows,error}=await c.from('ac_producao').select('*').gte('data',ini).lte('data',fim);
     if(error) throw error;
-    const byOp={}; OPERS.forEach(o=>byOp[o.id]={op:o,total:0,dias:0,faltas:0,somaEf:0});
+    const byOp={}; OPERS.forEach(o=>byOp[o.id]={op:o,total:0,dias:0,faltas:0,somaEf:0,defeitos:0});
     const faltasList=[];
     (rows||[]).forEach(r=>{
       const b=byOp[r.operadora_id]; if(!b) return;
       if(r.falta){ b.faltas++; faltasList.push({data:r.data,nome:b.op.nome,motivo:r.motivo||'—'}); return; }
       const t=num(r.c1)+num(r.c2)+num(r.c3)+num(r.c4);
-      b.total+=t; b.dias++; b.somaEf += metaDia(b.op)>0 ? t/metaDia(b.op) : 0;
+      b.total+=t; b.dias++; b.somaEf += metaDia(b.op)>0 ? t/metaDia(b.op) : 0; b.defeitos += num(r.defeitos);
     });
     const arr=Object.values(byOp);
     const totalGeral=arr.reduce((a,b)=>a+b.total,0);
     const totalFaltas=arr.reduce((a,b)=>a+b.faltas,0);
     const efMedia = arr.reduce((a,b)=>a+(b.dias?b.somaEf/b.dias:0),0) / (arr.filter(b=>b.dias).length||1);
+    const totalDefeitos=arr.reduce((a,b)=>a+b.defeitos,0);
+    const defPct = totalGeral>0?(totalDefeitos/totalGeral*100):0;
     document.getElementById('cmpCards').innerHTML=`
       ${cmpCard('Peças no mês', totalGeral.toLocaleString('pt-BR'), 'violet')}
       ${cmpCard('Eficiência média', Math.round(efMedia*100)+'%', 'emerald')}
-      ${cmpCard('Faltas', totalFaltas, 'rose')}
-      ${cmpCard('Revisoras', arr.filter(b=>b.dias||b.faltas).length, 'sky')}`;
+      ${cmpCard('Defeito médio', defPct.toFixed(1)+'%', defPct<=CFG.defeito_max?'emerald':'rose')}
+      ${cmpCard('Faltas', totalFaltas, 'rose')}`;
+    const piso=CFG.meta_checkpoint*4;
     const rank=arr.filter(b=>b.dias).sort((a,b)=>b.total-a.total);
     const max=rank.length?rank[0].total:1;
+    const lg=document.getElementById('faixasLegenda'); if(lg) lg.innerHTML=`Faixas por <b>média/dia</b>: Piso ${piso} · Meta ${CFG.meta_bonus} · Superação ${CFG.meta_super}. 🏆 Prêmio só com defeito ≤ ${CFG.defeito_max}%.`;
     document.getElementById('ranking').innerHTML = rank.length ? rank.map((b,i)=>{
       const efm=b.dias?Math.round(b.somaEf/b.dias*100):0;
-      return `<div class="flex items-center gap-3">
-        <div class="w-5 text-sm font-bold text-slate-400">${i+1}</div>
-        <div class="w-28 text-sm font-semibold truncate">${esc(b.op.nome)}</div>
-        <div class="flex-1 bg-slate-100 dark:bg-ink-700 rounded-full h-2.5 overflow-hidden"><div class="bar h-2.5" style="width:${Math.max(3,Math.round(b.total/max*100))}%"></div></div>
-        <div class="w-16 text-right text-sm font-bold">${b.total.toLocaleString('pt-BR')}</div>
-        <div class="w-14 text-right"><span class="chip ${efClass(efm)}">${efm}%</span></div>
-        ${b.faltas?`<div class="w-16 text-right text-xs text-rose-500">${b.faltas} falta(s)</div>`:'<div class="w-16"></div>'}
+      const media=Math.round(b.total/b.dias);
+      const dpct=b.total>0?(b.defeitos/b.total*100):0;
+      const fi=faixaInfo(media,dpct);
+      return `<div class="py-1.5 border-b border-slate-50 dark:border-ink-700/60">
+        <div class="flex items-center gap-3">
+          <div class="w-5 text-sm font-bold text-slate-400">${i+1}</div>
+          <div class="w-28 text-sm font-semibold truncate">${esc(b.op.nome)}</div>
+          <div class="flex-1 bg-slate-100 dark:bg-ink-700 rounded-full h-2.5 overflow-hidden"><div class="h-2.5 rounded-full" style="width:${Math.max(3,Math.round(b.total/max*100))}%;background:${fi.bar}"></div></div>
+          <div class="w-16 text-right text-sm font-bold">${b.total.toLocaleString('pt-BR')}</div>
+        </div>
+        <div class="flex items-center gap-1.5 mt-1 pl-8 flex-wrap">
+          <span class="chip ${fi.cls}">${fi.label}</span>
+          <span class="text-[11px] text-slate-500">${media}/dia</span>
+          <span class="chip ${efClass(efm)}">${efm}%</span>
+          <span class="chip ${dpct<=CFG.defeito_max?'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300':'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'}">${dpct.toFixed(1)}% defeito</span>
+          ${fi.premio?`<span class="chip bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">🏆 Prêmio ${fi.label}</span>`:(fi.premiavel?`<span class="chip bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">fora do prêmio (qualidade)</span>`:'')}
+          ${b.faltas?`<span class="text-[11px] text-rose-500">${b.faltas} falta(s)</span>`:''}
+        </div>
       </div>`;
     }).join('') : '<div class="text-sm text-slate-400">Sem lançamentos neste mês.</div>';
     document.getElementById('faltas').innerHTML = faltasList.length ? faltasList.sort((a,b)=>a.data<b.data?1:-1).map(f=>
@@ -348,6 +402,45 @@ window.carregarMes=async function(){
   }catch(e){ document.getElementById('ranking').innerHTML='<div class="text-sm text-rose-500">Erro: '+esc(e.message||e)+'</div>'; }
 };
 function cmpCard(t,v,c){ return `<div class="card p-3"><div class="text-[11px] font-semibold text-slate-400 uppercase">${t}</div><div class="text-2xl font-extrabold text-${c}-600 dark:text-${c}-400 mt-0.5">${v}</div></div>`; }
+
+// ---------- RASTREABILIDADE (OC / modelo / tamanho) ----------
+function populaOcRev(){ const sel=document.getElementById('ocRev'); if(sel) sel.innerHTML='<option value="">—</option>'+OPERS.map(o=>`<option value="${o.id}">${esc(o.nome)}</option>`).join(''); const d=document.getElementById('ocData'); if(d&&!d.value) d.value=hojeISO(); }
+function atualizarModelos(){ const dl=document.getElementById('modelosList'); if(!dl) return; const set=[...new Set(OCS.map(o=>o.modelo).filter(Boolean))]; ['Alice','Gerbera','Moove'].forEach(m=>{ if(!set.some(x=>String(x).toLowerCase()===m.toLowerCase())) set.push(m); }); dl.innerHTML=set.map(m=>`<option value="${esc(m)}">`).join(''); }
+async function loadOcs(){ try{ const c=await getSb(); const {data}=await c.from('ac_ocs').select('*').order('created_at',{ascending:false}).limit(1000); OCS=data||[]; }catch(e){ OCS=[]; } populaOcRev(); atualizarModelos(); renderOcs(); }
+window.addOc=async function(){
+  const data=document.getElementById('ocData').value||hojeISO();
+  const rev=document.getElementById('ocRev').value;
+  const oc=(document.getElementById('ocNum').value||'').trim();
+  const modelo=(document.getElementById('ocModelo').value||'').trim();
+  const tam=document.getElementById('ocTam').value;
+  const qtd=num(document.getElementById('ocQtd').value);
+  const op=OPERS.find(o=>o.id==rev);
+  if(!rev){ alert('Escolha a revisora.'); return; }
+  if(!oc && !modelo){ alert('Informe pelo menos a OC ou o modelo.'); return; }
+  try{ const c=await getSb();
+    const row={data, operadora_id:Number(rev), operadora_nome:op?op.nome:null, oc:oc||null, modelo:modelo||null, tamanho:tam||null, qtd, criado_por:EMAIL};
+    const {data:ins,error}=await c.from('ac_ocs').insert(row).select().single();
+    if(error) throw error;
+    OCS.unshift(ins); document.getElementById('ocNum').value=''; document.getElementById('ocQtd').value=''; document.getElementById('ocModelo').value=''; document.getElementById('ocTam').value=''; atualizarModelos(); renderOcs();
+  }catch(e){ alert('Erro ao lançar: '+(e.message||e)); }
+};
+window.delOc=async function(id){ if(!confirm('Remover este lançamento?')) return; try{ const c=await getSb(); const {error}=await c.from('ac_ocs').delete().eq('id',id); if(error) throw error; OCS=OCS.filter(o=>o.id!=id); renderOcs(); }catch(e){ alert('Erro: '+(e.message||e)); } };
+window.renderOcs=function(){
+  const q=(document.getElementById('ocBusca').value||'').toLowerCase().trim();
+  const f=OCS.filter(o=> !q || (o.oc||'').toLowerCase().includes(q) || (o.modelo||'').toLowerCase().includes(q) || (o.operadora_nome||'').toLowerCase().includes(q) || (o.tamanho||'').toLowerCase().includes(q));
+  const tot=f.reduce((a,o)=>a+num(o.qtd),0);
+  const rEl=document.getElementById('ocResumo'); if(rEl) rEl.innerHTML = f.length? `${f.length} lançamento(s) · <b>${tot.toLocaleString('pt-BR')}</b> peças`:'';
+  const lEl=document.getElementById('ocLista'); if(!lEl) return;
+  lEl.innerHTML = f.length? f.map(o=>`<tr class="border-b border-slate-50 dark:border-ink-700/60">
+    <td class="px-2 py-1.5 whitespace-nowrap">${o.data?o.data.split('-').reverse().join('/'):'—'}</td>
+    <td class="px-2 py-1.5 font-medium">${esc(o.operadora_nome||'—')}</td>
+    <td class="px-2 py-1.5"><span class="chip bg-slate-100 text-slate-600 dark:bg-ink-700 dark:text-slate-300">${o.oc?('OC '+esc(o.oc)):'—'}</span></td>
+    <td class="px-2 py-1.5">${esc(o.modelo||'—')}</td>
+    <td class="px-2 py-1.5 text-center">${esc(o.tamanho||'—')}</td>
+    <td class="px-2 py-1.5 text-center font-bold">${num(o.qtd)}</td>
+    <td class="px-1 text-right"><button onclick="delOc(${o.id})" title="Remover" class="text-slate-300 hover:text-rose-500"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button></td>
+  </tr>`).join('') : '<tr><td colspan="7" class="text-center text-slate-400 py-6 text-sm">Nenhum lançamento ainda. Use o formulário acima.</td></tr>';
+};
 
 // ---------- BOOT ----------
 (async()=>{
@@ -358,7 +451,7 @@ function cmpCard(t,v,c){ return `<div class="card p-3"><div class="text-[11px] f
   document.getElementById('appWrap').classList.remove('hidden');
   applyBg();
   // config
-  try{ const {data:cfg}=await c.from('ac_config').select('*').eq('id',1).maybeSingle(); if(cfg){ CFG.meta_checkpoint=cfg.meta_checkpoint||40; if(Array.isArray(cfg.horarios)) CFG.horarios=cfg.horarios; } }catch(e){}
+  try{ const {data:cfg}=await c.from('ac_config').select('*').eq('id',1).maybeSingle(); if(cfg){ CFG.meta_checkpoint=cfg.meta_checkpoint||40; if(Array.isArray(cfg.horarios)) CFG.horarios=cfg.horarios; CFG.meta_bonus=cfg.meta_bonus||180; CFG.meta_super=cfg.meta_super||200; if(cfg.defeito_max_pct!=null) CFG.defeito_max=Number(cfg.defeito_max_pct); } }catch(e){}
   // operadoras
   try{ const {data:ops}=await c.from('ac_operadoras').select('*').eq('ativo',true).order('ordem'); OPERS=ops||[]; }catch(e){ OPERS=[]; }
   document.getElementById('data').value=hojeISO();
