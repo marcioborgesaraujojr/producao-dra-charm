@@ -76,10 +76,10 @@
     if (document.getElementById('dcSuiteCards')) return;
     var css =
       '.card,.rounded-2xl.border.bg-white,.rounded-xl.border.bg-white{'
-        + 'background:#fff!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;'
+        + 'background:rgba(255,255,255,.82)!important;-webkit-backdrop-filter:blur(8px)!important;backdrop-filter:blur(8px)!important;'
         + 'box-shadow:none!important;border-color:#eef2f7!important;}'
       + 'html.dark .card,html.dark .rounded-2xl.border.dark\\:bg-ink-800,html.dark .rounded-xl.border.dark\\:bg-ink-800{'
-        + 'background:#1f2937!important;box-shadow:none!important;border-color:#334155!important;}';
+        + 'background:rgba(31,41,55,.72)!important;box-shadow:none!important;border-color:#334155!important;}';
     var st = document.createElement('style');
     st.id = 'dcSuiteCards';
     st.textContent = css;
