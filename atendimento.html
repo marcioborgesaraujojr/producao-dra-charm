@@ -75,6 +75,9 @@
   body.has-bg #composer{background:rgba(255,255,255,.80)!important;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
   body.has-bg #chatArea{background:linear-gradient(rgba(255,255,255,.72),rgba(255,255,255,.72))}
   html.dark body.has-bg #chatArea{background:linear-gradient(rgba(11,18,32,.72),rgba(11,18,32,.72))}
+  /* 3b: area da conversa SEMPRE clarinha — mesmo sem wallpaper, poe um veu leve sobre o padrao da marca pra as mensagens lerem bem. (has-bg acima tem mais especificidade e continua deixando o wallpaper aparecer.) */
+  #chatArea{background:linear-gradient(rgba(255,255,255,.85),rgba(255,255,255,.85))}
+  html.dark #chatArea{background:linear-gradient(rgba(11,18,32,.85),rgba(11,18,32,.85))}
   html.dark body.has-bg #composer{background:rgba(17,26,46,.80)!important}
 </style>
 </head>
