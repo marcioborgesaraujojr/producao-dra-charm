@@ -69,7 +69,25 @@
     } catch (e) { return false; }
   }
 
+  // ---- PADRÃO ÚNICO DAS "CAIXINHAS BRANCAS" (igual ao Workflows) ----
+  // Borda fina/clarinha, fundo branco sólido e SEM sombra em repouso.
+  // (o realce 3D no hover dos cards clicáveis continua, quando o app tiver.)
+  function injectCardStyle(){
+    if (document.getElementById('dcSuiteCards')) return;
+    var css =
+      '.card,.rounded-2xl.border.bg-white,.rounded-xl.border.bg-white{'
+        + 'background:#fff!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;'
+        + 'box-shadow:none!important;border-color:#eef2f7!important;}'
+      + 'html.dark .card,html.dark .rounded-2xl.border.dark\\:bg-ink-800,html.dark .rounded-xl.border.dark\\:bg-ink-800{'
+        + 'background:#1f2937!important;box-shadow:none!important;border-color:#334155!important;}';
+    var st = document.createElement('style');
+    st.id = 'dcSuiteCards';
+    st.textContent = css;
+    (document.head || document.documentElement).appendChild(st);
+  }
+
   function boot(){
+    injectCardStyle();
     if (inject()) return;
     var tries = 0;
     var iv = setInterval(function(){ tries++; if (inject() || tries > 20) clearInterval(iv); }, 250);
