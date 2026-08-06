@@ -41,6 +41,26 @@
   .switch[data-on="1"]{background:#f43f5e}
   .switch::after{content:'';position:absolute;top:3px;left:3px;width:17px;height:17px;border-radius:999px;background:#fff;transition:.15s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
   .switch[data-on="1"]::after{left:20px}
+  /* janelinha no padrão da suíte (substitui os popups do navegador) */
+  #uiModalWrap{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.45);backdrop-filter:blur(3px)}
+  #uiModalWrap.on{display:flex}
+  .uiCard{background:rgba(255,255,255,.96);border:1px solid #eef2f7;border-radius:18px;box-shadow:0 20px 50px rgba(15,23,42,.25);width:100%;max-width:400px;padding:22px 22px 18px;transform:translateY(6px);opacity:0;transition:.14s}
+  #uiModalWrap.on .uiCard{transform:none;opacity:1}
+  html.dark .uiCard{background:rgba(31,41,55,.98);border-color:#334155}
+  .uiTitle{font-size:15px;font-weight:700;color:#0f172a;margin-bottom:12px;line-height:1.35}
+  html.dark .uiTitle{color:#f1f5f9}
+  .uiInp{width:100%;padding:11px 12px;font-size:14px;font-weight:600;border-radius:11px;background:#f8fafc;border:1px solid #e2e8f0;outline:none;color:#0f172a}
+  .uiInp:focus{border-color:#8b5cf6;background:#fff;box-shadow:0 0 0 3px rgba(139,92,246,.15)}
+  html.dark .uiInp{background:#0f172a;border-color:#334155;color:#e5e7eb}
+  .uiBtns{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+  .uiBtn{padding:9px 16px;border-radius:11px;font-size:14px;font-weight:600;cursor:pointer;border:none}
+  .uiBtn.sec{background:#f1f5f9;color:#475569}
+  .uiBtn.sec:hover{background:#e2e8f0}
+  html.dark .uiBtn.sec{background:#334155;color:#e2e8f0}
+  .uiBtn.pri{background:#8b5cf6;color:#fff}
+  .uiBtn.pri:hover{background:#7c3aed}
+  .uiBtn.dng{background:#f43f5e;color:#fff}
+  .uiBtn.dng:hover{background:#e11d48}
 </style>
 </head>
 <body class="text-slate-800 dark:text-slate-100">
@@ -288,11 +308,50 @@ window.salvar=async function(){
   }catch(e){ msg('Erro ao salvar: '+(e.message||e),'rose'); btn.innerHTML=old; btn.disabled=false; }
 };
 
-function msg(t,c){ const el=document.getElementById('msg'); el.textContent=t; el.className='text-sm mt-2 h-5 '+({emerald:'text-emerald-600',rose:'text-rose-500',slate:'text-slate-400'}[c]||'text-slate-400'); }
+function msg(t,c){ const el=document.getElementById('msg'); if(!el) return; el.textContent=t; el.className='text-sm mt-2 h-5 '+({emerald:'text-emerald-600',rose:'text-rose-500',slate:'text-slate-400'}[c]||'text-slate-400'); }
+
+// ---------- Janelinha no padrão da suíte (substitui prompt/confirm/alert) ----------
+function uiModal(o){
+  o=o||{};
+  return new Promise(function(resolve){
+    let wrap=document.getElementById('uiModalWrap');
+    if(!wrap){ wrap=document.createElement('div'); wrap.id='uiModalWrap'; document.body.appendChild(wrap); }
+    const temInput = o.input===true;
+    const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    const okCls = o.danger ? 'dng' : 'pri';
+    wrap.innerHTML =
+      '<div class="uiCard" role="dialog" aria-modal="true">'+
+        '<div class="uiTitle">'+esc(o.title||'')+'</div>'+
+        (temInput ? '<input class="uiInp" id="uiInp" type="text" value="'+esc(o.initial||'')+'">' : '')+
+        '<div class="uiBtns">'+
+          (o.cancel===false ? '' : '<button class="uiBtn sec" id="uiCancel">'+esc(o.cancelText||'Cancelar')+'</button>')+
+          '<button class="uiBtn '+okCls+'" id="uiOk">'+esc(o.okText||'OK')+'</button>'+
+        '</div>'+
+      '</div>';
+    wrap.classList.add('on');
+    const inp=document.getElementById('uiInp');
+    const done=(val)=>{ wrap.classList.remove('on'); document.removeEventListener('keydown',onKey,true); resolve(val); };
+    const ok=()=>done(temInput ? (inp?inp.value:'') : true);
+    const cancel=()=>done(temInput ? null : false);
+    function onKey(e){
+      if(e.key==='Escape'){ e.preventDefault(); cancel(); }
+      else if(e.key==='Enter' && temInput){ e.preventDefault(); ok(); }
+    }
+    document.getElementById('uiOk').onclick=ok;
+    const cb=document.getElementById('uiCancel'); if(cb) cb.onclick=cancel;
+    wrap.onclick=(e)=>{ if(e.target===wrap) cancel(); };
+    document.addEventListener('keydown',onKey,true);
+    if(inp){ inp.focus(); inp.select(); }
+  });
+}
+const uiPrompt =(title,initial,opt)=>uiModal(Object.assign({title,input:true,initial},opt||{}));
+const uiConfirm=(title,opt)=>uiModal(Object.assign({title},opt||{}));
+const uiAlert  =(title,opt)=>uiModal(Object.assign({title,cancel:false},opt||{}));
 
 // ---------- Revisoras / Meta ----------
 window.addRevisora=async function(){
-  const nome=(prompt('Nome da revisora:')||'').trim(); if(!nome) return;
+  const _n=await uiPrompt('Nome da nova revisora:','',{okText:'Adicionar'}); if(_n==null) return;
+  const nome=_n.trim(); if(!nome) return;
   try{
     const c=await getSb();
     const ordem=(OPERS.reduce((m,o)=>Math.max(m,o.ordem||0),0))+1;
@@ -303,12 +362,13 @@ window.addRevisora=async function(){
 };
 window.renomearRevisora=async function(id){
   const op=OPERS.find(o=>o.id==id); if(!op) return;
-  const novo=(prompt('Novo nome da revisora:', op.nome)||'').trim(); if(!novo || novo.toUpperCase()===op.nome) return;
+  const _v=await uiPrompt('Novo nome da revisora:', op.nome, {okText:'Salvar'}); if(_v==null) return;
+  const novo=_v.trim(); if(!novo || novo.toUpperCase()===op.nome) return;
   try{ const c=await getSb(); const {error}=await c.from('ac_operadoras').update({nome:novo.toUpperCase()}).eq('id',id); if(error) throw error; op.nome=novo.toUpperCase(); renderGrid(); }
   catch(e){ msg('Erro ao renomear: '+(e.message||e),'rose'); }
 };
 window.removerRevisora=async function(id,nome){
-  if(!confirm('Remover “'+nome+'” da lista? (o histórico dela continua guardado)')) return;
+  if(!await uiConfirm('Remover “'+nome+'” da lista? O histórico dela continua guardado.',{okText:'Remover',danger:true})) return;
   try{
     const c=await getSb();
     const {error}=await c.from('ac_operadoras').update({ativo:false}).eq('id',id);
@@ -317,7 +377,7 @@ window.removerRevisora=async function(id,nome){
   }catch(e){ msg('Erro ao remover: '+(e.message||e),'rose'); }
 };
 window.editarMeta=async function(){
-  const v=prompt('Meta por horário (peças):', CFG.meta_checkpoint); if(v==null) return;
+  const v=await uiPrompt('Meta por horário (peças):', CFG.meta_checkpoint, {okText:'Salvar'}); if(v==null) return;
   const m=num(v); if(m<=0){ msg('Meta inválida.','rose'); return; }
   try{
     const c=await getSb();
@@ -329,11 +389,14 @@ window.editarMeta=async function(){
 
 // ---------- COMPARATIVO ----------
 window.editarFaixas=async function(){
-  const bonus=num(prompt('Meta (média/dia) pra ganhar prêmio:', CFG.meta_bonus)); if(!bonus) return;
-  const sup=num(prompt('Superação (média/dia) pra prêmio maior:', CFG.meta_super)); if(!sup) return;
-  const maxd=parseFloat(String(prompt('Defeito máximo pra ter prêmio (%):', CFG.defeito_max)||'').replace(',','.')); if(isNaN(maxd)) return;
+  const _b=await uiPrompt('Meta (média/dia) pra ganhar prêmio:', CFG.meta_bonus, {okText:'Continuar'}); if(_b==null) return;
+  const bonus=num(_b); if(!bonus) return;
+  const _s=await uiPrompt('Superação (média/dia) pra prêmio maior:', CFG.meta_super, {okText:'Continuar'}); if(_s==null) return;
+  const sup=num(_s); if(!sup) return;
+  const _d=await uiPrompt('Defeito máximo pra ter prêmio (%):', CFG.defeito_max, {okText:'Salvar'}); if(_d==null) return;
+  const maxd=parseFloat(String(_d||'').replace(',','.')); if(isNaN(maxd)) return;
   try{ const c=await getSb(); const {error}=await c.from('ac_config').update({meta_bonus:bonus,meta_super:sup,defeito_max_pct:maxd,updated_at:new Date().toISOString()}).eq('id',1); if(error) throw error; CFG.meta_bonus=bonus; CFG.meta_super=sup; CFG.defeito_max=maxd; carregarMes(); }
-  catch(e){ alert('Erro ao salvar faixas: '+(e.message||e)); }
+  catch(e){ uiAlert('Erro ao salvar faixas: '+(e.message||e)); }
 };
 window.switchTab=function(t){
   document.querySelectorAll('.tab').forEach(el=>el.dataset.on = el.dataset.tab===t?'1':'0');
@@ -424,16 +487,16 @@ window.addOc=async function(){
   const tam=document.getElementById('ocTam').value;
   const qtd=num(document.getElementById('ocQtd').value);
   const op=OPERS.find(o=>o.id==rev);
-  if(!rev){ alert('Escolha a revisora.'); return; }
-  if(!oc && !modelo){ alert('Informe pelo menos a OC ou o modelo.'); return; }
+  if(!rev){ uiAlert('Escolha a revisora.'); return; }
+  if(!oc && !modelo){ uiAlert('Informe pelo menos a OC ou o modelo.'); return; }
   try{ const c=await getSb();
     const row={data, operadora_id:Number(rev), operadora_nome:op?op.nome:null, oc:oc||null, modelo:modelo||null, tamanho:tam||null, qtd, criado_por:EMAIL};
     const {data:ins,error}=await c.from('ac_ocs').insert(row).select().single();
     if(error) throw error;
     OCS.unshift(ins); document.getElementById('ocNum').value=''; document.getElementById('ocQtd').value=''; document.getElementById('ocModelo').value=''; document.getElementById('ocTam').value=''; atualizarModelos(); renderOcs();
-  }catch(e){ alert('Erro ao lançar: '+(e.message||e)); }
+  }catch(e){ uiAlert('Erro ao lançar: '+(e.message||e)); }
 };
-window.delOc=async function(id){ if(!confirm('Remover este lançamento?')) return; try{ const c=await getSb(); const {error}=await c.from('ac_ocs').delete().eq('id',id); if(error) throw error; OCS=OCS.filter(o=>o.id!=id); renderOcs(); }catch(e){ alert('Erro: '+(e.message||e)); } };
+window.delOc=async function(id){ if(!await uiConfirm('Remover este lançamento?',{okText:'Remover',danger:true})) return; try{ const c=await getSb(); const {error}=await c.from('ac_ocs').delete().eq('id',id); if(error) throw error; OCS=OCS.filter(o=>o.id!=id); renderOcs(); }catch(e){ uiAlert('Erro: '+(e.message||e)); } };
 window.renderOcs=function(){
   const q=(document.getElementById('ocBusca').value||'').toLowerCase().trim();
   const f=OCS.filter(o=> !q || (o.oc||'').toLowerCase().includes(q) || (o.modelo||'').toLowerCase().includes(q) || (o.operadora_nome||'').toLowerCase().includes(q) || (o.tamanho||'').toLowerCase().includes(q));
