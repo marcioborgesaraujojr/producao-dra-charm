@@ -224,7 +224,7 @@
 
 <script type="module">
 const SUPA = { url:'https://wwytzoyeibekhstinott.supabase.co', key:'sb_publishable_uMoCEK4Ed_u8ZIfjVZ7Jrg_tdR4b9bO' };
-let sb=null, EMAIL=null, CFG={meta_checkpoint:40, meta_bonus:180, meta_super:200, defeito_max:2, horarios:['9:50','11:50','13:50','15:50']}, OPERS=[], PROD={}, OCS=[], MODELOS_LI=[];
+let sb=null, EMAIL=null, CFG={meta_checkpoint:40, meta_bonus:180, meta_super:200, defeito_max:2, horarios:['9:50','11:50','13:50','15:50']}, OPERS=[], OPERS_ALL=[], PROD={}, OCS=[], MODELOS_LI=[];
 
 async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2'); sb=createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true}}); } return sb; }
 window.toggleDark=()=>{ document.documentElement.classList.toggle('dark'); try{localStorage.setItem('dc_dark',document.documentElement.classList.contains('dark')?'1':'0');}catch(e){} };
@@ -474,7 +474,9 @@ window.carregarQuadroMes=async function(){
       <th class="px-2 py-1 text-center font-bold text-slate-500">Média</th></tr></thead>`;
     const totDia={};
     let corpo='';
-    OPERS.forEach(o=>{
+    // mostra revisoras ATIVAS sempre, e as que já saíram só se produziram no mês
+    const listaOps=(OPERS_ALL.length?OPERS_ALL:OPERS).filter(o=>o.ativo!==false || (mapa[o.id]&&Object.keys(mapa[o.id]).length));
+    listaOps.forEach(o=>{
       const meta=metaDia(o);
       let soma=0, ndiasTrab=0;
       let cels='';
@@ -512,7 +514,7 @@ window.carregarMes=async function(){
     const c=await getSb();
     const {data:rows,error}=await c.from('ac_producao').select('*').gte('data',ini).lte('data',fim);
     if(error) throw error;
-    const byOp={}; OPERS.forEach(o=>byOp[o.id]={op:o,total:0,dias:0,faltas:0,somaEf:0,defeitos:0});
+    const byOp={}; (OPERS_ALL.length?OPERS_ALL:OPERS).forEach(o=>byOp[o.id]={op:o,total:0,dias:0,faltas:0,somaEf:0,defeitos:0});
     const faltasList=[];
     (rows||[]).forEach(r=>{
       const b=byOp[r.operadora_id]; if(!b) return;
@@ -628,6 +630,8 @@ window.renderOcs=function(){
   try{ const {data:cfg}=await c.from('ac_config').select('*').eq('id',1).maybeSingle(); if(cfg){ CFG.meta_checkpoint=cfg.meta_checkpoint||40; if(Array.isArray(cfg.horarios)) CFG.horarios=cfg.horarios; CFG.meta_bonus=cfg.meta_bonus||180; CFG.meta_super=cfg.meta_super||200; if(cfg.defeito_max_pct!=null) CFG.defeito_max=Number(cfg.defeito_max_pct); } }catch(e){}
   // operadoras
   try{ const {data:ops}=await c.from('ac_operadoras').select('*').eq('ativo',true).order('ordem'); OPERS=ops||[]; }catch(e){ OPERS=[]; }
+  // todas (inclui quem já saiu) — pro histórico do Quadro/Comparativo mostrar todo mundo que produziu
+  try{ const {data:todas}=await c.from('ac_operadoras').select('*').order('ordem'); OPERS_ALL=todas||OPERS; }catch(e){ OPERS_ALL=OPERS; }
   document.getElementById('data').value=hojeISO();
   const now=new Date(); document.getElementById('mes').value=now.getFullYear()+'-'+pad(now.getMonth()+1);
   await carregarDia();
