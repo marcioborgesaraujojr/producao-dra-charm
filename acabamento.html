@@ -99,6 +99,7 @@
   <!-- Abas -->
   <div class="flex items-center gap-2 mb-4">
     <div class="tab" data-on="1" data-tab="lancamento" onclick="switchTab('lancamento')">Lançamento diário</div>
+    <div class="tab" data-on="0" data-tab="quadro" onclick="switchTab('quadro')">Quadro do mês</div>
     <div class="tab" data-on="0" data-tab="comparativo" onclick="switchTab('comparativo')">Comparativo</div>
     <div class="tab" data-on="0" data-tab="rastreio" onclick="switchTab('rastreio')">Rastreabilidade</div>
   </div>
@@ -171,6 +172,28 @@
     <div class="card p-4">
       <div class="font-semibold mb-3 text-sm">Faltas e justificativas</div>
       <div id="faltas" class="space-y-1.5 text-sm"></div>
+    </div>
+  </div>
+
+  <!-- ===================== QUADRO DO MÊS (pessoa x dia) ===================== -->
+  <div id="tab-quadro" class="hidden">
+    <div class="card p-3 sm:p-4 mb-4 flex flex-wrap items-center gap-3">
+      <label class="text-sm font-semibold text-slate-600 dark:text-slate-300">Mês</label>
+      <input id="mesQ" type="month" class="p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm font-semibold" onchange="carregarQuadroMes()">
+      <button onclick="carregarQuadroMes()" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-ink-600 text-sm hover:bg-slate-50 dark:hover:bg-ink-700">Atualizar</button>
+      <div class="text-[11px] text-slate-400 flex items-center gap-2 flex-wrap ml-auto">
+        <span class="inline-flex items-center gap-1"><span class="inline-block w-3 h-3 rounded" style="background:#fecaca"></span>abaixo</span>
+        <span class="inline-flex items-center gap-1"><span class="inline-block w-3 h-3 rounded" style="background:#fde68a"></span>quase</span>
+        <span class="inline-flex items-center gap-1"><span class="inline-block w-3 h-3 rounded" style="background:#bbf7d0"></span>meta</span>
+        <span class="inline-flex items-center gap-1"><span class="inline-block w-3 h-3 rounded" style="background:#4ade80"></span>superou</span>
+        <span class="inline-flex items-center gap-1"><span class="inline-block w-3 h-3 rounded" style="background:#fca5a5"></span>F = falta</span>
+      </div>
+    </div>
+    <div class="card p-2 sm:p-3">
+      <div class="overflow-x-auto">
+        <table id="quadroTab" class="text-sm border-collapse" style="min-width:100%"></table>
+      </div>
+      <div id="quadroVazio" class="hidden text-sm text-slate-400 p-3">Sem lançamentos neste mês.</div>
     </div>
   </div>
 
@@ -401,10 +424,85 @@ window.editarFaixas=async function(){
 window.switchTab=function(t){
   document.querySelectorAll('.tab').forEach(el=>el.dataset.on = el.dataset.tab===t?'1':'0');
   document.getElementById('tab-lancamento').classList.toggle('hidden',t!=='lancamento');
+  document.getElementById('tab-quadro').classList.toggle('hidden',t!=='quadro');
   document.getElementById('tab-comparativo').classList.toggle('hidden',t!=='comparativo');
   document.getElementById('tab-rastreio').classList.toggle('hidden',t!=='rastreio');
+  if(t==='quadro') carregarQuadroMes();
   if(t==='comparativo') carregarMes();
   if(t==='rastreio'){ loadOcs(); carregarModelosLI(); }
+};
+// ---------- QUADRO DO MÊS (mapa de calor pessoa x dia) ----------
+function corDia(t, meta){
+  if(t<=0) return '';
+  const r = meta>0 ? t/meta : 0;
+  if(r < 0.75) return 'background:#fecaca';        // bem abaixo
+  if(r < 1)    return 'background:#fde68a';         // quase
+  if(r < 1.11) return 'background:#bbf7d0';         // bateu meta
+  return 'background:#4ade80;color:#052e16';        // superou
+}
+window.carregarQuadroMes=async function(){
+  const inp=document.getElementById('mesQ'); if(inp && !inp.value){ inp.value=(document.getElementById('mes')||{}).value || new Date().toISOString().slice(0,7); }
+  const mes=inp.value; if(!mes) return;
+  const [y,m]=mes.split('-').map(Number);
+  const ndias=new Date(y,m,0).getDate();
+  const ini=mes+'-01', fim=y+'-'+pad(m)+'-'+pad(ndias);
+  const tab=document.getElementById('quadroTab'), vazio=document.getElementById('quadroVazio');
+  try{
+    const c=await getSb();
+    const {data:rows,error}=await c.from('ac_producao').select('*').gte('data',ini).lte('data',fim);
+    if(error) throw error;
+    // mapa[opId][dia] = {t, falta}
+    const mapa={}; OPERS.forEach(o=>mapa[o.id]={});
+    (rows||[]).forEach(r=>{
+      const d=Number(String(r.data).slice(8,10));
+      if(!mapa[r.operadora_id]) mapa[r.operadora_id]={};
+      const t=num(r.c1)+num(r.c2)+num(r.c3)+num(r.c4);
+      mapa[r.operadora_id][d]={t, falta:!!r.falta};
+    });
+    const temAlgo=(rows||[]).length>0;
+    tab.classList.toggle('hidden',!temAlgo); vazio.classList.toggle('hidden',temAlgo);
+    if(!temAlgo){ tab.innerHTML=''; return; }
+    // cabeçalho: Revisora | 1..N | Total | Média
+    const cabDias=Array.from({length:ndias},(_,i)=>{
+      const dia=i+1; const dow=new Date(y,m-1,dia).getDay(); const fds=(dow===0||dow===6);
+      return `<th class="px-0 py-1 text-center font-bold ${fds?'text-slate-300':'text-slate-500'}" style="min-width:30px">${dia}</th>`;
+    }).join('');
+    let head=`<thead><tr class="border-b border-slate-200 dark:border-ink-700">
+      <th class="text-left px-2 py-1 sticky left-0 bg-white dark:bg-ink-800 z-10" style="min-width:110px">Revisora</th>
+      ${cabDias}
+      <th class="px-2 py-1 text-center font-bold text-violet-600">Total</th>
+      <th class="px-2 py-1 text-center font-bold text-slate-500">Média</th></tr></thead>`;
+    const totDia={};
+    let corpo='';
+    OPERS.forEach(o=>{
+      const meta=metaDia(o);
+      let soma=0, ndiasTrab=0;
+      let cels='';
+      for(let d=1; d<=ndias; d++){
+        const cell=mapa[o.id]&&mapa[o.id][d];
+        if(cell && cell.falta){ cels+=`<td class="text-center py-1 text-[11px] font-bold text-rose-600" style="background:#fca5a5">F</td>`; continue; }
+        const t=cell?cell.t:0;
+        if(t>0){ soma+=t; ndiasTrab++; totDia[d]=(totDia[d]||0)+t; }
+        cels+=`<td class="text-center py-1 text-[12px] font-semibold" style="${corDia(t,meta)}">${t>0?t:''}</td>`;
+      }
+      const media=ndiasTrab?Math.round(soma/ndiasTrab):0;
+      corpo+=`<tr class="border-b border-slate-50 dark:border-ink-700/50">
+        <td class="text-left px-2 py-1 font-semibold sticky left-0 bg-white dark:bg-ink-800 z-10 truncate" style="min-width:110px">${esc(o.nome)}</td>
+        ${cels}
+        <td class="text-center py-1 font-extrabold text-violet-700 dark:text-violet-300">${soma.toLocaleString('pt-BR')}</td>
+        <td class="text-center py-1 font-bold ${media>=meta?'text-emerald-600':'text-slate-500'}">${media||''}</td></tr>`;
+    });
+    // rodapé: total por dia
+    let cabTot='';
+    let somaMes=0;
+    for(let d=1; d<=ndias; d++){ const v=totDia[d]||0; somaMes+=v; cabTot+=`<td class="text-center py-1 text-[11px] font-bold text-slate-500">${v||''}</td>`; }
+    let foot=`<tfoot><tr class="border-t-2 border-slate-200 dark:border-ink-600 bg-slate-50/60 dark:bg-ink-700/40">
+      <td class="text-left px-2 py-1 font-bold sticky left-0 bg-slate-50 dark:bg-ink-800 z-10">Total/dia</td>
+      ${cabTot}
+      <td class="text-center py-1 font-extrabold text-violet-700 dark:text-violet-300">${somaMes.toLocaleString('pt-BR')}</td>
+      <td></td></tr></tfoot>`;
+    tab.innerHTML=head+'<tbody>'+corpo+'</tbody>'+foot;
+  }catch(e){ tab.classList.remove('hidden'); vazio.classList.add('hidden'); tab.innerHTML='<tbody><tr><td class="text-sm text-rose-500 p-3">Erro: '+esc(e.message||e)+'</td></tr></tbody>'; }
 };
 window.carregarMes=async function(){
   const mes=document.getElementById('mes').value; if(!mes) return;
