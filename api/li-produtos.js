@@ -52,7 +52,10 @@ export default async function handler(req, res){
       const objs = r.j.objects || r.j.results || [];
       if (!objs.length) break;
       for (const p of objs) {
-        const nome = String((p && p.nome) || '').trim();
+        let nome = String((p && p.nome) || '').trim();
+        if (!nome) continue;
+        // Colapsa variações de tamanho: "Vestido X TAMANHO :G" -> "Vestido X"
+        nome = nome.split(/\s*TAMANHO\s*:/i)[0].trim();
         if (!nome) continue;
         todos.add(nome);
         const pai = p ? p.produto_pai : undefined;
