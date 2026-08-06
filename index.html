@@ -5448,7 +5448,7 @@ function showHub(){
   applyHubOrder(); initHubDrag();
 }
 // ===== Reordenar os cards do hub arrastando (segurar o clique e mover) — salva por navegador =====
-function hubCardKey(el){ return el.getAttribute('data-access') || el.getAttribute('data-hub-open') || ''; }
+function hubCardKey(el){ return el.getAttribute('data-access') || el.getAttribute('data-hub-open') || el.id || ''; }
 function applyHubOrder(){
   const grid = document.getElementById('hubGrid'); if(!grid) return;
   let order=[]; try{ order=JSON.parse(localStorage.getItem('dc_hub_order')||'[]'); }catch(e){}
