@@ -181,7 +181,7 @@
 
 <script type="module">
 const SUPA = { url:'https://wwytzoyeibekhstinott.supabase.co', key:'sb_publishable_uMoCEK4Ed_u8ZIfjVZ7Jrg_tdR4b9bO' };
-let sb=null, EMAIL=null, CFG={meta_checkpoint:40, meta_bonus:180, meta_super:200, defeito_max:2, horarios:['9:50','11:50','13:50','15:50']}, OPERS=[], PROD={}, OCS=[];
+let sb=null, EMAIL=null, CFG={meta_checkpoint:40, meta_bonus:180, meta_super:200, defeito_max:2, horarios:['9:50','11:50','13:50','15:50']}, OPERS=[], PROD={}, OCS=[], MODELOS_LI=[];
 
 async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2'); sb=createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true}}); } return sb; }
 window.toggleDark=()=>{ document.documentElement.classList.toggle('dark'); try{localStorage.setItem('dc_dark',document.documentElement.classList.contains('dark')?'1':'0');}catch(e){} };
@@ -341,7 +341,7 @@ window.switchTab=function(t){
   document.getElementById('tab-comparativo').classList.toggle('hidden',t!=='comparativo');
   document.getElementById('tab-rastreio').classList.toggle('hidden',t!=='rastreio');
   if(t==='comparativo') carregarMes();
-  if(t==='rastreio') loadOcs();
+  if(t==='rastreio'){ loadOcs(); carregarModelosLI(); }
 };
 window.carregarMes=async function(){
   const mes=document.getElementById('mes').value; if(!mes) return;
@@ -405,7 +405,16 @@ function cmpCard(t,v,c){ return `<div class="card p-3"><div class="text-[11px] f
 
 // ---------- RASTREABILIDADE (OC / modelo / tamanho) ----------
 function populaOcRev(){ const sel=document.getElementById('ocRev'); if(sel) sel.innerHTML='<option value="">—</option>'+OPERS.map(o=>`<option value="${o.id}">${esc(o.nome)}</option>`).join(''); const d=document.getElementById('ocData'); if(d&&!d.value) d.value=hojeISO(); }
-function atualizarModelos(){ const dl=document.getElementById('modelosList'); if(!dl) return; const set=[...new Set(OCS.map(o=>o.modelo).filter(Boolean))]; ['Alice','Gerbera','Moove'].forEach(m=>{ if(!set.some(x=>String(x).toLowerCase()===m.toLowerCase())) set.push(m); }); dl.innerHTML=set.map(m=>`<option value="${esc(m)}">`).join(''); }
+function atualizarModelos(){ const dl=document.getElementById('modelosList'); if(!dl) return; const set=[...new Set([...MODELOS_LI, ...OCS.map(o=>o.modelo).filter(Boolean)])]; if(!MODELOS_LI.length) ['Alice','Gerbera','Moove'].forEach(m=>{ if(!set.some(x=>String(x).toLowerCase()===m.toLowerCase())) set.push(m); }); set.sort((a,b)=>String(a).localeCompare(String(b),'pt')); dl.innerHTML=set.map(m=>`<option value="${esc(m)}">`).join(''); }
+async function carregarModelosLI(){
+  try{ const cache=JSON.parse(localStorage.getItem('ac_modelos_li')||'null'); if(cache && cache.ts && (Date.now()-cache.ts<86400000) && Array.isArray(cache.list) && cache.list.length){ MODELOS_LI=cache.list; atualizarModelos(); return; } }catch(e){}
+  try{ const c=await getSb(); const {data:{session}}=await c.auth.getSession();
+    const r=await fetch('/api/li-produtos',{headers:{Authorization:'Bearer '+(session&&session.access_token)}});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok && Array.isArray(j.modelos) && j.modelos.length){ MODELOS_LI=j.modelos; try{ localStorage.setItem('ac_modelos_li', JSON.stringify({ts:Date.now(), list:MODELOS_LI})); }catch(e){} atualizarModelos(); }
+  }catch(e){}
+}
+window.recarregarModelos=function(){ try{ localStorage.removeItem('ac_modelos_li'); }catch(e){} MODELOS_LI=[]; carregarModelosLI(); };
 async function loadOcs(){ try{ const c=await getSb(); const {data}=await c.from('ac_ocs').select('*').order('created_at',{ascending:false}).limit(1000); OCS=data||[]; }catch(e){ OCS=[]; } populaOcRev(); atualizarModelos(); renderOcs(); }
 window.addOc=async function(){
   const data=document.getElementById('ocData').value||hojeISO();
