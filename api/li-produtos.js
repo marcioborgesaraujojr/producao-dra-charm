@@ -38,6 +38,9 @@ export default async function handler(req, res){
   const uid = okSecret ? 'cron' : await validUser(token);
   if (!uid) return res.status(403).json({ error: 'Sessão inválida. Faça login na suíte.' });
 
+  // Itens que NÃO são modelo de peça — não aparecem na lista do Acabamento.
+  const EXCLUIR = /^acr[eé]scimo\b|embalagem|\bteste\b/i;
+
   try {
     const LIMIT = 100; let offset = 0, total = null, pages = 0;
     const pais = new Set(), todos = new Set();
@@ -57,6 +60,8 @@ export default async function handler(req, res){
         // Colapsa variações de tamanho: "Vestido X TAMANHO :G" -> "Vestido X"
         nome = nome.split(/\s*TAMANHO\s*:/i)[0].trim();
         if (!nome) continue;
+        // Esconde itens que não são modelo de peça (acréscimos, embalagem, testes)
+        if (EXCLUIR.test(nome)) continue;
         todos.add(nome);
         const pai = p ? p.produto_pai : undefined;
         if (pai == null || pai === '') pais.add(nome);   // produto "base" = modelo
