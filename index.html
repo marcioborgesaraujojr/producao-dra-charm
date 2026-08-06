@@ -5451,7 +5451,12 @@ function showHub(){
 function hubCardKey(el){ return el.getAttribute('data-access') || el.getAttribute('data-hub-open') || el.id || ''; }
 function applyHubOrder(){
   const grid = document.getElementById('hubGrid'); if(!grid) return;
-  let order=[]; try{ order=JSON.parse(localStorage.getItem('dc_hub_order')||'[]'); }catch(e){}
+  let order=[];
+  try{
+    // ordem salva na CONTA (sincroniza em qualquer navegador); se não tiver, usa a do navegador
+    if(typeof profile!=='undefined' && profile && Array.isArray(profile.hub_order) && profile.hub_order.length){ order=profile.hub_order; }
+    else { order=JSON.parse(localStorage.getItem('dc_hub_order')||'[]'); }
+  }catch(e){}
   if(!Array.isArray(order) || !order.length) return;
   const byKey={}; grid.querySelectorAll('.hub-card').forEach(c=>{ byKey[hubCardKey(c)]=c; });
   order.forEach(k=>{ if(byKey[k]) grid.appendChild(byKey[k]); });   // reposiciona na ordem salva; cards novos ficam no fim
@@ -5460,6 +5465,9 @@ function saveHubOrder(){
   const grid = document.getElementById('hubGrid'); if(!grid) return;
   const keys=[...grid.querySelectorAll('.hub-card')].map(hubCardKey).filter(Boolean);
   try{ localStorage.setItem('dc_hub_order', JSON.stringify(keys)); }catch(e){}
+  try{ if(typeof profile!=='undefined' && profile){ profile.hub_order=keys; } }catch(e){}
+  // salva na conta pra sincronizar entre navegadores/dispositivos
+  try{ if(typeof sb!=='undefined' && typeof user!=='undefined' && user && user.id){ sb.from('profiles').update({ hub_order: keys }).eq('id', user.id).then(function(){}, function(){}); } }catch(e){}
 }
 function initHubDrag(){
   const grid = document.getElementById('hubGrid'); if(!grid || grid._dragInit) return; grid._dragInit=true;
