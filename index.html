@@ -579,6 +579,18 @@
         <span class="hub-card-badge bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300">Admin</span>
       </button>
 
+      <!-- Armazenamento (admin) -->
+      <button type="button" onclick="location.href='/armazenamento.html'" id="hubArmazenamentoCard" class="hub-card group text-left hidden">
+        <div class="hub-card-icon text-white" style="background:linear-gradient(135deg,#0ea5e9,#6366f1)">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
+        </div>
+        <div class="hub-card-body">
+          <div class="hub-card-title">Armazenamento</div>
+          <div class="hub-card-desc">Quanto de espaço você usa e sobra — e faxina de coisas antigas</div>
+        </div>
+        <span class="hub-card-badge bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300">Admin</span>
+      </button>
+
       <!-- Configuracoes da Suite (admin) -->
       <button class="hub-card group text-left hidden" id="hubSettingsCard" data-hub-open="settings">
         <div class="hub-card-icon bg-gradient-to-br from-slate-600 to-slate-800 text-white">
@@ -5436,6 +5448,8 @@ function showHub(){
   if (settingsCard) settingsCard.classList.toggle('hidden', !_admEmail);
   const audCard = document.getElementById('hubAuditoriaCard');
   if (audCard) audCard.classList.toggle('hidden', !_admEmail);
+  const armCard = document.getElementById('hubArmazenamentoCard');
+  if (armCard) armCard.classList.toggle('hidden', !_admEmail);
   /* "Trocar fundo do login" agora fica em Configurações da Suíte (não mais no menu do usuário) */
   // Permissões: quem não é admin vê só os sistemas liberados em profile.access.
   const _isAdm = (typeof user !== 'undefined' && user && (user.email||'').toLowerCase() === 'marcioborgesaraujojr@gmail.com');
