@@ -77,7 +77,9 @@ function parseMsg(m) {
     case 'document': return { tipo: 'documento',  conteudo: m.document?.filename || '[documento]' };
     case 'video':    return { tipo: 'documento',  conteudo: m.video?.caption || '[vídeo]' };
     case 'location': return { tipo: 'texto',      conteudo: '[localização]' };
-    default:         return { tipo: 'texto',      conteudo: '[' + m.type + ']' };
+    case 'contacts': return { tipo: 'texto',      conteudo: '[contato]' };
+    case 'unsupported': return { tipo: 'texto',   conteudo: '[mensagem que o WhatsApp não repassa (encaminhada/enquete/etc.)]' };
+    default:         return { tipo: 'texto',      conteudo: '[mensagem não suportada pelo WhatsApp]' };
   }
 }
 
