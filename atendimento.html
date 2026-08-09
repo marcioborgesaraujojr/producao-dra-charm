@@ -389,8 +389,15 @@ function renderChat(cv){
       if(m.t==='nota') return `<div class="flex justify-end"><div class="max-w-[70%] bubble-note rounded-2xl px-4 py-2 shadow-sm" data-fade><div class="text-[10px] font-semibold text-amber-600 mb-0.5">Nota interna</div><div class="text-sm whitespace-pre-wrap">${esc(m.txt)}</div><div class="text-[10px] text-amber-500/70 text-right mt-1">${m.hora}</div></div></div>`;
       const out=m.t==='out';
       const _img = m.midia ? `<a href="${m.midia}" target="_blank" rel="noopener"><img src="${m.midia}" class="rounded-xl max-w-[240px] max-h-[280px] object-cover mb-1 block" loading="lazy"></a>` : '';
-      const _showTxt = m.txt && m.txt!=='[imagem]' && m.txt!=='[figurinha]';
-      return `<div class="flex ${out?'justify-end':'justify-start'}"><div class="max-w-[70%] ${out?'bubble-out':'bubble-in'} rounded-2xl px-4 py-2 shadow-sm" data-fade>${_img}${_showTxt?`<div class="text-sm whitespace-pre-wrap">${esc(m.txt)}</div>`:''}<div class="text-[10px] text-slate-400 text-right mt-1">${m.hora}${out?' ✓✓':''}</div></div></div>`;
+      // Rótulos amigáveis quando o WhatsApp não repassou o arquivo (sem midia_url) -> evita bolha vazia
+      const _rot={'[imagem]':'🖼️ Imagem','[figurinha]':'🩷 Figurinha','[áudio]':'🎧 Áudio','[audio]':'🎧 Áudio','[documento]':'📎 Documento','[vídeo]':'🎬 Vídeo','[video]':'🎬 Vídeo','[localização]':'📍 Localização','[localizacao]':'📍 Localização','[contato]':'👤 Contato'};
+      let _txt=m.txt||'';
+      if(_img && (_txt==='[imagem]'||_txt==='[figurinha]')) _txt='';        // já mostra a imagem: some com o rótulo cru
+      let _cls='text-sm whitespace-pre-wrap';
+      if(!_img && _rot[_txt]){ _txt=_rot[_txt]; _cls='text-sm text-slate-500 dark:text-slate-400'; }  // mídia sem arquivo -> rótulo
+      const _showTxt=!!_txt;
+      const _vazio=(!_img && !_showTxt)?`<div class="text-sm italic text-slate-400">[mensagem sem conteúdo]</div>`:'';
+      return `<div class="flex ${out?'justify-end':'justify-start'}"><div class="max-w-[70%] ${out?'bubble-out':'bubble-in'} rounded-2xl px-4 py-2 shadow-sm" data-fade>${_img}${_showTxt?`<div class="${_cls}">${esc(_txt)}</div>`:''}${_vazio}<div class="text-[10px] text-slate-400 text-right mt-1">${m.hora}${out?' ✓✓':''}</div></div></div>`;
     }).join('');
   chat.scrollTop=chat.scrollHeight;
 }
