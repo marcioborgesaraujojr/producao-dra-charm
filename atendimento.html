@@ -388,16 +388,25 @@ function renderChat(cv){
       if(m.t==='sys'){ const s={reabriu:'bg-orange-100 text-orange-700',resolvida:'bg-green-100 text-green-700'}; return `<div class="flex justify-center"><span class="sys-chip ${s[m.k]||'bg-slate-100 text-slate-600'}">${esc(m.txt)}</span></div>`; }
       if(m.t==='nota') return `<div class="flex justify-end"><div class="max-w-[70%] bubble-note rounded-2xl px-4 py-2 shadow-sm" data-fade><div class="text-[10px] font-semibold text-amber-600 mb-0.5">Nota interna</div><div class="text-sm whitespace-pre-wrap">${esc(m.txt)}</div><div class="text-[10px] text-amber-500/70 text-right mt-1">${m.hora}</div></div></div>`;
       const out=m.t==='out';
-      const _img = m.midia ? `<a href="${m.midia}" target="_blank" rel="noopener"><img src="${m.midia}" class="rounded-xl max-w-[240px] max-h-[280px] object-cover mb-1 block" loading="lazy"></a>` : '';
+      // Mídia baixada: renderiza o player certo conforme o tipo (imagem/áudio/vídeo/documento)
+      let _media='';
+      if(m.midia){
+        const _t=m.midiaTipo||'imagem';
+        if(_t==='audio')          _media=`<audio controls preload="none" src="${m.midia}" class="w-[240px] max-w-full mb-1 block"></audio>`;
+        else if(_t==='video')     _media=`<video controls preload="metadata" src="${m.midia}" class="rounded-xl max-w-[240px] max-h-[280px] mb-1 block"></video>`;
+        else if(_t==='documento') _media=`<a href="${m.midia}" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 mb-1 text-sm text-pink-600 dark:text-pink-300 underline break-all"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>${esc(m.txt&&m.txt!=='[documento]'?m.txt:'Abrir documento')}</a>`;
+        else                      _media=`<a href="${m.midia}" target="_blank" rel="noopener"><img src="${m.midia}" class="rounded-xl max-w-[240px] max-h-[280px] object-cover mb-1 block" loading="lazy"></a>`;
+      }
       // Rótulos amigáveis quando o WhatsApp não repassou o arquivo (sem midia_url) -> evita bolha vazia
       const _rot={'[imagem]':'🖼️ Imagem','[figurinha]':'🩷 Figurinha','[áudio]':'🎧 Áudio','[audio]':'🎧 Áudio','[documento]':'📎 Documento','[vídeo]':'🎬 Vídeo','[video]':'🎬 Vídeo','[localização]':'📍 Localização','[localizacao]':'📍 Localização','[contato]':'👤 Contato'};
       let _txt=m.txt||'';
-      if(_img && (_txt==='[imagem]'||_txt==='[figurinha]')) _txt='';        // já mostra a imagem: some com o rótulo cru
+      // se a mídia já aparece, some com o rótulo cru / com o nome do arquivo (já mostrado no link)
+      if(_media && (_rot[_txt] || m.midiaTipo==='documento')) _txt='';
       let _cls='text-sm whitespace-pre-wrap';
-      if(!_img && _rot[_txt]){ _txt=_rot[_txt]; _cls='text-sm text-slate-500 dark:text-slate-400'; }  // mídia sem arquivo -> rótulo
+      if(!_media && _rot[_txt]){ _txt=_rot[_txt]; _cls='text-sm text-slate-500 dark:text-slate-400'; }  // mídia sem arquivo -> rótulo
       const _showTxt=!!_txt;
-      const _vazio=(!_img && !_showTxt)?`<div class="text-sm italic text-slate-400">[mensagem sem conteúdo]</div>`:'';
-      return `<div class="flex ${out?'justify-end':'justify-start'}"><div class="max-w-[70%] ${out?'bubble-out':'bubble-in'} rounded-2xl px-4 py-2 shadow-sm" data-fade>${_img}${_showTxt?`<div class="${_cls}">${esc(_txt)}</div>`:''}${_vazio}<div class="text-[10px] text-slate-400 text-right mt-1">${m.hora}${out?' ✓✓':''}</div></div></div>`;
+      const _vazio=(!_media && !_showTxt)?`<div class="text-sm italic text-slate-400">[mensagem sem conteúdo]</div>`:'';
+      return `<div class="flex ${out?'justify-end':'justify-start'}"><div class="max-w-[70%] ${out?'bubble-out':'bubble-in'} rounded-2xl px-4 py-2 shadow-sm" data-fade>${_media}${_showTxt?`<div class="${_cls}">${esc(_txt)}</div>`:''}${_vazio}<div class="text-[10px] text-slate-400 text-right mt-1">${m.hora}${out?' ✓✓':''}</div></div></div>`;
     }).join('');
   chat.scrollTop=chat.scrollHeight;
 }
