@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Disparos automáticos — Sistema Grupo Aragão</title>
+<link rel="icon" type="image/svg+xml" href="/logo_500x500.svg">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="/theme.js"></script>
+<style>
+  html{background:#f1f5f9}html.dark{background:#0b1220}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0}
+  .fld{width:100%;padding:8px 10px;font-size:14px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0;outline:none}
+  .fld:focus{border-color:#ff3c6f}.dark .fld{background:#1f2937;border-color:#374151;color:#e5e7eb}
+  label{font-size:12px;color:#64748b;font-weight:600}
+  .switch{width:42px;height:24px;border-radius:999px;background:#cbd5e1;position:relative;cursor:pointer;transition:.15s;flex-shrink:0}
+  .switch[data-on="1"]{background:#22c55e}.switch::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.15s}
+  .switch[data-on="1"]::after{left:21px}.dark .switch{background:#374151}
+  .bin{background:#fff;border:1px solid #eef2f7}.dark .bin{background:#1f2937;border-color:#334155}
+  [data-fade]{animation:fade .2s ease}@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:60;padding:10px 16px;border-radius:12px;font-size:13px;font-weight:600;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,.2);opacity:0;transition:.2s;pointer-events:none}
+  #toast[data-show="1"]{opacity:1}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style id="dc-theme">body{font-family:'Poppins',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}</style>
+<script id="dc-fav-std">(function(){try{document.querySelectorAll('link[rel="icon"],link[rel="shortcut icon"]').forEach(function(l){l.remove();});var l=document.createElement('link');l.rel='icon';l.type='image/png';l.href='https://wwytzoyeibekhstinott.supabase.co/storage/v1/object/public/system-assets/favicon.png';document.head.appendChild(l);}catch(e){}})();</script>
+</head>
+<body class="text-slate-800 dark:text-slate-100">
+
+<div id="authGate" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-50 dark:bg-ink-900">
+  <div class="text-center">
+    <div class="w-14 h-14 mx-auto rounded-2xl overflow-hidden mb-4"><img src="/icone-app.png" alt="Aragão" class="w-full h-full object-cover"></div>
+    <div class="font-semibold mb-1">Disparos automáticos</div><div class="text-sm text-slate-500 mb-4">Faça login na Suíte para acessar.</div>
+    <a href="/" class="inline-block text-sm font-semibold text-white bg-pink-500 hover:bg-pink-600 px-4 py-2 rounded-lg">Ir para o login</a>
+  </div>
+</div>
+
+<div id="appWrap" class="hidden">
+<header class="h-14 flex items-center justify-between px-4 bg-white/95 dark:bg-ink-800/95 border-b border-slate-200 dark:border-ink-600 sticky top-0 z-30 backdrop-blur">
+  <div class="flex items-center gap-3">
+    <button onclick="location.href='/'" title="Voltar à Suíte" class="w-9 h-9 rounded-xl shadow hover:scale-105 transition flex items-center justify-center text-white bg-gradient-to-br from-pink-500 to-rose-600"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
+    <div class="leading-tight"><div class="text-sm font-semibold">Disparos automáticos</div><div class="text-[11px] text-slate-500 dark:text-slate-400">Notificações por status do pedido · Grupo Aragão</div></div>
+  </div>
+  <div class="flex items-center gap-1">
+    <button onclick="location.href='/'" class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 flex items-center justify-center text-slate-500" title="Voltar"><img src="/icone-app.png" alt="Suíte" class="w-6 h-6 rounded-md object-cover"></button>
+    <button onclick="document.documentElement.classList.toggle('dark')" class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 flex items-center justify-center text-slate-500" title="Tema"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+  </div>
+</header>
+
+<div class="p-4 max-w-5xl mx-auto space-y-4">
+  <div id="avisos" class="space-y-2"></div>
+
+  <div class="grid md:grid-cols-3 gap-4">
+    <!-- Gatilhos -->
+    <div class="md:col-span-2 space-y-3">
+      <div class="text-sm font-semibold text-slate-500">Gatilhos por status do pedido</div>
+      <div id="lista" class="space-y-3"><div class="text-sm text-slate-400 p-4">Carregando…</div></div>
+    </div>
+
+    <!-- Teste -->
+    <div class="space-y-3">
+      <div class="bin rounded-xl p-3 space-y-2">
+        <div class="text-sm font-semibold">Testar um disparo</div>
+        <div class="text-[11px] text-slate-400">Envia de verdade pro número informado, usando a regra salva desse evento. Bom pra validar antes de ligar de vez.</div>
+        <div><label>Evento</label><select id="tEvento" class="fld mt-1"></select></div>
+        <div><label>Telefone (com DDD)</label><input id="tTel" class="fld mt-1" placeholder="Ex.: 85 98888-0000"></div>
+        <div class="grid grid-cols-2 gap-2">
+          <div><label>Nome</label><input id="tNome" class="fld mt-1" placeholder="Cliente"></div>
+          <div><label>Pedido</label><input id="tPedido" class="fld mt-1" placeholder="12345"></div>
+        </div>
+        <div><label>Rastreio / link (se o template usar)</label><input id="tExtra" class="fld mt-1" placeholder="Ex.: BR123456789BR"></div>
+        <button id="btnTeste" onclick="testar()" class="w-full text-sm font-semibold px-4 py-2.5 rounded-lg bg-pink-500 hover:bg-pink-600 text-white">Enviar teste</button>
+      </div>
+      <div class="bin rounded-xl p-3 text-[12px] text-slate-500 dark:text-slate-400 space-y-1">
+        <div class="font-semibold text-slate-600 dark:text-slate-300">Como funciona</div>
+        <div>1) Aprove os templates na Meta (aba Modelos).</div>
+        <div>2) Aqui, escolha o template de cada evento e mapeie as variáveis.</div>
+        <div>3) Ligue o gatilho. A fonte de eventos (Loja Integrada/Bling) chama nosso endpoint e o disparo sai sozinho.</div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const SUPA = { url:'https://wwytzoyeibekhstinott.supabase.co', key:'sb_publishable_uMoCEK4Ed_u8ZIfjVZ7Jrg_tdR4b9bO' };
+const CAMPOS = [ ['nome','Nome do cliente'], ['pedido','Número do pedido'], ['rastreio','Código de rastreio'], ['link','Link (pagamento/loja)'], ['valor','Valor'] ];
+let sb=null, TOKEN='', CATALOGO=[], TEMPLATES=[], REGRAS={};
+async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2'); sb=createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true}}); } return sb; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x])); }
+function toast(msg,tipo){ const t=document.getElementById('toast'); t.textContent=msg; t.style.background=tipo==='err'?'#e11d48':'#16a34a'; t.dataset.show='1'; clearTimeout(t._t); t._t=setTimeout(()=>t.dataset.show='0',2200); }
+function tplByName(n){ return TEMPLATES.find(t=>t.name===n)||null; }
+
+async function bootstrap(){
+  const c=await getSb(); const { data:{ session } }=await c.auth.getSession();
+  if(!session){ document.getElementById('authGate').classList.remove('hidden'); return; }
+  TOKEN=session.access_token;
+  document.getElementById('appWrap').classList.remove('hidden');
+  await carregar();
+}
+async function carregar(){
+  const r=await fetch('/api/disparo-evento?config=1',{headers:{Authorization:'Bearer '+TOKEN}});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok){ document.getElementById('lista').innerHTML='<div class="text-sm text-rose-500 p-4">'+esc(j.error||'erro ao carregar')+'</div>'; return; }
+  CATALOGO=j.catalogo||[]; TEMPLATES=j.templates||[];
+  REGRAS={}; (j.regras||[]).forEach(x=>{ REGRAS[x.evento_key]=x; });
+  renderAvisos(j);
+  renderLista();
+  renderTesteEventos();
+}
+function renderAvisos(j){
+  const box=document.getElementById('avisos'); let h='';
+  if(!j.wa_ok) h+=aviso('rose','WhatsApp não configurado','Faltam WA_ACCESS_TOKEN / WA_PHONE_NUMBER_ID no Vercel. Sem isso, nenhum disparo sai.');
+  if(!j.configurado) h+=aviso('amber','Falta ligar a fonte de eventos','Cadastre a env var <b>DISPARO_WEBHOOK_TOKEN</b> no Vercel e aponte a Loja Integrada/Bling para <code>/api/disparo-evento?token=SEU_TOKEN</code>. Enquanto isso, os gatilhos ficam prontos mas só disparam no teste manual.');
+  if(!TEMPLATES.length) h+=aviso('amber','Nenhum template aprovado','Aprove os templates na Meta (aba Modelos do atendimento). Sem template aprovado não dá pra ligar um gatilho.');
+  box.innerHTML=h;
+}
+function aviso(cor,titulo,txt){ return `<div class="rounded-xl border p-3 text-[13px] bg-${cor}-50 border-${cor}-200 text-${cor}-800 dark:bg-${cor}-900/20 dark:border-${cor}-900/40 dark:text-${cor}-200"><b>${esc(titulo)}.</b> ${txt}</div>`; }
+
+function renderLista(){
+  const el=document.getElementById('lista');
+  el.innerHTML=CATALOGO.map(ev=>{
+    const reg=REGRAS[ev.key]||{ativo:false,template_name:'',mapa:[]};
+    const on=reg.ativo?1:0;
+    const opts='<option value="">— escolher template aprovado —</option>'+TEMPLATES.map(t=>`<option value="${esc(t.name)}" ${reg.template_name===t.name?'selected':''}>${esc(t.name)} (${t.vars} var.)</option>`).join('');
+    return `<div class="bin rounded-xl p-3" data-fade>
+      <div class="flex items-center gap-3">
+        <div class="switch" data-on="${on}" onclick="toggle('${ev.key}')"></div>
+        <div class="flex-1 min-w-0"><div class="text-sm font-semibold">${ev.emoji} ${esc(ev.label)}</div><div class="text-[11px] text-slate-400">${esc(ev.key)}</div></div>
+      </div>
+      <div class="mt-2 space-y-2">
+        <select class="fld" onchange="setTpl('${ev.key}',this.value)">${opts}</select>
+        <div id="vars-${ev.key}">${renderVars(ev.key)}</div>
+        <button onclick="salvar('${ev.key}')" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-ink-700 hover:bg-slate-200">Salvar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function renderVars(key){
+  const reg=REGRAS[key]||{}; const tpl=tplByName(reg.template_name); const ev=CATALOGO.find(c=>c.key===key)||{};
+  if(!tpl || !tpl.vars) return '<div class="text-[11px] text-slate-400">Sem variáveis neste template.</div>';
+  const mapa=Array.isArray(reg.mapa)?reg.mapa:[];
+  let h='<div class="text-[11px] text-slate-400 mb-1">O que entra em cada variável do template:</div><div class="grid gap-1.5">';
+  for(let i=0;i<tpl.vars;i++){
+    const sel=mapa[i]|| (ev.vars&&ev.vars[i]) || 'nome';
+    h+=`<div class="flex items-center gap-2"><span class="text-xs text-slate-500 w-10">{{${i+1}}}</span><select class="fld" onchange="setMapa('${key}',${i},this.value)">`+
+       CAMPOS.map(([v,l])=>`<option value="${v}" ${sel===v?'selected':''}>${esc(l)}</option>`).join('')+`</select></div>`;
+  }
+  h+='</div>';
+  return h;
+}
+function ensureReg(key){ if(!REGRAS[key]) REGRAS[key]={evento_key:key,ativo:false,template_name:'',template_language:'pt_BR',mapa:[]}; return REGRAS[key]; }
+function toggle(key){ const r=ensureReg(key); r.ativo=!r.ativo; const sw=document.querySelector(`[onclick="toggle('${key}')"]`); if(sw) sw.dataset.on=r.ativo?1:0; salvar(key); }
+function setTpl(key,name){ const r=ensureReg(key); const t=tplByName(name); r.template_name=name; r.template_language=(t&&t.language)||'pt_BR';
+  const ev=CATALOGO.find(c=>c.key===key)||{}; r.mapa=[]; if(t){ for(let i=0;i<t.vars;i++) r.mapa[i]=(ev.vars&&ev.vars[i])||'nome'; }
+  document.getElementById('vars-'+key).innerHTML=renderVars(key); }
+function setMapa(key,i,val){ const r=ensureReg(key); if(!Array.isArray(r.mapa)) r.mapa=[]; r.mapa[i]=val; }
+
+async function salvar(key){
+  const r=ensureReg(key);
+  if(r.ativo && !r.template_name){ toast('Escolha um template pra ligar esse gatilho.','err'); r.ativo=false; const sw=document.querySelector(`[onclick="toggle('${key}')"]`); if(sw) sw.dataset.on=0; return; }
+  try{
+    const resp=await fetch('/api/disparo-evento',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+TOKEN},
+      body:JSON.stringify({action:'save',evento_key:key,ativo:r.ativo,template_name:r.template_name||null,template_language:r.template_language||'pt_BR',mapa:r.mapa||[]})});
+    const j=await resp.json().catch(()=>({}));
+    if(!resp.ok){ toast(j.error||'erro ao salvar','err'); return; }
+    REGRAS[key]=j.regra||r; toast('Salvo ✓');
+  }catch(e){ toast('Erro: '+e.message,'err'); }
+}
+
+function renderTesteEventos(){ document.getElementById('tEvento').innerHTML=CATALOGO.map(ev=>`<option value="${ev.key}">${ev.emoji} ${esc(ev.label)}</option>`).join(''); }
+async function testar(){
+  const btn=document.getElementById('btnTeste'); btn.disabled=true; const orig=btn.textContent; btn.textContent='Enviando…';
+  const body={ action:'test', evento:document.getElementById('tEvento').value, telefone:document.getElementById('tTel').value,
+    nome:document.getElementById('tNome').value||'Teste', pedido:document.getElementById('tPedido').value||'', rastreio:document.getElementById('tExtra').value||'', link:document.getElementById('tExtra').value||'' };
+  try{
+    const r=await fetch('/api/disparo-evento',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+TOKEN},body:JSON.stringify(body)});
+    const j=await r.json().catch(()=>({}));
+    const res=j.resultado||{};
+    if(j.ok) toast('Disparo enviado ✓');
+    else toast('Não enviou: '+(res.detalhe||j.error||res.status||'erro'),'err');
+  }catch(e){ toast('Erro: '+e.message,'err'); }
+  finally{ btn.disabled=false; btn.textContent=orig; }
+}
+bootstrap();
+</script>
+<script src="/nav.js"></script>
+</body>
+</html>

@@ -164,6 +164,7 @@
         <button id="btnNota" onclick="toggleNota()" class="hover:text-amber-500" title="Nota interna"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></button>
         <button onclick="escolherFoto()" class="hover:text-pink-600" title="Enviar foto"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
         <input type="file" id="atImgInput" accept="image/*" class="hidden" onchange="if(this.files&&this.files[0]){enviarFoto(this.files[0]);this.value='';}">
+        <input type="file" id="clienteFotoInput" accept="image/*" class="hidden" onchange="if(this.files&&this.files[0]){enviarFotoCliente(this.files[0]);this.value='';}">
         <button onclick="abrirTemplates()" class="hover:text-pink-600" title="Enviar modelo (fora da janela de 24h)"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></button>
         <span id="charCount" class="ml-auto text-[11px] tabular-nums">0 / 2.000</span>
       </div>
@@ -238,6 +239,7 @@ async function loadConversas(){
       hora:new Date(m.enviada_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) }));
     const j=cv.janela_expira_em?new Date(cv.janela_expira_em)-Date.now():0;
     return { id:cv.id, nome:cli.nome||'Cliente', inicial:(cli.nome||'C')[0].toUpperCase(), cor:CORES[i%CORES.length],
+      clienteId:cli.id||null, foto:cli.foto_url||'',
       canal:cv.canal==='whatsapp_oficial'?'API Oficial':(cv.canal||'—'), status:cv.status, naoLida:cv.nao_lida, minha:true,
       janela:(cv.status==='encerrada'||j<=0)?'—':`${Math.floor(j/3600000)}h${String(Math.floor(j%3600000/60000)).padStart(2,'0')}min`,
       tel:cli.telefone||'', email:cli.email||'', waid:cli.whatsapp_id||'',
@@ -346,7 +348,7 @@ function renderList(){
   el.innerHTML=arr.map(cv=>`
     <div class="conv-item px-3 py-3 flex gap-3" data-active="${SEL===cv.id?1:0}" onclick="selecionar('${cv.id}')">
       <div class="relative shrink-0">
-        <div class="w-11 h-11 rounded-full text-white flex items-center justify-center font-semibold" style="background:${cv.cor}">${cv.inicial}</div>
+        ${avatarLista(cv)}
         ${statusBadge(cv)}
       </div>
       <div class="min-w-0 flex-1">
@@ -414,7 +416,7 @@ function renderProfile(cv){
   const p=document.getElementById('profile'); p.classList.remove('hidden'); const ped=cv.pedido;
   p.innerHTML=`<div class="p-4">
     <div class="flex items-center justify-between mb-4"><span class="font-semibold">Perfil</span></div>
-    <div class="w-14 h-14 rounded-full text-white flex items-center justify-center font-bold text-xl mb-3" style="background:${cv.cor}">${cv.inicial}</div>
+    <div class="flex items-end gap-3 mb-3">${avatarPerfil(cv)}${cv.foto?`<button onclick="removerFotoCliente()" class="text-[11px] text-slate-400 hover:text-rose-500 mb-1">Remover foto</button>`:''}</div>
     ${campo('Nome',esc(cv.nome))}${cv.waid?campo('WhatsApp ID (LID)',esc(cv.waid),true):''}${cv.email?campoContato('Email',cv.email,'email'):''}${cv.tel?campoContato('Telefone',cv.tel,'tel'):''}
     <div class="mt-4 pt-4 border-t border-slate-200 dark:border-ink-600">
       <div class="flex items-center justify-between mb-1"><span class="text-sm font-semibold">Operador atribuído</span>${cv.atendenteId?`<button onclick="transferir('')" class="text-violet-600 dark:text-violet-300 text-xs hover:underline">Remover atribuição</button>`:''}</div>
@@ -460,6 +462,39 @@ async function enrichPedido(cv){
 const campo=(l,v,m)=>`<div class="mb-2"><div class="text-[11px] text-slate-400 mb-0.5">${l}</div><div class="text-sm ${m?'font-mono text-slate-500 text-[12px]':''} truncate">${v}</div></div>`;
 const lp=(k,v)=>`<div class="flex items-center justify-between px-3 py-2"><span class="text-slate-500 dark:text-slate-400">${k}</span><span class="font-medium text-right">${v}</span></div>`;
 const _initial=n=>((String(n||'?').trim()[0])||'?').toUpperCase();
+/* ===== Avatar do cliente (foto manual ou iniciais coloridas) ===== */
+function avatarLista(cv){ return cv.foto
+  ? `<img src="${esc(cv.foto)}" class="w-11 h-11 rounded-full object-cover" alt="" onerror="this.style.display='none'">`
+  : `<div class="w-11 h-11 rounded-full text-white flex items-center justify-center font-semibold" style="background:${cv.cor}">${cv.inicial}</div>`; }
+function avatarPerfil(cv){ const inner = cv.foto
+  ? `<img src="${esc(cv.foto)}" class="w-14 h-14 rounded-full object-cover" alt="">`
+  : `<div class="w-14 h-14 rounded-full text-white flex items-center justify-center font-bold text-xl" style="background:${cv.cor}">${cv.inicial}</div>`;
+  return `<button onclick="trocarFotoCliente()" title="Trocar foto do cliente" class="relative group block w-14 h-14 mb-1">${inner}<span class="absolute inset-0 rounded-full bg-black/45 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span></button>`; }
+window.trocarFotoCliente=function(){ const cv=cur(); if(!cv){ dcToast('Abra uma conversa primeiro.','err'); return; } if(!cv.clienteId){ dcToast('Cliente sem cadastro pra vincular a foto.','err'); return; } document.getElementById('clienteFotoInput').click(); };
+async function enviarFotoCliente(file){
+  const cv=cur(); if(!cv||!file) return;
+  if(!/^image\//.test(file.type||'')){ dcToast('Envie uma imagem.','err'); return; }
+  if(file.size>5*1024*1024){ dcToast('Imagem muito grande (máx 5MB).','err'); return; }
+  if(!cv.clienteId){ dcToast('Cliente sem cadastro pra vincular a foto.','err'); return; }
+  try{
+    const c=await getSb();
+    const ext=((file.type.split('/')[1]||'jpg').split(';')[0]);
+    const path='clientes/'+cv.clienteId+'-'+Date.now()+'.'+ext;
+    const up=await c.storage.from('at-media').upload(path, file, {contentType:file.type, upsert:true});
+    if(up.error) throw up.error;
+    const url=c.storage.from('at-media').getPublicUrl(path).data.publicUrl;
+    await c.from('at_clientes').update({foto_url:url}).eq('id',cv.clienteId);
+    CONVERSAS.forEach(x=>{ if(x.clienteId===cv.clienteId) x.foto=url; });
+    renderProfile(cv); renderList(); dcToast('Foto do cliente atualizada ✓','ok');
+  }catch(e){ dcToast('Erro ao salvar foto: '+(e.message||e),'err'); }
+}
+async function removerFotoCliente(){
+  const cv=cur(); if(!cv||!cv.clienteId) return;
+  try{ const c=await getSb(); await c.from('at_clientes').update({foto_url:null}).eq('id',cv.clienteId);
+    CONVERSAS.forEach(x=>{ if(x.clienteId===cv.clienteId) x.foto=''; });
+    renderProfile(cv); renderList(); dcToast('Foto removida','ok');
+  }catch(e){ dcToast('Erro ao remover: '+(e.message||e),'err'); }
+}
 function opColor(p){ if(p&&p.color) return p.color; const s=(p&&(p.id||p.full_name||p.email))||''; let h=0; for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0; const C=['#ef4444','#f97316','#f59e0b','#16a34a','#14b8a6','#0ea5e9','#3b82f6','#6366f1','#a855f7','#ff3c6f','#84cc16','#f43f5e']; return C[h%C.length]; }
 function opBadge(id){ if(!id) return ''; const p=PROFILES.find(x=>x.id===id); if(!p) return ''; const nm=p.full_name||p.email||'Operador'; return `<div class="flex items-center gap-2 mb-2"><span class="w-7 h-7 rounded-full text-white text-[12px] font-bold flex items-center justify-center shrink-0" style="background:${opColor(p)}">${esc(_initial(nm))}</span><span class="text-sm font-medium truncate">${esc(nm)}</span></div>`; }
 function copiar(t){ try{ navigator.clipboard.writeText(String(t||'')); if(typeof dcToast==='function') dcToast('Copiado ✓','ok'); }catch(e){} }

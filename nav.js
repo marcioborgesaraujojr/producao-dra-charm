@@ -21,6 +21,8 @@
       icon: '<rect x="3" y="4" width="4" height="16" rx="1"/><rect x="10" y="4" width="4" height="10" rx="1"/><rect x="17" y="4" width="4" height="6" rx="1"/>' },
     { href: '/lojas.html', label: 'Lojas', admin: true,
       icon: '<path d="M3 9l1.5-5h15L21 9M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M3 9h18M9 20v-6h6v6"/>' },
+    { href: '/disparos.html', label: 'Disparos automáticos', admin: true,
+      icon: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>' },
     { href: '/whatsapp.html', label: 'WhatsApp Oficial', admin: true,
       icon: '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/><path d="M9.2 9c.2-.5.5-.5.8-.5h.4c.2 0 .3.3.5.7l.4 1c.1.2 0 .3-.1.5l-.4.5c-.1.1-.2.3-.1.5a4 4 0 0 0 2 1.9c.2.1.4 0 .5-.1l.5-.6c.1-.2.3-.2.5-.1l1 .5c.3.2.5.3.5.5s0 .9-.4 1.3a2 2 0 0 1-1.4.6 6.5 6.5 0 0 1-5.3-4.1 2.2 2.2 0 0 1 .3-2.6z"/>' },
   ];
