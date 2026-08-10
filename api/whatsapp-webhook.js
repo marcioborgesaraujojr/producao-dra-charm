@@ -8,6 +8,8 @@
 //   WA_VERIFY_TOKEN, WA_ACCESS_TOKEN, WA_PHONE_NUMBER_ID
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 
+import { buscarFotoWhatsApp } from '../lib/foto.js';
+
 const GRAPH = 'https://graph.facebook.com/v20.0';
 const SB  = () => process.env.SUPABASE_URL;
 const KEY = () => process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -247,6 +249,20 @@ export default async function handler(req, res) {
               }
             } catch (e) { console.error('anexar midia:', e.message); }
           }
+
+          // Foto de perfil (serviço externo, se configurado): busca 1x por cliente, cacheado, best-effort
+          try {
+            if (process.env.FOTO_API_URL && cliente && !cliente.foto_url) {
+              const checked = cliente.foto_checked_at ? new Date(cliente.foto_checked_at).getTime() : 0;
+              if (Date.now() - checked > 7 * 24 * 3600 * 1000) {
+                const fu = await buscarFotoWhatsApp(waid);
+                await sbFetch('at_clientes?id=eq.' + cliente.id, {
+                  method: 'PATCH',
+                  body: JSON.stringify({ foto_url: fu || null, foto_checked_at: new Date().toISOString() })
+                });
+              }
+            }
+          } catch (e) { /* foto é best-effort */ }
 
           // Chatbot IA: só reage a mensagem de TEXTO do cliente (não figurinha/áudio/etc)
           if (m.type === 'text') {
