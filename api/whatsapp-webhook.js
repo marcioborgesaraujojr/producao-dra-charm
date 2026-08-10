@@ -83,7 +83,22 @@ function parseMsg(m) {
   }
 }
 
-// ===== MÍDIA: baixa imagem/sticker do WhatsApp e sobe no storage (bucket at-media) =====
+// ===== MÍDIA: baixa foto/figurinha/áudio/vídeo/documento do WhatsApp e sobe no storage (bucket at-media) =====
+const EXT_MAP = {
+  'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/gif':'gif',
+  'audio/ogg':'ogg','audio/mpeg':'mp3','audio/mp4':'m4a','audio/aac':'aac','audio/amr':'amr','audio/wav':'wav',
+  'video/mp4':'mp4','video/3gpp':'3gp','video/quicktime':'mov',
+  'application/pdf':'pdf'
+};
+// identifica se a mensagem tem mídia baixável e de que tipo (pro front renderizar o player certo)
+function midiaIdTipo(m){
+  if(m.type==='image'    && m.image    && m.image.id)    return { id:m.image.id,    tipo:'imagem' };
+  if(m.type==='sticker'  && m.sticker  && m.sticker.id)  return { id:m.sticker.id,  tipo:'imagem' };
+  if(m.type==='audio'    && m.audio    && m.audio.id)    return { id:m.audio.id,    tipo:'audio' };
+  if(m.type==='video'    && m.video    && m.video.id)    return { id:m.video.id,    tipo:'video' };
+  if(m.type==='document' && m.document && m.document.id) return { id:m.document.id, tipo:'documento' };
+  return null;
+}
 async function baixarMidia(mediaId){
   try{
     if(!process.env.WA_ACCESS_TOKEN) return null;
@@ -91,9 +106,11 @@ async function baixarMidia(mediaId){
     const j1 = await r1.json(); if(!j1 || !j1.url) return null;
     const r2 = await fetch(j1.url, { headers: { Authorization: 'Bearer ' + process.env.WA_ACCESS_TOKEN } });
     if(!r2.ok) return null;
+    const clen = Number(r2.headers.get('content-length') || 0);
+    if(clen && clen > 20 * 1024 * 1024) return null;   // >20MB: não baixa (evita estourar memória/timeout)
     const buf = Buffer.from(await r2.arrayBuffer());
-    const mime = String(j1.mime_type || r2.headers.get('content-type') || 'image/jpeg').split(';')[0];
-    const ext = (mime.split('/')[1] || 'jpg');
+    const mime = String(j1.mime_type || r2.headers.get('content-type') || 'application/octet-stream').split(';')[0].trim();
+    const ext = EXT_MAP[mime] || (mime.split('/')[1] || 'bin').replace(/[^a-z0-9]/gi,'').slice(0,5) || 'bin';
     const path = 'in/' + Date.now() + '-' + String(mediaId).slice(-10) + '.' + ext;
     const up = await fetch(SB() + '/storage/v1/object/at-media/' + path, {
       method: 'POST',
@@ -189,22 +206,24 @@ export default async function handler(req, res) {
         for (const m of messages) {
           const waid = m.from;                       // wa_id (telefone do cliente)
           const { tipo, conteudo } = parseMsg(m);
-          // imagem/figurinha do cliente: baixa e guarda no storage
-          let midia_url = null, midia_tipo = null;
-          if ((m.type === 'image' && m.image && m.image.id) || (m.type === 'sticker' && m.sticker && m.sticker.id)) {
-            const dl = await baixarMidia(m.type === 'image' ? m.image.id : m.sticker.id);
-            if (dl) { midia_url = dl.url; midia_tipo = 'imagem'; }
-          }
           const cliente = await upsertCliente({ waid, nome: contatoNome, telefone: waid });
           const conversaId = await getOrCreateConversa(cliente.id);
-          await sbFetch('at_mensagens', {
-            method: 'POST',
-            body: JSON.stringify({
-              conversa_id: conversaId, direcao: 'in', tipo, conteudo, midia_url, midia_tipo,
-              autor: contatoNome || waid, meta: { wa_id: waid, wamid: m.id },
-              enviada_em: new Date(Number(m.timestamp) * 1000 || Date.now()).toISOString()
-            })
-          });
+
+          // 1) GRAVA A MENSAGEM JÁ — garante o recebimento mesmo se o download da mídia demorar/falhar
+          let msgId = null;
+          try {
+            const ins = await sbFetch('at_mensagens', {
+              method: 'POST',
+              headers: { Prefer: 'return=representation' },
+              body: JSON.stringify({
+                conversa_id: conversaId, direcao: 'in', tipo, conteudo,
+                autor: contatoNome || waid, meta: { wa_id: waid, wamid: m.id },
+                enviada_em: new Date(Number(m.timestamp) * 1000 || Date.now()).toISOString()
+              })
+            });
+            msgId = Array.isArray(ins) ? (ins[0] && ins[0].id) : (ins && ins.id);
+          } catch (e) { console.error('insert msg:', e.message); }
+
           await sbFetch('at_conversas?id=eq.' + conversaId, {
             method: 'PATCH',
             body: JSON.stringify({
@@ -214,6 +233,21 @@ export default async function handler(req, res) {
               janela_expira_em: new Date(Date.now() + 24 * 3600 * 1000).toISOString()
             })
           });
+
+          // 2) MÍDIA (foto/figurinha/áudio/vídeo/documento): baixa e ANEXA na mensagem já gravada
+          const mid = midiaIdTipo(m);
+          if (mid && msgId) {
+            try {
+              const dl = await baixarMidia(mid.id);
+              if (dl) {
+                await sbFetch('at_mensagens?id=eq.' + msgId, {
+                  method: 'PATCH',
+                  body: JSON.stringify({ midia_url: dl.url, midia_tipo: mid.tipo })
+                });
+              }
+            } catch (e) { console.error('anexar midia:', e.message); }
+          }
+
           // Chatbot IA: só reage a mensagem de TEXTO do cliente (não figurinha/áudio/etc)
           if (m.type === 'text') {
             await maybeBotReply(conversaId, contatoNome || 'Cliente', conteudo, waid, host);
