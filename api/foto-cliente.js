@@ -46,6 +46,21 @@ export default async function handler(req, res) {
     if (q.config) return res.status(200).json({ configurado: !!process.env.FOTO_API_URL });
     if (q.wa) {
       if (!process.env.FOTO_API_URL) return res.status(503).json({ error: 'Serviço de foto não configurado (FOTO_API_URL no Vercel).' });
+      // modo debug: mostra a resposta crua do serviço (cache=true e cache=false) pra afinar o parser
+      if (q.debug) {
+        const n = String(q.wa).replace(/\D/g, '');
+        const base = process.env.FOTO_API_URL;
+        const mk = (extra) => base.includes('{PHONE}') ? base.replace(/\{PHONE\}/g, encodeURIComponent(n)) + extra : (base + (base.includes('?') ? '&' : '?') + 'phoneNumber=' + encodeURIComponent(n) + extra);
+        const H = {};
+        if (process.env.FOTO_API_KEY) H['X-RapidAPI-Key'] = process.env.FOTO_API_KEY;
+        if (process.env.FOTO_API_HOST) H['X-RapidAPI-Host'] = process.env.FOTO_API_HOST;
+        const out = {};
+        for (const [label, u] of [['configurada', mk('')], ['cacheFalse', mk('').replace('cache=true', 'cache=false')]]) {
+          try { const r = await fetch(u, { headers: H }); const t = await r.text(); out[label] = { status: r.status, ct: r.headers.get('content-type'), body: t.slice(0, 500) }; }
+          catch (e) { out[label] = { erro: e.message }; }
+        }
+        return res.status(200).json(out);
+      }
       const url = await buscarFotoWhatsApp(q.wa);
       return res.status(200).json({ url: url || null });
     }
