@@ -478,9 +478,21 @@ function spc(s){ if(/entreg/i.test(s))return'bg-emerald-100 text-emerald-700 dar
 
 /* ===== Interações (persistem no Supabase, com fallback local) ===== */
 window.escolherFoto=function(){ if(!cur()){ dcToast('Abra uma conversa primeiro.','err'); return; } document.getElementById('atImgInput').click(); };
+// Comprime prints/fotos grandes (reduz p/ 1600px, JPEG) pra não falhar no envio
+async function _prepImg(file){
+  try{
+    if(file.size <= 1.2*1024*1024) return file;
+    const img=await new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=URL.createObjectURL(file); });
+    const max=1600; let w=img.width,h=img.height; if(w>max||h>max){ const s=Math.min(max/w,max/h); w=Math.round(w*s); h=Math.round(h*s); }
+    const cvs=document.createElement('canvas'); cvs.width=w; cvs.height=h; cvs.getContext('2d').drawImage(img,0,0,w,h);
+    const blob=await new Promise(r=>cvs.toBlob(r,'image/jpeg',0.85));
+    return (blob && blob.size < file.size) ? blob : file;
+  }catch(e){ return file; }
+}
 async function enviarFoto(file){
   const cv=cur(); if(!cv||!file) return;
   if(!/^image\//.test(file.type||'')){ dcToast('Envie uma imagem.','err'); return; }
+  file = await _prepImg(file);
   if(file.size>5*1024*1024){ dcToast('Imagem muito grande (máx 5MB).','err'); return; }
   const destino = cv.waid || (cv.tel||'').replace(/\D/g,''); if(!destino){ dcToast('Essa conversa não tem número pra enviar.','err'); return; }
   const hora=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
@@ -501,6 +513,20 @@ async function enviarFoto(file){
     else { autoAtribuir(cv); }
   }catch(e){ dcToast('Erro ao enviar foto: '+(e.message||e),'err'); }
 }
+/* ===== Colar (Ctrl+V) e ARRASTAR print pra enviar como imagem ===== */
+(function(){
+  const inp=document.getElementById('msgInput');
+  if(inp) inp.addEventListener('paste', function(e){
+    const items=(e.clipboardData&&e.clipboardData.items)||[];
+    for(const it of items){ if(it.type&&it.type.indexOf('image')===0){ const b=it.getAsFile(); if(b){ e.preventDefault(); if(!cur()){ dcToast('Abra uma conversa primeiro.','err'); return; } enviarFoto(b); } return; } }
+  });
+  // arrastar e soltar em qualquer lugar da conversa (chat ou compositor)
+  const zonas=[document.getElementById('chatArea'), document.getElementById('composer')].filter(Boolean);
+  function over(e){ e.preventDefault(); e.stopPropagation(); const c=document.getElementById('chatArea'); if(c) c.classList.add('ring-2','ring-pink-400','ring-inset'); }
+  function leave(e){ e.preventDefault(); const c=document.getElementById('chatArea'); if(c) c.classList.remove('ring-2','ring-pink-400','ring-inset'); }
+  function drop(e){ e.preventDefault(); e.stopPropagation(); leave(e); const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(!f) return; if(!/^image\//.test(f.type)){ dcToast('Arraste uma imagem (print).','err'); return; } if(!cur()){ dcToast('Abra uma conversa primeiro.','err'); return; } enviarFoto(f); }
+  zonas.forEach(z=>{ z.addEventListener('dragover',over); z.addEventListener('dragleave',leave); z.addEventListener('drop',drop); });
+})();
 async function enviar(){
   const cv=cur(); if(!cv) return; const inp=document.getElementById('msgInput'); let txt=inp.value.trim(); if(!txt) return;
   const hora=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
