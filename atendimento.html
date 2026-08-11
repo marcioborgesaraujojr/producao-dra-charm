@@ -80,6 +80,25 @@
   html.dark #chatArea{background:linear-gradient(rgba(11,18,32,.85),rgba(11,18,32,.85))}
   html.dark body.has-bg #composer{background:rgba(17,26,46,.80)!important}
 </style>
+<style id="dc-mobile">
+@media (max-width: 767px){
+  #atRail{ display:none !important; }
+  #appWrap{ padding-left:0 !important; }
+  #paneLista{ width:100% !important; border-right:0 !important; }
+  #shell[data-view="lista"] > main{ display:none !important; }
+  #shell[data-view="chat"]  > #paneLista{ display:none !important; }
+  #shell > main{ width:100%; }
+  #profile{
+    position:fixed; top:0; right:0; bottom:0; width:86%; max-width:360px; z-index:60;
+    display:block !important; transform:translateX(100%); transition:transform .22s ease;
+    box-shadow:-10px 0 30px rgba(0,0,0,.25);
+  }
+  #profile.perfil-aberto{ transform:translateX(0); }
+  #perfilBackdrop{ position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:55; opacity:0; pointer-events:none; transition:opacity .2s; }
+  #perfilBackdrop.on{ opacity:1; pointer-events:auto; }
+}
+@media (min-width: 768px){ #perfilBackdrop{ display:none !important; } }
+</style>
 </head>
 <body class="text-slate-800 dark:text-slate-100 has-bg">
 <div id="appBg"></div>
@@ -100,7 +119,7 @@
     <button onclick="location.href='/'" title="Voltar à Suíte" class="w-9 h-9 rounded-xl overflow-hidden shadow hover:scale-105 hover:shadow-md transition flex-shrink-0"><img src="data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20100%20100'%3E%3Cdefs%3E%3ClinearGradient%20id%3D'g'%20x1%3D'0'%20y1%3D'0'%20x2%3D'1'%20y2%3D'1'%3E%3Cstop%20offset%3D'0'%20stop-color%3D'%23f59e0b'%2F%3E%3Cstop%20offset%3D'1'%20stop-color%3D'%23f97316'%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D'100'%20height%3D'100'%20fill%3D'url(%23g)'%2F%3E%3Cg%20transform%3D'translate(26%2026)%20scale(2)'%20fill%3D'none'%20stroke%3D'%23fff'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M21%2015a2%202%200%200%201-2%202H7l-4%204V5a2%202%200%200%201%202-2h14a2%202%200%200%201%202%202z'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E" alt="Aragão" class="w-full h-full object-cover"></button>
     <div class="leading-tight">
       <div class="text-sm font-semibold">Atendimento ao Cliente</div>
-      <div class="text-[11px] text-slate-500 dark:text-slate-400">Sistema Grupo Aragão</div>
+      <div class="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:block">Sistema Grupo Aragão</div>
     </div>
   </div>
   <div class="flex items-center gap-1">
@@ -112,8 +131,8 @@
   </div>
 </header>
 
-<div class="flex" style="height:calc(100vh - 3.5rem)">
-  <aside class="w-[340px] shrink-0 flex flex-col bg-white dark:bg-ink-800 border-r border-slate-200 dark:border-ink-600">
+<div id="shell" data-view="lista" class="flex" style="height:calc(100vh - 3.5rem)">
+  <aside id="paneLista" class="w-[340px] shrink-0 flex flex-col bg-white dark:bg-ink-800 border-r border-slate-200 dark:border-ink-600">
     <div class="px-4 pt-3 pb-2 border-b border-slate-200 dark:border-ink-600">
       <div class="flex items-center gap-2.5 gap-y-1 mb-3 flex-wrap">
         <span class="conv-tab" data-tab="minhas" data-active="1" onclick="setTab('minhas')">Minhas <span id="badgeMinhas" class="ml-0.5 text-[10px] bg-slate-200 text-slate-600 dark:bg-ink-600 dark:text-slate-300 rounded-full px-1 py-0.5 align-middle">0</span></span>
@@ -136,13 +155,15 @@
 
   <main class="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-ink-900">
     <div id="convHeader" class="min-h-12 shrink-0 flex items-center justify-between gap-3 px-4 py-2 bg-white dark:bg-ink-800 border-b border-slate-200 dark:border-ink-600 text-sm">
-      <div class="flex items-center gap-3 min-w-0">
+      <div class="flex items-center gap-2 min-w-0">
+        <button onclick="voltarLista()" class="md:hidden -ml-1 text-slate-500 hover:text-pink-600 shrink-0" title="Voltar"><svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
         <span id="chName" class="font-semibold truncate"></span>
         <span id="chChannel" class="flex items-center gap-1.5 text-[12px] text-slate-500 dark:text-slate-400 shrink-0"></span>
       </div>
       <div class="flex items-center gap-2 shrink-0">
         <span id="chWindow" class="hidden sm:flex items-center gap-1.5 text-slate-500 dark:text-slate-400 text-[12px]"></span>
         <button id="btnResolver" onclick="toggleResolver()" class="text-xs font-semibold px-3 py-1.5 rounded-lg"></button>
+        <button onclick="abrirPerfilMobile()" class="md:hidden icon-btn shrink-0" title="Perfil do cliente"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21a8 8 0 1 0-16 0"/><circle cx="12" cy="7" r="4"/></svg></button>
       </div>
     </div>
     <div id="resolvBanner" onclick="toggleResolver()" class="hidden shrink-0 text-white text-center text-xs font-semibold py-2 cursor-pointer transition-colors"></div>
@@ -181,6 +202,7 @@
   </main>
 
   <aside id="profile" class="w-[320px] shrink-0 overflow-y-auto list-scroll bg-white dark:bg-ink-800 border-l border-slate-200 dark:border-ink-600 hidden"></aside>
+  <div id="perfilBackdrop" onclick="fecharPerfilMobile()"></div>
 </div>
 </div>
 
@@ -277,7 +299,7 @@ async function bootstrap(){
   CONVERSAS = await loadConversas();
   { let _t=0; while(CONVERSAS.length===0 && _t<6){ await new Promise(r=>setTimeout(r,500)); CONVERSAS = await loadConversas(); _t++; } }
   renderList();
-  if(CONVERSAS.length){ document.getElementById('emptyState').classList.add('hidden'); selecionar(CONVERSAS[0].id); }
+  if(CONVERSAS.length){ document.getElementById('emptyState').classList.add('hidden'); selecionar(CONVERSAS[0].id); setView('lista'); }
   else { document.getElementById('emptyState').classList.remove('hidden'); }
   subscribeRealtime();
 }
@@ -362,8 +384,14 @@ function renderList(){
 }
 
 /* ===== Conversa ===== */
+/* ===== Mobile: alterna lista <-> chat e painel de perfil deslizante ===== */
+function setView(v){ const s=document.getElementById('shell'); if(s) s.dataset.view=v; }
+function voltarLista(){ fecharPerfilMobile(); setView('lista'); }
+function abrirPerfilMobile(){ const p=document.getElementById('profile'); const b=document.getElementById('perfilBackdrop'); if(p){ p.classList.remove('hidden'); p.classList.add('perfil-aberto'); } if(b) b.classList.add('on'); }
+function fecharPerfilMobile(){ const p=document.getElementById('profile'); const b=document.getElementById('perfilBackdrop'); if(p) p.classList.remove('perfil-aberto'); if(b) b.classList.remove('on'); }
 async function selecionar(id){
   SEL=id; NOTA=false; const cv=cur(); if(!cv) return;
+  setView('chat');
   if(cv.naoLida){ cv.naoLida=false; try{ (await getSb()).from('at_conversas').update({nao_lida:false}).eq('id',id).then(()=>{}); }catch(e){} }
   renderList();
   document.getElementById('emptyState').classList.add('hidden');
@@ -414,7 +442,7 @@ function renderChat(cv){
 function renderProfile(cv){
   const p=document.getElementById('profile'); p.classList.remove('hidden'); const ped=cv.pedido;
   p.innerHTML=`<div class="p-4">
-    <div class="flex items-center justify-between mb-4"><span class="font-semibold">Perfil</span></div>
+    <div class="flex items-center justify-between mb-4"><span class="font-semibold">Perfil</span><button onclick="fecharPerfilMobile()" class="md:hidden icon-btn -mr-1" title="Fechar"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
     ${avatarPerfil(cv)}
     ${campo('Nome',esc(cv.nome))}${cv.waid?campo('WhatsApp ID (LID)',esc(cv.waid),true):''}${cv.email?campoContato('Email',cv.email,'email'):''}${cv.tel?campoContato('Telefone',cv.tel,'tel'):''}
     <div class="mt-4 pt-4 border-t border-slate-200 dark:border-ink-600">
