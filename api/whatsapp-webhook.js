@@ -68,6 +68,13 @@ async function getOrCreateConversa(clienteId) {
   return (Array.isArray(created) ? created[0] : created).id;
 }
 
+// motivo que o WhatsApp informa quando não repassa a mensagem (unsupported)
+function motivoErro(m) {
+  const e = (m && m.errors && m.errors[0]) || {};
+  const det = e.title || (e.error_data && e.error_data.details) || e.message || '';
+  return String(det || '').replace(/\.$/, '').trim();
+}
+
 // extrai texto/tipo de uma mensagem do WhatsApp
 function parseMsg(m) {
   switch (m.type) {
@@ -80,8 +87,8 @@ function parseMsg(m) {
     case 'video':    return { tipo: 'documento',  conteudo: m.video?.caption || '[vídeo]' };
     case 'location': return { tipo: 'texto',      conteudo: '[localização]' };
     case 'contacts': return { tipo: 'texto',      conteudo: '[contato]' };
-    case 'unsupported': return { tipo: 'texto',   conteudo: '[mensagem que o WhatsApp não repassa (encaminhada/enquete/etc.)]' };
-    default:         return { tipo: 'texto',      conteudo: '[mensagem não suportada pelo WhatsApp]' };
+    case 'unsupported': { const mo = motivoErro(m); return { tipo: 'texto', conteudo: '[mensagem não suportada pelo WhatsApp' + (mo ? (' — ' + mo) : ' (encaminhada/enquete/ver uma vez/etc.)') + ']' }; }
+    default:            { const mo = motivoErro(m); return { tipo: 'texto', conteudo: '[mensagem não suportada pelo WhatsApp' + (mo ? (' — ' + mo) : (m && m.type ? (' (' + m.type + ')') : '')) + ']' }; }
   }
 }
 
