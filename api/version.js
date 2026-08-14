@@ -1,9 +1,12 @@
-// api/version.js — versão do deploy atual.
-// A Vercel preenche VERCEL_GIT_COMMIT_SHA sozinha em cada deploy, então
-// não precisa atualizar nada à mão: quando muda o commit, muda a versão,
-// e os apps (via theme.js) recarregam sozinhos.
+// api/version.js
+// Retorna o identificador do deploy atual (muda a cada publicação no Vercel).
+// O front consulta de tempos em tempos; se mudar, mostra o aviso "Nova versão disponível".
 export default function handler(req, res) {
-  res.setHeader('Cache-Control', 'no-store, max-age=0');
+  res.setHeader('Cache-Control', 'no-store, max-age=0, must-revalidate');
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.status(200).json({ v: process.env.VERCEL_GIT_COMMIT_SHA || 'dev' });
+  const v = process.env.VERCEL_GIT_COMMIT_SHA
+         || process.env.VERCEL_DEPLOYMENT_ID
+         || process.env.VERCEL_URL
+         || 'dev';
+  res.status(200).json({ v: String(v) });
 }
