@@ -96,6 +96,12 @@
   #profile.perfil-aberto{ transform:translateX(0); }
   #perfilBackdrop{ position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:55; opacity:0; pointer-events:none; transition:opacity .2s; }
   #perfilBackdrop.on{ opacity:1; pointer-events:auto; }
+  /* Menos funções no mobile: fundo é só desktop */
+  #btnFundo{ display:none !important; }
+  /* Numa conversa aberta, esconde o cabeçalho de cima (o da conversa já tem o "voltar"),
+     dando a tela toda pro chat — sem duas barras empilhadas. */
+  #appWrap:has(#shell[data-view="chat"]) > header{ display:none !important; }
+  #appWrap:has(#shell[data-view="chat"]) > #shell{ height:100vh !important; }
 }
 @media (min-width: 768px){ #perfilBackdrop{ display:none !important; } }
 </style>
@@ -124,7 +130,7 @@
   </div>
   <div class="flex items-center gap-1">
     <input type="file" id="bgInput" accept="image/*" class="hidden">
-    <button onclick="document.getElementById('bgInput').click()" class="icon-btn" title="Trocar fundo"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
+    <button id="btnFundo" onclick="document.getElementById('bgInput').click()" class="icon-btn" title="Trocar fundo"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
     <button id="btnSom" onclick="toggleSom()" class="icon-btn" title="Som de notificação"><svg id="somIcon" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a9 9 0 0 1 0 14"/></svg></button>
     <button onclick="toggleDark()" class="icon-btn" title="Tema"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
     <div id="userAvatar" class="w-8 h-8 ml-1 rounded-full bg-pink-500 text-white flex items-center justify-center font-bold text-sm">?</div>
@@ -178,9 +184,9 @@
         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>Nota interna — só a equipe vê
       </div>
       <div class="flex items-center gap-3 text-slate-400 dark:text-slate-500 px-1 pb-1">
-        <button onclick="fmt('*')" class="hover:text-slate-600 font-bold text-sm w-6" title="Negrito">B</button>
-        <button onclick="fmt('_')" class="hover:text-slate-600 italic text-sm w-6" title="Itálico">I</button>
-        <button onclick="fmt('~')" class="hover:text-slate-600 line-through text-sm w-6" title="Tachado">S</button>
+        <button onclick="fmt('*')" class="hidden sm:block hover:text-slate-600 font-bold text-sm w-6" title="Negrito">B</button>
+        <button onclick="fmt('_')" class="hidden sm:block hover:text-slate-600 italic text-sm w-6" title="Itálico">I</button>
+        <button onclick="fmt('~')" class="hidden sm:block hover:text-slate-600 line-through text-sm w-6" title="Tachado">S</button>
         <button onclick="toggleQR()" class="hover:text-pink-600" title="Respostas rápidas"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
         <button id="btnNota" onclick="toggleNota()" class="hover:text-amber-500" title="Nota interna"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></button>
         <button onclick="escolherFoto()" class="hover:text-pink-600" title="Enviar foto"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
