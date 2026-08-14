@@ -3725,6 +3725,9 @@ window.saveCard = async (silent = false) => {
   const c = cards.find(x=>x.id===activeCardId);
   if (c) Object.assign(c, diff);
   renderBoard();
+  // Renomeou o card e ele ainda está SEM foto? Tenta puxar do site de novo — se o novo nome
+  // casar com o produto, a capa aparece sozinha (puxarFotoDoSite só age se não houver capa).
+  if (('title' in diff) && c && typeof puxarFotoDoSite === 'function'){ puxarFotoDoSite(c); }
   // Se a marcação de produto/bordado mudou e o card está aberto, re-renderiza os produtos (lápis na hora)
   if (activeCardId && c && ('pedido_produtos' in diff) && typeof window.renderCardProdutos === 'function'){ try { window.renderCardProdutos(c); } catch(_){} }
   if (silent){
