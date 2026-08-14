@@ -329,6 +329,18 @@
   .cg-gbtn1:active{transform:translateY(1px)}
   .cg-gbtn1:disabled{background:#94a3b8;cursor:default;box-shadow:none;transform:none}
   .dark .cg-gbtn1:disabled{background:#475569}
+  /* Modo seleção de vários cards */
+  #btnSelecionar.sel-on{background:#ec4899;color:#fff;border-color:#ec4899}
+  body.select-mode .card-drag{cursor:pointer}
+  .card-selected{position:relative;outline:2.5px solid #ec4899;outline-offset:1px;box-shadow:0 0 0 4px rgba(236,72,153,.18)!important}
+  .card-selected::after{content:'✓';position:absolute;top:5px;right:5px;width:20px;height:20px;background:#ec4899;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;z-index:6;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+  #selBar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:9998;display:flex;align-items:center;gap:8px;background:#0f172a;color:#fff;padding:9px 10px 9px 14px;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.3);font-family:Poppins,system-ui,sans-serif;font-size:13px;max-width:94vw;flex-wrap:wrap;justify-content:center}
+  #selBar .selbar-count{font-weight:600;white-space:nowrap}
+  #selBar .selbar-select{background:#1e293b;color:#fff;border:1px solid #334155;border-radius:9px;padding:7px 9px;font-size:13px;max-width:44vw}
+  #selBar .selbar-move{background:#22c55e;color:#06280f;border:none;border-radius:9px;padding:7px 14px;font-weight:700;font-size:13px;cursor:pointer}
+  #selBar .selbar-move:disabled{background:#475569;color:#94a3b8;cursor:default}
+  #selBar .selbar-clear,#selBar .selbar-exit{background:none;border:1px solid #475569;color:#cbd5e1;border-radius:9px;padding:7px 12px;font-size:12px;cursor:pointer}
+  #selBar .selbar-clear:hover,#selBar .selbar-exit:hover{border-color:#94a3b8;color:#fff}
 </style>
 
 <!-- ===== Tema Dra. Charm: Poppins + cards foscos flutuando (mantém o fundo existente) ===== -->
@@ -779,6 +791,7 @@
           <option value="amarelo">Só amarelos</option>
           <option value="vermelho">Só vermelhos</option>
         </select>
+        <button id="btnSelecionar" type="button" title="Selecionar vários cards pra mover de uma vez" class="px-3 py-2 rounded-lg bg-slate-200/80 dark:bg-ink-700 border border-slate-300 dark:border-ink-600 text-sm whitespace-nowrap flex items-center gap-1.5"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Selecionar</button>
       </div>
     </div>
     <div id="faccaoFilterBar" class="hidden px-4 pb-3 flex flex-wrap gap-1.5"></div>
@@ -1419,6 +1432,8 @@ let cardSelLabels = new Set(); // etiquetas selecionadas no card aberto (multi)
 let comments = [], activity = [], notifications = [];
 let activeCardId = null, draggingCardId = null, draggingListId = null;
 let _cardsGerados = {};   // card de corte (OC) -> true depois de gerar os cards na Produção (evita gerar 2x)
+let selectMode = false;            // modo "selecionar vários cards pra mover"
+let selectedCardIds = new Set();   // ids dos cards marcados no modo seleção
 let _localMoveAt = 0;
 let canEditBoard = true; // permissão de edição do usuário atual no quadro aberto (false = só leitura)
 let boardLabelFilter = []; // se não-vazio, o usuário atual só vê cards com pelo menos uma dessas labels (id)
@@ -1927,6 +1942,8 @@ function renderBoardSelect(){
 async function switchBoard(boardId, opts){
   opts = opts || {};
   const _silent = !!opts.silent;   // refresh silencioso (realtime): não limpa o board nem mostra "carregando"
+  // Sai do modo seleção ao trocar de quadro (a seleção é por quadro).
+  if (!_silent){ selectMode = false; selectedCardIds.clear(); const _sbEl = document.getElementById('selBar'); if (_sbEl) _sbEl.remove(); document.body.classList.remove('select-mode'); const _selBtn = document.getElementById('btnSelecionar'); if (_selBtn) _selBtn.classList.remove('sel-on'); }
   currentBoardId = boardId;
   // Mantém o seletor de quadro sempre igual ao quadro realmente carregado
   const _bs = document.getElementById('boardSelect'); if (_bs && _bs.value !== boardId) _bs.value = boardId;
@@ -2262,6 +2279,58 @@ async function dropCardAt(cardId, listId, clientY){
   return true;
 }
 
+// ===== Modo seleção: marcar vários cards e mover todos de uma vez =====
+window.toggleSelectMode = function(force){
+  selectMode = (typeof force === 'boolean') ? force : !selectMode;
+  if (!selectMode) selectedCardIds.clear();
+  const btn = document.getElementById('btnSelecionar');
+  if (btn) btn.classList.toggle('sel-on', selectMode);
+  renderBoard();
+  renderSelBar();
+};
+function renderSelBar(){
+  let bar = document.getElementById('selBar');
+  if (!selectMode){ document.body.classList.remove('select-mode'); if (bar) bar.remove(); return; }
+  document.body.classList.add('select-mode');
+  if (!bar){ bar = document.createElement('div'); bar.id = 'selBar'; document.body.appendChild(bar); }
+  const n = selectedCardIds.size;
+  const opts = [...lists].sort((a,b)=>(a.position||0)-(b.position||0)).map(l=>`<option value="${l.id}">${escapeHtml(l.name)}</option>`).join('');
+  bar.innerHTML =
+    `<span class="selbar-count">${n} selecionado${n===1?'':'s'}</span>`+
+    `<select class="selbar-select" id="selBarList" ${n?'':'disabled'}>${opts}</select>`+
+    `<button class="selbar-move" id="selBarMove" ${n?'':'disabled'}>Mover</button>`+
+    `<button class="selbar-clear" id="selBarClear">Limpar</button>`+
+    `<button class="selbar-exit" id="selBarExit">Sair</button>`;
+  const mv=document.getElementById('selBarMove'); if(mv) mv.onclick = moverSelecionados;
+  const cl=document.getElementById('selBarClear'); if(cl) cl.onclick = ()=>{ selectedCardIds.clear(); renderBoard(); renderSelBar(); };
+  const ex=document.getElementById('selBarExit'); if(ex) ex.onclick = ()=> toggleSelectMode(false);
+}
+async function moverSelecionados(){
+  if (!selectedCardIds.size) return;
+  const sel = document.getElementById('selBarList');
+  const listId = sel && sel.value;
+  if (!listId) return;
+  const ids = [...selectedCardIds];
+  const alvo = lists.find(l=>l.id===listId);
+  const STEP = 16384;
+  let base = Math.max(0, ...cards.filter(c=>c.list_id===listId).map(c=>c.position||0));
+  const mv = document.getElementById('selBarMove'); if (mv){ mv.disabled = true; mv.textContent = 'Movendo...'; }
+  let ok = 0;
+  for (const id of ids){
+    base += STEP;
+    let { error } = await sb.rpc('move_card', { p_card: id, p_list: listId, p_pos: base });
+    if (error){ const r = await sb.from('cards').update({ list_id: listId, position: base }).eq('id', id); error = r.error; }
+    if (!error){ const c = cards.find(x=>x.id===id); if (c){ c.list_id = listId; c.position = base; } ok++; }
+  }
+  _localMoveAt = Date.now();
+  toast(ok + (ok===1?' card movido':' cards movidos') + (alvo ? (' para ' + alvo.name) : ''));
+  selectedCardIds.clear();
+  selectMode = false;
+  const btn = document.getElementById('btnSelecionar'); if (btn) btn.classList.remove('sel-on');
+  renderBoard();
+  renderSelBar();
+}
+
 // Reordena COLUNAS (lists). Insere a coluna arrastada antes/depois da coluna-alvo.
 async function dropListAt(listId, targetListId, after){
   if (!canEditBoard) return false;
@@ -2425,6 +2494,7 @@ function renderCard(c, compact){
   const cmembs = cardMembers[c.id] || [];
   el.className = `card card-drag bg-white dark:bg-ink-700 rounded-lg overflow-hidden shadow-sm border border-transparent hover:border-pink-500 p-2 ${compact?'text-xs':'text-sm'}`;
   el.dataset.cardId = c.id;
+  if (selectMode && selectedCardIds.has(c.id)) el.classList.add('card-selected');
   el.draggable = false; // desktop usa drag customizado (mouse) com card inclinado; ver handlers mousedown abaixo
   const labelChips = clbls.slice(0,3).map(l=>`<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style="background:${l.color}22;color:${l.color}"><span class="w-1.5 h-1.5 rounded-full" style="background:${l.color}"></span>${escapeHtml((l.name||'').replace(/^\s*fac[cç][aã]o:\s*/i,''))}</span>`).join('');
   const memAvatars = cmembs.slice(0,3).map(m=>`<div class="w-5 h-5 rounded-full text-white text-[10px] font-bold flex items-center justify-center" style="background:${userColor(m)}" title="${escapeHtml(m.full_name)}">${(m.full_name||'?').charAt(0).toUpperCase()}</div>`).join('');
@@ -2563,11 +2633,22 @@ function renderCard(c, compact){
     }
   });
   el.addEventListener('dragend', () => { draggingCardId = null; el.classList.remove('opacity-50'); });
-  el.addEventListener('click', (e) => { if (el._justDragged){ el._justDragged = false; e.preventDefault(); e.stopPropagation(); return; } openCard(c.id); });
+  el.addEventListener('click', (e) => {
+    if (el._justDragged){ el._justDragged = false; e.preventDefault(); e.stopPropagation(); return; }
+    if (selectMode){
+      e.preventDefault(); e.stopPropagation();
+      if (selectedCardIds.has(c.id)){ selectedCardIds.delete(c.id); el.classList.remove('card-selected'); }
+      else { selectedCardIds.add(c.id); el.classList.add('card-selected'); }
+      renderSelBar();
+      return;
+    }
+    openCard(c.id);
+  });
 
   // ===== Drag por toque (mobile): segura ~0,35s pra pegar o card e arrasta pra outra coluna =====
   let tTimer = null, tDrag = false, ghost = null, sX = 0, sY = 0, lastCol = null, lastTouchY = 0;
   el.addEventListener('touchstart', (ev) => {
+    if (selectMode) return;   // no modo seleção, tocar no card marca (não arrasta)
     if (ev.touches.length !== 1) return;
     const t = ev.touches[0]; sX = t.clientX; sY = t.clientY;
     tTimer = setTimeout(() => {
@@ -2619,6 +2700,7 @@ function renderCard(c, compact){
 
   // ===== Drag com mouse (desktop): card inclina e "levanta" estilo Trello =====
   el.addEventListener('mousedown', (ev) => {
+    if (selectMode) return;   // no modo seleção, clicar no card marca (não arrasta)
     if (ev.button !== 0) return;
     if (ev.target.closest('a,button,input,select,textarea,label')) return;
     const startX = ev.clientX, startY = ev.clientY;
@@ -5132,6 +5214,7 @@ document.getElementById('cardSeparadas')?.addEventListener('change', async e => 
   if (checked) { try { await avisarLogisticaSeparado(card); } catch(err){ console.warn('aviso logística falhou:', err); } }
 });
 document.getElementById('zoom').onchange = e => { filters.zoom = parseFloat(e.target.value) || 1; try{ localStorage.setItem('dc_zoom', filters.zoom); }catch(_){} renderBoard(); };
+{ const _bsel = document.getElementById('btnSelecionar'); if (_bsel) _bsel.onclick = () => toggleSelectMode(); }
 document.getElementById('alertaFilter').onchange = e => { filters.alerta = e.target.value; renderBoard(); };
 setTimeout(() => { const d = document.getElementById('zoom'); if (d) d.value = String(filters.zoom); }, 100);
 document.getElementById('estoqueBtn').onclick = openEstoque;
