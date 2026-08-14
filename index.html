@@ -322,6 +322,19 @@
   .cg-rend{font-weight:600;color:#2563eb}
   .cg-calc{font-weight:700;color:#334155}
   .dark .cg-calc{color:#cbd5e1}
+  /* Gerar cards por cor na Produção */
+  .cg-gerar{margin-top:2px}
+  .cg-ghd{font-size:10px;text-transform:uppercase;letter-spacing:.04em;font-weight:700;color:#059669;margin:2px 0 6px}
+  .dark .cg-ghd{color:#34d399}
+  .cg-gwrap{display:flex;flex-wrap:wrap;gap:6px}
+  .cg-gbtn{display:inline-flex;align-items:center;gap:6px;background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;border-radius:10px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;line-height:1}
+  .cg-gbtn:hover{background:#d1fae5;border-color:#34d399}
+  .cg-gbtn:disabled{opacity:.5;cursor:default}
+  .dark .cg-gbtn{background:rgba(16,185,129,.12);border-color:#065f46;color:#6ee7b7}
+  .cg-gbtn .cg-gp{font-size:10px;font-weight:600;opacity:.75}
+  .cg-gall{margin-top:7px;width:100%;background:#059669;border:none;color:#fff;border-radius:10px;padding:8px 12px;font-size:12.5px;font-weight:700;cursor:pointer}
+  .cg-gall:hover{background:#047857}
+  .cg-gall:disabled{opacity:.55;cursor:default}
 </style>
 
 <!-- ===== Tema Dra. Charm: Poppins + cards foscos flutuando (mantém o fundo existente) ===== -->
@@ -1069,6 +1082,7 @@
                   <tbody id="cgFinal"></tbody>
                 </table>
               </div>
+              <div id="cgGerarCards" class="cg-gerar"></div>
               <div class="grid grid-cols-4 gap-2">
                 <div class="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/25">
                   <div class="text-[10px] uppercase tracking-wide font-semibold text-emerald-700 dark:text-emerald-300">Total peças</div>
@@ -3873,6 +3887,28 @@ window.CorteGrade = (function(){
     let all=0; const ttds=SIZES.map(z=>{all+=tot[z];return `<td id="cgGT_${z}">${tot[z]}</td>`}).join('');
     html+=`<tr class="cg-tot"><td class="l">TOTAL</td>${ttds}<td id="cgGT_all">${all}</td></tr>`;
     el.innerHTML=html;
+    renderGerar();
+  }
+
+  // Grade final por cor (soma riscos × folhas) — usada pelos botões "Gerar card na Produção".
+  function coresFinal(){
+    return S.cores.map(c=>{
+      const g={}; SIZES.forEach(z=>g[z]=0);
+      S.riscos.forEach(r=>{const f=num(folha(r.id,c.id));SIZES.forEach(z=>g[z]+=num(r.g[z])*f);});
+      let tot=0; SIZES.forEach(z=>tot+=g[z]);
+      return {id:c.id, nome:(c.nome||'').trim(), hex:c.hex||'#cccccc', grade:g, total:tot};
+    });
+  }
+
+  // Renderiza os botões que geram um card por cor no quadro Produção › Cortadas.
+  function renderGerar(){
+    const box=document.getElementById('cgGerarCards'); if(!box) return;
+    if (typeof canEditBoard!=='undefined' && !canEditBoard){ box.innerHTML=''; return; }
+    const cf=coresFinal().filter(c=>c.total>0);
+    if(!cf.length){ box.innerHTML=''; return; }
+    const btns=cf.map(c=>`<button type="button" class="cg-gbtn" onclick="gerarCardsCortada([${c.id}])"><span class="cg-sw" style="background:${c.hex}"></span>${esc(c.nome||'cor')} <b>${c.total}</b> pç <span class="cg-gp">→ Cortadas</span></button>`).join('');
+    box.innerHTML=`<div class="cg-ghd">Gerar cards na Produção (Cortadas)</div><div class="cg-gwrap">${btns}</div>`+
+      (cf.length>1?`<button type="button" class="cg-gall" onclick="gerarCardsCortada(null)">Gerar todas as ${cf.length} cores de uma vez</button>`:'');
   }
 
   // Atualiza só os números (sem rebuild) — preserva foco
@@ -3898,6 +3934,7 @@ window.CorteGrade = (function(){
     const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
     set('cgTotPecas',tp); set('cgTotMetros',tm.toFixed(2)); set('cgRendMedio',tp?(tm/tp).toFixed(2):'0'); set('cgTotRiscos',S.riscos.length);
     const md=document.getElementById('cgMedia'); if(md) md.value=tp?(tm/tp).toFixed(2):'—';
+    renderGerar();
   }
 
   function renderAll(){renderRiscos();renderCores();renderFinal();recalc();}
@@ -3917,8 +3954,71 @@ window.CorteGrade = (function(){
   function delCor(cid){ if(S.cores.length<=1){S.cores=[{id:nid(),nome:'Cor 1',hex:'#3b82f6',rolos:''}];} else {S.cores=S.cores.filter(c=>c.id!==cid); S.open.delete(cid);} Object.keys(S.folhas).forEach(k=>{if(k.indexOf('c'+cid)>=0 && k.endsWith('c'+cid)) delete S.folhas[k];}); renderCores(); renderFinal(); recalc();}
   function toggleCor(cid){ S.open.has(cid)?S.open.delete(cid):S.open.add(cid); renderFinal(); recalc();}
 
-  return {load,serialize,totalMetros,totalRolos,setGrade,setMetr,setRiscoNome,setFolha,setHex,setCorNome,setRolos,addRisco,delRisco,addCor,delCor,toggleCor};
+  return {load,serialize,totalMetros,totalRolos,setGrade,setMetr,setRiscoNome,setFolha,setHex,setCorNome,setRolos,addRisco,delRisco,addCor,delCor,toggleCor,coresFinal};
 })();
+
+// Gera 1 card por cor da "Grade final somada" no quadro Produção › Cortadas,
+// já com a grade cortada preenchida e o nome no padrão dos outros cards ("MODELO COR OC:NNNN").
+// corIds = array de ids de cor (botão por cor) ou null/[] = todas as cores com peças.
+window.gerarCardsCortada = async function(corIds){
+  if (window.gerarCardsCortada._busy) return;
+  window.gerarCardsCortada._busy = true;
+  try{
+    if (typeof canEditBoard!=='undefined' && !canEditBoard){ toast('Só quem edita o quadro pode gerar cards.'); return; }
+    if (!window.CorteGrade || !CorteGrade.coresFinal){ toast('Grade de corte indisponível.'); return; }
+    let alvo = CorteGrade.coresFinal().filter(c=>c.total>0);
+    if (Array.isArray(corIds) && corIds.length) alvo = alvo.filter(c=>corIds.includes(c.id));
+    if (!alvo.length){ toast('Nenhuma cor com peças pra gerar.'); return; }
+
+    // Título base (OC) do card de corte aberto — ex.: "ALICE OC:0478"
+    const baseTitle = ((document.getElementById('cardTitle')||{}).value || '').trim() || 'OC';
+    // Insere a cor antes do "OC:" -> "ALICE VERDE BABY OC:0478"; sem OC, só acrescenta a cor.
+    const nomeCard = (base, cor)=>{
+      const t=String(base||'').trim(); const cU=String(cor||'').trim().toUpperCase();
+      const m=t.match(/OC\s*:?\s*[\w.\-\/]+/i);
+      if(m){ const oc=m[0]; const pre=t.slice(0,m.index).trim(); return (pre?pre+' ':'')+cU+' '+oc; }
+      return (t?t+' ':'')+cU;
+    };
+
+    // Localiza o quadro Produção e a lista Cortadas
+    const { data: bs } = await sb.from('boards').select('id,name');
+    const prod = (bs||[]).find(b=>/produ/i.test(b.name));
+    if (!prod){ toast('Quadro de Produção não encontrado.'); return; }
+    const { data: ls } = await sb.from('lists').select('id,name,position').eq('board_id',prod.id).eq('archived',false).order('position');
+    const cortadas = (ls||[]).find(l=>/^\s*cortad/i.test(l.name)) || (ls||[])[0];
+    if (!cortadas){ toast('Lista "Cortadas" não encontrada na Produção.'); return; }
+
+    // Cards já existentes na lista (evita duplicar a mesma cor+OC) e posição do fim da lista
+    const { data: exist } = await sb.from('cards').select('title,position').eq('list_id',cortadas.id).eq('archived',false);
+    const existTitles = new Set((exist||[]).map(c=>String(c.title||'').trim().toUpperCase()));
+    let maxPos = Math.max(0, ...((exist||[]).map(c=>c.position||0)));
+
+    const novos=[]; let pulados=0;
+    for (const c of alvo){
+      const title = nomeCard(baseTitle, c.nome||'COR');
+      if (existTitles.has(title.toUpperCase())){ pulados++; continue; }
+      maxPos += 16384;
+      novos.push({
+        list_id: cortadas.id, title, position: maxPos, created_by: user.id,
+        cor_hex: c.hex||null,
+        tam_pp:c.grade.pp||0, tam_p:c.grade.p||0, tam_m:c.grade.m||0,
+        tam_g:c.grade.g||0, tam_gg:c.grade.gg||0, tam_xg:c.grade.xg||0
+      });
+      existTitles.add(title.toUpperCase());
+    }
+    if (!novos.length){ toast(pulados?('Esses cards já existem na Cortadas ('+pulados+').'):'Nada pra gerar.'); return; }
+    const { data: ins, error } = await sb.from('cards').insert(novos).select();
+    if (error){ toast('Erro ao gerar cards: '+error.message); return; }
+    const n=(ins||[]).length;
+    toast(n+' card'+(n>1?'s':'')+' criado'+(n>1?'s':'')+' em Produção › Cortadas'+(pulados?(' · '+pulados+' já existia'):'')+'.');
+    // Se o usuário já está no quadro Produção, injeta os cards e re-renderiza sem recarregar.
+    if (typeof currentBoardId!=='undefined' && currentBoardId===prod.id && Array.isArray(cards)){
+      (ins||[]).forEach(nc=>{ cards.push(nc); if(typeof cardLabels!=='undefined') cardLabels[nc.id]=[]; if(typeof cardMembers!=='undefined') cardMembers[nc.id]=[]; });
+      if (typeof renderBoard==='function') renderBoard();
+    }
+  }catch(e){ toast('Erro: '+((e&&e.message)||e)); }
+  finally{ window.gerarCardsCortada._busy = false; }
+};
 
 // ===== Anexos do card (upload de qualquer arquivo, listar, baixar, remover) =====
 function _fmtBytes(n){ n = Number(n)||0; if (n < 1024) return n + ' B'; if (n < 1048576) return (n/1024).toFixed(0) + ' KB'; return (n/1048576).toFixed(1) + ' MB'; }
