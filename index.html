@@ -341,6 +341,13 @@
   #selBar .selbar-move:disabled{background:#475569;color:#94a3b8;cursor:default}
   #selBar .selbar-clear,#selBar .selbar-exit{background:none;border:1px solid #475569;color:#cbd5e1;border-radius:9px;padding:7px 12px;font-size:12px;cursor:pointer}
   #selBar .selbar-clear:hover,#selBar .selbar-exit:hover{border-color:#94a3b8;color:#fff}
+  /* Barra de ferramentas: todos os controles na MESMA altura (padrão visual) */
+  #app header #search,
+  #app header #zoom,
+  #app header #alertaFilter,
+  #app header #btnSelecionar,
+  #app header #faccaoFilterBtnUI,
+  #app header #lblOcultar{ height:38px !important; box-sizing:border-box; }
 </style>
 
 <!-- ===== Tema Dra. Charm: Poppins + cards foscos flutuando (mantém o fundo existente) ===== -->
@@ -778,7 +785,7 @@
         <div id="faccaoFilterWrap" class="relative shrink-0 hidden"></div>
         <div class="board-members-mobile flex sm:hidden items-center -space-x-2 shrink-0"></div>
         <div class="mob-break"></div>
-        <label class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-200/80 dark:bg-ink-700 border border-slate-300 dark:border-ink-600 text-sm cursor-pointer select-none whitespace-nowrap">
+        <label id="lblOcultar" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-200/80 dark:bg-ink-700 border border-slate-300 dark:border-ink-600 text-sm cursor-pointer select-none whitespace-nowrap">
           <input id="hideFinalizado" type="checkbox" checked class="accent-pink-500">Ocultar finalizados
         </label>
         <select id="zoom" title="Zoom do quadro (100% = Confortável)" class="px-2 py-2 rounded-lg bg-slate-200/80 dark:bg-ink-700 border border-slate-300 dark:border-ink-600 text-sm">
@@ -2772,7 +2779,7 @@ function renderFilterBar(){
   const n = filters.faccao.size;
   // Botão gatilho (mesmo estilo dos outros controles da barra)
   const badge = n ? `<span class="ml-1 min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center rounded-full bg-pink-500 text-white text-[11px] font-bold">${n}</span>` : '';
-  const trigger = `<button id="faccaoFilterBtnUI" title="Filtrar por etiqueta" style="min-height:34px" class="flex items-center justify-center gap-1.5 px-3 rounded-lg bg-slate-200/80 dark:bg-ink-700 border ${n?'border-pink-400':'border-slate-300 dark:border-ink-600'} text-sm whitespace-nowrap">
+  const trigger = `<button id="faccaoFilterBtnUI" title="Filtrar por etiqueta" style="height:38px" class="flex items-center justify-center gap-1.5 px-3 rounded-lg bg-slate-200/80 dark:bg-ink-700 border ${n?'border-pink-400':'border-slate-300 dark:border-ink-600'} text-sm whitespace-nowrap">
       <svg class="w-4 h-4 text-slate-500 dark:text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
       <span class="hidden sm:inline">Etiqueta</span>${badge}
       <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
