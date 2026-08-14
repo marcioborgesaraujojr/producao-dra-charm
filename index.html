@@ -4101,6 +4101,21 @@ window.gerarCardsCortada = async function(corIds){
     const cortadas = (ls||[]).find(l=>/^\s*cortad/i.test(l.name)) || (ls||[])[0];
     if (!cortadas){ toast('Lista "Cortadas" não encontrada na Produção.'); return; }
 
+    // Facção do card de corte -> a MESMA etiqueta (oficina) vai pros cards de produção (casa pelo nome).
+    let faccaoLabelIds = [];
+    try {
+      if (activeCardId){
+        const { data: ocLbls } = await sb.from('card_labels').select('labels(name)').eq('card_id', activeCardId);
+        const nomes = (ocLbls||[]).map(x=>x.labels && x.labels.name).filter(Boolean);
+        if (nomes.length){
+          const norm = s => String(s||'').replace(/^\s*fac[cç][aã]o:\s*/i,'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+          const alvoNomes = new Set(nomes.map(norm));
+          const { data: prodLbls } = await sb.from('labels').select('id,name').eq('board_id', prod.id);
+          faccaoLabelIds = (prodLbls||[]).filter(l => alvoNomes.has(norm(l.name))).map(l=>l.id);
+        }
+      }
+    } catch(e){}
+
     // Cards já existentes na lista (evita duplicar a mesma cor+OC) e posição do fim da lista
     const { data: exist } = await sb.from('cards').select('title,position').eq('list_id',cortadas.id).eq('archived',false);
     const existTitles = new Set((exist||[]).map(c=>String(c.title||'').trim().toUpperCase()));
@@ -4124,12 +4139,18 @@ window.gerarCardsCortada = async function(corIds){
     if (error){ toast('Erro ao gerar cards: '+error.message); return; }
     const n=(ins||[]).length;
     toast(n+' card'+(n>1?'s':'')+' criado'+(n>1?'s':'')+' em Produção › Cortadas'+(pulados?(' · '+pulados+' já existia'):'')+'.');
+    // Copia a etiqueta de facção (oficina) do corte pra cada card gerado.
+    if (faccaoLabelIds.length && (ins||[]).length){
+      const rows=[]; (ins||[]).forEach(nc=>faccaoLabelIds.forEach(lid=>rows.push({card_id:nc.id, label_id:lid})));
+      if (rows.length){ try { await sb.from('card_labels').insert(rows); } catch(e){} }
+    }
     // Marca este OC como "já gerado" e desativa o botão (evita gerar 2x).
     if (typeof _cardsGerados!=='undefined' && activeCardId) _cardsGerados[activeCardId]=true;
     const _gb=document.getElementById('cgGerarBtn'); if(_gb){ _gb.disabled=true; _gb.textContent='Cards gerados ✓'; }
-    // Se o usuário já está no quadro Produção, injeta os cards e re-renderiza sem recarregar.
+    // Se o usuário já está no quadro Produção, injeta os cards (com a facção) e re-renderiza sem recarregar.
     if (typeof currentBoardId!=='undefined' && currentBoardId===prod.id && Array.isArray(cards)){
-      (ins||[]).forEach(nc=>{ cards.push(nc); if(typeof cardLabels!=='undefined') cardLabels[nc.id]=[]; if(typeof cardMembers!=='undefined') cardMembers[nc.id]=[]; });
+      const lblObjs=(typeof labels!=='undefined' && Array.isArray(labels)) ? labels.filter(l=>faccaoLabelIds.includes(l.id)) : [];
+      (ins||[]).forEach(nc=>{ cards.push(nc); if(typeof cardLabels!=='undefined') cardLabels[nc.id]=lblObjs.slice(); if(typeof cardMembers!=='undefined') cardMembers[nc.id]=[]; });
       if (typeof renderBoard==='function') renderBoard();
     }
     // Puxa a foto do produto do site pra cada card gerado (casa pelo nome, igual aos outros cards).
