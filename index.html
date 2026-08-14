@@ -322,19 +322,11 @@
   .cg-rend{font-weight:600;color:#2563eb}
   .cg-calc{font-weight:700;color:#334155}
   .dark .cg-calc{color:#cbd5e1}
-  /* Gerar cards por cor na Produção */
-  .cg-gerar{margin-top:2px}
-  .cg-ghd{font-size:10px;text-transform:uppercase;letter-spacing:.04em;font-weight:700;color:#059669;margin:2px 0 6px}
-  .dark .cg-ghd{color:#34d399}
-  .cg-gwrap{display:flex;flex-wrap:wrap;gap:6px}
-  .cg-gbtn{display:inline-flex;align-items:center;gap:6px;background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;border-radius:10px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;line-height:1}
-  .cg-gbtn:hover{background:#d1fae5;border-color:#34d399}
-  .cg-gbtn:disabled{opacity:.5;cursor:default}
-  .dark .cg-gbtn{background:rgba(16,185,129,.12);border-color:#065f46;color:#6ee7b7}
-  .cg-gbtn .cg-gp{font-size:10px;font-weight:600;opacity:.75}
-  .cg-gall{margin-top:7px;width:100%;background:#059669;border:none;color:#fff;border-radius:10px;padding:8px 12px;font-size:12.5px;font-weight:700;cursor:pointer}
-  .cg-gall:hover{background:#047857}
-  .cg-gall:disabled{opacity:.55;cursor:default}
+  /* Botão único: gerar cards na Produção (fica no cabeçalho da grade final) */
+  .cg-hd-l{display:flex;flex-direction:column;gap:1px;line-height:1.2;min-width:0}
+  .cg-gbtn1{flex:none;background:#059669;color:#fff;border:none;border-radius:9px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;text-transform:none;letter-spacing:0;white-space:nowrap;line-height:1;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+  .cg-gbtn1:hover{background:#047857}
+  .cg-gbtn1:active{transform:translateY(1px)}
 </style>
 
 <!-- ===== Tema Dra. Charm: Poppins + cards foscos flutuando (mantém o fundo existente) ===== -->
@@ -1076,13 +1068,12 @@
                 <button type="button" class="cg-add mt-1" onclick="CorteGrade.addRisco()">+ Adicionar risco</button>
               </div>
               <div class="cg-final">
-                <div class="cg-hd"><span>Grade final somada</span><span class="cg-sub">clique numa cor pra ver detalhes ↓</span></div>
+                <div class="cg-hd"><div class="cg-hd-l"><span>Grade final somada</span><span class="cg-sub">clique na cor pra ver detalhes ↓</span></div><button type="button" id="cgGerarBtn" class="cg-gbtn1 hidden" onclick="gerarCardsCortada(null)">Gerar cards em produção</button></div>
                 <table class="cg-tbl">
                   <thead><tr><th class="l">Cor</th><th>PP</th><th>P</th><th>M</th><th>G</th><th>GG</th><th>XG</th><th>Total</th></tr></thead>
                   <tbody id="cgFinal"></tbody>
                 </table>
               </div>
-              <div id="cgGerarCards" class="cg-gerar"></div>
               <div class="grid grid-cols-4 gap-2">
                 <div class="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/25">
                   <div class="text-[10px] uppercase tracking-wide font-semibold text-emerald-700 dark:text-emerald-300">Total peças</div>
@@ -3900,15 +3891,12 @@ window.CorteGrade = (function(){
     });
   }
 
-  // Renderiza os botões que geram um card por cor no quadro Produção › Cortadas.
+  // Mostra/esconde o botão único "Gerar cards em produção" no cabeçalho da grade final.
   function renderGerar(){
-    const box=document.getElementById('cgGerarCards'); if(!box) return;
-    if (typeof canEditBoard!=='undefined' && !canEditBoard){ box.innerHTML=''; return; }
-    const cf=coresFinal().filter(c=>c.total>0);
-    if(!cf.length){ box.innerHTML=''; return; }
-    const btns=cf.map(c=>`<button type="button" class="cg-gbtn" onclick="gerarCardsCortada([${c.id}])"><span class="cg-sw" style="background:${c.hex}"></span>${esc(c.nome||'cor')} <b>${c.total}</b> pç <span class="cg-gp">→ Cortadas</span></button>`).join('');
-    box.innerHTML=`<div class="cg-ghd">Gerar cards na Produção (Cortadas)</div><div class="cg-gwrap">${btns}</div>`+
-      (cf.length>1?`<button type="button" class="cg-gall" onclick="gerarCardsCortada(null)">Gerar todas as ${cf.length} cores de uma vez</button>`:'');
+    const btn=document.getElementById('cgGerarBtn'); if(!btn) return;
+    const podeEditar=(typeof canEditBoard==='undefined')||canEditBoard;
+    const n=coresFinal().filter(c=>c.total>0).length;
+    btn.classList.toggle('hidden', !(podeEditar && n));
   }
 
   // Atualiza só os números (sem rebuild) — preserva foco
