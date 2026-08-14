@@ -324,9 +324,11 @@
   .dark .cg-calc{color:#cbd5e1}
   /* Botão único: gerar cards na Produção (fica no cabeçalho da grade final) */
   .cg-hd-l{display:flex;flex-direction:column;gap:1px;line-height:1.2;min-width:0}
-  .cg-gbtn1{flex:none;background:#059669;color:#fff;border:none;border-radius:9px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;text-transform:none;letter-spacing:0;white-space:nowrap;line-height:1;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+  .cg-gbtn1{flex:none;background:#059669;color:#fff;border:none;border-radius:9px;padding:6px 12px;font-size:11px;font-weight:500;cursor:pointer;text-transform:none;letter-spacing:0;white-space:nowrap;line-height:1;box-shadow:0 1px 2px rgba(0,0,0,.08)}
   .cg-gbtn1:hover{background:#047857}
   .cg-gbtn1:active{transform:translateY(1px)}
+  .cg-gbtn1:disabled{background:#94a3b8;cursor:default;box-shadow:none;transform:none}
+  .dark .cg-gbtn1:disabled{background:#475569}
 </style>
 
 <!-- ===== Tema Dra. Charm: Poppins + cards foscos flutuando (mantém o fundo existente) ===== -->
@@ -1416,6 +1418,7 @@ let cardLabels = {}, cardMembers = {}, checklistsByCard = {};
 let cardSelLabels = new Set(); // etiquetas selecionadas no card aberto (multi)
 let comments = [], activity = [], notifications = [];
 let activeCardId = null, draggingCardId = null, draggingListId = null;
+let _cardsGerados = {};   // card de corte (OC) -> true depois de gerar os cards na Produção (evita gerar 2x)
 let _localMoveAt = 0;
 let canEditBoard = true; // permissão de edição do usuário atual no quadro aberto (false = só leitura)
 let boardLabelFilter = []; // se não-vazio, o usuário atual só vê cards com pelo menos uma dessas labels (id)
@@ -3896,7 +3899,11 @@ window.CorteGrade = (function(){
     const btn=document.getElementById('cgGerarBtn'); if(!btn) return;
     const podeEditar=(typeof canEditBoard==='undefined')||canEditBoard;
     const n=coresFinal().filter(c=>c.total>0).length;
-    btn.classList.toggle('hidden', !(podeEditar && n));
+    if(!(podeEditar && n)){ btn.classList.add('hidden'); return; }
+    btn.classList.remove('hidden');
+    const jaGerou = (typeof _cardsGerados!=='undefined') && activeCardId && _cardsGerados[activeCardId];
+    btn.disabled = !!jaGerou;
+    btn.textContent = jaGerou ? 'Cards gerados ✓' : 'Gerar cards em produção';
   }
 
   // Atualiza só os números (sem rebuild) — preserva foco
@@ -3999,6 +4006,9 @@ window.gerarCardsCortada = async function(corIds){
     if (error){ toast('Erro ao gerar cards: '+error.message); return; }
     const n=(ins||[]).length;
     toast(n+' card'+(n>1?'s':'')+' criado'+(n>1?'s':'')+' em Produção › Cortadas'+(pulados?(' · '+pulados+' já existia'):'')+'.');
+    // Marca este OC como "já gerado" e desativa o botão (evita gerar 2x).
+    if (typeof _cardsGerados!=='undefined' && activeCardId) _cardsGerados[activeCardId]=true;
+    const _gb=document.getElementById('cgGerarBtn'); if(_gb){ _gb.disabled=true; _gb.textContent='Cards gerados ✓'; }
     // Se o usuário já está no quadro Produção, injeta os cards e re-renderiza sem recarregar.
     if (typeof currentBoardId!=='undefined' && currentBoardId===prod.id && Array.isArray(cards)){
       (ins||[]).forEach(nc=>{ cards.push(nc); if(typeof cardLabels!=='undefined') cardLabels[nc.id]=[]; if(typeof cardMembers!=='undefined') cardMembers[nc.id]=[]; });
@@ -6405,6 +6415,47 @@ initAuth().catch(function(e){ console.error('initAuth falhou:', e); if(window.mo
     </div>
   </div>
 </div>
+<!-- Aviso "Nova versão disponível" — detecta novo deploy e oferece atualizar (sem recarregar na marra) -->
+<script>
+(function(){
+  var atual = null, avisado = false;
+  function mostrarAviso(){
+    if (avisado || document.getElementById('updBanner')) return;
+    avisado = true;
+    var b = document.createElement('div');
+    b.id = 'updBanner';
+    b.setAttribute('style','position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:99999;display:flex;align-items:center;gap:12px;background:#0f172a;color:#fff;padding:11px 14px 11px 16px;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.28);font-family:Poppins,system-ui,sans-serif;font-size:13px;max-width:92vw;animation:updIn .35s ease');
+    var txt = document.createElement('span');
+    txt.textContent = '✨ Nova versão disponível';
+    var btn = document.createElement('button');
+    btn.textContent = 'Atualizar';
+    btn.setAttribute('style','background:#22c55e;color:#06280f;border:none;border-radius:9px;padding:7px 14px;font-weight:600;font-size:13px;cursor:pointer;font-family:inherit');
+    btn.onclick = function(){ location.reload(true); };
+    var x = document.createElement('button');
+    x.textContent = '✕';
+    x.setAttribute('title','Depois');
+    x.setAttribute('style','background:none;border:none;color:#94a3b8;font-size:14px;cursor:pointer;padding:2px 4px;line-height:1');
+    x.onclick = function(){ var e=document.getElementById('updBanner'); if(e) e.remove(); };
+    b.appendChild(txt); b.appendChild(btn); b.appendChild(x);
+    document.body.appendChild(b);
+    if(!document.getElementById('updKf')){ var st=document.createElement('style'); st.id='updKf'; st.textContent='@keyframes updIn{from{opacity:0;transform:translate(-50%,12px)}to{opacity:1;transform:translate(-50%,0)}}'; document.head.appendChild(st); }
+  }
+  async function checar(){
+    try{
+      var r = await fetch('/api/version', {cache:'no-store'});
+      if(!r.ok) return;
+      var j = await r.json();
+      if(!j || !j.v) return;
+      if(atual === null){ atual = j.v; return; }   // 1ª leitura = versão que o usuário carregou
+      if(j.v !== atual) mostrarAviso();
+    }catch(e){}
+  }
+  checar();
+  setInterval(checar, 60000);   // confere a cada 1 min
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden) checar(); });
+  window.addEventListener('focus', checar);
+})();
+</script>
 </body>
 <!-- deploy_marker 1784057494190 -->
 </html>
