@@ -2405,6 +2405,7 @@ async function fotoDoSite(titulo){
   const curtos = cands.filter(p => p.toks.length === min);
   return curtos.length === 1 ? curtos[0].img : null;
 }
+window.fotoDoSite = fotoDoSite;   // exposto p/ backfill de fotos (cards gerados sem capa)
 async function puxarFotoDoSite(card){
   try{
     if (!card || card.cover_url) return;
@@ -4013,6 +4014,24 @@ window.gerarCardsCortada = async function(corIds){
     if (typeof currentBoardId!=='undefined' && currentBoardId===prod.id && Array.isArray(cards)){
       (ins||[]).forEach(nc=>{ cards.push(nc); if(typeof cardLabels!=='undefined') cardLabels[nc.id]=[]; if(typeof cardMembers!=='undefined') cardMembers[nc.id]=[]; });
       if (typeof renderBoard==='function') renderBoard();
+    }
+    // Puxa a foto do produto do site pra cada card gerado (casa pelo nome, igual aos outros cards).
+    if (typeof fotoDoSite==='function'){
+      (async()=>{
+        let mudou=false;
+        for (const nc of (ins||[])){
+          try{
+            const img = await fotoDoSite(nc.title);
+            if (img){
+              await sb.from('cards').update({ cover_url: img }).eq('id', nc.id);
+              nc.cover_url = img;
+              const local = Array.isArray(cards) ? cards.find(x=>x.id===nc.id) : null;
+              if (local){ local.cover_url = img; mudou=true; }
+            }
+          }catch(e){}
+        }
+        if (mudou && typeof currentBoardId!=='undefined' && currentBoardId===prod.id && typeof renderBoard==='function') renderBoard();
+      })();
     }
   }catch(e){ toast('Erro: '+((e&&e.message)||e)); }
   finally{ window.gerarCardsCortada._busy = false; }
