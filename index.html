@@ -190,7 +190,8 @@
     header button{padding:5px}
     header button svg{width:18px;height:18px}
     #bellBadge{font-size:9px;min-width:16px;height:16px}
-    #boardSelect{max-width:none;width:auto;flex:1 1 auto;min-width:0;font-size:14px;padding:6px 8px;font-weight:600}
+    /* Nome do quadro trunca (não empurra os ícones pra outra linha) — deixa cabeçalho em 1 linha só */
+    #boardSelect{max-width:calc(100vw - 242px);width:auto;flex:0 1 auto;min-width:0;font-size:14px;padding:6px 8px;font-weight:600}
     /* 1 linha compacta: logo grid + logo pink + board (respira) + sino + avatar */
     header > div{flex-wrap:wrap}
     /* Esconde theme + tema escuro no mobile */
