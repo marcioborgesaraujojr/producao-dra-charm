@@ -247,7 +247,8 @@
 
     /* Dropdowns fixed no mobile ficam full-width */
     #userMenu, #bellDropdown{right:8px !important;left:8px !important;width:auto !important;top:52px !important}
-    #filterFaccaoDropdown{right:0 !important;left:auto;width:calc(100vw - 24px);max-width:280px}
+    /* Menu de etiqueta: abre pra DENTRO da tela (o botão fica na esquerda no mobile) e não estoura a altura */
+    #faccaoFilterMenu{left:0 !important;right:auto !important;width:min(74vw,240px) !important;max-height:60vh;overflow-y:auto}
 
     /* Grade cortada/oficina — grid mais compacto */
     #tab-details .grid.grid-cols-6{gap:3px}

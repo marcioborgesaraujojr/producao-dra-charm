@@ -253,17 +253,21 @@ async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.
 const cur=()=>CONVERSAS.find(x=>x.id===SEL);
 
 /* ===== Carregamento do Supabase ===== */
+function _mapMsgs(rawMsgs){
+  return (rawMsgs||[]).slice().sort((a,b)=>new Date(a.enviada_em)-new Date(b.enviada_em)).map(m=>({
+    id:m.id, t: m.tipo==='nota'?'nota':m.direcao, k:(m.meta&&m.meta.evento)||undefined, txt:m.conteudo||'', midia:m.midia_url||null, midiaTipo:m.midia_tipo||null,
+    hora:new Date(m.enviada_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) }));
+}
+// A LISTA não carrega as mensagens (só a prévia) -> abre rápido. As mensagens de cada conversa
+// carregam sob demanda quando ela é aberta (ver carregarMsgs), o que também deixa o realtime mais leve.
 async function loadConversas(){
   const c = await getSb();
   const { data, error } = await c.from('at_conversas')
-    .select('*, cliente:at_clientes(*), atendente:profiles(full_name), mensagens:at_mensagens(*), tags:at_conversa_tags(tag:at_tags(*))')
+    .select('*, cliente:at_clientes(*), atendente:profiles(full_name), tags:at_conversa_tags(tag:at_tags(*))')
     .order('ultima_msg_em',{ascending:false});
   if(error){ console.error(error); return []; }
   return (data||[]).map((cv,i)=>{
     const cli=cv.cliente||{};
-    const msgs=(cv.mensagens||[]).sort((a,b)=>new Date(a.enviada_em)-new Date(b.enviada_em)).map(m=>({
-      id:m.id, t: m.tipo==='nota'?'nota':m.direcao, k:(m.meta&&m.meta.evento)||undefined, txt:m.conteudo||'', midia:m.midia_url||null, midiaTipo:m.midia_tipo||null,
-      hora:new Date(m.enviada_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) }));
     const j=cv.janela_expira_em?new Date(cv.janela_expira_em)-Date.now():0;
     return { id:cv.id, nome:cli.nome||'Cliente', inicial:(cli.nome||'C')[0].toUpperCase(), cor:CORES[i%CORES.length],
       clienteId:cli.id||null, foto:cli.foto_url||'',
@@ -273,8 +277,18 @@ async function loadConversas(){
       ultimaAtividade:new Date(cv.ultima_msg_em).toLocaleString('pt-BR'), ultimaMsgEm:cv.ultima_msg_em,
       tags:(cv.tags||[]).map(x=>x.tag).filter(Boolean),
       atendenteNome:(cv.atendente&&cv.atendente.full_name)||'', atendenteId:cv.atendente_id||null, setor:cv.setor||'',
-      pedidoNumero:cv.pedido_numero||'', pedido:null, preview:cv.ultima_msg_preview||'', msgs };
+      pedidoNumero:cv.pedido_numero||'', pedido:null, preview:cv.ultima_msg_preview||'', msgs:[], _msgsLoaded:false };
   });
+}
+// Carrega as mensagens de UMA conversa (sob demanda, ao abrir).
+async function carregarMsgs(cv){
+  if(!cv || cv._msgsLoaded) return;
+  try{
+    const c = await getSb();
+    const { data } = await c.from('at_conversas').select('mensagens:at_mensagens(*)').eq('id', cv.id).maybeSingle();
+    cv.msgs = _mapMsgs(data && data.mensagens);
+    cv._msgsLoaded = true;
+  }catch(e){ console.warn('carregarMsgs:', e.message); }
 }
 
 async function bootstrap(){
@@ -322,7 +336,7 @@ async function subscribeRealtime(){
 }
 function softReload(){ clearTimeout(_rtTimer); _rtTimer=setTimeout(async()=>{
   const keep=SEL; CONVERSAS=await loadConversas(); renderList();
-  const cv=CONVERSAS.find(x=>x.id===keep); if(cv){ renderChat(cv); renderProfile(cv); enrichPedido(cv); }
+  const cv=CONVERSAS.find(x=>x.id===keep); if(cv){ await carregarMsgs(cv); renderChat(cv); renderProfile(cv); enrichPedido(cv); }
 },350); }
 
 /* ===== Som + notificação de mensagem nova (igual Notificações) ===== */
@@ -398,6 +412,7 @@ function fecharPerfilMobile(){ const p=document.getElementById('profile'); const
 async function selecionar(id){
   SEL=id; NOTA=false; const cv=cur(); if(!cv) return;
   setView('chat');
+  if(!cv._msgsLoaded) await carregarMsgs(cv);
   if(cv.naoLida){ cv.naoLida=false; try{ (await getSb()).from('at_conversas').update({nao_lida:false}).eq('id',id).then(()=>{}); }catch(e){} }
   renderList();
   document.getElementById('emptyState').classList.add('hidden');
