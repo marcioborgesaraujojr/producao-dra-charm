@@ -6316,13 +6316,28 @@ async function calcPainelKPIs(){
     rolosTotal = eCards.reduce((s,c)=>s+(c.qtd_rolos||0),0);
   }
 
-  // Eventos (séries temporais) — últimos 200 dias
-  const since = new Date(Date.now() - 200*864e5).toISOString();
-  const [gradeR, corteR, bordR] = await Promise.all([
-    sb.from('activity_log').select('meta,created_at').eq('action','grade').gte('created_at',since).limit(9000),
-    sb.from('activity_log').select('meta,created_at').eq('action','corte_pcs').gte('created_at',since).limit(9000),
-    sb.from('activity_log').select('meta,created_at').eq('action','bordado_mov').gte('created_at',since).limit(9000),
+  // Eventos (séries temporais) — últimos 400 dias (cobre "Ano atual" e "Últimos 12 meses").
+  // IMPORTANTE: o Supabase devolve no MÁXIMO 1000 linhas por requisição (mesmo pedindo mais).
+  // Sem paginar, o painel lia só 1000 lançamentos e mostrava número MUITO menor que o real.
+  const since = new Date(Date.now() - 400*864e5).toISOString();
+  const _logTudo = async (action) => {
+    let todas = [], from = 0;
+    while (true){
+      const { data, error } = await sb.from('activity_log').select('card_id,meta,created_at')
+        .eq('action', action).gte('created_at', since)
+        .order('created_at', { ascending: true }).range(from, from + 999);
+      if (error || !data || !data.length) break;
+      todas = todas.concat(data);
+      if (data.length < 1000) break;
+      from += 1000;
+      if (from > 60000) break;   // trava de segurança
+    }
+    return todas;
+  };
+  const [gradeRows, corteRows, bordRows] = await Promise.all([
+    _logTudo('grade'), _logTudo('corte_pcs'), _logTudo('bordado_mov'),
   ]);
+  const gradeR = { data: gradeRows }, corteR = { data: corteRows }, bordR = { data: bordRows };
   const finEvents   = (gradeR.data||[]).filter(r=>r.meta && r.meta.etapa==='estoque').map(r=>({ t:r.created_at, q:(+(r.meta && r.meta.qtd)||0) }));
   const acabEvents  = (gradeR.data||[]).filter(r=>r.meta && r.meta.etapa==='acabamento').map(r=>({ t:r.created_at, q:(+(r.meta && r.meta.qtd)||0) }));
   const lavEnvEvents = (gradeR.data||[]).filter(r=>r.meta && r.meta.etapa==='lav_env').map(r=>({ t:r.created_at, q:(+(r.meta && r.meta.qtd)||0), card:r.card_id }));
