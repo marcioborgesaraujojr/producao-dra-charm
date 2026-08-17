@@ -5353,6 +5353,13 @@ document.addEventListener('keydown', e => {
   if (e.key.toLowerCase() === 'n' && lists[0] && canEditBoard){
     e.preventDefault();
     if (window.__novoCardBusy) return; // trava de duplo-atalho
+    // No quadro de bordado (Personalização), criar card SEMPRE passa pelo fluxo com número do pedido,
+    // que já bloqueia duplicidade (abre o card existente). Evita cards "crus" só com número (ex: "241278").
+    if (typeof boardType==='function' && boardType(currentBoardId)==='bordado'){
+      const _l0 = [...lists].sort((a,b)=>(a.position||0)-(b.position||0)).find(l=>/novo\s*pedido/i.test(l.name)) || [...lists].sort((a,b)=>(a.position||0)-(b.position||0))[0];
+      if (_l0){ criarCardPedidoManual(_l0, cards.filter(c=>c.list_id===_l0.id)); }
+      return;
+    }
     window.__novoCardBusy = true;
     uiPrompt('Nome do card', {title:'Novo card'}).then(t => {
       if (!t){ window.__novoCardBusy = false; return; }
