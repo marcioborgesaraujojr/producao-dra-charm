@@ -2069,12 +2069,28 @@ async function criarCardPedidoManual(list, listCards){
     if (jaExiste){ toast('Já existe um card para o pedido #'+data.numero+'. Abrindo o existente.'); openCard(jaExiste.id); return; }
     const maxPos = Math.max(0, ...listCards.map(c=>c.position||0));
     const title = '#'+data.numero+' · '+(data.cliente || 'Sem nome');
+    const _b = data.bordado || {};
+    const _tipo = data.bordado_tipo || _b.tipo || null;
     const { data: nc, error } = await sb.from('cards').insert({
       list_id: list.id, title, position: maxPos+16384, created_by: user.id,
-      pedido_numero: String(data.numero), pedido_cliente: data.cliente || null, pedido_produtos: data.produtos || []
+      pedido_numero: String(data.numero), pedido_cliente: data.cliente || null, pedido_produtos: data.produtos || [],
+      bordado_tipo: _tipo,
+      bordado_linha1: _b.linha1||null, bordado_linha2: _b.linha2||null, bordado_linha3: _b.linha3||null,
+      bordado_cor_hex: _b.corHex||null, bordado_cor_nome: _b.corNome||null, bordado_fonte: _b.fonte||null,
+      bordado_lado: _b.lado||null, bordado_lado_logo: _b.ladoLogo||null,
+      bordado_imagem_url: _b.imagem||null, bordado_detalhes: _b.detalhes||null,
+      due_date: (typeof calcPrazoBordado==='function' ? calcPrazoBordado(_tipo) : null)
     }).select().single();
     if (error){ toast('Erro ao criar card: '+error.message); return; }
-    if (nc){ cards.push(nc); cardLabels[nc.id]=[]; cardMembers[nc.id]=[]; renderBoard(); puxarFotoDoSite(nc); openCard(nc.id); toast('Card criado! Preencha o bordado e escolha o produto.'); }
+    if (nc){
+      let _lblArr=[];
+      if (_tipo && typeof labels!=='undefined' && Array.isArray(labels)){
+        const _lbl = labels.find(l => (_tipo==='logomarca'&&/logo/i.test(l.name)) || (_tipo==='nome_profissao'&&/nome/i.test(l.name)) || (_tipo==='ambos'&&/ambos/i.test(l.name)));
+        if (_lbl){ try{ await sb.from('card_labels').insert({card_id:nc.id, label_id:_lbl.id}); _lblArr=[_lbl]; }catch(e){} }
+      }
+      cards.push(nc); cardLabels[nc.id]=_lblArr; cardMembers[nc.id]=[]; renderBoard(); puxarFotoDoSite(nc); openCard(nc.id);
+      toast(_tipo ? 'Card criado com o bordado do pedido!' : 'Card criado! Preencha o bordado e escolha o produto.');
+    }
   } finally {
     criarCardPedidoManual._busy = false;
   }
