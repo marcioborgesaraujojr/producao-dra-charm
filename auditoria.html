@@ -63,8 +63,9 @@
 
 <div class="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-5">
   <div class="card p-3 sm:p-4 mb-4">
-    <div class="grid grid-cols-2 sm:grid-cols-6 gap-2 items-end">
+    <div class="grid grid-cols-2 sm:grid-cols-7 gap-2 items-end">
       <div class="col-span-2 sm:col-span-2"><label class="text-[11px] text-slate-400">Buscar (pessoa, item, conteúdo)</label><input id="fBusca" oninput="renderLogs()" placeholder="ex.: edilene, OC 480…" class="fld w-full mt-0.5"></div>
+      <div><label class="text-[11px] text-slate-400">Usuário</label><select id="fUser" onchange="renderLogs()" class="fld w-full mt-0.5"><option value="">Todos</option></select></div>
       <div><label class="text-[11px] text-slate-400">Área</label><select id="fTabela" onchange="renderLogs()" class="fld w-full mt-0.5"><option value="">Todas</option></select></div>
       <div><label class="text-[11px] text-slate-400">Ação</label><select id="fOp" onchange="renderLogs()" class="fld w-full mt-0.5"><option value="">Todas</option><option value="INSERT">Criação</option><option value="UPDATE">Edição</option><option value="DELETE">Exclusão</option></select></div>
       <div><label class="text-[11px] text-slate-400">De</label><input id="fDe" type="date" onchange="loadLogs()" class="fld w-full mt-0.5"></div>
@@ -73,6 +74,7 @@
     <div class="flex items-center gap-3 mt-3 flex-wrap">
       <label class="flex items-center gap-1.5 text-[12px] text-slate-600 dark:text-slate-300 cursor-pointer"><input id="fCards" type="checkbox" onchange="loadLogs()" class="accent-indigo-600"> Mostrar movimentações do quadro (kanban) — mais técnico e volumoso</label>
       <button onclick="loadLogs()" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700">Atualizar</button>
+      <button onclick="exportarCSV()" class="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-ink-600 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-ink-700">Exportar CSV</button>
       <div id="resumo" class="text-[12px] text-slate-500 ml-auto"></div>
     </div>
   </div>
@@ -184,14 +186,51 @@ window.loadLogs=async function(){
   const areas=[...new Set(LOGS.map(l=>l.tabela))].sort((a,b)=>areaNome(a).localeCompare(areaNome(b)));
   sel.innerHTML='<option value="">Todas</option>'+areas.map(a=>`<option value="${a}">${esc(areaNome(a))}</option>`).join('');
   sel.value=cur;
+  // filtro por USUÁRIO: monta a lista com quem aparece no período, já com a contagem de ações
+  const su=document.getElementById('fUser');
+  if(su){
+    const curU=su.value; const cont={};
+    LOGS.forEach(l=>{ const k=(l.who||'').trim()||'__sem__'; cont[k]=(cont[k]||0)+1; });
+    const nomes=Object.keys(cont).filter(k=>k!=='__sem__').sort((a,b)=>cont[b]-cont[a]);
+    su.innerHTML='<option value="">Todos</option>'
+      + nomes.map(n=>`<option value="${esc(n)}">${esc(n)} (${cont[n]})</option>`).join('')
+      + (cont.__sem__?`<option value="__sem__">(sem usuário) (${cont.__sem__})</option>`:'');
+    su.value=curU;
+  }
   renderLogs();
+};
+// Exporta exatamente o que está filtrado na tela, pra investigar fora ou guardar evidência.
+window.exportarCSV=function(){
+  const arr=(window.__ARR||[]);
+  if(!arr.length){ alert('Nada pra exportar com esses filtros.'); return; }
+  const asp=s=>'"'+String(s==null?'':s).replace(/"/g,'""').replace(/\r?\n/g,' ')+'"';
+  const linhas=[['Data e hora','Usuario','Area','Acao','Registro','Resumo','Antes','Depois'].map(asp).join(';')];
+  arr.forEach(l=>{
+    linhas.push([
+      new Date(l.ts).toLocaleString('pt-BR'),
+      l.who||'(sem usuario)',
+      (typeof areaNome==='function'?areaNome(l.tabela):l.tabela),
+      ({INSERT:'Criou',UPDATE:'Editou',DELETE:'Excluiu'}[l.op]||l.op),
+      l.rid||'',
+      (typeof resumo==='function'?String(resumo(l)).replace(/<[^>]*>/g,''):''),
+      JSON.stringify(l.antes||''), JSON.stringify(l.depois||l.meta||'')
+    ].map(asp).join(';'));
+  });
+  const blob=new Blob(['﻿'+linhas.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='auditoria-'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
 };
 window.renderLogs=function(){
   const q=(document.getElementById('fBusca').value||'').toLowerCase().trim();
   const ft=document.getElementById('fTabela').value, fo=document.getElementById('fOp').value;
+  const fu=(document.getElementById('fUser')||{}).value||'';
   let arr=LOGS.filter(l=> (!ft||l.tabela===ft) && (!fo||l.op===fo));
+  if(fu) arr=arr.filter(l=> fu==='__sem__' ? !((l.who||'').trim()) : (l.who||'').trim()===fu );
   if(q) arr=arr.filter(l=>{ const blob=(l.who||'')+' '+resumo(l)+' '+l.tabela+' '+JSON.stringify(l.antes||l.depois||l.meta||''); return blob.toLowerCase().includes(q); });
-  document.getElementById('resumo').textContent = arr.length+' ação(ões)';
+  window.__ARR=arr;   // guarda o resultado filtrado (usado pelo Exportar CSV)
+  document.getElementById('resumo').textContent = arr.length+' ação(ões)'+(fu?(' · '+(fu==='__sem__'?'sem usuário':fu)):'');
   document.getElementById('lista').innerHTML = arr.length? arr.map(l=>{
     const oi=opInfo[l.op]||{l:l.op,c:'bg-slate-100 text-slate-600'};
     const quem = l.who ? esc(l.who) : '<span class="text-slate-300 dark:text-slate-600">—</span>';

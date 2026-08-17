@@ -285,12 +285,33 @@ async function loadConversas(){
   });
 }
 // Carrega as mensagens de UMA conversa (sob demanda, ao abrir).
+// ===== Mídia protegida =====
+// As fotos/áudios/documentos que o cliente manda ficam no bucket "at-media".
+// Esse bucket é PRIVADO (dado pessoal do cliente — LGPD), então o link direto não abre.
+// Aqui a gente troca o link salvo por um link ASSINADO, que só funciona pra quem está
+// logado e expira sozinho. Se o link não for do at-media (ex.: foto do WhatsApp), fica como está.
+function _pathAtMedia(url){
+  try{ const m=String(url||'').match(/\/at-media\/(.+)$/); return m? decodeURIComponent(m[1].split('?')[0]) : null; }catch(e){ return null; }
+}
+async function assinarMidias(msgs){
+  try{
+    const alvo=(msgs||[]).filter(m=>m.midia && _pathAtMedia(m.midia));
+    if(!alvo.length) return msgs;
+    const c=await getSb();
+    const paths=[...new Set(alvo.map(m=>_pathAtMedia(m.midia)))];
+    const { data, error } = await c.storage.from('at-media').createSignedUrls(paths, 60*60*4); // vale 4h
+    if(error || !data) return msgs;
+    const mapa={}; data.forEach(d=>{ if(d && d.path && d.signedUrl) mapa[d.path]=d.signedUrl; });
+    alvo.forEach(m=>{ const p=_pathAtMedia(m.midia); if(p && mapa[p]) m.midia=mapa[p]; });
+  }catch(e){ /* se falhar, mantém o link original */ }
+  return msgs;
+}
 async function carregarMsgs(cv){
   if(!cv || cv._msgsLoaded) return;
   try{
     const c = await getSb();
     const { data } = await c.from('at_conversas').select('mensagens:at_mensagens(*)').eq('id', cv.id).maybeSingle();
-    cv.msgs = _mapMsgs(data && data.mensagens);
+    cv.msgs = await assinarMidias(_mapMsgs(data && data.mensagens));
     cv._msgsLoaded = true;
   }catch(e){ console.warn('carregarMsgs:', e.message); }
 }
@@ -592,7 +613,11 @@ async function enviarFoto(file){
     const path='out/'+Date.now()+'-'+Math.round(Math.random()*1e9)+'.'+ext;
     const up=await c.storage.from('at-media').upload(path, file, {contentType:file.type, upsert:true});
     if(up.error) throw up.error;
-    const url=c.storage.from('at-media').getPublicUrl(path).data.publicUrl;
+    // Bucket privado: gera link ASSINADO (o WhatsApp precisa baixar a imagem pra entregar).
+    // Validade curta — depois disso o link morre sozinho.
+    let url='';
+    { const sg=await c.storage.from('at-media').createSignedUrl(path, 60*60*2);
+      url=(sg && sg.data && sg.data.signedUrl) || c.storage.from('at-media').getPublicUrl(path).data.publicUrl; }
     cv.msgs.push({t:'out', txt:caption, hora, midia:url, midiaTipo:'imagem'});
     document.getElementById('msgInput').value=''; updCount(); renderChat(cv);
     const {data:{session}}=await c.auth.getSession();
