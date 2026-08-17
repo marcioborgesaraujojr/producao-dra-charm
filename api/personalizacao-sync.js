@@ -220,7 +220,14 @@ export default async function handler(req,res){
       if(!d || !d.itens) return res.status(404).json({error:'Pedido '+num+' não encontrado na Loja Integrada'});
       const cliente=(d.cliente&&(d.cliente.nome||d.cliente.email))||null;
       const rb=await buildProdutos(d.itens, {}, d.cliente_obs);
-      return res.status(200).json({ ok:true, numero:num, cliente, telefone:telClienteDoPedido(d), produtos: rb.produtos||[] });
+      // Detecta o tipo do bordado igual ao sync da extensao (pelos SKUs do pedido) e ja devolve o bordado
+      // pronto, pra o "+ Novo card" manual criar o card com o tipo/etiqueta setados (nao mais em branco).
+      const _skus=(d.itens||[]).map(it=>String(it.sku||'').toUpperCase());
+      const _hasLogo=_skus.includes(SKU_LOGOMARCA);
+      const _hasPerso=_skus.includes(SKU_PERSONALIZACAO);
+      const tipoOrder=(_hasLogo&&_hasPerso)?'ambos':(_hasLogo?'logomarca':(_hasPerso?'nome_profissao':null));
+      const bordado=buildBordado(tipoOrder, d.cliente_obs);
+      return res.status(200).json({ ok:true, numero:num, cliente, telefone:telClienteDoPedido(d), produtos: rb.produtos||[], bordado_tipo:tipoOrder, bordado });
     }catch(e){ return res.status(500).json({error:e.message}); }
   }
   const commit = q.commit==='1';
