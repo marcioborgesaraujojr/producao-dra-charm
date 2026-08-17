@@ -1007,6 +1007,18 @@
           </div>
           <div id="gradesExtras" class="hidden space-y-3">
             <div id="alertaOficina" class="hidden text-[11px] rounded-md px-2 py-1"></div>
+            <div id="lavBox">
+              <div class="flex items-center gap-2">
+                <label class="text-xs font-medium uppercase text-cyan-600 dark:text-cyan-400 inline-flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="5"/><path d="M3 6h18v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6z"/><path d="M7 3h10"/></svg>Lavanderia — enviado</label>
+                <span id="alertaLav" class="ml-auto text-[10px]"></span>
+              </div>
+              <div id="gradeLavEnv" class="mt-1 grid grid-cols-6 gap-1"></div>
+              <div class="flex items-center gap-2 mt-2">
+                <label class="text-xs font-medium uppercase text-teal-600 dark:text-teal-400 inline-flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Lavanderia — recebido (baixa)</label>
+                <span id="lavPendente" class="ml-auto text-[10px]"></span>
+              </div>
+              <div id="gradeLavRec" class="mt-1 grid grid-cols-6 gap-1"></div>
+            </div>
             <div>
               <div class="flex items-center gap-2">
                 <label class="text-xs font-medium uppercase text-blue-600 dark:text-blue-400 inline-flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>Acabamento</label>
@@ -1041,6 +1053,10 @@
             <div id="boxTotalAcab" class="hidden p-2 rounded-lg bg-blue-50 dark:bg-blue-900/25">
               <div class="text-[10px] uppercase tracking-wide font-semibold text-blue-700 dark:text-blue-300">Acabamento</div>
               <div class="text-lg font-bold leading-none mt-1 text-blue-700 dark:text-blue-200"><span id="cardTotalAcab">0</span><span class="text-[10px] font-normal opacity-70"> +<span id="cardTotalFalha">0</span>f</span></div>
+            </div>
+            <div id="boxTotalLav" class="hidden p-2 rounded-lg bg-cyan-50 dark:bg-cyan-900/25">
+              <div class="text-[10px] uppercase tracking-wide font-semibold text-cyan-700 dark:text-cyan-300">Na lavanderia</div>
+              <div class="text-lg font-bold leading-none mt-1 text-cyan-700 dark:text-cyan-200"><span id="cardTotalLav">0</span><span class="text-[10px] font-normal opacity-70"> pç</span></div>
             </div>
             <div id="boxTotalEstoque" class="hidden p-2 rounded-lg bg-violet-50 dark:bg-violet-900/25">
               <div class="text-[10px] uppercase tracking-wide font-semibold text-violet-700 dark:text-violet-300">Estoque</div>
@@ -2297,6 +2313,45 @@ async function logBordadoMov(card, listId){
   }catch(e){}
 }
 
+// Total de peças de um card de corte (grade final somada), sem bagunçar o estado do módulo aberto.
+function corteTotalDe(cg){
+  try{
+    if(!window.CorteGrade || !cg || !CorteGrade.coresFinal) return 0;
+    const _snap = CorteGrade.serialize ? CorteGrade.serialize() : null;
+    CorteGrade.load(cg);
+    const tot = (CorteGrade.coresFinal()||[]).reduce((s,x)=>s+(x.total||0),0);
+    if(_snap!=null){ try{ CorteGrade.load(_snap); }catch(_){ } }
+    return tot;
+  }catch(e){ return 0; }
+}
+// MÉTRICAS: registra peças cortadas quando o card do CORTE entra em "Cortada P/ Oficina" (quem faz é o cortador).
+async function logCorteMov(card, listId){
+  try{
+    if(!card || !listId) return;
+    const b = Array.isArray(boards) ? boards.find(x=>x.id===currentBoardId) : null;
+    if(!b || !/corte/i.test(b.name||'')) return;
+    const l = Array.isArray(lists) ? lists.find(x=>x.id===listId) : null;
+    const nm = (l && l.name) || '';
+    if(!/cortada.*oficina/i.test(nm)) return;
+    const pcs = corteTotalDe(card.corte_grade);
+    if(pcs>0) await sb.from('activity_log').insert({ card_id: card.id, actor_id: user.id, action:'corte_pcs', meta:{ pcs, title: card.title||'', src:'move' } });
+  }catch(e){}
+}
+
+// Ao mover pra Lavanderia, abre o card já na grade "Lavanderia — enviado" pra lançar as peças enviadas.
+function abrirLavanderiaSeNecessario(card, listId){
+  try{
+    const b = Array.isArray(boards) ? boards.find(x=>x.id===currentBoardId) : null;
+    if (!b || !/produ/i.test(b.name||'')) return;
+    const l = Array.isArray(lists) ? lists.find(x=>x.id===listId) : null;
+    if (!l || !/lavanderia/i.test(l.name||'')) return;
+    if (typeof openCard !== 'function') return;
+    openCard(card.id);
+    toast('Lance quantas peças foram pra lavanderia.');
+    setTimeout(()=>{ const g=document.getElementById('gradeLavEnv'); if (g) g.scrollIntoView({block:'center', behavior:'smooth'}); }, 800);
+  }catch(e){}
+}
+
 async function dropCardAt(cardId, listId, clientY){
   // Mover card é liberado pra qualquer membro do quadro (a função move_card no banco valida o acesso).
   const card = cards.find(x => x.id === cardId);
@@ -2333,7 +2388,7 @@ async function dropCardAt(cardId, listId, clientY){
   if (error){ toast('Não foi possível mover o card: ' + error.message); return false; }
   const _movedLists = (card.list_id !== listId);
   card.list_id = listId; card.position = newPos; _localMoveAt = Date.now(); renderBoard();
-  if (_movedLists) logBordadoMov(card, listId);
+  if (_movedLists){ logBordadoMov(card, listId); logCorteMov(card, listId); abrirLavanderiaSeNecessario(card, listId); }
   return true;
 }
 
@@ -2378,7 +2433,7 @@ async function moverSelecionados(){
     base += STEP;
     let { error } = await sb.rpc('move_card', { p_card: id, p_list: listId, p_pos: base });
     if (error){ const r = await sb.from('cards').update({ list_id: listId, position: base }).eq('id', id); error = r.error; }
-    if (!error){ const c = cards.find(x=>x.id===id); if (c){ const _ml=(c.list_id!==listId); c.list_id = listId; c.position = base; if(_ml) logBordadoMov(c, listId); } ok++; }
+    if (!error){ const c = cards.find(x=>x.id===id); if (c){ const _ml=(c.list_id!==listId); c.list_id = listId; c.position = base; if(_ml){ logBordadoMov(c, listId); logCorteMov(c, listId); } } ok++; }
   }
   _localMoveAt = Date.now();
   toast(ok + (ok===1?' card movido':' cards movidos') + (alvo ? (' para ' + alvo.name) : ''));
@@ -2909,13 +2964,13 @@ async function openCard(id){
   document.getElementById('corteFields').classList.toggle('hidden', bType !== 'corte' && bType !== 'estoque');
   document.getElementById('marketingFields').classList.toggle('hidden', bType !== 'marketing');
   document.getElementById('bordadoFields').classList.toggle('hidden', bType !== 'bordado');
-  document.getElementById('tecidoField').classList.toggle('hidden', bType !== 'producao');
+  document.getElementById('tecidoField').classList.add('hidden'); // "Tecido consumido" removido do card (irrelevante pro fluxo)
   // No Corte a "Data limite" dá lugar ao check "Etiquetas/Composições separadas".
   document.getElementById('dueField').classList.toggle('hidden', bType === 'corte');
   document.getElementById('separadasField').classList.toggle('hidden', bType !== 'corte');
   document.getElementById('faccaoField').classList.toggle('hidden', labels.length === 0);
-  // Descrição: aparece nos quadros, exceto no Bordado (o card de bordado não usa descrição).
-  document.getElementById('cardDescBox').classList.toggle('hidden', bType === 'bordado');
+  // Descrição: aparece nos quadros, exceto no Bordado e na Produção (não são usadas).
+  document.getElementById('cardDescBox').classList.toggle('hidden', bType === 'bordado' || bType === 'producao');
   document.getElementById('cardChecklistBox').classList.toggle('hidden', bType === 'producao' || bType === 'bordado' || bType === 'corte' || bType === 'estoque');
   document.getElementById('cardTitle').value = c.title || '';
   document.getElementById('cardDesc').value = c.description || '';
@@ -4175,12 +4230,8 @@ window.gerarCardsCortada = async function(corIds){
     if (error){ toast('Erro ao gerar cards: '+error.message); return; }
     const n=(ins||[]).length;
     toast(n+' card'+(n>1?'s':'')+' criado'+(n>1?'s':'')+' em Produção › Cortadas'+(pulados?(' · '+pulados+' já existia'):'')+'.');
-    // MÉTRICAS: registra as peças cortadas (fonte do gráfico "peças cortadas por período" no Painel de Métricas).
-    try {
-      const tamOf = c => (c.tam_pp||0)+(c.tam_p||0)+(c.tam_m||0)+(c.tam_g||0)+(c.tam_gg||0)+(c.tam_xg||0);
-      const logRows = (ins||[]).map(nc => ({ card_id: nc.id, actor_id: user.id, action:'corte_pcs', meta:{ pcs: tamOf(nc), title: nc.title||'', oc: baseTitle } })).filter(r=>r.meta.pcs>0);
-      if (logRows.length) await sb.from('activity_log').insert(logRows);
-    } catch(e){}
+    // (As "peças cortadas" do Painel de Métricas agora são contadas quando o card do Corte entra em
+    //  "Cortada P/ Oficina" — ver logCorteMov. Não conta mais aqui, pra não duplicar.)
     // Copia a etiqueta de facção (oficina) do corte pra cada card gerado.
     if (faccaoLabelIds.length && (ins||[]).length){
       const rows=[]; (ins||[]).forEach(nc=>faccaoLabelIds.forEach(lid=>rows.push({card_id:nc.id, label_id:lid})));
@@ -4385,7 +4436,7 @@ document.addEventListener('click', e => {
 // Os lançamentos parciais ("+20", "+40"...) ficam no activity_log como action='grade',
 // meta = {etapa, tam, qtd}. Assim já vem com autor e data, e aparece no Log/Atividade.
 const TAMS = ['PP','P','M','G','GG','XG'];
-const ETAPAS = { cortada:{cor:'emerald', rot:'Cortada'}, oficina:{cor:'amber', rot:'Entregue oficina'}, acabamento:{cor:'blue', rot:'Acabamento'}, falha:{cor:'red', rot:'Falhas'}, estoque:{cor:'violet', rot:'Estoque'} };
+const ETAPAS = { cortada:{cor:'emerald', rot:'Cortada'}, oficina:{cor:'amber', rot:'Entregue oficina'}, lav_env:{cor:'cyan', rot:'Lavanderia enviado'}, lav_rec:{cor:'teal', rot:'Lavanderia recebido'}, acabamento:{cor:'blue', rot:'Acabamento'}, falha:{cor:'red', rot:'Falhas'}, estoque:{cor:'violet', rot:'Estoque'} };
 // Cortada/Oficina são ancoradas na COLUNA do card (tam_pp.../tam_pp_of...). O "+" incrementa a coluna
 // (via os inputs escondidos + autosave) e registra o lançamento no histórico. Assim divergência/Painel/sync
 // (que leem as colunas) continuam funcionando.
@@ -4506,11 +4557,11 @@ window.darOkGrade = async (etapa) => {
 };
 
 // Classes fixas (o Tailwind do CDN não gera nomes montados em tempo de execução)
-const RING_ETAPA = { cortada:'ring-2 ring-emerald-400', oficina:'ring-2 ring-amber-400', acabamento:'ring-2 ring-blue-400', falha:'ring-2 ring-red-400', estoque:'ring-2 ring-violet-400' };
-const HOVER_ETAPA = { cortada:'hover:border-emerald-400', oficina:'hover:border-amber-400', acabamento:'hover:border-blue-400', falha:'hover:border-red-400', estoque:'hover:border-violet-400' };
+const RING_ETAPA = { cortada:'ring-2 ring-emerald-400', oficina:'ring-2 ring-amber-400', lav_env:'ring-2 ring-cyan-400', lav_rec:'ring-2 ring-teal-400', acabamento:'ring-2 ring-blue-400', falha:'ring-2 ring-red-400', estoque:'ring-2 ring-violet-400' };
+const HOVER_ETAPA = { cortada:'hover:border-emerald-400', oficina:'hover:border-amber-400', lav_env:'hover:border-cyan-400', lav_rec:'hover:border-teal-400', acabamento:'hover:border-blue-400', falha:'hover:border-red-400', estoque:'hover:border-violet-400' };
 // Cor de fundo suave por etapa (identidade da linha). Classes literais p/ o Tailwind CDN gerar.
-const CELL_BG = { cortada:'bg-emerald-50 dark:bg-emerald-900/20', oficina:'bg-amber-50 dark:bg-amber-900/20', acabamento:'bg-blue-50 dark:bg-blue-900/20', falha:'bg-red-50 dark:bg-red-900/20', estoque:'bg-violet-50 dark:bg-violet-900/20' };
-const CELL_BORDER = { cortada:'border-transparent', oficina:'border-transparent', acabamento:'border-transparent', falha:'border-transparent', estoque:'border-transparent' };
+const CELL_BG = { cortada:'bg-emerald-50 dark:bg-emerald-900/20', oficina:'bg-amber-50 dark:bg-amber-900/20', lav_env:'bg-cyan-50 dark:bg-cyan-900/20', lav_rec:'bg-teal-50 dark:bg-teal-900/20', acabamento:'bg-blue-50 dark:bg-blue-900/20', falha:'bg-red-50 dark:bg-red-900/20', estoque:'bg-violet-50 dark:bg-violet-900/20' };
+const CELL_BORDER = { cortada:'border-transparent', oficina:'border-transparent', lav_env:'border-transparent', lav_rec:'border-transparent', acabamento:'border-transparent', falha:'border-transparent', estoque:'border-transparent' };
 function celulaGrade(etapa, tam){
   // Cortada/Oficina leem a COLUNA (fonte da verdade); as demais somam o histórico (activity_log).
   const isCol = (etapa === 'cortada' || etapa === 'oficina');
@@ -4547,9 +4598,23 @@ window.renderGrades = () => {
   if (!box || box.classList.contains('hidden')) return;
   const gcE = document.getElementById('gradeCortada'); if (gcE) gcE.innerHTML = TAMS.map(t=>celulaGrade('cortada',t)).join('');
   const goE = document.getElementById('gradeOficina'); if (goE) goE.innerHTML = TAMS.map(t=>celulaGrade('oficina',t)).join('');
+  const glE = document.getElementById('gradeLavEnv'); if (glE) glE.innerHTML = TAMS.map(t=>celulaGrade('lav_env',t)).join('');
+  const glR = document.getElementById('gradeLavRec'); if (glR) glR.innerHTML = TAMS.map(t=>celulaGrade('lav_rec',t)).join('');
   document.getElementById('gradeAcab').innerHTML = TAMS.map(t=>celulaGrade('acabamento',t)).join('');
   document.getElementById('gradeFalha').innerHTML = TAMS.map(t=>celulaGrade('falha',t)).join('');
   document.getElementById('gradeEstoque').innerHTML = TAMS.map(t=>celulaGrade('estoque',t)).join('');
+  // Lavanderia: enviado x recebido (o que ainda está lá fora)
+  const tLavE = gradeTotalEtapa('lav_env'), tLavR = gradeTotalEtapa('lav_rec');
+  const naLav = Math.max(0, tLavE - tLavR);
+  const boxLav = document.getElementById('boxTotalLav');
+  if (boxLav) boxLav.classList.toggle('hidden', (tLavE + tLavR) === 0);
+  const totLavEl = document.getElementById('cardTotalLav'); if (totLavEl) totLavEl.textContent = naLav;
+  const pendEl = document.getElementById('lavPendente');
+  if (pendEl){
+    if (tLavE === 0) pendEl.textContent = '';
+    else if (naLav > 0){ pendEl.textContent = naLav + ' pç ainda na lavanderia'; pendEl.className = 'ml-auto text-[10px] text-cyan-600 dark:text-cyan-400 font-semibold'; }
+    else { pendEl.textContent = 'tudo recebido ✓'; pendEl.className = 'ml-auto text-[10px] text-emerald-600 dark:text-emerald-400'; }
+  }
   // Totais
   const tAcab = gradeTotalEtapa('acabamento'), tFal = gradeTotalEtapa('falha'), tEst = gradeTotalEtapa('estoque');
   document.getElementById('cardTotalAcab').textContent = tAcab;
@@ -4604,7 +4669,7 @@ function renderLancBox(){
   const { etapa, tam } = lancAtual;
   // Move a caixa pra logo ABAIXO da grade da etapa clicada (senão clicar numa célula da Cortada
   // abria o campo lá embaixo, depois do Estoque — ficava estranho).
-  const GRID_OF = { cortada:'gradeCortada', oficina:'gradeOficina', acabamento:'gradeAcab', falha:'gradeFalha', estoque:'gradeEstoque' };
+  const GRID_OF = { cortada:'gradeCortada', oficina:'gradeOficina', lav_env:'gradeLavEnv', lav_rec:'gradeLavRec', acabamento:'gradeAcab', falha:'gradeFalha', estoque:'gradeEstoque' };
   const grid = document.getElementById(GRID_OF[etapa]);
   if (grid && grid.parentNode && grid.nextSibling !== box){ grid.parentNode.insertBefore(box, grid.nextSibling); }
   const isCol = (etapa === 'cortada' || etapa === 'oficina');
@@ -6221,72 +6286,98 @@ async function calcPainelKPIs(){
   ]);
   const finEvents   = (gradeR.data||[]).filter(r=>r.meta && r.meta.etapa==='estoque').map(r=>({ t:r.created_at, q:(+(r.meta && r.meta.qtd)||0) }));
   const acabEvents  = (gradeR.data||[]).filter(r=>r.meta && r.meta.etapa==='acabamento').map(r=>({ t:r.created_at, q:(+(r.meta && r.meta.qtd)||0) }));
+  const lavEnvEvents = (gradeR.data||[]).filter(r=>r.meta && r.meta.etapa==='lav_env').map(r=>({ t:r.created_at, q:(+(r.meta && r.meta.qtd)||0), card:r.card_id }));
+  const lavRecEvents = (gradeR.data||[]).filter(r=>r.meta && r.meta.etapa==='lav_rec').map(r=>({ t:r.created_at, q:(+(r.meta && r.meta.qtd)||0), card:r.card_id }));
+  // Saldo por card: o que foi enviado e ainda não voltou (não deixa negativo distorcer o total).
+  const _lavByCard = {};
+  lavEnvEvents.forEach(e=>{ _lavByCard[e.card]=(_lavByCard[e.card]||0)+e.q; });
+  lavRecEvents.forEach(e=>{ _lavByCard[e.card]=(_lavByCard[e.card]||0)-e.q; });
+  const naLavanderia = Object.values(_lavByCard).reduce((s,v)=>s+Math.max(0,v),0);
+  const lavCards = Object.values(_lavByCard).filter(v=>v>0).length;
   const corteEvents = (corteR.data||[]).map(r=>({ t:r.created_at, q:(+(r.meta && r.meta.pcs)||0) }));
   const bordEvents  = (bordR.data||[]).map(r=>({ t:r.created_at, tipo:(r.meta && r.meta.tipo)||'(sem)', stage:(r.meta && r.meta.stage)||'' }));
 
-  // Snapshot Bordado por tipo (cards atualmente nas listas finais da Personalização)
-  const finalRx = /conclu|finaliz|expedi|enviad/i;
-  const persoFinalIds = persoLists.filter(l=>finalRx.test(l.name)).map(l=>l.id);
-  const bordSnap = { logomarca:0, nome_profissao:0, ambos:0 };
-  if (persoFinalIds.length){
-    const bcR = await sb.from('cards').select('bordado_tipo').eq('archived',false).in('list_id',persoFinalIds);
-    (bcR.data||[]).forEach(c=>{ const t=c.bordado_tipo; if (bordSnap[t]!=null) bordSnap[t]++; });
-  }
+  // "Pedidos pra bordar" (em aberto): Logo = Bordado Externo (Logomarca) + Logo em Produção; Nome = Bordado Interno (Nome/Profissão)
+  const _cnt = async (rx) => {
+    const l = persoLists.find(x=>rx.test(x.name)); if(!l) return 0;
+    const { count } = await sb.from('cards').select('id',{count:'exact',head:true}).eq('archived',false).eq('list_id',l.id);
+    return count||0;
+  };
+  const bordExterno = await _cnt(/bordado\s*externo/i);
+  const bordLogoProd = await _cnt(/logo\s*em\s*produ/i);
+  const bordInterno = await _cnt(/bordado\s*interno/i);
+  const bordParaBordar = { logo: bordExterno + bordLogoProd, nome: bordInterno, _ext:bordExterno, _logoprod:bordLogoProd };
 
-  return { setores, ocsRodando, pecasRodando, atrasadas, rolosTotal, estoqueTecidos, finEvents, acabEvents, corteEvents, bordEvents, bordSnap };
+  return { setores, ocsRodando, pecasRodando, atrasadas, rolosTotal, estoqueTecidos, finEvents, acabEvents, corteEvents, bordEvents, bordParaBordar, lavEnvEvents, lavRecEvents, naLavanderia, lavCards };
 }
 
-// Agrupa eventos em baldes por período: dia (14d), semana (8sem), mês (6m).
-function _bucketize(events, period, valFn){
+// ===== Período: presets (Hoje, Ontem, 7 dias, Mês atual, 30 dias, Ano atual, 90 dias, 12 meses, Personalizado) =====
+function _rangeFor(p){
+  const now=new Date(); const sod=d=>{const x=new Date(d);x.setHours(0,0,0,0);return x;};
+  const today=sod(now);
+  const mk=(s,e,b,label,short)=>({start:s,end:e,bucket:b,label:label,short:short});
+  if(p==='hoje')   return mk(today,today,'dia','Hoje','hoje');
+  if(p==='ontem'){ const y=new Date(today); y.setDate(y.getDate()-1); return mk(y,y,'dia','Ontem','ontem'); }
+  if(p==='7dias'){ const s=new Date(today); s.setDate(s.getDate()-6); return mk(s,today,'dia','Últimos 7 dias','nos últimos 7 dias'); }
+  if(p==='30dias'){ const s=new Date(today); s.setDate(s.getDate()-29); return mk(s,today,'dia','Últimos 30 dias','nos últimos 30 dias'); }
+  if(p==='90dias'){ const s=new Date(today); s.setDate(s.getDate()-89); return mk(s,today,'semana','Últimos 90 dias','nos últimos 90 dias'); }
+  if(p==='ano_atual'){ const s=new Date(today.getFullYear(),0,1); return mk(s,today,'mes','Ano atual','no ano'); }
+  if(p==='12meses'){ const s=new Date(today.getFullYear(),today.getMonth()-11,1); return mk(s,today,'mes','Últimos 12 meses','nos últimos 12 meses'); }
+  if(p==='custom'){ const c=window.__painelCustom||{}; const s=c.de?sod(new Date(c.de+'T00:00:00')):today; let e=c.ate?sod(new Date(c.ate+'T00:00:00')):today; if(e<s) e=s; const days=Math.round((e-s)/864e5); const b=days<=45?'dia':(days<=180?'semana':'mes'); return mk(s,e,b,'Personalizado','no período'); }
+  const s=new Date(today); s.setDate(1); return mk(s,today,'dia','Mês atual','no mês'); // padrão = mês atual
+}
+function _bucketLabel(b){ return b==='dia'?'dia':b==='mes'?'mês':'semana'; }
+// Monta os baldes cobrindo [start,end] na granularidade escolhida e soma os eventos.
+function _bucketsRange(events, r, valFn){
   valFn = valFn || (e=>e.q||0);
-  const now = new Date();
-  const sod = d => { const x=new Date(d); x.setHours(0,0,0,0); return x; };
-  const monday = d => { const x=sod(d); const day=(x.getDay()+6)%7; x.setDate(x.getDate()-day); return x; };
-  const som = d => { const x=sod(d); x.setDate(1); return x; };
+  const sod=d=>{const x=new Date(d);x.setHours(0,0,0,0);return x;};
+  const monday=d=>{const x=sod(d);const day=(x.getDay()+6)%7;x.setDate(x.getDate()-day);return x;};
+  const som=d=>{const x=sod(d);x.setDate(1);return x;};
   const MES=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
-  let n, norm, back, label;
-  if (period==='dia'){ n=14; norm=sod; back=(b,i)=>{ const d=new Date(b); d.setDate(d.getDate()-i); return d; }; label=d=>('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2); }
-  else if (period==='mes'){ n=6; norm=som; back=(b,i)=>{ const d=new Date(b); d.setMonth(d.getMonth()-i); return d; }; label=d=>MES[d.getMonth()]+'/'+String(d.getFullYear()).slice(-2); }
-  else { n=8; norm=monday; back=(b,i)=>{ const d=new Date(b); d.setDate(d.getDate()-i*7); return d; }; label=d=>('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2); }
   const DOW=['dom','seg','ter','qua','qui','sex','sáb'];
-  const isDia = period==='dia';
-  const baseNow = norm(now);
-  const buckets=[]; for (let i=n-1;i>=0;i--){ const d=norm(back(baseNow,i)); const bk={ key:d.getTime(), label:label(d), val:0 }; if(isDia){ const w=d.getDay(); bk.sub=DOW[w]; bk.weekend=(w===0||w===6); } buckets.push(bk); }
-  const idx={}; buckets.forEach((b,i)=>idx[b.key]=i);
-  events.forEach(e=>{ const k=norm(new Date(e.t)).getTime(); if (idx[k]!=null) buckets[idx[k]].val += valFn(e); });
+  let norm,next,label;
+  if(r.bucket==='dia'){ norm=sod; next=d=>{const x=new Date(d);x.setDate(x.getDate()+1);return x;}; label=d=>('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2); }
+  else if(r.bucket==='mes'){ norm=som; next=d=>{const x=new Date(d);x.setMonth(x.getMonth()+1);return x;}; label=d=>MES[d.getMonth()]+'/'+String(d.getFullYear()).slice(-2); }
+  else { norm=monday; next=d=>{const x=new Date(d);x.setDate(x.getDate()+7);return x;}; label=d=>('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2); }
+  const buckets=[]; const idx={}; let cur=norm(r.start); const endN=norm(r.end); let guard=0;
+  while(cur.getTime()<=endN.getTime() && guard<400){
+    const bk={ key:cur.getTime(), label:label(cur), val:0 };
+    if(r.bucket==='dia'){ const w=cur.getDay(); bk.sub=DOW[w]; bk.weekend=(w===0||w===6); }
+    idx[bk.key]=buckets.length; buckets.push(bk); cur=next(cur); guard++;
+  }
+  events.forEach(e=>{ const k=norm(new Date(e.t)).getTime(); if(idx[k]!=null) buckets[idx[k]].val += valFn(e); });
   return buckets;
 }
-// Meta semanal escalada pro período exibido.
-function _metaFor(key, period){ const w=(window.__metas && +window.__metas[key])||0; if(!w) return 0; if(period==='dia') return Math.round(w/6); if(period==='mes') return w*4; return w; }
-function _perLabel(p){ return p==='dia'?'dia (14 dias)':p==='mes'?'mês (6 meses)':'semana (8 semanas)'; }
-function _perShort(p){ return p==='dia'?'do dia':p==='mes'?'do mês':'da semana'; }
-// Valor do período atual (último balde) e rótulo curto.
-function _cur(buckets){ return buckets.length ? buckets[buckets.length-1].val : 0; }
-function _curLabel(p){ return p==='dia'?'hoje':p==='mes'?'neste mês':'nesta semana'; }
+function _sum(buckets){ return buckets.reduce((s,x)=>s+x.val,0); }
+// Meta semanal escalada: por balde (linha no gráfico) e pro período todo (barra de progresso).
+function _metaForBucket(key, bucket){ const w=(window.__metas && +window.__metas[key])||0; if(!w) return 0; if(bucket==='dia') return Math.round(w/6); if(bucket==='mes') return w*4; return w; }
+function _metaForRange(key, r){ const w=(window.__metas && +window.__metas[key])||0; if(!w) return 0; const days=Math.max(1,Math.round((r.end-r.start)/864e5)+1); return Math.round(w*days/7); }
 
 function _barChart(buckets, meta, grad){
   const max = Math.max(1, meta||0, ...buckets.map(b=>b.val));
+  const many = buckets.length > 16;
   const bars = buckets.map(b=>{
     const h = b.val ? Math.max(4, Math.round(b.val/max*100)) : 0;
     const hit = meta && b.val>=meta;
     const wk = b.weekend;
-    return `<div class="flex-1 flex flex-col items-center gap-1 min-w-0 ${wk?'opacity-70':''}">
+    return `<div class="flex-1 flex flex-col items-center gap-1 min-w-0 ${many?'min-w-[20px]':''} ${wk?'opacity-70':''}">
       <div class="text-[11px] font-bold h-4 ${hit?'text-emerald-600 dark:text-emerald-400':'text-slate-500'}">${b.val?b.val.toLocaleString('pt-BR'):''}</div>
       <div class="w-full flex items-end justify-center relative ${wk?'rounded-t bg-slate-100/70 dark:bg-ink-700/40':''}" style="height:110px">
         ${meta?`<div class="absolute left-0 right-0 border-t-2 border-dashed border-pink-400/70" style="bottom:${Math.min(100,Math.round(meta/max*100))}%"></div>`:''}
         <div class="w-3/4 rounded-t bg-gradient-to-t ${wk?'from-slate-300 to-slate-200 dark:from-ink-600 dark:to-ink-500':(grad||'from-pink-500 to-pink-400')}" style="height:${h}%"></div>
       </div>
-      <div class="text-[10px] w-full text-center leading-tight truncate ${wk?'text-slate-400':'text-slate-400'}">${b.label}${b.sub?`<div class="text-[9px] ${wk?'text-amber-500 font-semibold':'text-slate-300 dark:text-slate-500'}">${b.sub}</div>`:''}</div>
+      <div class="text-[10px] w-full text-center leading-tight truncate text-slate-400">${b.label}${b.sub?`<div class="text-[9px] ${wk?'text-amber-500 font-semibold':'text-slate-300 dark:text-slate-500'}">${b.sub}</div>`:''}</div>
     </div>`;
   }).join('');
-  return `<div class="flex items-end gap-1.5" style="height:${buckets.some(b=>b.sub)?170:150}px">${bars}</div>`;
+  const hgt = buckets.some(b=>b.sub)?170:150;
+  return `<div class="${many?'overflow-x-auto':''}"><div class="flex items-end gap-1.5 ${many?'min-w-max':''}" style="height:${hgt}px">${bars}</div></div>`;
 }
 function _periodBar(){
-  const P = window.__painelPeriodo||'semana';
-  const opts = [['dia','Dia'],['semana','Semana'],['mes','Mês']];
-  return `<div class="inline-flex rounded-lg bg-slate-100 dark:bg-ink-700 p-0.5">
-    ${opts.map(([k,l])=>`<button onclick="painelPeriodo('${k}')" class="px-3 py-1 text-xs font-semibold rounded-md transition-colors ${P===k?'bg-white dark:bg-ink-600 shadow-sm text-slate-900 dark:text-slate-100':'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}">${l}</button>`).join('')}
-  </div>`;
+  const P = window.__painelPeriodo||'mes_atual';
+  const opts = [['hoje','Hoje'],['ontem','Ontem'],['7dias','Últimos 7 dias'],['mes_atual','Mês atual'],['30dias','Últimos 30 dias'],['ano_atual','Ano atual'],['90dias','Últimos 90 dias'],['12meses','Últimos 12 meses'],['custom','Personalizado…']];
+  let html = `<select onchange="painelPeriodo(this.value)" class="text-sm font-medium rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-slate-700 dark:text-slate-200 px-3 py-1.5">${opts.map(([k,l])=>`<option value="${k}" ${P===k?'selected':''}>${l}</option>`).join('')}</select>`;
+  if(P==='custom'){ const c=window.__painelCustom||{}; html += ` <input type="date" value="${c.de||''}" onchange="painelCustom('de',this.value)" class="text-xs rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 px-2 py-1"> <span class="text-xs text-slate-400">até</span> <input type="date" value="${c.ate||''}" onchange="painelCustom('ate',this.value)" class="text-xs rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 px-2 py-1">`; }
+  return `<div class="flex items-center gap-2 flex-wrap">${html}</div>`;
 }
 function _metaField(key){
   const v = (window.__metas && window.__metas[key])||0;
@@ -6307,10 +6398,11 @@ function kpiCard(label, value, icon, cls, valueCls){
 }
 function _heroMeta(label, val, meta, grad, icon){
   const pct = meta ? Math.min(100, Math.round(val/meta*100)) : 0;
+  const short = _rangeFor(window.__painelPeriodo||'mes_atual').short;
   return `<div class="rounded-2xl p-5 bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600 shadow-sm">
     <div class="flex items-center justify-between mb-2"><div class="text-xs font-semibold uppercase text-slate-400 tracking-wide">${label}</div><div class="text-slate-300 dark:text-slate-500">${icon}</div></div>
     <div class="text-3xl font-bold text-slate-900 dark:text-slate-100">${(val||0).toLocaleString('pt-BR')}</div>
-    ${meta?`<div class="mt-3"><div class="flex justify-between text-[11px] mb-1"><span class="text-slate-400">meta ${meta.toLocaleString('pt-BR')}</span><span class="${pct>=100?'text-emerald-600 dark:text-emerald-400 font-bold':'text-slate-500'}">${pct}%</span></div><div class="h-2 rounded-full bg-slate-100 dark:bg-ink-600 overflow-hidden"><div class="h-full rounded-full bg-gradient-to-r ${grad}" style="width:${pct}%"></div></div></div>`:`<div class="text-[11px] text-slate-400 mt-2">${_curLabel(window.__painelPeriodo||'semana')}</div>`}
+    ${meta?`<div class="mt-3"><div class="flex justify-between text-[11px] mb-1"><span class="text-slate-400">meta ${meta.toLocaleString('pt-BR')}</span><span class="${pct>=100?'text-emerald-600 dark:text-emerald-400 font-bold':'text-slate-500'}">${pct}%</span></div><div class="h-2 rounded-full bg-slate-100 dark:bg-ink-600 overflow-hidden"><div class="h-full rounded-full bg-gradient-to-r ${grad}" style="width:${pct}%"></div></div></div>`:`<div class="text-[11px] text-slate-400 mt-2">${short}</div>`}
   </div>`;
 }
 
@@ -6321,7 +6413,7 @@ async function openPainel(){
   const body = document.getElementById('painelBody');
   body.innerHTML = '<div class="dc-load"><img src="/aragao-loading.png" class="dc-logo-img" alt=""></div>';
   try {
-    if (!window.__painelPeriodo) window.__painelPeriodo = 'semana';
+    if (!window.__painelPeriodo) window.__painelPeriodo = 'mes_atual';
     await loadMetas();
     window.__painel = await calcPainelKPIs();
     const acc = _painelBoardAccess();
@@ -6333,6 +6425,7 @@ async function openPainel(){
 }
 window.painelTab = (t) => { window.__painelTab = t; renderPainel(); };
 window.painelPeriodo = (t) => { window.__painelPeriodo = t; renderPainel(); };
+window.painelCustom = (k,v) => { window.__painelCustom = Object.assign({}, window.__painelCustom||{}, {[k]:v}); if((window.__painelPeriodo||'')==='custom') renderPainel(); };
 
 function renderPainel(){
   const P = window.__painel; if (!P) return;
@@ -6357,58 +6450,58 @@ function renderPainel(){
 }
 
 function painelGeral(P){
-  const per = window.__painelPeriodo||'semana';
-  const cor = _cur(_bucketize(P.corteEvents, per));
-  const acb = _cur(_bucketize(P.acabEvents, per));
-  const fin = _cur(_bucketize(P.finEvents, per));
-  const exp = _cur(_bucketize(P.bordEvents.filter(e=>e.stage==='expedido'), per, ()=>1));
+  const r = _rangeFor(window.__painelPeriodo||'mes_atual');
+  const cor = _sum(_bucketsRange(P.corteEvents, r));
+  const acb = _sum(_bucketsRange(P.acabEvents, r));
+  const fin = _sum(_bucketsRange(P.finEvents, r));
+  const exp = _sum(_bucketsRange(P.bordEvents.filter(e=>e.stage==='expedido'), r, ()=>1));
   const atras = P.atrasadas.length;
   return `
     <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
-      <div class="text-sm font-medium text-slate-500">Resumo ${_perShort(per)}</div>
+      <div class="text-sm font-medium text-slate-500">Resumo — ${r.label}</div>
       ${_periodBar()}
     </div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
-      ${_heroMeta('Peças cortadas', cor, _metaFor('corte_semana',per), 'from-blue-500 to-blue-400', PIcon.scissors)}
-      ${_heroMeta('Acabamento', acb, _metaFor('acabamento_semana',per), 'from-sky-500 to-sky-400', PIcon.layers)}
-      ${_heroMeta('Entrada no estoque', fin, _metaFor('estoque_semana',per), 'from-emerald-500 to-emerald-400', PIcon.check)}
+      ${_heroMeta('Peças cortadas', cor, _metaForRange('corte_semana',r), 'from-blue-500 to-blue-400', PIcon.scissors)}
+      ${_heroMeta('Acabamento', acb, _metaForRange('acabamento_semana',r), 'from-sky-500 to-sky-400', PIcon.layers)}
+      ${_heroMeta('Entrada no estoque', fin, _metaForRange('estoque_semana',r), 'from-emerald-500 to-emerald-400', PIcon.check)}
       ${_heroMeta('Bordados expedidos', exp, 0, 'from-pink-500 to-pink-400', PIcon.tag)}
     </div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
       ${kpiCard('OCs rodando', P.ocsRodando, PIcon.box)}
       ${kpiCard('Peças rodando', P.pecasRodando, PIcon.layers)}
-      ${kpiCard('Rolos em estoque', P.rolosTotal, PIcon.roll)}
+      ${kpiCard('Na lavanderia', P.naLavanderia||0, PIcon.roll, (P.naLavanderia||0)>0?'bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-200 dark:border-cyan-800':'', (P.naLavanderia||0)>0?'text-cyan-700 dark:text-cyan-300':'')}
       ${kpiCard('OCs atrasadas', atras, PIcon.alert, atras?'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800':'', atras?'text-red-600 dark:text-red-400':'')}
     </div>`;
 }
 
 function painelCorte(P){
-  const per = window.__painelPeriodo||'semana';
-  const b = _bucketize(P.corteEvents, per);
-  const atual = _cur(b);
-  const metaW = _metaFor('corte_semana', per);
-  const vazio = P.corteEvents.length ? '' : '<div class="text-xs text-slate-400 mt-3">Ainda sem registros. Sempre que você usar o botão “Gerar cards em produção” no Corte, as peças cortadas entram aqui automaticamente.</div>';
-  const notaFds = per==='dia' ? '<div class="text-[11px] text-amber-500 mt-2">Sábado e domingo aparecem em cinza — normalmente sem lançamento.</div>' : '';
+  const r = _rangeFor(window.__painelPeriodo||'mes_atual');
+  const b = _bucketsRange(P.corteEvents, r);
+  const total = _sum(b);
+  const metaB = _metaForBucket('corte_semana', r.bucket);
+  const vazio = P.corteEvents.length ? '' : '<div class="text-xs text-slate-400 mt-3">Ainda sem registros. Toda vez que um card do Corte entra em “Cortada P/ Oficina”, as peças cortadas entram aqui automaticamente.</div>';
+  const notaFds = r.bucket==='dia' ? '<div class="text-[11px] text-amber-500 mt-2">Sábado e domingo aparecem em cinza — normalmente sem lançamento.</div>' : '';
   return `
     <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
-      <div><div class="text-xs uppercase tracking-wide text-slate-400 font-semibold">Peças cortadas</div><div class="text-3xl font-bold text-slate-900 dark:text-slate-100">${atual.toLocaleString('pt-BR')}<span class="text-sm font-medium text-slate-400 ml-2">${_curLabel(per)}</span></div></div>
+      <div><div class="text-xs uppercase tracking-wide text-slate-400 font-semibold">Peças cortadas</div><div class="text-3xl font-bold text-slate-900 dark:text-slate-100">${total.toLocaleString('pt-BR')}<span class="text-sm font-medium text-slate-400 ml-2">${r.short}</span></div></div>
       ${_periodBar()}
     </div>
     <div class="rounded-2xl bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600 p-5">
-      <div class="flex items-center justify-between gap-3 mb-4 flex-wrap"><div class="text-xs font-semibold uppercase text-slate-500 tracking-wide">Peças cortadas por ${_perLabel(per)}</div>${_metaField('corte_semana')}</div>
-      ${_barChart(b, metaW, 'from-blue-500 to-blue-400')}
+      <div class="flex items-center justify-between gap-3 mb-4 flex-wrap"><div class="text-xs font-semibold uppercase text-slate-500 tracking-wide">Peças cortadas por ${_bucketLabel(r.bucket)}</div>${_metaField('corte_semana')}</div>
+      ${_barChart(b, metaB, 'from-blue-500 to-blue-400')}
       ${notaFds}
       ${vazio}
     </div>`;
 }
 
 function painelProducao(P){
-  const per = window.__painelPeriodo||'semana';
-  const bEst = _bucketize(P.finEvents, per);
-  const bAcb = _bucketize(P.acabEvents, per);
-  const curEst = _cur(bEst), curAcb = _cur(bAcb);
-  const metaEst = _metaFor('estoque_semana', per), metaAcb = _metaFor('acabamento_semana', per);
-  const notaFds = per==='dia' ? '<div class="text-[11px] text-amber-500 mt-2">Sábado e domingo aparecem em cinza — normalmente sem lançamento.</div>' : '';
+  const r = _rangeFor(window.__painelPeriodo||'mes_atual');
+  const bAcb = _bucketsRange(P.acabEvents, r);
+  const bEst = _bucketsRange(P.finEvents, r);
+  const totAcb = _sum(bAcb), totEst = _sum(bEst);
+  const metaAcbB = _metaForBucket('acabamento_semana', r.bucket), metaEstB = _metaForBucket('estoque_semana', r.bucket);
+  const notaFds = r.bucket==='dia' ? '<div class="text-[11px] text-amber-500 mt-2">Sábado e domingo aparecem em cinza — normalmente sem lançamento.</div>' : '';
   const maxP = Math.max(1, ...P.setores.map(s=>s.pecas));
   const bars = P.setores.map(s => `
     <div class="mb-3">
@@ -6424,22 +6517,29 @@ function painelProducao(P){
   return `
     <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
       <div class="flex gap-8">
-        <div><div class="text-xs uppercase tracking-wide text-slate-400 font-semibold">Entrada no estoque</div><div class="text-3xl font-bold text-slate-900 dark:text-slate-100">${curEst.toLocaleString('pt-BR')}<span class="text-sm font-medium text-slate-400 ml-2">${_curLabel(per)}</span></div></div>
-        <div><div class="text-xs uppercase tracking-wide text-slate-400 font-semibold">Acabamento</div><div class="text-3xl font-bold text-slate-900 dark:text-slate-100">${curAcb.toLocaleString('pt-BR')}<span class="text-sm font-medium text-slate-400 ml-2">${_curLabel(per)}</span></div></div>
+        <div><div class="text-xs uppercase tracking-wide text-slate-400 font-semibold">Acabamento</div><div class="text-3xl font-bold text-slate-900 dark:text-slate-100">${totAcb.toLocaleString('pt-BR')}<span class="text-sm font-medium text-slate-400 ml-2">${r.short}</span></div></div>
+        <div><div class="text-xs uppercase tracking-wide text-slate-400 font-semibold">Entrada no estoque</div><div class="text-3xl font-bold text-slate-900 dark:text-slate-100">${totEst.toLocaleString('pt-BR')}<span class="text-sm font-medium text-slate-400 ml-2">${r.short}</span></div></div>
       </div>
       ${_periodBar()}
     </div>
     <div class="rounded-2xl bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600 p-5 mb-5">
-      <div class="flex items-center justify-between gap-3 mb-4 flex-wrap"><div class="text-xs font-semibold uppercase text-slate-500 tracking-wide">Dado entrada no estoque · por ${_perLabel(per)}</div>${_metaField('estoque_semana')}</div>
-      ${_barChart(bEst, metaEst, 'from-emerald-500 to-emerald-400')}
+      <div class="flex items-center justify-between gap-3 mb-4 flex-wrap"><div class="text-xs font-semibold uppercase text-slate-500 tracking-wide">Acabamento · por ${_bucketLabel(r.bucket)}</div>${_metaField('acabamento_semana')}</div>
+      ${_barChart(bAcb, metaAcbB, 'from-sky-500 to-sky-400')}
+      ${notaFds}
+      <div class="text-[11px] text-slate-400 mt-3">Peças que passaram pelo acabamento (lançamentos de acabamento). Vem antes da entrada no estoque.</div>
+    </div>
+    <div class="rounded-2xl bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600 p-5 mb-5">
+      <div class="flex items-center justify-between gap-3 mb-4 flex-wrap"><div class="text-xs font-semibold uppercase text-slate-500 tracking-wide">Dado entrada no estoque · por ${_bucketLabel(r.bucket)}</div>${_metaField('estoque_semana')}</div>
+      ${_barChart(bEst, metaEstB, 'from-emerald-500 to-emerald-400')}
       ${notaFds}
       <div class="text-[11px] text-slate-400 mt-3">Peças que deram entrada no estoque (finalizadas de fato).</div>
     </div>
-    <div class="rounded-2xl bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600 p-5 mb-5">
-      <div class="flex items-center justify-between gap-3 mb-4 flex-wrap"><div class="text-xs font-semibold uppercase text-slate-500 tracking-wide">Acabamento · por ${_perLabel(per)}</div>${_metaField('acabamento_semana')}</div>
-      ${_barChart(bAcb, metaAcb, 'from-sky-500 to-sky-400')}
-      ${notaFds}
-      <div class="text-[11px] text-slate-400 mt-3">Peças que passaram pelo acabamento (lançamentos de acabamento).</div>
+    <div class="rounded-2xl p-5 mb-5 flex items-center gap-4 ${(P.naLavanderia||0)>0?'bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-200 dark:border-cyan-800':'bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600'}">
+      <div class="shrink-0 text-cyan-500"><svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="5"/><path d="M3 6h18v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6z"/><path d="M7 3h10"/></svg></div>
+      <div>
+        <div class="text-2xl font-bold ${(P.naLavanderia||0)>0?'text-cyan-700 dark:text-cyan-300':'text-slate-900 dark:text-slate-100'}">${(P.naLavanderia||0).toLocaleString('pt-BR')} peça${(P.naLavanderia||0)===1?'':'s'} na lavanderia</div>
+        <div class="text-sm text-slate-500">${(P.naLavanderia||0)>0 ? ('Enviadas e ainda não recebidas de volta · '+(P.lavCards||0)+' OC'+((P.lavCards||0)===1?'':'s')+' — dá pra cobrar.') : 'Tudo que foi pra lavanderia já voltou.'}</div>
+      </div>
     </div>
     <div class="grid md:grid-cols-2 gap-5">
       <div class="rounded-2xl bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600 p-5">
@@ -6454,34 +6554,34 @@ function painelProducao(P){
 }
 
 function painelBordado(P){
-  const per = window.__painelPeriodo||'semana';
+  const r = _rangeFor(window.__painelPeriodo||'mes_atual');
   const tipos = [['logomarca','Logomarca','from-blue-400 to-blue-600'],['nome_profissao','Nome/Profissão','from-amber-400 to-amber-600'],['ambos','Ambos','from-purple-400 to-purple-600']];
-  const snapCards = tipos.map(([k,l]) => {
-    const n = P.bordSnap[k]||0;
-    return `<div class="rounded-2xl bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600 p-4"><div class="text-xs text-slate-500 mb-1">${l}</div><div class="text-3xl font-bold text-slate-900 dark:text-slate-100">${n}</div><div class="text-[11px] text-slate-400">pedidos nas listas finais</div></div>`;
-  }).join('');
+  const pb = P.bordParaBordar || { logo:0, nome:0 };
+  const paraBordar =
+    `<div class="rounded-2xl bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600 p-4"><div class="text-xs text-slate-500 mb-1">Logo <span class="text-slate-400">(bordado externo + logo em produção)</span></div><div class="text-3xl font-bold text-slate-900 dark:text-slate-100">${pb.logo||0}</div><div class="text-[11px] text-slate-400">pedidos pra bordar fora</div></div>`+
+    `<div class="rounded-2xl bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600 p-4"><div class="text-xs text-slate-500 mb-1">Nome/Profissão <span class="text-slate-400">(bordado interno)</span></div><div class="text-3xl font-bold text-slate-900 dark:text-slate-100">${pb.nome||0}</div><div class="text-[11px] text-slate-400">pedidos pra bordar interno</div></div>`;
   const expByTipo = tipos.map(([k,l,grad]) => {
     const evs = P.bordEvents.filter(e=>e.tipo===k && e.stage==='expedido');
-    const bk = _bucketize(evs, per, ()=>1);
-    return { k, l, grad, bk, total: bk.reduce((s,x)=>s+x.val,0) };
+    const bk = _bucketsRange(evs, r, ()=>1);
+    return { k, l, grad, bk, total: _sum(bk) };
   });
-  const totExpCur = expByTipo.reduce((s,t)=>s+_cur(t.bk),0);
-  const charts = expByTipo.map(t => `<div class="rounded-2xl bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600 p-4"><div class="flex items-center justify-between mb-3"><div class="text-xs font-semibold text-slate-600 dark:text-slate-300">${t.l}</div><div class="text-lg font-bold text-slate-900 dark:text-slate-100">${_cur(t.bk)}</div></div>${_barChart(t.bk, 0, t.grad)}</div>`).join('');
-  const concl = P.bordEvents.filter(e=>e.stage==='concluido'); const bc = _bucketize(concl, per, ()=>1);
-  const notaFds = per==='dia' ? '<div class="text-[11px] text-amber-500 mt-1">Sábado e domingo em cinza — normalmente sem lançamento.</div>' : '';
+  const totExp = expByTipo.reduce((s,t)=>s+t.total,0);
+  const charts = expByTipo.map(t => `<div class="rounded-2xl bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600 p-4"><div class="flex items-center justify-between mb-3"><div class="text-xs font-semibold text-slate-600 dark:text-slate-300">${t.l}</div><div class="text-lg font-bold text-slate-900 dark:text-slate-100">${t.total}</div></div>${_barChart(t.bk, 0, t.grad)}</div>`).join('');
+  const concl = P.bordEvents.filter(e=>e.stage==='concluido'); const bc = _bucketsRange(concl, r, ()=>1);
+  const notaFds = r.bucket==='dia' ? '<div class="text-[11px] text-amber-500 mt-1">Sábado e domingo em cinza — normalmente sem lançamento.</div>' : '';
   const vazio = P.bordEvents.length ? '' : '<div class="text-xs text-slate-400 mt-2">O histórico começa a partir de agora: cada bordado que entra em “Bordado Concluído” ou “Expedido/Finalizado” é contado aqui automaticamente.</div>';
   return `
     <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
-      <div><div class="text-xs uppercase tracking-wide text-slate-400 font-semibold">Bordados expedidos</div><div class="text-3xl font-bold text-slate-900 dark:text-slate-100">${totExpCur.toLocaleString('pt-BR')}<span class="text-sm font-medium text-slate-400 ml-2">${_curLabel(per)}</span></div></div>
+      <div><div class="text-xs uppercase tracking-wide text-slate-400 font-semibold">Bordados expedidos</div><div class="text-3xl font-bold text-slate-900 dark:text-slate-100">${totExp.toLocaleString('pt-BR')}<span class="text-sm font-medium text-slate-400 ml-2">${r.short}</span></div></div>
       ${_periodBar()}
     </div>
-    <div class="text-xs font-semibold uppercase text-slate-500 mb-3 tracking-wide">Agora nas listas finais</div>
-    <div class="grid grid-cols-3 gap-4 mb-6">${snapCards}</div>
-    <div class="text-xs font-semibold uppercase text-slate-500 mb-3 tracking-wide">Expedidos por tipo · por ${per==='dia'?'dia':per==='mes'?'mês':'semana'}</div>
+    <div class="text-xs font-semibold uppercase text-slate-500 mb-3 tracking-wide">Quantidade de pedidos para bordar</div>
+    <div class="grid grid-cols-2 gap-4 mb-6">${paraBordar}</div>
+    <div class="text-xs font-semibold uppercase text-slate-500 mb-3 tracking-wide">Expedidos por tipo · por ${_bucketLabel(r.bucket)}</div>
     <div class="grid md:grid-cols-3 gap-4">${charts}</div>
     ${notaFds}
     ${vazio}
-    <div class="rounded-2xl bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600 p-4 mt-5"><div class="flex items-center justify-between mb-3"><div class="text-xs font-semibold text-slate-600 dark:text-slate-300">Bordados concluídos (todos os tipos)</div><div class="text-lg font-bold text-slate-900 dark:text-slate-100">${_cur(bc)}</div></div>${_barChart(bc, 0, 'from-pink-500 to-pink-400')}</div>`;
+    <div class="rounded-2xl bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600 p-4 mt-5"><div class="flex items-center justify-between mb-3"><div class="text-xs font-semibold text-slate-600 dark:text-slate-300">Bordados concluídos (todos os tipos)</div><div class="text-lg font-bold text-slate-900 dark:text-slate-100">${_sum(bc)}</div></div>${_barChart(bc, 0, 'from-pink-500 to-pink-400')}</div>`;
 }
 
 window.closePainel = () => {
