@@ -3533,7 +3533,8 @@ document.addEventListener('click', e => {
 
 document.addEventListener('change', async e => {
   if (e.target.id === 'cardCoverInputHeader' && e.target.files[0] && activeCardId){
-    const file = e.target.files[0];
+    let file = e.target.files[0];
+    file = await otimizarImagem(file, { maxW:1600, maxH:1600 });      // capa do card: reduz antes de enviar
     { const _v = validarImagemUpload(file, 5); if (!_v.ok){ toast(_v.msg); e.target.value=''; return; } }
     toast('Enviando foto...');
     const ext = file.name.split('.').pop().toLowerCase();
@@ -4337,7 +4338,8 @@ document.addEventListener('change', async e => {
   if (e.target.id === 'anexoInput' && e.target.files.length && activeCardId){
     const files = [...e.target.files]; e.target.value = '';
     const cardId = activeCardId; let ok = 0;
-    for (const file of files){
+    for (let file of files){
+      file = await otimizarImagem(file, { maxW:2000, maxH:2000 });   // anexo que for imagem entra reduzido
       if (file.size > 25 * 1024 * 1024){ toast(`"${file.name}" passa de 25MB — pulei.`); continue; }
       toast('Enviando ' + file.name + '…');
       const safe = file.name.replace(/[^\w.\-]+/g, '_');
@@ -5111,7 +5113,8 @@ window.openLogoUpload = () => {
 };
 document.addEventListener('change', async e => {
   if (e.target.id === 'logoInput' && e.target.files[0]){
-    const file = e.target.files[0];
+    let file = e.target.files[0];
+    file = await otimizarImagem(file, { maxW:512, maxH:512, limiteKB:120 });   // logo não precisa ser grande
     { const _v = validarImagemUpload(file, 2); if (!_v.ok){ toast(_v.msg); e.target.value=''; return; } }
     toast('Enviando logo...');
     const ext = file.name.split('.').pop().toLowerCase();
@@ -5162,7 +5165,8 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('change', async e => {
   if (e.target.id === 'boardBgInput' && e.target.files[0]){
-    const file = e.target.files[0];
+    let file = e.target.files[0];
+    file = await otimizarImagem(file, { maxW:2000, maxH:1400 });      // fundo de quadro
     { const _v = validarImagemUpload(file, 5); if (!_v.ok){ toast(_v.msg); e.target.value=''; return; } }
     toast('Enviando fundo...');
     const ext = file.name.split('.').pop().toLowerCase();
@@ -5498,6 +5502,43 @@ window.toast = function(msg){
 };
 // Valida arquivo de imagem antes de qualquer upload (tipo + tamanho). Reforço no
 // navegador — retorna {ok:true} ou {ok:false, msg} com mensagem clara pro usuário.
+// ===== Otimizador de imagem (roda no navegador, antes de enviar) =====
+// Foto de celular/câmera vem com 4000~6000px e vários MB. Isso pesa MUITO: o navegador
+// precisa descomprimir a imagem inteira na memória (uma de 6144x4096 ocupa ~100MB de RAM).
+// Aqui a gente reduz pro tamanho que realmente aparece na tela e recomprime.
+window.otimizarImagem = async function(file, opts){
+  opts = opts || {};
+  const maxW = opts.maxW || 2000, maxH = opts.maxH || 2000, q = (opts.q != null ? opts.q : 0.82);
+  const limiteBytes = (opts.limiteKB || 350) * 1024;
+  try{
+    if (!file || !/^image\//i.test(file.type||'')) return file;
+    if (/svg|gif/i.test(file.type||'')) return file;          // vetor/animação: não mexe
+    const bmp = await createImageBitmap(file).catch(()=>null);
+    if (!bmp) return file;
+    const escala = Math.min(1, maxW / bmp.width, maxH / bmp.height);
+    if (escala >= 1 && file.size <= limiteBytes) { try{ bmp.close(); }catch(_){} return file; } // já está leve
+    const w = Math.max(1, Math.round(bmp.width * escala)), h = Math.max(1, Math.round(bmp.height * escala));
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    const ctx = cv.getContext('2d');
+    if (ctx.imageSmoothingQuality) ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(bmp, 0, 0, w, h);
+    try{ bmp.close(); }catch(_){}
+    // PNG/WEBP podem ter fundo transparente (logo/favicon) — mantém PNG. Foto vira JPEG.
+    const temAlpha = /png|webp|avif/i.test(file.type||'');
+    const tipo = temAlpha ? 'image/png' : 'image/jpeg';
+    const blob = await new Promise(res => cv.toBlob(res, tipo, tipo === 'image/jpeg' ? q : undefined));
+    cv.width = cv.height = 0;                                  // libera memória
+    if (!blob || blob.size >= file.size) return file;           // se não melhorou, mantém o original
+    const base = (file.name || 'imagem').replace(/\.[^.]+$/, '');
+    const novo = new File([blob], base + (tipo === 'image/png' ? '.png' : '.jpg'), { type: tipo });
+    try{
+      if (typeof toast === 'function' && file.size > 600*1024){
+        toast('Imagem otimizada: ' + Math.round(file.size/1024) + 'KB → ' + Math.round(novo.size/1024) + 'KB');
+      }
+    }catch(_){}
+    return novo;
+  }catch(e){ return file; }
+};
 window.validarImagemUpload = function(file, maxMB){
   if (!file) return { ok:false, msg:'Nenhum arquivo selecionado.' };
   const extsOk = ['jpg','jpeg','png','gif','webp','svg','bmp','avif','ico'];
@@ -5826,8 +5867,9 @@ applyLoginBg();
 // Upload de fundo pelo admin
 document.addEventListener('change', async e => {
   if (e.target && e.target.id === 'loginBgInput'){
-    const file = e.target.files[0];
+    let file = e.target.files[0];
     if (!file || typeof sb === 'undefined') return;
+    file = await otimizarImagem(file, { maxW:2000, maxH:1400 });     // fundo do login
     { const _v = validarImagemUpload(file, 5); if (!_v.ok){ toast && toast(_v.msg); e.target.value=''; return; } }
     toast && toast('Enviando fundo...');
     const { error } = await sb.storage.from('system-assets').upload('login-bg.jpg', file, {upsert: true, contentType: file.type});
@@ -6218,9 +6260,9 @@ window.closeSuiteSettings=function(){var m=document.getElementById('suiteSetting
 document.addEventListener('click',function(e){if(e.target.closest('#suiteBgBtn'))document.getElementById('suiteBgInput').click();});
 document.addEventListener('click',function(e){if(e.target.closest('#suiteLoginBgBtn'))document.getElementById('loginBgInput').click();});
 document.addEventListener('click',function(e){if(e.target.closest('#suiteFaviconBtn'))document.getElementById('faviconInput').click();});
-document.addEventListener('change',async function(e){ if(e.target && e.target.id==='faviconInput' && e.target.files[0]){ var file=e.target.files[0]; var st=document.getElementById('faviconStatus'); var _v=validarImagemUpload(file,2); if(!_v.ok){ if(st){st.className='text-red-600';st.textContent=_v.msg;} e.target.value=''; return; } if(st){st.className='text-slate-500';st.textContent='Enviando...';} try{ var r=await sb.storage.from('system-assets').upload('favicon.png', file, {upsert:true, contentType:file.type}); if(r.error) throw r.error; applyFavicon(); if(st){st.className='text-emerald-600';st.textContent='Favicon atualizado!';} }catch(err){ if(st){st.className='text-red-600';st.textContent='Erro: '+err.message;} } } });
+document.addEventListener('change',async function(e){ if(e.target && e.target.id==='faviconInput' && e.target.files[0]){ var file=e.target.files[0]; file=await otimizarImagem(file,{maxW:256,maxH:256,limiteKB:60}); var st=document.getElementById('faviconStatus'); var _v=validarImagemUpload(file,2); if(!_v.ok){ if(st){st.className='text-red-600';st.textContent=_v.msg;} e.target.value=''; return; } if(st){st.className='text-slate-500';st.textContent='Enviando...';} try{ var r=await sb.storage.from('system-assets').upload('favicon.png', file, {upsert:true, contentType:file.type}); if(r.error) throw r.error; applyFavicon(); if(st){st.className='text-emerald-600';st.textContent='Favicon atualizado!';} }catch(err){ if(st){st.className='text-red-600';st.textContent='Erro: '+err.message;} } } });
 document.addEventListener('click',function(e){if(e.target.closest('#suiteLogoBtn'))document.getElementById('logoInput').click();});
-document.addEventListener('change',async function(e){if(e.target&&e.target.id==='suiteBgInput'&&e.target.files[0]){var file=e.target.files[0];var st=document.getElementById('suiteBgStatus');var _v=validarImagemUpload(file,5);if(!_v.ok){st.className='text-xs mt-1 text-red-600';st.textContent=_v.msg;e.target.value='';return;}st.className='text-xs mt-1 text-slate-500';st.textContent='Enviando wallpaper...';try{var r=await sb.storage.from('system-assets').upload('suite-bg.jpg',file,{upsert:true,contentType:file.type});if(r.error)throw r.error;applySuiteBg();st.className='text-xs mt-1 text-emerald-600';st.textContent='Wallpaper atualizado!';}catch(err){st.className='text-xs mt-1 text-red-600';st.textContent='Erro: '+err.message;}}});
+document.addEventListener('change',async function(e){if(e.target&&e.target.id==='suiteBgInput'&&e.target.files[0]){var file=e.target.files[0];file=await otimizarImagem(file,{maxW:2000,maxH:1400});var st=document.getElementById('suiteBgStatus');var _v=validarImagemUpload(file,5);if(!_v.ok){st.className='text-xs mt-1 text-red-600';st.textContent=_v.msg;e.target.value='';return;}st.className='text-xs mt-1 text-slate-500';st.textContent='Enviando wallpaper...';try{var r=await sb.storage.from('system-assets').upload('suite-bg.jpg',file,{upsert:true,contentType:file.type});if(r.error)throw r.error;applySuiteBg();st.className='text-xs mt-1 text-emerald-600';st.textContent='Wallpaper atualizado!';}catch(err){st.className='text-xs mt-1 text-red-600';st.textContent='Erro: '+err.message;}}});
 document.addEventListener('click',async function(e){if(e.target.closest('#inviteBtn')){var email=(document.getElementById('inviteEmail').value||'').trim();var pass=(document.getElementById('invitePass').value||'').trim();var st=document.getElementById('inviteStatus');if(!email||pass.length<6){st.className='text-xs mt-2 text-red-600';st.textContent='Informe email e senha (mínimo 6 caracteres).';return;}st.className='text-xs mt-2 text-slate-500';st.textContent='Criando acesso...';try{var c2=createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:false,storageKey:'dc_invite_tmp'}});var r=await c2.auth.signUp({email:email,password:pass});if(r.error)throw r.error;st.className='text-xs mt-2 text-emerald-600';st.textContent='Acesso criado para '+email+'. Passe email e senha provisória pra pessoa e libere os sistemas em Permissões. (Se a confirmação de email estiver ligada no Supabase, a pessoa precisa confirmar antes.)';document.getElementById('inviteEmail').value='';document.getElementById('invitePass').value='';}catch(err){st.className='text-xs mt-2 text-red-600';st.textContent='Erro: '+err.message;}}});
 applySuiteBg();
 
