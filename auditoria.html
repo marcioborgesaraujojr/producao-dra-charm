@@ -67,7 +67,7 @@
       <div class="col-span-2 sm:col-span-2"><label class="text-[11px] text-slate-400">Buscar (pessoa, item, conteúdo)</label><input id="fBusca" oninput="renderLogs()" placeholder="ex.: edilene, OC 480…" class="fld w-full mt-0.5"></div>
       <div><label class="text-[11px] text-slate-400">Usuário</label><select id="fUser" onchange="renderLogs()" class="fld w-full mt-0.5"><option value="">Todos</option></select></div>
       <div><label class="text-[11px] text-slate-400">Área</label><select id="fTabela" onchange="renderLogs()" class="fld w-full mt-0.5"><option value="">Todas</option></select></div>
-      <div><label class="text-[11px] text-slate-400">Ação</label><select id="fOp" onchange="renderLogs()" class="fld w-full mt-0.5"><option value="">Todas</option><option value="INSERT">Criação</option><option value="UPDATE">Edição</option><option value="DELETE">Exclusão</option></select></div>
+      <div><label class="text-[11px] text-slate-400">Ação</label><select id="fOp" onchange="renderLogs()" class="fld w-full mt-0.5"><option value="">Todas</option><option value="INSERT">Criação</option><option value="UPDATE">Edição</option><option value="DELETE">Exclusão</option><option value="LOGIN">Entrada no sistema</option><option value="LOGOUT">Saída do sistema</option></select></div>
       <div><label class="text-[11px] text-slate-400">De</label><input id="fDe" type="date" onchange="loadLogs()" class="fld w-full mt-0.5"></div>
       <div><label class="text-[11px] text-slate-400">Até</label><input id="fAte" type="date" onchange="loadLogs()" class="fld w-full mt-0.5"></div>
     </div>
@@ -98,9 +98,17 @@ function applyBg(){ const url=SUPA.url+'/storage/v1/object/public/system-assets/
 const pad=n=>String(n).padStart(2,'0');
 const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function dt(s){ const d=new Date(s); return pad(d.getDate())+'/'+pad(d.getMonth()+1)+' '+pad(d.getHours())+':'+pad(d.getMinutes()); }
-const opInfo={INSERT:{l:'Criou',c:'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'},UPDATE:{l:'Editou',c:'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'},DELETE:{l:'Excluiu',c:'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'}};
-const areaNome=t=>({ac_producao:'Acabamento · produção',ac_ocs:'Acabamento · OCs',ac_operadoras:'Acabamento · revisoras',ac_config:'Acabamento · metas',at_conversas:'Atendimento · conversa',at_mensagens:'Atendimento · mensagem',at_clientes:'Atendimento · cliente',at_conversa_tags:'Atendimento · tag',at_tags:'Atendimento · tag',at_chatbot:'Atendimento · chatbot',profiles:'Usuários / permissões',ag_agendamentos:'Agendamento',ag_config:'Agendamento · config',ag_links:'Agendamento · link',cards:'Quadro · card',lists:'Quadro · lista',boards:'Quadro',comments:'Quadro · comentário',tecidos:'Tecidos',app_settings:'Configuração do sistema'}[t]||t);
+const opInfo={INSERT:{l:'Criou',c:'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'},UPDATE:{l:'Editou',c:'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'},DELETE:{l:'Excluiu',c:'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'},LOGIN:{l:'Entrou',c:'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300'},LOGOUT:{l:'Saiu',c:'bg-slate-200 text-slate-600 dark:bg-ink-700 dark:text-slate-300'}};
+const areaNome=t=>({ac_producao:'Acabamento · produção',ac_ocs:'Acabamento · OCs',ac_operadoras:'Acabamento · revisoras',ac_config:'Acabamento · metas',at_conversas:'Atendimento · conversa',at_mensagens:'Atendimento · mensagem',at_clientes:'Atendimento · cliente',at_conversa_tags:'Atendimento · tag',at_tags:'Atendimento · tag',at_chatbot:'Atendimento · chatbot',profiles:'Usuários / permissões',ag_agendamentos:'Agendamento',ag_config:'Agendamento · config',ag_links:'Agendamento · link',cards:'Quadro · card',lists:'Quadro · lista',boards:'Quadro',comments:'Quadro · comentário',tecidos:'Tecidos',app_settings:'Configuração do sistema',acesso:'Entrada / saída do sistema'}[t]||t);
 
+// autor: e-mail vira nome curto; 'sistema: x' vira etiqueta de robô
+function quemNome(w){
+  w=(w||'').trim();
+  if(!w) return '(sem usuário)';
+  if(/^sistema:/i.test(w)) return 'Robô · '+w.replace(/^sistema:\s*/i,'');
+  if(/^planilha/i.test(w)) return 'Importação · '+w;
+  return w;
+}
 const nm=(map,id)=> id ? (map[id] || ('#'+String(id).slice(0,6))) : '';
 // campos "ruído" que não ajudam a entender
 const IGN=new Set(['updated_at','created_at','ts','position','id','trello_id','cf_values','bordado_alterado_em']);
@@ -132,6 +140,7 @@ function resumo(l){
   if(t==='profiles'){ return 'Usuário / permissões: '+(d.full_name||d.email||nm(PROFS,l.rid)||''); }
   if(t==='at_conversas'){ return 'Conversa do atendimento'; }
   if(t==='at_conversa_tags'||t==='at_tags'){ return 'Etiqueta do atendimento'; }
+  if(t==='acesso'){ return l.op==='LOGOUT' ? 'Saiu do sistema' : 'Entrou no sistema'; }
   if(t==='at_chatbot'){ return 'Configuração do chatbot'; }
   if(t==='at_clientes'){ return 'Cliente '+(d.nome||''); }
   if(t==='ag_agendamentos'){ return 'Agendamento de visita'+(d.nome?(' — '+d.nome):''); }
@@ -193,7 +202,7 @@ window.loadLogs=async function(){
     LOGS.forEach(l=>{ const k=(l.who||'').trim()||'__sem__'; cont[k]=(cont[k]||0)+1; });
     const nomes=Object.keys(cont).filter(k=>k!=='__sem__').sort((a,b)=>cont[b]-cont[a]);
     su.innerHTML='<option value="">Todos</option>'
-      + nomes.map(n=>`<option value="${esc(n)}">${esc(n)} (${cont[n]})</option>`).join('')
+      + nomes.map(n=>`<option value="${esc(n)}">${esc(quemNome(n))} (${cont[n]})</option>`).join('')
       + (cont.__sem__?`<option value="__sem__">(sem usuário) (${cont.__sem__})</option>`:'');
     su.value=curU;
   }
@@ -230,10 +239,10 @@ window.renderLogs=function(){
   if(fu) arr=arr.filter(l=> fu==='__sem__' ? !((l.who||'').trim()) : (l.who||'').trim()===fu );
   if(q) arr=arr.filter(l=>{ const blob=(l.who||'')+' '+resumo(l)+' '+l.tabela+' '+JSON.stringify(l.antes||l.depois||l.meta||''); return blob.toLowerCase().includes(q); });
   window.__ARR=arr;   // guarda o resultado filtrado (usado pelo Exportar CSV)
-  document.getElementById('resumo').textContent = arr.length+' ação(ões)'+(fu?(' · '+(fu==='__sem__'?'sem usuário':fu)):'');
+  document.getElementById('resumo').textContent = arr.length+' ação(ões)'+(fu?(' · '+(fu==='__sem__'?'sem usuário':quemNome(fu))):'');
   document.getElementById('lista').innerHTML = arr.length? arr.map(l=>{
     const oi=opInfo[l.op]||{l:l.op,c:'bg-slate-100 text-slate-600'};
-    const quem = l.who ? esc(l.who) : '<span class="text-slate-300 dark:text-slate-600">—</span>';
+    const quem = esc(quemNome(l.who));
     return `<div class="card p-3">
       <details>
         <summary class="flex items-center gap-2 flex-wrap">

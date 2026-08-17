@@ -1746,15 +1746,29 @@ async function initAuth(){
   const _isRecovery = (window.location.hash||'').includes('type=recovery');
   const { data: { session } } = await sb.auth.getSession();
   if (_isRecovery){ showRecovery(); }
-  else if (session){ user = session.user; await afterLogin(); }
+  else if (session){ user = session.user; sysLogAcesso('entrada'); await afterLogin(); }
   else showLogin();
   sb.auth.onAuthStateChange((_e, s) => {
     if (_e === 'PASSWORD_RECOVERY'){ showRecovery(); return; }
     // Re-carrega quando NÃO havia ninguém OU quando trocou de conta (id diferente) sem recarregar a página.
-    if (s && (!user || user.id !== s.user.id)){ user = s.user; profile = null; afterLogin(); }
+    if (s && (!user || user.id !== s.user.id)){ user = s.user; profile = null; sysLogAcesso('entrada'); afterLogin(); }
     else if (!s && user){ user = null; profile = null; showLogin(); }
   });
 }
+// ---- Registro de acesso (entrada/saida) na auditoria ----
+window.sysLogAcesso = async (tipo) => {
+  try{
+    if (typeof sb === 'undefined' || !sb) return;
+    if (tipo === 'entrada'){
+      const k = 'sysAcessoLogado';
+      if (sessionStorage.getItem(k)) return;
+      sessionStorage.setItem(k, '1');
+    } else {
+      sessionStorage.removeItem('sysAcessoLogado');
+    }
+    await sb.rpc('sys_log_acesso', { p_tipo: tipo });
+  }catch(_){}
+};
 function showRecovery(){
   const ids = ['loginScreen','app','hubScreen','recoveryScreen'];
   ids.forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
@@ -1793,7 +1807,7 @@ window.doMagicLink = async () => {
   if (error) toast('Erro: '+error.message);
   else toast('Link enviado! Confere seu email.');
 };
-window.doLogout = async () => { await sb.auth.signOut(); location.reload(); };
+window.doLogout = async () => { await sysLogAcesso('saida'); await sb.auth.signOut(); location.reload(); };
 // Clicar no logo do sistema (A) volta pra home do suíte (só se logado)
 document.addEventListener('click', (e) => {
   const lg = e.target.closest('.system-logo');
@@ -6192,7 +6206,7 @@ document.addEventListener('click', e => {
 document.addEventListener('click', e => {
   if (e.target.closest('#hubLogoutBtn')){
     (document.getElementById('appBg')||document.body).style.backgroundImage=''; document.body.classList.remove('has-bg');
-    if (typeof sb !== 'undefined') sb.auth.signOut().then(() => window.location.reload());
+    if (typeof sb !== 'undefined') Promise.resolve(window.sysLogAcesso&&window.sysLogAcesso('saida')).then(()=>sb.auth.signOut()).then(() => window.location.reload());
   }
   if (e.target.closest('#hubThemeBtn')){
     document.documentElement.classList.toggle('dark');
