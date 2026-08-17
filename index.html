@@ -2056,7 +2056,7 @@ async function switchBoard(boardId, opts){
     if (_needGrades){
       tarefas.push(_run(
         g => sb.from('activity_log').select('card_id, meta').eq('action','grade').in('card_id', g),
-        r => { const m = r.meta||{}; const et = m.etapa; if (et !== 'acabamento' && et !== 'estoque') return;
+        r => { const m = r.meta||{}; const et = m.etapa; if (et !== 'acabamento' && et !== 'estoque' && et !== 'lav_env' && et !== 'lav_rec') return;
                const gg = gradeTotalsByCard[r.card_id] || (gradeTotalsByCard[r.card_id] = {});
                gg[et] = (gg[et]||0) + Number(m.qtd||0); }));
     }
@@ -2340,6 +2340,27 @@ async function logCorteMov(card, listId){
   }catch(e){}
 }
 
+// Lavanderia: quanto ainda está fora (enviado - recebido) num card, pelos totais já carregados do quadro.
+function lavPendenteDoCard(cardId){
+  const g = (typeof gradeTotalsByCard!=='undefined' && gradeTotalsByCard[cardId]) || {};
+  return Math.max(0, Number(g.lav_env||0) - Number(g.lav_rec||0));
+}
+// Só libera TIRAR o card da Lavanderia quando tudo que foi enviado já voltou (recebido).
+function bloqueiaSaidaLavanderia(card, listId){
+  try{
+    if(!card || !listId) return false;
+    const atual = Array.isArray(lists) ? lists.find(l=>l.id===card.list_id) : null;
+    if(!atual || !/lavanderia/i.test(atual.name||'')) return false;      // não está na lavanderia
+    const alvo = Array.isArray(lists) ? lists.find(l=>l.id===listId) : null;
+    if(!alvo || /lavanderia/i.test(alvo.name||'')) return false;         // continua na lavanderia
+    const pend = lavPendenteDoCard(card.id);
+    if(pend > 0){
+      toast('Ainda faltam ' + pend + ' peça' + (pend===1?'':'s') + ' voltar da lavanderia. Dê baixa em "recebido" pra liberar.');
+      return true;
+    }
+    return false;
+  }catch(e){ return false; }
+}
 // Ao mover pra Lavanderia, abre o card já na grade "Lavanderia — enviado" pra lançar as peças enviadas.
 function abrirLavanderiaSeNecessario(card, listId){
   try{
@@ -2358,6 +2379,7 @@ async function dropCardAt(cardId, listId, clientY){
   // Mover card é liberado pra qualquer membro do quadro (a função move_card no banco valida o acesso).
   const card = cards.find(x => x.id === cardId);
   if (!card || !listId) return false;
+  if (bloqueiaSaidaLavanderia(card, listId)) return false;
   const STEP = 16384;
   // Índice de inserção: quantos cards da lista-alvo têm o meio acima do cursor
   let idx = 0;
@@ -2430,15 +2452,21 @@ async function moverSelecionados(){
   const STEP = 16384;
   let base = Math.max(0, ...cards.filter(c=>c.list_id===listId).map(c=>c.position||0));
   const mv = document.getElementById('selBarMove'); if (mv){ mv.disabled = true; mv.textContent = 'Movendo...'; }
-  let ok = 0;
+  let ok = 0, travados = 0;
   for (const id of ids){
+    // Lavanderia: não deixa sair enquanto faltar peça voltar
+    const _cAtual = cards.find(x=>x.id===id);
+    if (_cAtual){
+      const _at = lists.find(l=>l.id===_cAtual.list_id), _al = lists.find(l=>l.id===listId);
+      if (_at && /lavanderia/i.test(_at.name||'') && _al && !/lavanderia/i.test(_al.name||'') && lavPendenteDoCard(id) > 0){ travados++; continue; }
+    }
     base += STEP;
     let { error } = await sb.rpc('move_card', { p_card: id, p_list: listId, p_pos: base });
     if (error){ const r = await sb.from('cards').update({ list_id: listId, position: base }).eq('id', id); error = r.error; }
     if (!error){ const c = cards.find(x=>x.id===id); if (c){ const _ml=(c.list_id!==listId); c.list_id = listId; c.position = base; if(_ml){ logBordadoMov(c, listId); logCorteMov(c, listId); } } ok++; }
   }
   _localMoveAt = Date.now();
-  toast(ok + (ok===1?' card movido':' cards movidos') + (alvo ? (' para ' + alvo.name) : ''));
+  toast(ok + (ok===1?' card movido':' cards movidos') + (alvo ? (' para ' + alvo.name) : '') + (travados ? (' · ' + travados + ' preso' + (travados===1?'':'s') + ' na lavanderia (falta receber)') : ''));
   selectedCardIds.clear();
   selectMode = false;
   const btn = document.getElementById('btnSelecionar'); if (btn) btn.classList.remove('sel-on');
@@ -4608,6 +4636,15 @@ window.renderGrades = () => {
   // Lavanderia: enviado x recebido (o que ainda está lá fora)
   const tLavE = gradeTotalEtapa('lav_env'), tLavR = gradeTotalEtapa('lav_rec');
   const naLav = Math.max(0, tLavE - tLavR);
+  // A grade de lavanderia só aparece pra card QUE ESTÁ na coluna Lavanderia (ou que já teve lançamento).
+  // Nem toda peça passa por lavanderia — nos outros cards ela some.
+  {
+    const _c = (typeof cards!=='undefined' && Array.isArray(cards) && typeof activeCardId!=='undefined') ? cards.find(x=>x.id===activeCardId) : null;
+    const _l = (_c && typeof lists!=='undefined' && Array.isArray(lists)) ? lists.find(l=>l.id===_c.list_id) : null;
+    const _naColuna = !!(_l && /lavanderia/i.test(_l.name||''));
+    const _lb = document.getElementById('lavBox');
+    if (_lb) _lb.classList.toggle('hidden', !(_naColuna || (tLavE + tLavR) > 0));
+  }
   const boxLav = document.getElementById('boxTotalLav');
   if (boxLav) boxLav.classList.toggle('hidden', (tLavE + tLavR) === 0);
   const totLavEl = document.getElementById('cardTotalLav'); if (totLavEl) totLavEl.textContent = naLav;
