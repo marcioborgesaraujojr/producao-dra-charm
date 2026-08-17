@@ -32,6 +32,10 @@
   .icon-btn:hover{background:#f1f5f9;color:#ec2560}.dark .icon-btn{color:#94a3b8}.dark .icon-btn:hover{background:#1f2937}
   .qr-item{padding:8px 12px;font-size:13px;cursor:pointer;border-radius:8px}.qr-item:hover{background:var(--dc-pink-50)}.dark .qr-item:hover{background:#1e1520}
   [data-fade]{animation:fade .18s ease}@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  /* Esqueleto de carregamento (cinza que "varre") — evita a tela vazia enquanto os dados chegam */
+  .sk-bloco{background:linear-gradient(90deg,#eef2f7 25%,#e2e8f0 37%,#eef2f7 63%);background-size:400% 100%;animation:skGlow 1.2s ease-in-out infinite}
+  .dark .sk-bloco{background:linear-gradient(90deg,#1e293b 25%,#273449 37%,#1e293b 63%);background-size:400% 100%}
+  @keyframes skGlow{0%{background-position:100% 50%}100%{background-position:0 50%}}
 </style>
 <script id="dc-fav-std">(function(){try{document.querySelectorAll('link[rel="icon"],link[rel="shortcut icon"]').forEach(function(l){l.remove();});var l=document.createElement('link');l.rel='icon';l.type='image/png';l.href='https://wwytzoyeibekhstinott.supabase.co/storage/v1/object/public/system-assets/favicon.png';document.head.appendChild(l);}catch(e){}})();</script>
 
@@ -308,15 +312,21 @@ async function bootstrap(){
   // identidade do atendente
   ATEND_ID = session.user.id;
   const email = session.user.email||'';
-  const { data: prof } = await c.from('profiles').select('full_name').eq('id',ATEND_ID).maybeSingle();
+  document.getElementById('emptyState').classList.add('hidden');
+  renderLoading();          // esqueleto na lista e no chat já de cara (nada de tela vazia com zeros)
+  // Antes as 4 consultas rodavam em FILA (uma esperando a outra) — a tela ficava vazia esse tempo todo.
+  // Agora vão todas juntas: o tempo passa a ser o da mais lenta, não a soma.
+  const [profR, profsR, , convs] = await Promise.all([
+    c.from('profiles').select('full_name').eq('id',ATEND_ID).maybeSingle(),
+    c.from('profiles').select('id, full_name, email, color'),
+    loadAtConfig(),
+    loadConversas(),
+  ]);
+  const prof = profR && profR.data;
   AGENTE = (prof&&prof.full_name) ? prof.full_name : (email.split('@')[0]||'Atendente');
   document.getElementById('userAvatar').textContent = AGENTE[0].toUpperCase();
-  const { data: profs } = await c.from('profiles').select('id, full_name, email, color');
-  PROFILES = profs||[];
-  await loadAtConfig();
-  document.getElementById('emptyState').classList.add('hidden');
-  renderLoading();
-  CONVERSAS = await loadConversas();
+  PROFILES = (profsR && profsR.data)||[];
+  CONVERSAS = convs;
   { let _t=0; while(CONVERSAS.length===0 && _t<6){ await new Promise(r=>setTimeout(r,500)); CONVERSAS = await loadConversas(); _t++; } }
   renderList();
   if(CONVERSAS.length){ document.getElementById('emptyState').classList.add('hidden'); selecionar(CONVERSAS[0].id); setView('lista'); }
@@ -374,7 +384,37 @@ function filtroTab(cv){ if(TAB==='minhas')return cv.status!=='encerrada'; if(TAB
 const statusDot=cv=>({aberta:'#22c55e',pendente:'#f59e0b',encerrada:'#94a3b8'}[cv.status]||'#94a3b8');
 function relTime(iso){ if(!iso) return ''; const d=Date.now()-new Date(iso).getTime(); if(d<0) return 'agora'; const m=Math.floor(d/60000); if(m<1) return 'agora'; if(m<60) return m+'m'; const h=Math.floor(m/60); if(h<24) return h+'h'; const dias=Math.floor(h/24); if(dias<7) return dias+'d'; return Math.floor(dias/7)+'sem'; }
 function statusBadge(cv){ const base='absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-white dark:border-ink-800 flex items-center justify-center'; if(cv.status==='encerrada') return '<span class="'+base+' bg-emerald-500" title="Resolvida"><svg class="w-2.5 h-2.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="M5 13l4 4L19 7"/></svg></span>'; return '<span class="'+base+' bg-rose-500" title="Nao resolvida"><svg class="w-2.5 h-2.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="M6 6l12 12M18 6L6 18"/></svg></span>'; }
-function renderLoading(){ const el=document.getElementById('convList'); if(el) el.innerHTML='<div class="flex items-center justify-center h-full min-h-[60vh]"><img src="/aragao-loading.png" class="w-14 h-14 animate-pulse" alt=""></div>'; }
+// Esqueleto de carregamento: linhas no formato dos itens (lista) + logo pulsando no chat.
+// Antes a tela ficava em branco com os contadores zerados — parecia bug/travado.
+function renderLoading(){
+  const el=document.getElementById('convList');
+  if(el){
+    let linhas='';
+    for(let i=0;i<9;i++){
+      linhas+='<div class="px-3 py-3 flex gap-3 items-center">'
+        +'<div class="w-11 h-11 rounded-full shrink-0 sk-bloco"></div>'
+        +'<div class="min-w-0 flex-1 space-y-2">'
+        +'<div class="h-3 rounded sk-bloco" style="width:'+(55+((i*13)%30))+'%"></div>'
+        +'<div class="h-2.5 rounded sk-bloco" style="width:'+(70+((i*17)%22))+'%"></div>'
+        +'</div></div>';
+    }
+    el.innerHTML='<div data-skel>'+linhas+'</div>';
+  }
+  // contadores: em vez de "0" (que dá impressão de vazio), mostra travessão enquanto carrega
+  ['badgeMinhas','badgeNaoLidas','badgePendentes','badgeTodas'].forEach(function(id){
+    const b=document.getElementById(id); if(b && (b.textContent||'').trim()==='0') b.textContent='—';
+  });
+  const ch=document.getElementById('chatArea');
+  if(ch && !ch.querySelector('[data-chat-skel]')){
+    const d=document.createElement('div');
+    d.setAttribute('data-chat-skel','1');
+    d.className='absolute inset-0 flex items-center justify-center pointer-events-none';
+    d.innerHTML='<img src="/aragao-loading.png" class="w-14 h-14 animate-pulse" alt="">';
+    if(getComputedStyle(ch).position==='static') ch.style.position='relative';
+    ch.appendChild(d);
+  }
+}
+function limparChatSkel(){ document.querySelectorAll('[data-chat-skel]').forEach(function(e){ e.remove(); }); }
 function renderList(){
   atualizarTitulo();
   const q=(document.getElementById('search').value||'').toLowerCase();
@@ -512,7 +552,7 @@ const lp=(k,v)=>`<div class="flex items-center justify-between px-3 py-2"><span 
 const _initial=n=>((String(n||'?').trim()[0])||'?').toUpperCase();
 /* ===== Avatar do cliente (foto do WhatsApp via serviço externo, ou iniciais coloridas) ===== */
 function avatarLista(cv){ return cv.foto
-  ? `<img src="${esc(cv.foto)}" class="w-11 h-11 rounded-full object-cover" alt="" onerror="this.style.display='none'">`
+  ? `<img src="${esc(cv.foto)}" width="44" height="44" loading="lazy" decoding="async" class="w-11 h-11 rounded-full object-cover" alt="" onerror="this.style.display='none'">`
   : `<div class="w-11 h-11 rounded-full text-white flex items-center justify-center font-semibold" style="background:${cv.cor}">${cv.inicial}</div>`; }
 function avatarPerfil(cv){ return cv.foto
   ? `<img src="${esc(cv.foto)}" class="w-14 h-14 rounded-full object-cover mb-3" alt="" onerror="this.style.display='none'">`

@@ -74,12 +74,24 @@
   // (o realce 3D no hover dos cards clicáveis continua, quando o app tiver.)
   function injectCardStyle(){
     if (document.getElementById('dcSuiteCards')) return;
+    // OBS: o :not(.tab) é essencial. Sem ele, este "vidro" pintava de branco também os
+    // botões de aba (que usam rounded-xl+border+bg-white) e a aba ATIVA ficava branco no branco.
     var css =
-      '.card,.rounded-2xl.border.bg-white,.rounded-xl.border.bg-white{'
+      '.card:not(.tab),.rounded-2xl.border.bg-white:not(.tab),.rounded-xl.border.bg-white:not(.tab){'
         + 'background:rgba(255,255,255,.82)!important;-webkit-backdrop-filter:blur(8px)!important;backdrop-filter:blur(8px)!important;'
         + 'box-shadow:none!important;border-color:#eef2f7!important;}'
-      + 'html.dark .card,html.dark .rounded-2xl.border.dark\\:bg-ink-800,html.dark .rounded-xl.border.dark\\:bg-ink-800{'
-        + 'background:rgba(31,41,55,.72)!important;box-shadow:none!important;border-color:#334155!important;}';
+      + 'html.dark .card:not(.tab),html.dark .rounded-2xl.border.dark\\:bg-ink-800:not(.tab),html.dark .rounded-xl.border.dark\\:bg-ink-800:not(.tab){'
+        + 'background:rgba(31,41,55,.72)!important;box-shadow:none!important;border-color:#334155!important;}'
+      // ---- PADRÃO ÚNICO DAS ABAS (vale pra todos os apps da suíte) ----
+      // Aba ativa = pílula rosa da marca com texto branco. Antes cada app tinha um jeito
+      // (rosa no Agendamento, roxo no Acabamento) — agora é igual em tudo.
+      + '.tab{transition:background .15s,color .15s,border-color .15s;font-weight:600;cursor:pointer}'
+      + '.tab.tab-on,.tab[data-on="1"]{background:#ff3c6f!important;color:#fff!important;border-color:#ff3c6f!important}'
+      + '.tab.tab-on svg,.tab[data-on="1"] svg{color:#fff!important;stroke:currentColor}'
+      + '.tab:not(.tab-on):not([data-on="1"]){color:#64748b!important;background:rgba(255,255,255,.82)!important;border-color:#eef2f7!important}'
+      + 'html.dark .tab:not(.tab-on):not([data-on="1"]){color:#94a3b8!important;background:rgba(31,41,55,.72)!important;border-color:#334155!important}'
+      + '.tab:not(.tab-on):not([data-on="1"]):hover{color:#ff3c6f!important;background:#fff1f5!important;border-color:#ffc2d4!important}'
+      + 'html.dark .tab:not(.tab-on):not([data-on="1"]):hover{color:#f9a8c4!important;background:rgba(255,60,111,.12)!important}';
     var st = document.createElement('style');
     st.id = 'dcSuiteCards';
     st.textContent = css;
