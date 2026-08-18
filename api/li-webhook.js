@@ -255,10 +255,13 @@ export default async function handler(req, res) {
     const params = mapa.map(k => { const v = fonte[k]; return (v == null || v === '') ? '-' : String(v); });
 
     if (!g.template_name) {
+      // não é falha: o gatilho está ligado mas ainda não escolheram o modelo.
       await sb('at_disparos_log', { method: 'POST', body: JSON.stringify({
         evento_key: p.codigo, telefone: p.waid, pedido: p.numero || null,
-        status: 'erro', detalhe: 'gatilho ligado mas sem template aprovado', payload: fonte }) });
-      return res.status(200).json({ received: true, resultado: 'sem template escolhido' });
+        status: 'aguardando_modelo',
+        detalhe: 'gatilho "' + (g.evento_nome || p.codigo) + '" está ligado, mas falta escolher o modelo aprovado',
+        payload: fonte }) });
+      return res.status(200).json({ received: true, resultado: 'falta escolher o modelo' });
     }
 
     // 5) MODO SECO: registra o que enviaria, sem enviar
