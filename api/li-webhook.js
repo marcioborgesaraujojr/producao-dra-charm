@@ -126,6 +126,46 @@ async function acharOuCriarConversa(waid, nome) {
   return conv && conv.id ? conv.id : null;
 }
 
+// Aplica as etiquetas do gatilho na conversa. Como o padrão é "Grupo::Valor"
+// (ex.: "Status pedido::Pedido pago"), ao aplicar uma etiqueta de um grupo as
+// outras do MESMO grupo saem — senão o cliente acumularia todos os status.
+async function aplicarTags(conversaId, tags) {
+  if (!conversaId || !Array.isArray(tags) || !tags.length) return;
+  try {
+    const todas = await sb('at_tags?select=id,nome');
+    const lista = Array.isArray(todas.data) ? todas.data : [];
+    const acharId = n => (lista.find(t => String(t.nome).toLowerCase() === String(n).toLowerCase()) || {}).id;
+
+    for (const nome of tags) {
+      let id = acharId(nome);
+      if (!id) {
+        const nv = await sb('at_tags', {
+          method: 'POST', headers: { Prefer: 'return=representation' },
+          body: JSON.stringify({ nome, cor: '#ff3c6f' })
+        });
+        const t = Array.isArray(nv.data) ? nv.data[0] : nv.data;
+        id = t && t.id; if (id) lista.push({ id, nome });
+      }
+      if (!id) continue;
+
+      // tira as irmãs do mesmo grupo
+      const grupo = String(nome).includes('::') ? String(nome).split('::')[0] + '::' : null;
+      if (grupo) {
+        const irmas = lista.filter(t => String(t.nome).startsWith(grupo) && t.id !== id).map(t => t.id);
+        if (irmas.length) {
+          await sb('at_conversa_tags?conversa_id=eq.' + conversaId +
+                   '&tag_id=in.(' + irmas.join(',') + ')', { method: 'DELETE' });
+        }
+      }
+
+      await sb('at_conversa_tags?on_conflict=conversa_id,tag_id', {
+        method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates' },
+        body: JSON.stringify({ conversa_id: conversaId, tag_id: id })
+      });
+    }
+  } catch (e) { /* etiqueta é bônus, não pode derrubar o disparo */ }
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'authorization, content-type');
@@ -271,6 +311,10 @@ export default async function handler(req, res) {
         evento_key: p.codigo, telefone: p.waid, pedido: p.numero || null,
         template_name: g.template_name, status: 'simulado',
         detalhe: seco ? 'modo seco ligado' : 'whatsapp não configurado', payload: { params, fonte } }) });
+      try {
+        const cid = await acharOuCriarConversa(p.waid, p.nome);
+        await aplicarTags(cid, g.aplica_tags);
+      } catch (e) {}
       return res.status(200).json({ received: true, resultado: 'simulado', params });
     }
 
@@ -293,6 +337,7 @@ export default async function handler(req, res) {
     // 7) deixa a marca na conversa do cliente (best effort)
     try {
       const conversaId = await acharOuCriarConversa(p.waid, p.nome);
+      await aplicarTags(conversaId, g.aplica_tags);
       if (conversaId) {
         let texto = g.mensagem || ('[modelo: ' + g.template_name + ']');
         params.forEach((x, i) => { texto = texto.replace(new RegExp('\\{\\{\\s*' + (i + 1) + '\\s*\\}\\}', 'g'), x); });
