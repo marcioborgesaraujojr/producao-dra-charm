@@ -70,7 +70,9 @@ export default async function handler(req, res) {
           const bodyC = (t.components || []).find(c => c.type === 'BODY');
           const bodyTxt = (bodyC && bodyC.text) || '';
           const vars = (bodyTxt.match(/\{\{\s*\d+\s*\}\}/g) || []).length;
-          return { name: t.name, language: t.language, category: t.category, status: t.status, body: bodyTxt, vars };
+          return { name: t.name, language: t.language, category: t.category, status: t.status,
+                   motivo: t.rejected_reason || null, qualidade: (t.quality_score && t.quality_score.score) || null,
+                   body: bodyTxt, vars };
         })
         .sort((a, b) => a.name.localeCompare(b.name));
       return res.status(200).json({ templates });
