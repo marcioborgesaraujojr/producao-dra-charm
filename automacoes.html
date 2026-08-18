@@ -219,7 +219,10 @@ function tplDe(nome){ return TPLS.find(t=>t.name===nome)||null; }
 function blocoTemplate(g){
   const t=tplDe(g.template_name);
   const nVars=t?t.vars:0;
-  const mapa=Array.isArray(g.template_mapa)?g.template_mapa:[];
+  // se o gatilho ainda não tem mapa, usa o que foi escolhido na criação do modelo
+  let mapa=Array.isArray(g.template_mapa)?g.template_mapa:[];
+  const salvo = (WHK && WHK.tplMapas && g.template_name) ? WHK.tplMapas[g.template_name] : null;
+  if((!mapa || !mapa.length) && Array.isArray(salvo) && salvo.length) mapa = salvo;
   // as variáveis vêm do PRÓPRIO webhook da loja (último evento recebido),
   // com o mesmo nome que aparece lá — assim dá pra conferir na fonte.
   const VARS_WHK = (WHK && Array.isArray(WHK.variaveis) && WHK.variaveis.length) ? WHK.variaveis : null;
@@ -228,7 +231,10 @@ function blocoTemplate(g){
     : [['cliente.nome','Nome do cliente'],['numero','Número do pedido'],['envios.0.objeto','Código de rastreio'],['valor_total','Valor total'],['aviso','Frase fixa (a mesma pra todos)']];
   let vars='';
   if(t && nVars>0){
-    vars='<div class="mt-3"><div class="text-[12px] font-semibold text-slate-600 dark:text-slate-300 mb-1">O que entra em cada espaço da mensagem</div><div class="space-y-1.5">'+Array.from({length:nVars},(_,i)=>
+    const veioDaCriacao = (!Array.isArray(g.template_mapa)||!g.template_mapa.length) && Array.isArray(salvo) && salvo.length;
+    vars='<div class="mt-3"><div class="text-[12px] font-semibold text-slate-600 dark:text-slate-300 mb-1">O que entra em cada espaço da mensagem'
+      + (veioDaCriacao?' <span class="text-[11px] font-normal text-emerald-600">— já preenchido com o que você escolheu ao criar o modelo</span>':'')
+      + '</div><div class="space-y-1.5">'+Array.from({length:nVars},(_,i)=>
       `<div class="flex items-center gap-2"><span class="var-chip shrink-0">{{${i+1}}}</span>
        <select id="mp_${g.id}_${i}" class="flex-1 min-w-0 p-1.5 text-[13px] rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600">
        ${CAMPOS.map(c=>`<option value="${esc(c[0])}"${mapa[i]===c[0]?' selected':''}>${esc(c[1])}</option>`).join('')}

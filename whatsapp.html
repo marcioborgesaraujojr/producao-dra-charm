@@ -132,7 +132,11 @@
       </div>
       <div>
         <label>Corpo da mensagem</label>
-        <div class="flex flex-wrap gap-1.5 my-1"><span class="var-chip" onclick="insVar('{{1}}')">{{1}}</span><span class="var-chip" onclick="insVar('{{2}}')">{{2}}</span><span class="var-chip" onclick="insVar('{{3}}')">{{3}}</span></div>
+        <div class="flex items-center gap-2 my-1">
+          <select id="ntVar" class="fld flex-1 min-w-0 text-[13px]"><option value="">— inserir variável do pedido —</option></select>
+          <button type="button" onclick="insVarSel()" class="text-[12px] font-semibold px-3 py-2 rounded-lg bg-slate-100 dark:bg-ink-700 hover:bg-slate-200 shrink-0">Inserir</button>
+        </div>
+        <div class="text-[11px] text-slate-400 mb-1">A lista vem do webhook da Loja Integrada. O exemplo pra Meta é preenchido com o valor real do último pedido.</div>
         <textarea id="ntBody" rows="4" class="fld" placeholder="Olá {{1}}! Seu pedido {{2}} foi enviado 💗" oninput="renderExemplos()"></textarea>
       </div>
       <div id="ntExWrap" class="hidden"><label>Exemplo de cada variável (a Meta exige pra aprovar)</label><div id="ntExemplos" class="space-y-2 mt-1"></div></div>
@@ -236,15 +240,41 @@ async function carregarTemplates(){
 function dicaCat(){ const v=document.getElementById('ntCat').value; document.getElementById('ntCatDica').textContent = v==='UTILITY'
   ? 'Aviso sobre um pedido/serviço que o cliente já tem (pagamento, envio, entrega). Mais barato e não precisa de opt-in.'
   : 'Promoção/divulgação. Custa mais e só vale pra quem aceitou receber.'; }
-function abrirNovo(){ document.getElementById('novoModal').classList.remove('hidden'); dicaCat(); }
+function abrirNovo(){ MAPA_TPL=[]; document.getElementById('novoModal').classList.remove('hidden'); dicaCat(); carregarVarsLI(); }
 function fecharNovo(){ document.getElementById('novoModal').classList.add('hidden'); }
+let VARS_LI=[], MAPA_TPL=[];
+async function carregarVarsLI(){
+  try{
+    const r=await fetch('/api/li-webhook?config=1',{headers:{Authorization:'Bearer '+TOKEN}});
+    const j=await r.json(); VARS_LI=j.variaveis||[];
+  }catch(e){ VARS_LI=[]; }
+  const sel=document.getElementById('ntVar'); if(!sel) return;
+  sel.innerHTML='<option value="">— inserir variável do pedido —</option>'
+    + VARS_LI.map(v=>`<option value="${esc(v.caminho)}">${esc(v.rotulo)}${v.caminho!=='aviso'&&v.exemplo!==undefined?('  —  ex.: '+esc(String(v.exemplo).slice(0,28))):''}</option>`).join('');
+}
+function insVarSel(){
+  const sel=document.getElementById('ntVar'); const caminho=sel.value;
+  if(!caminho){ toast('Escolha uma variável primeiro.'); return; }
+  const t=document.getElementById('ntBody');
+  const n=MAPA_TPL.length+1;
+  const p=t.selectionStart||t.value.length;
+  t.value=t.value.slice(0,p)+'{{'+n+'}}'+t.value.slice(p);
+  MAPA_TPL.push(caminho);
+  sel.value=''; t.focus(); renderExemplos();
+}
 function insVar(v){ const t=document.getElementById('ntBody'); const s=t.selectionStart||t.value.length; t.value=t.value.slice(0,s)+v+t.value.slice(s); t.focus(); renderExemplos(); }
 function renderExemplos(){
   const body=document.getElementById('ntBody').value; const nums=[...new Set((body.match(/\{\{\s*(\d+)\s*\}\}/g)||[]).map(x=>x.replace(/\D/g,'')))].sort((a,b)=>a-b);
   const wrap=document.getElementById('ntExWrap'), box=document.getElementById('ntExemplos');
   if(!nums.length){ wrap.classList.add('hidden'); box.innerHTML=''; return; }
   wrap.classList.remove('hidden');
-  box.innerHTML=nums.map(n=>`<div class="flex items-center gap-2"><span class="var-chip">{{${n}}}</span><input data-ex="${n}" class="fld" placeholder="exemplo p/ {{${n}}}"></div>`).join('');
+  box.innerHTML=nums.map(n=>{
+    const caminho=MAPA_TPL[Number(n)-1];
+    const v=VARS_LI.find(x=>x.caminho===caminho);
+    const ex=v&&v.exemplo!==undefined?String(v.exemplo):'';
+    const de=caminho?('<span class="text-[11px] text-slate-400 shrink-0">'+esc(caminho)+'</span>'):'';
+    return `<div class="flex items-center gap-2"><span class="var-chip shrink-0">{{${n}}}</span>${de}<input data-ex="${n}" value="${esc(ex)}" class="fld flex-1 min-w-0" placeholder="exemplo p/ {{${n}}}"></div>`;
+  }).join('');
 }
 async function enviarNovo(){
   const name=document.getElementById('ntName').value.trim();
@@ -255,11 +285,11 @@ async function enviarNovo(){
   const btn=document.getElementById('ntSend'); btn.disabled=true; btn.textContent='Enviando…';
   try{
     const r=await fetch('/api/whatsapp-template-criar',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+TOKEN},
-      body:JSON.stringify({name,category:document.getElementById('ntCat').value,language:document.getElementById('ntLang').value,body,footer:document.getElementById('ntFooter').value.trim(),exemplos})});
+      body:JSON.stringify({name,category:document.getElementById('ntCat').value,language:document.getElementById('ntLang').value,body,footer:document.getElementById('ntFooter').value.trim(),exemplos,mapa:MAPA_TPL})});
     const j=await r.json();
     if(!r.ok){ toast('Meta recusou: '+(j.error||'erro')); btn.disabled=false; btn.textContent='Enviar pra aprovação'; return; }
     toast('Enviado! Status: '+(j.status||'Pendente')); fecharNovo();
-    document.getElementById('ntName').value=''; document.getElementById('ntBody').value=''; document.getElementById('ntFooter').value=''; renderExemplos();
+    document.getElementById('ntName').value=''; document.getElementById('ntBody').value=''; document.getElementById('ntFooter').value=''; MAPA_TPL=[]; renderExemplos();
     carregarTemplates();
   }catch(e){ toast('Erro: '+e.message); }
   btn.disabled=false; btn.textContent='Enviar pra aprovação';
