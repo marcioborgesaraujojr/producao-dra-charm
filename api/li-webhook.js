@@ -85,6 +85,67 @@ function normalizeWa(raw) {
   return n;
 }
 
+// Pega um valor pelo caminho, do jeito que ele aparece no webhook:
+//   "cliente.nome", "numero", "envios.0.objeto", "situacao.nome"
+function valorDoCaminho(obj, caminho) {
+  if (!caminho) return null;
+  let v = obj;
+  for (const parte of String(caminho).split('.')) {
+    if (v == null) return null;
+    v = Array.isArray(v) ? v[Number(parte)] : v[parte];
+  }
+  if (v == null) return null;
+  if (typeof v === 'object') return null;
+  return String(v);
+}
+
+// Apelidos antigos (dos primeiros gatilhos) -> caminho real do webhook
+const APELIDOS = {
+  nome: 'cliente.nome', nome_completo: 'cliente.nome', pedido: 'numero',
+  rastreio: 'envios.0.objeto', prazo: 'envios.0.prazo', valor: 'valor_total'
+};
+
+// Achata o payload em caminhos, pra montar o catálogo de variáveis na tela.
+function achatar(obj, prefixo, saida, nivel) {
+  saida = saida || {}; nivel = nivel || 0;
+  if (obj == null || nivel > 3) return saida;
+  if (Array.isArray(obj)) {
+    if (obj.length) achatar(obj[0], (prefixo ? prefixo + '.' : '') + '0', saida, nivel + 1);
+    return saida;
+  }
+  if (typeof obj === 'object') {
+    for (const k of Object.keys(obj)) achatar(obj[k], (prefixo ? prefixo + '.' : '') + k, saida, nivel + 1);
+    return saida;
+  }
+  if (prefixo) saida[prefixo] = String(obj).slice(0, 60);
+  return saida;
+}
+
+// Rótulos em português dos campos que importam
+const ROTULOS = {
+  'cliente.nome': 'Nome do cliente', 'cliente.email': 'E-mail do cliente',
+  'cliente.telefone_celular': 'Celular do cliente', 'cliente.cpf': 'CPF do cliente',
+  'cliente.data_nascimento': 'Nascimento do cliente',
+  'numero': 'Número do pedido', 'id': 'ID interno do pedido',
+  'valor_total': 'Valor total', 'valor_subtotal': 'Subtotal',
+  'valor_envio': 'Valor do frete', 'valor_desconto': 'Desconto',
+  'cliente_obs': 'Observação do pedido (personalização)',
+  'data_criacao': 'Data do pedido',
+  'situacao.nome': 'Situação (nome)', 'situacao.codigo': 'Situação (código)',
+  'envios.0.objeto': 'Código de rastreio', 'envios.0.prazo': 'Prazo de entrega (dias)',
+  'envios.0.forma_envio.nome': 'Forma de envio',
+  'endereco_entrega.endereco': 'Endereço de entrega — rua',
+  'endereco_entrega.numero': 'Endereço de entrega — número',
+  'endereco_entrega.complemento': 'Endereço de entrega — complemento',
+  'endereco_entrega.bairro': 'Endereço de entrega — bairro',
+  'endereco_entrega.cidade': 'Endereço de entrega — cidade',
+  'endereco_entrega.estado': 'Endereço de entrega — estado',
+  'endereco_entrega.cep': 'Endereço de entrega — CEP',
+  'cupom_desconto.codigo': 'Cupom usado',
+  'pagamentos.0.forma_pagamento.nome': 'Forma de pagamento',
+  'pagamentos.0.numero_parcelas': 'Parcelas'
+};
+
 // Tira os dados que interessam do payload da Loja Integrada
 function lerPedido(b) {
   const sit  = (b && b.situacao) || {};
@@ -192,7 +253,23 @@ export default async function handler(req, res) {
     // códigos que a loja mandou e que ninguém mapeou ainda
     const naoMapeados = [...new Set(recentes.map(r => r.evento_codigo).filter(c => c && !mapeados.has(c)))];
 
+    // catálogo de variáveis, montado do ÚLTIMO payload real recebido
+    let variaveis = [];
+    try {
+      const um = await sb('loja_eventos?loja=eq.loja_integrada&payload=not.is.null&select=payload&order=created_at.desc&limit=1');
+      const pl = Array.isArray(um.data) && um.data[0] ? um.data[0].payload : null;
+      if (pl) {
+        const plano = achatar(pl);
+        variaveis = Object.keys(plano)
+          .filter(c => !/^(marketplace_info|utm|id_anymarket|resource_uri|data_expiracao)/.test(c))
+          .map(c => ({ caminho: c, rotulo: ROTULOS[c] || c, exemplo: plano[c], conhecido: !!ROTULOS[c] }))
+          .sort((a, b) => (b.conhecido - a.conhecido) || a.caminho.localeCompare(b.caminho));
+      }
+    } catch (e) {}
+    variaveis.unshift({ caminho: 'aviso', rotulo: 'Frase fixa (a mesma pra todos)', exemplo: '(texto que você define)', conhecido: true });
+
     return res.status(200).json({
+      variaveis,
       url: tk ? (base + '/api/li-webhook?token=' + tk) : null,
       configurado: !!tk,
       wa_ok: !!(process.env.WA_ACCESS_TOKEN && process.env.WA_PHONE_NUMBER_ID),
@@ -292,7 +369,13 @@ export default async function handler(req, res) {
       loja: 'Dra. Charm', aviso
     };
     const mapa = Array.isArray(g.template_mapa) ? g.template_mapa : [];
-    const params = mapa.map(k => { const v = fonte[k]; return (v == null || v === '') ? '-' : String(v); });
+    const params = mapa.map(k => {
+      if (k === 'aviso') return aviso;                      // frase fixa
+      if (fonte[k] != null && fonte[k] !== '') return String(fonte[k]);   // apelidos antigos
+      const caminho = APELIDOS[k] || k;
+      const v = valorDoCaminho(body, caminho);
+      return (v == null || v === '') ? '-' : v;
+    });
 
     if (!g.template_name) {
       // não é falha: o gatilho está ligado mas ainda não escolheram o modelo.
