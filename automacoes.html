@@ -220,14 +220,21 @@ function blocoTemplate(g){
   const t=tplDe(g.template_name);
   const nVars=t?t.vars:0;
   const mapa=Array.isArray(g.template_mapa)?g.template_mapa:[];
-  const CAMPOS=[['nome','Primeiro nome'],['nome_completo','Nome completo'],['pedido','Número do pedido'],['rastreio','Código de rastreio'],['prazo','Prazo de entrega'],['valor','Valor do pedido'],['loja','Nome da loja'],['aviso','Frase fixa (a mesma pra todos)']];
+  // as variáveis vêm do PRÓPRIO webhook da loja (último evento recebido),
+  // com o mesmo nome que aparece lá — assim dá pra conferir na fonte.
+  const VARS_WHK = (WHK && Array.isArray(WHK.variaveis) && WHK.variaveis.length) ? WHK.variaveis : null;
+  const CAMPOS = VARS_WHK
+    ? VARS_WHK.map(v=>[v.caminho, v.rotulo + (v.exemplo!==undefined && v.caminho!=='aviso' ? ('  —  ex.: '+v.exemplo) : '')])
+    : [['cliente.nome','Nome do cliente'],['numero','Número do pedido'],['envios.0.objeto','Código de rastreio'],['valor_total','Valor total'],['aviso','Frase fixa (a mesma pra todos)']];
   let vars='';
   if(t && nVars>0){
     vars='<div class="mt-3"><div class="text-[12px] font-semibold text-slate-600 dark:text-slate-300 mb-1">O que entra em cada espaço da mensagem</div><div class="space-y-1.5">'+Array.from({length:nVars},(_,i)=>
       `<div class="flex items-center gap-2"><span class="var-chip shrink-0">{{${i+1}}}</span>
-       <select id="mp_${g.id}_${i}" class="flex-1 p-1.5 text-[13px] rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600">
-       ${CAMPOS.map(c=>`<option value="${c[0]}"${mapa[i]===c[0]?' selected':''}>${c[1]}</option>`).join('')}
-       </select></div>`).join('')+'</div></div>';
+       <select id="mp_${g.id}_${i}" class="flex-1 min-w-0 p-1.5 text-[13px] rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600">
+       ${CAMPOS.map(c=>`<option value="${esc(c[0])}"${mapa[i]===c[0]?' selected':''}>${esc(c[1])}</option>`).join('')}
+       </select></div>`).join('')+'</div>'
+      + (VARS_WHK ? '<div class="text-[11px] text-slate-400 mt-1.5">'+VARS_WHK.length+' variáveis disponíveis, lidas do último evento que a loja mandou. O nome é o mesmo que sai no webhook — se faltar alguma, é porque aquele pedido não trazia esse campo.</div>' : '')
+      + '</div>';
   }
   return `<div class="mt-3 pt-3 border-t border-slate-100 dark:border-ink-700">
     <div class="text-[12px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Modelo aprovado que será enviado</div>
