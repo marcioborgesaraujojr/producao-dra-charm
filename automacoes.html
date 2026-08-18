@@ -192,7 +192,7 @@ function blocoTemplate(g){
   const t=tplDe(g.template_name);
   const nVars=t?t.vars:0;
   const mapa=Array.isArray(g.template_mapa)?g.template_mapa:[];
-  const CAMPOS=[['nome','Primeiro nome'],['nome_completo','Nome completo'],['pedido','Número do pedido'],['rastreio','Código de rastreio'],['prazo','Prazo de entrega'],['valor','Valor do pedido'],['loja','Nome da loja']];
+  const CAMPOS=[['nome','Primeiro nome'],['nome_completo','Nome completo'],['pedido','Número do pedido'],['rastreio','Código de rastreio'],['prazo','Prazo de entrega'],['valor','Valor do pedido'],['loja','Nome da loja'],['aviso','Frase fixa (a mesma pra todos)']];
   let vars='';
   if(t && nVars>0){
     vars='<div class="mt-2 space-y-1.5">'+Array.from({length:nVars},(_,i)=>
