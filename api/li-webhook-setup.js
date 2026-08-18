@@ -1,17 +1,20 @@
 // api/li-webhook-setup.js
-// Cadastra o NOSSO endereço de webhook na Loja Integrada usando a aplicação que
-// já está registrada na API dela. Serve porque o cadastro de webhook não existe
-// no painel da loja — só pela API.
+// Cadastra o NOSSO endereço de webhook na Loja Integrada.
 //
-// Tudo aqui exige estar logado na suíte. As chaves da loja continuam onde sempre
-// estiveram (variáveis do Vercel, via lib/licfg.js) e NUNCA aparecem na resposta.
+// O endpoint certo (achado na documentação oficial da LI) é:
+//     PUT    https://api.awsli.com.br/webhooks/v1/pedido    { notifyUrl, token }
+//     DELETE https://api.awsli.com.br/webhooks/v1/pedido
+// (não é /v1/webhook/ — por isso a sondagem inicial não achava nada)
 //
-// GET   (Bearer)  -> sonda quais recursos de webhook a API expõe e o que já está cadastrado
-// POST  (Bearer)  -> cadastra o nosso endereço
-//         body opcional: { recurso: '/v1/webhook/', payload: {...} }
-// DELETE (Bearer) ?recurso=...&id=123  -> remove um cadastro
+// Autenticação: header Authorization: "chave_api <X> aplicacao <Y>"
 //
-// O endereço cadastrado é o mesmo que aparece em Automações → Loja Integrada.
+// Tudo aqui exige estar logado na suíte. As chaves da loja continuam nas
+// variáveis do Vercel (lib/licfg.js) e NUNCA aparecem na resposta.
+//
+// GET    (Bearer)                 -> mostra o endereço que será cadastrado
+// GET    (Bearer) ?caminho=/v1/x  -> consulta livre na API da loja (só leitura)
+// POST   (Bearer)                 -> cadastra (PUT na LI)
+// DELETE (Bearer)                 -> remove o cadastro
 
 import { createHash } from 'crypto';
 import { getLIKeys } from '../lib/licfg.js';
@@ -36,25 +39,27 @@ async function callerEmail(token) {
   } catch (e) { return null; }
 }
 
-// Chamada na API da loja. As chaves entram como parâmetro e não saem daqui.
+// Chamada na API da loja, autenticando pelo header (jeito documentado).
 async function li(caminho, opts = {}) {
   const k = await getLIKeys();
-  const u = new URL(caminho.startsWith('http') ? caminho : LI_API + caminho);
-  u.searchParams.set('chave_api', k.api);
-  u.searchParams.set('chave_aplicacao', k.app);
-  const r = await fetch(u.toString(), {
+  const r = await fetch(caminho.startsWith('http') ? caminho : LI_API + caminho, {
     ...opts,
-    headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...(opts.headers || {}) }
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      Authorization: 'chave_api ' + k.api + ' aplicacao ' + k.app,
+      ...(opts.headers || {})
+    }
   });
   const txt = await r.text();
   let j = null; try { j = txt ? JSON.parse(txt) : null; } catch (e) { j = txt; }
   return { status: r.status, j };
 }
 
-// tira qualquer coisa que lembre chave antes de devolver pra tela
+// nunca deixa vazar nada parecido com chave na resposta
 function limpar(v) {
   let s = JSON.stringify(v == null ? null : v);
-  s = s.replace(/(chave_api|chave_aplicacao)=[^&"\\]+/gi, '$1=***');
+  s = s.replace(/(chave_api|chave_aplicacao|aplicacao)[=:\s"]+[A-Za-z0-9-]{8,}/gi, '$1=***');
   try { return JSON.parse(s); } catch (e) { return null; }
 }
 
@@ -73,53 +78,24 @@ export default async function handler(req, res) {
   const base = 'https://' + (req.headers['x-forwarded-host'] || req.headers.host);
   const nossaUrl = base + '/api/li-webhook?token=' + tk;
   const q = req.query || {};
+  const RECURSO = '/webhooks/v1/pedido';
 
-  // ===== VER: onde dá pra cadastrar e o que já existe =====
+  // ===== consulta livre / estado =====
   if (req.method === 'GET') {
-    // ?caminho=/v1/xxx/  -> consulta livre (só leitura), pra investigar a API
     if (q.caminho) {
       const r = await li(String(q.caminho));
       const cru = typeof r.j === 'string' ? r.j.slice(0, 600) : null;
       return res.status(200).json({ caminho: String(q.caminho), status: r.status, cru, corpo: limpar(r.j) });
     }
-
-    const tentativas = ['/v1/', '/v1/webhook/', '/v1/gatilho/', '/v1/notificacao/', '/v1/aplicacao/'];
-    const achados = [];
-    for (const caminho of tentativas) {
-      const r = await li(caminho + '?limit=30');
-      const itens = (r.j && (r.j.objects || r.j.results)) || null;
-      achados.push({
-        recurso: caminho,
-        status: r.status,
-        existe: r.status >= 200 && r.status < 300,
-        quantos: Array.isArray(itens) ? itens.length : null,
-        itens: Array.isArray(itens) ? limpar(itens) : null,
-        chaves: (r.j && typeof r.j === 'object' && !Array.isArray(r.j)) ? Object.keys(r.j) : null,
-        amostra: String(typeof r.j === 'string' ? r.j : JSON.stringify(r.j || '')).slice(0, 400),
-        erro: r.status >= 400 ? String(JSON.stringify(r.j || '')).slice(0, 300) : null
-      });
-      // schema ajuda a saber os campos certos do POST
-      if (r.status >= 200 && r.status < 300) {
-        const sc = await li(caminho + 'schema/');
-        achados[achados.length - 1].campos =
-          sc.j && sc.j.fields ? Object.keys(sc.j.fields) : null;
-        achados[achados.length - 1].metodos =
-          sc.j && sc.j.allowed_list_http_methods ? sc.j.allowed_list_http_methods : null;
-      }
-    }
-    return res.status(200).json({ nossaUrl, achados });
+    return res.status(200).json({ nossaUrl, recurso: RECURSO, metodo: 'PUT' });
   }
 
-  // ===== CADASTRAR =====
+  // ===== CADASTRAR (PUT na Loja Integrada) =====
   if (req.method === 'POST') {
-    let body = req.body;
-    if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = {}; } }
-    body = body || {};
-
-    const recurso = String(body.recurso || '/v1/webhook/');
-    const payload = body.payload || { url: nossaUrl, tipo: 'pedido_venda', ativo: true };
-
-    const r = await li(recurso, { method: 'POST', body: JSON.stringify(payload) });
+    const r = await li(RECURSO, {
+      method: 'PUT',
+      body: JSON.stringify({ notifyUrl: nossaUrl, token: tk })
+    });
     const ok = r.status >= 200 && r.status < 300;
 
     if (ok) {
@@ -128,20 +104,17 @@ export default async function handler(req, res) {
           method: 'POST',
           headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY, Authorization: 'Bearer ' + process.env.SUPABASE_SERVICE_ROLE_KEY, 'Content-Type': 'application/json' },
           body: JSON.stringify({ actor_email: email, tabela: 'li_webhook', operacao: 'INSERT',
-                                 registro_id: recurso, dados_depois: { recurso, url: '(endereço do nosso webhook)' } })
+                                 registro_id: RECURSO, dados_depois: { notifyUrl: nossaUrl } })
         });
       } catch (e) {}
     }
-    return res.status(200).json({ ok, recurso, enviado: payload, status: r.status, resposta: limpar(r.j) });
+    return res.status(200).json({ ok, status: r.status, notifyUrl: nossaUrl, resposta: limpar(r.j) });
   }
 
   // ===== REMOVER =====
   if (req.method === 'DELETE') {
-    const recurso = String(q.recurso || '/v1/webhook/');
-    const id = String(q.id || '');
-    if (!id) return res.status(400).json({ error: 'informe o id' });
-    const r = await li(recurso + id + '/', { method: 'DELETE' });
-    return res.status(200).json({ ok: r.status >= 200 && r.status < 300, status: r.status });
+    const r = await li(RECURSO, { method: 'DELETE' });
+    return res.status(200).json({ ok: r.status >= 200 && r.status < 300, status: r.status, resposta: limpar(r.j) });
   }
 
   return res.status(405).json({ error: 'Método não permitido' });

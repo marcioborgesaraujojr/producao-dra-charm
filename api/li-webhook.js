@@ -185,11 +185,19 @@ export default async function handler(req, res) {
 
   const tk = tokenWebhook();
   if (!tk) return res.status(503).json({ error: 'Faltam as variáveis do Supabase no Vercel.' });
-  if (q.token !== tk) return res.status(401).json({ error: 'token inválido' });
 
   let body = req.body;
   if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = {}; } }
   body = body || {};
+
+  // A loja pode devolver o token de três jeitos: na URL, num header ou no corpo.
+  // Aceita qualquer um — o que não pode é aceitar sem token nenhum.
+  const tokenRecebido =
+    q.token ||
+    req.headers['x-webhook-token'] || req.headers['x-token'] ||
+    (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim() ||
+    body.token || null;
+  if (tokenRecebido !== tk) return res.status(401).json({ error: 'token inválido' });
 
   // Daqui pra baixo NUNCA devolvemos erro: se a gente responder != 2xx a Loja
   // Integrada reenvia o evento e o cliente leva mensagem repetida.
