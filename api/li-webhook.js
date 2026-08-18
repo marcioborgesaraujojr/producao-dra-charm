@@ -25,10 +25,37 @@
 // GET             (sem nada)        -> 200 "ok"  (ping de saúde da Loja Integrada)
 // POST ?token=... -> processa 1 evento
 
+import { createHash } from 'crypto';
+
 const GRAPH = 'https://graph.facebook.com/v20.0';
 const SB    = () => process.env.SUPABASE_URL;
 const KEY   = () => process.env.SUPABASE_SERVICE_ROLE_KEY;
-const SECO  = () => ['1','true','sim'].includes(String(process.env.DISPARO_SECO || '').toLowerCase());
+
+// O segredo da URL nasce sozinho: é um resumo (sha256) da chave de serviço que
+// já existe no Vercel. Assim ninguém precisa cadastrar variável nova, e esse
+// resumo NÃO permite voltar pra chave original. Se um dia quiser trocar o
+// segredo, é só cadastrar LI_WEBHOOK_TOKEN que ele passa a valer.
+function tokenWebhook() {
+  if (process.env.LI_WEBHOOK_TOKEN) return process.env.LI_WEBHOOK_TOKEN;
+  const base = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  if (!base) return null;
+  return 'li_' + createHash('sha256').update(base + '::li-webhook::v1').digest('hex').slice(0, 32);
+}
+
+// Modo seco fica no BANCO (sys_config.disparo_seco), pra dar pra ligar e
+// desligar pelo painel sem mexer no Vercel.
+let _secoCache = { v: true, em: 0 };
+async function modoSeco() {
+  if (Date.now() - _secoCache.em < 30000) return _secoCache.v;
+  let v = true;                                   // padrão: SECO (não envia)
+  try {
+    const r = await sb('sys_config?chave=eq.disparo_seco&select=valor&limit=1');
+    const row = Array.isArray(r.data) ? r.data[0] : null;
+    if (row) v = ['1','true','sim'].includes(String(row.valor).toLowerCase());
+  } catch (e) { v = true; }
+  _secoCache = { v, em: Date.now() };
+  return v;
+}
 
 async function sb(path, opts = {}) {
   const r = await fetch(SB() + '/rest/v1/' + path, {
@@ -113,7 +140,7 @@ export default async function handler(req, res) {
     if (!email) return res.status(403).json({ error: 'Faça login na suíte.' });
 
     const base = 'https://' + (req.headers['x-forwarded-host'] || req.headers.host);
-    const tk   = process.env.LI_WEBHOOK_TOKEN;
+    const tk   = tokenWebhook();
 
     const ev = await sb('loja_eventos?loja=eq.loja_integrada&select=evento_codigo,evento_label,cliente_nome,pedido,created_at&order=created_at.desc&limit=40');
     const recentes = Array.isArray(ev.data) ? ev.data : [];
@@ -129,7 +156,7 @@ export default async function handler(req, res) {
       url: tk ? (base + '/api/li-webhook?token=' + tk) : null,
       configurado: !!tk,
       wa_ok: !!(process.env.WA_ACCESS_TOKEN && process.env.WA_PHONE_NUMBER_ID),
-      modo_seco: SECO(),
+      modo_seco: await modoSeco(),
       recentes, naoMapeados
     });
   }
@@ -138,8 +165,26 @@ export default async function handler(req, res) {
   if (req.method === 'GET') return res.status(200).send('ok');
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
 
-  const tk = process.env.LI_WEBHOOK_TOKEN;
-  if (!tk) return res.status(503).json({ error: 'Falta LI_WEBHOOK_TOKEN no Vercel.' });
+  // ===== ligar/desligar o MODO SECO pelo painel (precisa estar logado) =====
+  if (q.seco !== undefined) {
+    const email = await callerEmail((req.headers.authorization || '').replace('Bearer ', '').trim());
+    if (!email) return res.status(403).json({ error: 'Faça login na suíte.' });
+    const valor = ['1','true','sim'].includes(String(q.seco).toLowerCase()) ? '1' : '0';
+    await sb('sys_config?on_conflict=chave', {
+      method: 'POST', headers: { Prefer: 'resolution=merge-duplicates' },
+      body: JSON.stringify({ chave: 'disparo_seco', valor })
+    });
+    _secoCache = { v: valor === '1', em: Date.now() };
+    try {
+      await sb('sys_audit_log', { method: 'POST', body: JSON.stringify({
+        actor_email: email, tabela: 'sys_config', operacao: 'UPDATE',
+        registro_id: 'disparo_seco', dados_depois: { modo_seco: valor === '1' } }) });
+    } catch (e) {}
+    return res.status(200).json({ ok: true, modo_seco: valor === '1' });
+  }
+
+  const tk = tokenWebhook();
+  if (!tk) return res.status(503).json({ error: 'Faltam as variáveis do Supabase no Vercel.' });
   if (q.token !== tk) return res.status(401).json({ error: 'token inválido' });
 
   let body = req.body;
@@ -186,9 +231,17 @@ export default async function handler(req, res) {
     }
 
     // 4) monta os parâmetros do template
+    let aviso = 'Assim que enviarmos, você recebe o código de rastreio por aqui.';
+    try {
+      const av = await sb('sys_config?chave=eq.disparo_aviso&select=valor&limit=1');
+      const r0 = Array.isArray(av.data) ? av.data[0] : null;
+      if (r0 && r0.valor) aviso = String(r0.valor);
+    } catch (e) {}
+
     const fonte = {
       nome: p.primeiro, nome_completo: p.nome, pedido: p.numero,
-      rastreio: p.rastreio || '-', prazo: p.prazo || '-', valor: p.valor || '-', loja: 'Dra. Charm'
+      rastreio: p.rastreio || '-', prazo: p.prazo || '-', valor: p.valor || '-',
+      loja: 'Dra. Charm', aviso
     };
     const mapa = Array.isArray(g.template_mapa) ? g.template_mapa : [];
     const params = mapa.map(k => { const v = fonte[k]; return (v == null || v === '') ? '-' : String(v); });
@@ -201,11 +254,12 @@ export default async function handler(req, res) {
     }
 
     // 5) MODO SECO: registra o que enviaria, sem enviar
-    if (SECO() || !process.env.WA_ACCESS_TOKEN || !process.env.WA_PHONE_NUMBER_ID) {
+    const seco = await modoSeco();
+    if (seco || !process.env.WA_ACCESS_TOKEN || !process.env.WA_PHONE_NUMBER_ID) {
       await sb('at_disparos_log', { method: 'POST', body: JSON.stringify({
         evento_key: p.codigo, telefone: p.waid, pedido: p.numero || null,
         template_name: g.template_name, status: 'simulado',
-        detalhe: SECO() ? 'modo seco ligado' : 'whatsapp não configurado', payload: { params, fonte } }) });
+        detalhe: seco ? 'modo seco ligado' : 'whatsapp não configurado', payload: { params, fonte } }) });
       return res.status(200).json({ received: true, resultado: 'simulado', params });
     }
 
