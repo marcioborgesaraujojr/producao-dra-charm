@@ -127,7 +127,7 @@
     <div class="space-y-3">
       <div><label>Nome (só letras/números, vira minúsculo)</label><input id="ntName" class="fld mt-1" placeholder="ex: aviso_pedido_enviado"></div>
       <div class="grid grid-cols-2 gap-2">
-        <div><label>Categoria</label><select id="ntCat" class="fld mt-1"><option value="MARKETING">Marketing</option><option value="UTILITY">Utilidade</option></select></div>
+        <div><label>Categoria</label><select id="ntCat" class="fld mt-1" onchange="dicaCat()"><option value="MARKETING">Marketing</option><option value="UTILITY">Utilidade</option></select><div id="ntCatDica" class="text-[11px] text-slate-400 mt-1">Promoção/divulgação. Custa mais e só vale pra quem aceitou receber.</div></div>
         <div><label>Idioma</label><select id="ntLang" class="fld mt-1"><option value="pt_BR">Português (BR)</option></select></div>
       </div>
       <div>
@@ -191,6 +191,27 @@ const CATMAP={
 };
 const catBadge=c=>{ const k=String(c||'').toUpperCase(); const m=CATMAP[k]||[c||'\u2014','bg-slate-200 text-slate-600','']; return '<span title="'+esc(m[2]||'')+'" class="text-[11px] px-2 py-0.5 rounded-full font-semibold '+m[1]+'">'+m[0]+'</span>'; };
 
+// por que a Meta recusou / avisos de qualidade
+const MOTIVOS={
+  INCORRECT_CATEGORY:'A Meta achou que a categoria est\u00e1 errada (ex.: voc\u00ea marcou Utilidade mas o texto \u00e9 promo\u00e7\u00e3o).',
+  INVALID_FORMAT:'Formata\u00e7\u00e3o inv\u00e1lida \u2014 geralmente vari\u00e1vel {{n}} fora de ordem, no come\u00e7o/fim do texto, ou sem exemplo.',
+  SCAM:'O texto lembrou golpe/spam pra Meta. Evite urg\u00eancia exagerada, pr\u00eamio, link encurtado.',
+  ABUSIVE_CONTENT:'Conte\u00fado considerado abusivo pelas regras da Meta.',
+  TAG_CONTENT_MISMATCH:'O texto n\u00e3o combina com o tipo escolhido.',
+  NONE:''
+};
+function motivoBox(x){
+  const st=String(x.status||'').toUpperCase();
+  if(st==='REJECTED'){
+    const m=MOTIVOS[String(x.motivo||'').toUpperCase()] || (x.motivo?('C\u00f3digo da Meta: '+x.motivo):'A Meta n\u00e3o detalhou o motivo.');
+    return '<div class="mt-2 text-[12px] rounded-lg px-2.5 py-2 bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300"><b>Por que recusou:</b> '+esc(m)+'</div>';
+  }
+  if(st==='PENDING') return '<div class="mt-2 text-[12px] text-amber-600 dark:text-amber-400">Em an\u00e1lise na Meta. Costuma sair em minutos \u2014 clique em \u201cSincronizar\u201d pra ver se j\u00e1 mudou.</div>';
+  if(String(x.qualidade||'').toUpperCase()==='RED') return '<div class="mt-2 text-[12px] text-rose-600">Qualidade baixa: muita gente bloqueou/denunciou. A Meta pode pausar esse modelo.</div>';
+  if(String(x.qualidade||'').toUpperCase()==='YELLOW') return '<div class="mt-2 text-[12px] text-amber-600">Qualidade em queda \u2014 fique de olho.</div>';
+  return '';
+}
+
 async function apagarTemplate(nome){
   if(!confirm('Apagar o modelo \u201c'+nome+'\u201d?\n\nIsso apaga DE VERDADE na conta da Meta, n\u00e3o s\u00f3 aqui. A Meta n\u00e3o deixa reutilizar esse mesmo nome por cerca de 4 semanas.')) return;
   toast('Apagando\u2026');
@@ -207,12 +228,15 @@ async function carregarTemplates(){
     if(!r.ok){ el.innerHTML='<div class="card p-6 text-center text-sm text-rose-500">'+esc(j.error||'erro')+'</div>'; return; }
     const t=j.templates||[]; if(!t.length){ el.innerHTML='<div class="card p-6 text-center text-sm text-slate-400">Nenhum template ainda. Clique em "Novo template".</div>'; return; }
     el.innerHTML=t.map(x=>{ const st=STMAP[x.status]||[x.status||'—','bg-slate-200 text-slate-600'];
-      return `<div class="card p-3" data-fade><div class="flex items-center justify-between gap-2"><div class="min-w-0"><div class="text-[13px] font-semibold truncate">${esc(x.name)}</div><div class="flex items-center gap-1.5 mt-1 flex-wrap">${catBadge(x.category)}${x.vars?`<span class="text-[11px] text-slate-400">${x.vars} variáve${x.vars>1?'is':'l'}</span>`:''}</div></div><div class="flex items-center gap-1.5 shrink-0"><span class="text-[11px] px-2 py-1 rounded-full font-semibold ${st[1]}">${st[0]}</span><button title="Apagar modelo" onclick="apagarTemplate('${esc(x.name)}')" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button></div></div>${x.body?`<div class="text-[12px] text-slate-500 dark:text-slate-400 mt-2 whitespace-pre-wrap line-clamp-3">${esc(x.body)}</div>`:''}</div>`;
+      return `<div class="card p-3" data-fade><div class="flex items-center justify-between gap-2"><div class="min-w-0"><div class="text-[13px] font-semibold truncate">${esc(x.name)}</div><div class="flex items-center gap-1.5 mt-1 flex-wrap">${catBadge(x.category)}${x.vars?`<span class="text-[11px] text-slate-400">${x.vars} variáve${x.vars>1?'is':'l'}</span>`:''}</div></div><div class="flex items-center gap-1.5 shrink-0"><span class="text-[11px] px-2 py-1 rounded-full font-semibold ${st[1]}">${st[0]}</span><button title="Apagar modelo" onclick="apagarTemplate('${esc(x.name)}')" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button></div></div>${x.body?`<div class="text-[12px] text-slate-500 dark:text-slate-400 mt-2 whitespace-pre-wrap line-clamp-3">${esc(x.body)}</div>`:''}${motivoBox(x)}</div>`;
     }).join('');
   }catch(e){ el.innerHTML='<div class="card p-6 text-center text-sm text-rose-500">'+esc(e.message)+'</div>'; }
 }
 
-function abrirNovo(){ document.getElementById('novoModal').classList.remove('hidden'); }
+function dicaCat(){ const v=document.getElementById('ntCat').value; document.getElementById('ntCatDica').textContent = v==='UTILITY'
+  ? 'Aviso sobre um pedido/serviço que o cliente já tem (pagamento, envio, entrega). Mais barato e não precisa de opt-in.'
+  : 'Promoção/divulgação. Custa mais e só vale pra quem aceitou receber.'; }
+function abrirNovo(){ document.getElementById('novoModal').classList.remove('hidden'); dicaCat(); }
 function fecharNovo(){ document.getElementById('novoModal').classList.add('hidden'); }
 function insVar(v){ const t=document.getElementById('ntBody'); const s=t.selectionStart||t.value.length; t.value=t.value.slice(0,s)+v+t.value.slice(s); t.focus(); renderExemplos(); }
 function renderExemplos(){
