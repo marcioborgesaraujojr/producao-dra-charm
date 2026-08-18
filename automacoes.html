@@ -90,6 +90,7 @@
   <div id="viewGatilhos">
     <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">Escolha a loja e ative os eventos que devem avisar o cliente. Cada loja tem os próprios gatilhos e as próprias mensagens.</p>
     <div id="lojasBar" class="flex flex-wrap gap-2 mb-4"></div>
+    <div id="webhookBox" class="hidden mb-4"></div>
     <div id="gatilhosList" class="space-y-6 pb-10"></div>
   </div>
 
@@ -115,6 +116,7 @@ const LOJAS = [
   { key:'fidelizar',      nome:'Fidelizar',      desc:'Dra. Charm Fidelizar' }
 ];
 let sb=null, GATILHOS=[], FILA=[], TAB='gatilhos';
+let TPLS=[], WHK=null, TOKEN=null;
 let LOJA = (function(){ try{ return localStorage.getItem('autom_loja') || 'loja_integrada'; }catch(e){ return 'loja_integrada'; } })();
 async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2'); sb=createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true}}); } return sb; }
 function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[x])); }
@@ -122,8 +124,10 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,x=>({'&':'&amp;','
 async function bootstrap(){
   const c=await getSb(); const { data:{ session } }=await c.auth.getSession();
   if(!session){ document.getElementById('authGate').classList.remove('hidden'); return; }
+  TOKEN = session.access_token;
   document.getElementById('appWrap').classList.remove('hidden');
   await carregarGatilhos(); await carregarFila();
+  carregarTemplates(); carregarWebhook();
   // realtime na fila
   c.channel('automacoes').on('postgres_changes',{event:'*',schema:'public',table:'at_fila_envios'},()=>carregarFila()).subscribe();
 }
@@ -134,6 +138,82 @@ async function carregarGatilhos(){
   if(error){ console.error(error); return; }
   GATILHOS=data||[]; renderLojas(); renderGatilhos();
 }
+async function carregarTemplates(){
+  try{
+    const r=await fetch('/api/whatsapp-templates',{headers:{Authorization:'Bearer '+TOKEN}});
+    const j=await r.json(); TPLS=j.templates||[];
+  }catch(e){ TPLS=[]; }
+  renderGatilhos();
+}
+
+async function carregarWebhook(){
+  try{
+    const r=await fetch('/api/li-webhook?config=1',{headers:{Authorization:'Bearer '+TOKEN}});
+    WHK=await r.json();
+  }catch(e){ WHK=null; }
+  renderWebhook();
+}
+
+function renderWebhook(){
+  const el=document.getElementById('webhookBox'); if(!el) return;
+  if(LOJA!=='loja_integrada' || !WHK){ el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  const nm=(WHK.naoMapeados||[]);
+  const ult=(WHK.recentes||[])[0];
+  el.innerHTML = `<div class="rounded-xl border border-slate-200 dark:border-ink-600 bg-white dark:bg-ink-800 p-4 space-y-3">
+    <div class="flex items-center gap-2 flex-wrap">
+      <span class="text-sm font-semibold">Recebimento da Loja Integrada</span>
+      ${WHK.configurado
+        ? '<span class="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-emerald-100 text-emerald-700">endereço pronto</span>'
+        : '<span class="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-700">falta o segredo no Vercel</span>'}
+      ${WHK.modo_seco ? '<span class="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-sky-100 text-sky-700">modo seco: só registra, não envia</span>' : ''}
+      ${WHK.wa_ok ? '' : '<span class="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-rose-100 text-rose-700">WhatsApp não configurado</span>'}
+    </div>
+    ${WHK.url ? `<div>
+      <div class="text-[12px] text-slate-500 dark:text-slate-400 mb-1">Cole este endereço no webhook da Loja Integrada:</div>
+      <div class="flex gap-2">
+        <input readonly id="whkUrl" value="${esc(WHK.url)}" class="flex-1 min-w-0 p-2 text-[12px] font-mono rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600">
+        <button onclick="copiarWhk()" class="text-sm font-semibold px-3 py-2 rounded-lg bg-slate-100 dark:bg-ink-700 hover:bg-slate-200 shrink-0">Copiar</button>
+      </div></div>` : `<div class="text-[12px] text-slate-500">Cadastre <b>LI_WEBHOOK_TOKEN</b> nas variáveis do Vercel pra gerar o endereço.</div>`}
+    <div class="text-[12px] text-slate-500 dark:text-slate-400">
+      ${ult ? ('Último evento recebido: <b>'+esc(ult.evento_label||ult.evento_codigo)+'</b>'+(ult.pedido?(' · pedido '+esc(ult.pedido)):'')+' · '+new Date(ult.created_at).toLocaleString('pt-BR'))
+            : 'Nenhum evento recebido ainda.'}
+      · <button onclick="carregarWebhook()" class="underline hover:text-pink-600">atualizar</button>
+    </div>
+    ${nm.length ? `<div class="text-[12px] rounded-lg px-2.5 py-2 bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+        <b>A loja mandou situações que nenhum gatilho conhece:</b> ${nm.map(esc).join(', ')}. Me avise que eu ligo cada uma no gatilho certo.</div>` : ''}
+  </div>`;
+}
+function copiarWhk(){ const i=document.getElementById('whkUrl'); i.select(); document.execCommand('copy'); alert('Endereço copiado.'); }
+
+function tplDe(nome){ return TPLS.find(t=>t.name===nome)||null; }
+
+function blocoTemplate(g){
+  const t=tplDe(g.template_name);
+  const nVars=t?t.vars:0;
+  const mapa=Array.isArray(g.template_mapa)?g.template_mapa:[];
+  const CAMPOS=[['nome','Primeiro nome'],['nome_completo','Nome completo'],['pedido','Número do pedido'],['rastreio','Código de rastreio'],['prazo','Prazo de entrega'],['valor','Valor do pedido'],['loja','Nome da loja']];
+  let vars='';
+  if(t && nVars>0){
+    vars='<div class="mt-2 space-y-1.5">'+Array.from({length:nVars},(_,i)=>
+      `<div class="flex items-center gap-2"><span class="var-chip shrink-0">{{${i+1}}}</span>
+       <select id="mp_${g.id}_${i}" class="flex-1 p-1.5 text-[13px] rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600">
+       ${CAMPOS.map(c=>`<option value="${c[0]}"${mapa[i]===c[0]?' selected':''}>${c[1]}</option>`).join('')}
+       </select></div>`).join('')+'</div>';
+  }
+  return `<div class="mt-3 pt-3 border-t border-slate-100 dark:border-ink-700">
+    <div class="text-[12px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Modelo aprovado que será enviado</div>
+    <select id="tp_${g.id}" onchange="trocouTpl('${g.id}')" class="w-full p-2 text-sm rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600">
+      <option value="">— escolher um modelo aprovado —</option>
+      ${TPLS.map(t2=>`<option value="${esc(t2.name)}"${g.template_name===t2.name?' selected':''}>${esc(t2.name)}${t2.vars?(' ('+t2.vars+' var)'):''}</option>`).join('')}
+    </select>
+    ${t?`<div class="text-[12px] text-slate-500 dark:text-slate-400 mt-1.5 whitespace-pre-wrap">${esc(t.body||'')}</div>`:''}
+    ${vars}
+    <div class="text-[11px] text-slate-400 mt-2">Fora da janela de 24h o WhatsApp oficial só entrega modelo aprovado — por isso o texto livre acima não vale pra avisar sobre pedido.</div>
+  </div>`;
+}
+function trocouTpl(id){ const g=GATILHOS.find(x=>x.id===id); if(!g) return; g.template_name=document.getElementById('tp_'+id).value||null; g.template_mapa=[]; renderGatilhos(); document.getElementById('ed_'+id).classList.remove('hidden'); }
+
 function renderLojas(){
   const el=document.getElementById('lojasBar'); if(!el) return;
   el.innerHTML=LOJAS.map(l=>{
@@ -143,7 +223,7 @@ function renderLojas(){
       ${esc(l.nome)}<span class="cnt">${on}/${meus.length}</span></button>`;
   }).join('');
 }
-function trocarLoja(k){ LOJA=k; try{ localStorage.setItem('autom_loja',k); }catch(e){} renderLojas(); renderGatilhos(); }
+function trocarLoja(k){ LOJA=k; try{ localStorage.setItem('autom_loja',k); }catch(e){} renderLojas(); renderGatilhos(); renderWebhook(); }
 
 function renderGatilhos(){
   const cats={pedido:'Eventos do pedido', nota:'Eventos de nota fiscal', troca:'Eventos de troca', fidelizar:'Fidelidade', rastreio:'Rastreio da entrega', vale:'Vales e cupons', nps:'Pesquisa de satisfação'};
@@ -173,8 +253,9 @@ function gatilhoRow(g){
     <div id="ed_${g.id}" class="hidden mt-3 pl-1">
       <div class="flex flex-wrap gap-1.5 mb-2">${VARS.map(v=>`<span class="var-chip" onclick="inserirVar('${g.id}','${v}')">${v}</span>`).join('')}</div>
       <textarea id="msg_${g.id}" rows="4" class="w-full p-2 text-sm rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-pink-500 outline-none">${esc(g.mensagem||'')}</textarea>
-      <div class="flex items-center justify-between mt-2">
-        <span class="text-[11px] text-slate-400">Canal: WhatsApp (oficial). Variáveis são preenchidas com os dados do pedido no envio.</span>
+      ${blocoTemplate(g)}
+      <div class="flex items-center justify-between mt-3 gap-2 flex-wrap">
+        <span class="text-[11px] text-slate-400">${g.li_codigo?('Situação na loja: <b>'+esc(g.li_codigo)+'</b>'):'<span class="text-amber-600">Ainda não sei qual situação da loja dispara este gatilho.</span>'}</span>
         <button onclick="salvarMsg('${g.id}')" class="text-sm font-semibold px-3 py-1.5 rounded-lg bg-pink-500 hover:bg-pink-600 text-white">Salvar</button>
       </div>
     </div>
@@ -187,8 +268,12 @@ async function toggleAtivo(id){ const g=GATILHOS.find(x=>x.id===id); if(!g) retu
 function toggleEditor(id){ document.getElementById('ed_'+id).classList.toggle('hidden'); }
 function inserirVar(id,v){ const t=document.getElementById('msg_'+id); const s=t.selectionStart||t.value.length; t.value=t.value.slice(0,s)+v+t.value.slice(s); t.focus(); }
 async function salvarMsg(id){ const g=GATILHOS.find(x=>x.id===id); const msg=document.getElementById('msg_'+id).value; g.mensagem=msg;
+  const tpEl=document.getElementById('tp_'+id); const tp=tpEl?(tpEl.value||null):g.template_name;
+  const t=tplDe(tp); const mapa=[];
+  if(t) for(let i=0;i<t.vars;i++){ const e2=document.getElementById('mp_'+id+'_'+i); mapa.push(e2?e2.value:'nome'); }
+  g.template_name=tp; g.template_mapa=mapa;
   const btn=event.target; btn.textContent='Salvando…'; btn.disabled=true;
-  try{ await (await getSb()).from('at_gatilhos').update({mensagem:msg,updated_at:new Date().toISOString()}).eq('id',id); btn.textContent='Salvo ✓'; }
+  try{ await (await getSb()).from('at_gatilhos').update({mensagem:msg,template_name:tp,template_mapa:mapa,updated_at:new Date().toISOString()}).eq('id',id); btn.textContent='Salvo ✓'; }
   catch(e){ alert('Erro ao salvar: '+e.message); btn.textContent='Salvar'; } finally{ btn.disabled=false; setTimeout(()=>{btn.textContent='Salvar';},1500); } }
 
 async function carregarFila(){
