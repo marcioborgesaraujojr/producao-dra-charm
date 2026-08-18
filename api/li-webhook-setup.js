@@ -76,7 +76,14 @@ export default async function handler(req, res) {
 
   // ===== VER: onde dá pra cadastrar e o que já existe =====
   if (req.method === 'GET') {
-    const tentativas = ['/v1/webhook/', '/v1/gatilho/', '/v1/notificacao/', '/v1/aplicacao/'];
+    // ?caminho=/v1/xxx/  -> consulta livre (só leitura), pra investigar a API
+    if (q.caminho) {
+      const r = await li(String(q.caminho));
+      const cru = typeof r.j === 'string' ? r.j.slice(0, 600) : null;
+      return res.status(200).json({ caminho: String(q.caminho), status: r.status, cru, corpo: limpar(r.j) });
+    }
+
+    const tentativas = ['/v1/', '/v1/webhook/', '/v1/gatilho/', '/v1/notificacao/', '/v1/aplicacao/'];
     const achados = [];
     for (const caminho of tentativas) {
       const r = await li(caminho + '?limit=30');
@@ -87,6 +94,8 @@ export default async function handler(req, res) {
         existe: r.status >= 200 && r.status < 300,
         quantos: Array.isArray(itens) ? itens.length : null,
         itens: Array.isArray(itens) ? limpar(itens) : null,
+        chaves: (r.j && typeof r.j === 'object' && !Array.isArray(r.j)) ? Object.keys(r.j) : null,
+        amostra: String(typeof r.j === 'string' ? r.j : JSON.stringify(r.j || '')).slice(0, 400),
         erro: r.status >= 400 ? String(JSON.stringify(r.j || '')).slice(0, 300) : null
       });
       // schema ajuda a saber os campos certos do POST
