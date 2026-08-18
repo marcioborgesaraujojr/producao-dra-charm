@@ -48,7 +48,7 @@ async function sbInsertMsg(conversaId, texto, autor) {
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'authorization, content-type');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
@@ -74,6 +74,47 @@ export default async function handler(req, res) {
         })
         .sort((a, b) => a.name.localeCompare(b.name));
       return res.status(200).json({ templates });
+    } catch (e) { return res.status(500).json({ error: e.message }); }
+  }
+
+  // ===== EXCLUIR template (apaga NA META tambem - o painel so espelha) =====
+  if (req.method === 'DELETE') {
+    const nome = String((req.query && (req.query.name || req.query.nome)) || '').trim();
+    if (!nome) return res.status(400).json({ error: 'Informe o nome do modelo.' });
+
+    // trava: nao deixa apagar modelo que algum disparo automatico esta usando
+    try {
+      const H = { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY, Authorization: 'Bearer ' + process.env.SUPABASE_SERVICE_ROLE_KEY };
+      const ru = await fetch(process.env.SUPABASE_URL + '/rest/v1/at_disparos?template_name=eq.' +
+                             encodeURIComponent(nome) + '&select=evento_key,ativo', { headers: H });
+      const usos = await ru.json();
+      const emUso = Array.isArray(usos) ? usos.filter(u => u.ativo) : [];
+      if (emUso.length) {
+        return res.status(409).json({
+          error: 'Esse modelo está em uso por um disparo automático ligado (' +
+                 emUso.map(u => u.evento_key).join(', ') + '). Desligue o gatilho antes de apagar.'
+        });
+      }
+    } catch (e) { /* se a checagem falhar, segue - a Meta ainda valida */ }
+
+    try {
+      const url = GRAPH + '/' + WABA() + '/message_templates?name=' + encodeURIComponent(nome) +
+                  '&access_token=' + encodeURIComponent(process.env.WA_ACCESS_TOKEN);
+      const r = await fetch(url, { method: 'DELETE' });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) return res.status(r.status).json({ error: (j.error && j.error.message) || 'A Meta recusou a exclusão', data: j });
+
+      // registra na Auditoria quem apagou
+      try {
+        await fetch(process.env.SUPABASE_URL + '/rest/v1/sys_audit_log', {
+          method: 'POST',
+          headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY, Authorization: 'Bearer ' + process.env.SUPABASE_SERVICE_ROLE_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ actor_email: email, tabela: 'wa_modelos', operacao: 'DELETE',
+                                 registro_id: nome, dados_antes: { modelo: nome }, dados_depois: null })
+        });
+      } catch (e) { /* best effort */ }
+
+      return res.status(200).json({ ok: true, apagado: nome });
     } catch (e) { return res.status(500).json({ error: e.message }); }
   }
 
