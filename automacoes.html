@@ -166,7 +166,9 @@ function renderWebhook(){
       ${WHK.configurado
         ? '<span class="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-emerald-100 text-emerald-700">endereço pronto</span>'
         : '<span class="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-700">falta o segredo no Vercel</span>'}
-      ${WHK.modo_seco ? '<span class="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-sky-100 text-sky-700">modo seco: só registra, não envia</span>' : ''}
+      ${WHK.modo_seco
+        ? '<span class="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-sky-100 text-sky-700">MODO SECO — registra, mas não envia</span>'
+        : '<span class="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-emerald-100 text-emerald-700">ENVIANDO de verdade</span>'}
       ${WHK.wa_ok ? '' : '<span class="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-rose-100 text-rose-700">WhatsApp não configurado</span>'}
     </div>
     ${WHK.url ? `<div>
@@ -175,6 +177,18 @@ function renderWebhook(){
         <input readonly id="whkUrl" value="${esc(WHK.url)}" class="flex-1 min-w-0 p-2 text-[12px] font-mono rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600">
         <button onclick="copiarWhk()" class="text-sm font-semibold px-3 py-2 rounded-lg bg-slate-100 dark:bg-ink-700 hover:bg-slate-200 shrink-0">Copiar</button>
       </div></div>` : `<div class="text-[12px] text-slate-500">Cadastre <b>LI_WEBHOOK_TOKEN</b> nas variáveis do Vercel pra gerar o endereço.</div>`}
+    <div class="rounded-lg p-3 ${WHK.modo_seco?'bg-sky-50 dark:bg-sky-900/20':'bg-emerald-50 dark:bg-emerald-900/20'}">
+      <div class="flex items-center justify-between gap-3 flex-wrap">
+        <div class="text-[12px] ${WHK.modo_seco?'text-sky-800 dark:text-sky-300':'text-emerald-800 dark:text-emerald-300'}">
+          ${WHK.modo_seco
+            ? '<b>Nada está sendo enviado ao cliente.</b> Os eventos chegam e ficam registrados pra você conferir.<br>Desligue os gatilhos no Notificações <u>antes</u> de ligar aqui, senão o cliente recebe a mensagem duas vezes.'
+            : '<b>Os clientes estão recebendo as mensagens.</b> Confira se os gatilhos do Notificações estão desligados, senão chega duplicado.'}
+        </div>
+        <button onclick="virarModo()" class="text-sm font-semibold px-4 py-2.5 rounded-lg shrink-0 ${WHK.modo_seco?'bg-emerald-600 hover:bg-emerald-700':'bg-slate-600 hover:bg-slate-700'} text-white">
+          ${WHK.modo_seco ? 'Começar a enviar' : 'Voltar pro modo seco'}
+        </button>
+      </div>
+    </div>
     <div class="text-[12px] text-slate-500 dark:text-slate-400">
       ${ult ? ('Último evento recebido: <b>'+esc(ult.evento_label||ult.evento_codigo)+'</b>'+(ult.pedido?(' · pedido '+esc(ult.pedido)):'')+' · '+new Date(ult.created_at).toLocaleString('pt-BR'))
             : 'Nenhum evento recebido ainda.'}
@@ -183,6 +197,20 @@ function renderWebhook(){
     ${nm.length ? `<div class="text-[12px] rounded-lg px-2.5 py-2 bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
         <b>A loja mandou situações que nenhum gatilho conhece:</b> ${nm.map(esc).join(', ')}. Me avise que eu ligo cada uma no gatilho certo.</div>` : ''}
   </div>`;
+}
+async function virarModo(){
+  const ligando = WHK && WHK.modo_seco;
+  const msg = ligando
+    ? 'Confirma começar a ENVIAR de verdade?\n\nA partir de agora cada mudança de status manda WhatsApp pro cliente.\n\nSó confirme se você JÁ desligou os gatilhos no Notificações Inteligentes — senão o cliente recebe duas vezes.'
+    : 'Voltar pro modo seco? O sistema para de enviar e volta só a registrar.';
+  if(!confirm(msg)) return;
+  try{
+    const r=await fetch('/api/li-webhook?seco='+(ligando?'0':'1'),{method:'POST',headers:{Authorization:'Bearer '+TOKEN}});
+    const j=await r.json();
+    if(!r.ok){ alert(j.error||'Não deu pra mudar'); return; }
+    await carregarWebhook();
+    alert(j.modo_seco ? 'Modo seco ligado: não envia mais.' : 'Pronto — o sistema está enviando de verdade agora.');
+  }catch(e){ alert('Erro: '+e.message); }
 }
 function copiarWhk(){ const i=document.getElementById('whkUrl'); i.select(); document.execCommand('copy'); alert('Endereço copiado.'); }
 
