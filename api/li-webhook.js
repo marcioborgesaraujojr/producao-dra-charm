@@ -170,6 +170,18 @@ function lerPedido(b) {
   };
 }
 
+// Só ACHA uma conversa que já existe. Nunca cria.
+// Usado no modo seco: marcar etiqueta não pode inventar conversa no Atendimento.
+async function acharConversa(waid) {
+  try {
+    const c = await sb('at_clientes?whatsapp_id=eq.' + waid + '&select=id&limit=1');
+    const cli = Array.isArray(c.data) ? c.data[0] : null;
+    if (!cli || !cli.id) return null;
+    const f = await sb('at_conversas?cliente_id=eq.' + cli.id + '&status=neq.encerrada&select=id&order=ultima_msg_em.desc&limit=1');
+    return (Array.isArray(f.data) && f.data.length) ? f.data[0].id : null;
+  } catch (e) { return null; }
+}
+
 async function acharOuCriarConversa(waid, nome) {
   const c = await sb('at_clientes?on_conflict=whatsapp_id', {
     method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
@@ -268,8 +280,17 @@ export default async function handler(req, res) {
     } catch (e) {}
     variaveis.unshift({ caminho: 'aviso', rotulo: 'Frase fixa (a mesma pra todos)', exemplo: '(texto que você define)', conhecido: true });
 
+    // mapas salvos na criação de cada template
+    let tplMapas = {};
+    try {
+      const mp = await sb('sys_config?chave=like.tplmap_*&select=chave,valor');
+      (Array.isArray(mp.data) ? mp.data : []).forEach(r => {
+        try { tplMapas[String(r.chave).replace('tplmap_', '')] = JSON.parse(r.valor); } catch (e) {}
+      });
+    } catch (e) {}
+
     return res.status(200).json({
-      variaveis,
+      variaveis, tplMapas,
       url: tk ? (base + '/api/li-webhook?token=' + tk) : null,
       configurado: !!tk,
       wa_ok: !!(process.env.WA_ACCESS_TOKEN && process.env.WA_PHONE_NUMBER_ID),
@@ -395,8 +416,8 @@ export default async function handler(req, res) {
         template_name: g.template_name, status: 'simulado',
         detalhe: seco ? 'modo seco ligado' : 'whatsapp não configurado', payload: { params, fonte } }) });
       try {
-        const cid = await acharOuCriarConversa(p.waid, p.nome);
-        await aplicarTags(cid, g.aplica_tags);
+        const cid = await acharConversa(p.waid);   // só etiqueta quem JÁ tem conversa
+        if (cid) await aplicarTags(cid, g.aplica_tags);
       } catch (e) {}
       return res.status(200).json({ received: true, resultado: 'simulado', params });
     }
@@ -419,8 +440,9 @@ export default async function handler(req, res) {
 
     // 7) deixa a marca na conversa do cliente (best effort)
     try {
-      const conversaId = await acharOuCriarConversa(p.waid, p.nome);
-      await aplicarTags(conversaId, g.aplica_tags);
+      // só abre conversa quando a mensagem REALMENTE saiu; se falhou, não polui o painel
+      const conversaId = ok ? await acharOuCriarConversa(p.waid, p.nome) : await acharConversa(p.waid);
+      if (conversaId) await aplicarTags(conversaId, g.aplica_tags);
       if (conversaId) {
         let texto = g.mensagem || ('[modelo: ' + g.template_name + ']');
         params.forEach((x, i) => { texto = texto.replace(new RegExp('\\{\\{\\s*' + (i + 1) + '\\s*\\}\\}', 'g'), x); });
