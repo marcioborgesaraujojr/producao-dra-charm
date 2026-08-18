@@ -24,6 +24,14 @@
   .var-chip{font-size:11px;font-family:ui-monospace,monospace;background:#fdf2f8;color:#ff3c6f;border:1px solid #fbcfe8;border-radius:6px;padding:2px 6px;cursor:pointer}
   .dark .var-chip{background:#3f1d2b;color:#f9a8d4;border-color:#6d2647}
   [data-fade]{animation:fade .18s ease}@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .loja-chip{display:inline-flex;align-items:center;gap:.45rem;padding:.5rem .85rem;border-radius:.75rem;font-size:13px;font-weight:600;cursor:pointer;
+    background:#fff;border:1px solid #e2e8f0;color:#475569;transition:.15s}
+  .loja-chip:hover{border-color:#cbd5e1}
+  .loja-chip[data-on="1"]{background:#ff3c6f;border-color:#ff3c6f;color:#fff}
+  .dark .loja-chip{background:#1e293b;border-color:#334155;color:#cbd5e1}
+  .dark .loja-chip[data-on="1"]{background:#ff3c6f;border-color:#ff3c6f;color:#fff}
+  .loja-chip .cnt{font-size:11px;padding:.05rem .4rem;border-radius:999px;background:rgba(100,116,139,.15)}
+  .loja-chip[data-on="1"] .cnt{background:rgba(255,255,255,.25)}
 </style>
 
 <!-- ===== Tema Dra. Charm: Poppins + cards foscos flutuando (mantém o fundo existente) ===== -->
@@ -80,7 +88,8 @@
 
   <!-- Gatilhos -->
   <div id="viewGatilhos">
-    <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">Ative os eventos da <b>Loja Integrada</b> e personalize a mensagem que o cliente recebe. O envio de fato acontece quando o WhatsApp estiver conectado (por enquanto vai pra Fila).</p>
+    <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">Escolha a loja e ative os eventos que devem avisar o cliente. Cada loja tem os próprios gatilhos e as próprias mensagens.</p>
+    <div id="lojasBar" class="flex flex-wrap gap-2 mb-4"></div>
     <div id="gatilhosList" class="space-y-6 pb-10"></div>
   </div>
 
@@ -100,7 +109,13 @@
 <script>
 const SUPA = { url:'https://wwytzoyeibekhstinott.supabase.co', key:'sb_publishable_uMoCEK4Ed_u8ZIfjVZ7Jrg_tdR4b9bO' };
 const VARS = ['{{nome}}','{{pedido}}','{{produto}}','{{codigo_rastreio}}','{{valor}}','{{loja}}'];
+const LOJAS = [
+  { key:'loja_integrada', nome:'Loja Integrada', desc:'Dra. Charm' },
+  { key:'troquecommerce', nome:'TroqueCommerce', desc:'Trocas e devoluções' },
+  { key:'fidelizar',      nome:'Fidelizar',      desc:'Dra. Charm Fidelizar' }
+];
 let sb=null, GATILHOS=[], FILA=[], TAB='gatilhos';
+let LOJA = (function(){ try{ return localStorage.getItem('autom_loja') || 'loja_integrada'; }catch(e){ return 'loja_integrada'; } })();
 async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2'); sb=createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true}}); } return sb; }
 function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[x])); }
 
@@ -115,15 +130,31 @@ async function bootstrap(){
 
 async function carregarGatilhos(){
   const c=await getSb();
-  const { data, error }=await c.from('at_gatilhos').select('*').order('categoria').order('ordem');
+  const { data, error }=await c.from('at_gatilhos').select('*').order('loja').order('categoria').order('ordem');
   if(error){ console.error(error); return; }
-  GATILHOS=data||[]; renderGatilhos();
+  GATILHOS=data||[]; renderLojas(); renderGatilhos();
 }
+function renderLojas(){
+  const el=document.getElementById('lojasBar'); if(!el) return;
+  el.innerHTML=LOJAS.map(l=>{
+    const meus=GATILHOS.filter(g=>(g.loja||'loja_integrada')===l.key);
+    const on=meus.filter(g=>g.ativo).length;
+    return `<button class="loja-chip" data-on="${LOJA===l.key?1:0}" onclick="trocarLoja('${l.key}')" title="${esc(l.desc)}">
+      ${esc(l.nome)}<span class="cnt">${on}/${meus.length}</span></button>`;
+  }).join('');
+}
+function trocarLoja(k){ LOJA=k; try{ localStorage.setItem('autom_loja',k); }catch(e){} renderLojas(); renderGatilhos(); }
+
 function renderGatilhos(){
-  const cats={pedido:'Eventos do pedido', nota:'Eventos de nota fiscal', troca:'Eventos de troca', fidelizar:'Fidelidade'};
+  const cats={pedido:'Eventos do pedido', nota:'Eventos de nota fiscal', troca:'Eventos de troca', fidelizar:'Fidelidade', rastreio:'Rastreio da entrega', vale:'Vales e cupons', nps:'Pesquisa de satisfação'};
   const grupos={};
-  GATILHOS.forEach(g=>{ (grupos[g.categoria]=grupos[g.categoria]||[]).push(g); });
+  GATILHOS.filter(g=>(g.loja||'loja_integrada')===LOJA).forEach(g=>{ (grupos[g.categoria]=grupos[g.categoria]||[]).push(g); });
   const el=document.getElementById('gatilhosList');
+  if(!Object.keys(grupos).length){
+    const l=LOJAS.find(x=>x.key===LOJA)||{nome:LOJA};
+    el.innerHTML='<div class="rounded-xl border border-slate-200 dark:border-ink-600 bg-white dark:bg-ink-800 p-8 text-center text-sm text-slate-400">Nenhum gatilho cadastrado para <b>'+esc(l.nome)+'</b> ainda.</div>';
+    return;
+  }
   el.innerHTML=Object.keys(grupos).map(cat=>`
     <div>
       <div class="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">${cats[cat]||cat}</div>
@@ -151,6 +182,7 @@ function gatilhoRow(g){
 }
 async function toggleAtivo(id){ const g=GATILHOS.find(x=>x.id===id); if(!g) return; g.ativo=!g.ativo;
   document.querySelector(`.switch[onclick="toggleAtivo('${id}')"]`).dataset.on=g.ativo?1:0;
+  renderLojas();
   try{ await (await getSb()).from('at_gatilhos').update({ativo:g.ativo}).eq('id',id); }catch(e){ console.warn(e.message); } }
 function toggleEditor(id){ document.getElementById('ed_'+id).classList.toggle('hidden'); }
 function inserirVar(id,v){ const t=document.getElementById('msg_'+id); const s=t.selectionStart||t.value.length; t.value=t.value.slice(0,s)+v+t.value.slice(s); t.focus(); }
