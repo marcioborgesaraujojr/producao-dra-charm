@@ -301,9 +301,11 @@ async function bootstrap(){
   TOKEN=session.access_token;
   document.getElementById('appWrap').classList.remove('hidden');
   // aba inicial via hash (#templates, #escudo…)
-  const h=(location.hash||'').replace('#',''); if(['templates','escudo','conexao'].includes(h)) tab(h);
+  const h=(location.hash||'').replace('#',''); if(['visao','templates','escudo','conexao'].includes(h)) tab(h);
   carregarSaude(false);
 }
+// o menu lateral navega por hash; sem reload, so o hashchange avisa
+window.addEventListener('hashchange', ()=>{ const h=(location.hash||'').replace('#',''); if(['visao','templates','escudo','conexao'].includes(h)) tab(h); });
 bootstrap();
 </script>
 <script src="/nav.js"></script>

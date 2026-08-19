@@ -330,7 +330,11 @@ function setTab(t){ TAB=t; document.querySelectorAll('.tab').forEach(el=>el.data
   document.getElementById('viewGatilhos').classList.toggle('hidden',t!=='gatilhos');
   document.getElementById('viewFila').classList.toggle('hidden',t!=='fila'); }
 
-bootstrap();
+// o menu lateral aponta pra /automacoes.html#gatilhos e #fila
+function abaDoHash(){ const h=(location.hash||'').replace('#',''); if(h==='gatilhos'||h==='fila') setTab(h); }
+window.addEventListener('hashchange', abaDoHash);
+
+bootstrap().then(abaDoHash).catch(()=>abaDoHash());
 </script>
 <script src="/nav.js"></script>
 </body>
