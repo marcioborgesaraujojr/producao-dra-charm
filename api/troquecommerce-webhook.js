@@ -162,7 +162,11 @@ function garimpa(obj, nomes) {
 
 // O codigo do evento pode chegar solto ou dentro de um envelope.
 function codigoEvento(b) {
-  const cand = [b.evento, b.event_id, b.eventId, b.codigo, b.code, b.tipo, b.type, b.event];
+  // A TroqueCommerce manda o id do evento em webhook_event_id (ex.: 3 = reversa
+  // aprovada). Esse campo vem junto com o corpo da reversa, entao ele tem que
+  // ser o primeiro candidato - senao caimos no status ("Aguardando Envio") e o
+  // evento fica como desconhecido.
+  const cand = [b.webhook_event_id, b.evento, b.event_id, b.eventId, b.codigo, b.code, b.tipo, b.type, b.event];
   for (const c of cand) {
     if (c == null) continue;
     if (typeof c === 'object') { const i = c.id || c.code || c.codigo; if (i != null) return String(i).trim(); continue; }
@@ -179,7 +183,9 @@ function lerEvento(b) {
   return {
     codigoBruto: cod,
     code:   ev ? ev.code : ('desconhecido_' + (cod || 'sem_codigo')),
-    label:  ev ? ev.label : ('Evento ' + (cod || '?')),
+    label:  ev ? ev.label : (b.webhook_event_description
+              ? String(b.webhook_event_description).trim()
+              : ('Evento ' + (cod || '?'))),
     nome:   garimpa(b, ['client.name', 'cliente.nome', 'customer.name', 'first_name', 'nome_cliente', 'nome']),
     email:  garimpa(b, ['client.email', 'email']) || null,
     waid:   normalizeWa(garimpa(b, ['client.phone', 'telefone_celular', 'celular', 'phone', 'telefone', 'whatsapp'])),
@@ -200,6 +206,12 @@ function resolverVar(k, body, atalhos) {
   const m = /^(brl|data):(.+)$/.exec(k);
   if (m) { fmt = m[1]; caminho = m[2]; }
   let v = (atalhos[caminho] != null && atalhos[caminho] !== '') ? String(atalhos[caminho]) : valorDoCaminho(body, caminho);
+  // se o caminho exato nao existir (a TroqueCommerce troca nome de campo de um
+  // evento pro outro), tenta achar pelo final do nome antes de desistir
+  if (v == null || v === '') {
+    const ultimo = caminho.split('.').pop();
+    v = garimpa(body, [caminho, ultimo].filter(Boolean));
+  }
   if (v == null || v === '') return '-';
   if (fmt === 'brl') {
     const n = Number(String(v).replace(/[^\d.,-]/g, '').replace(',', '.'));
