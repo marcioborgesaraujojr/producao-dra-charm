@@ -91,18 +91,39 @@
     <div id="gatilhosList" class="space-y-6 pb-10"></div>
   </div>
 
-  <!-- Fila -->
+  <!-- Fila de envios — desenhada no formato do Notificações Inteligentes:
+       cartões de visão geral em cima, tabela com filtro embaixo, tudo DA LOJA escolhida. -->
   <div id="viewFila" class="hidden pb-10">
-    <!-- A fila é comum a todas as lojas (at_fila_envios não guarda a loja), então deixo
-         isso claro em vez de dar a impressão de que o seletor de cima filtra aqui. -->
-    <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">Envios de <b>todas as lojas</b>, do mais novo para o mais antigo.</p>
-    <div class="flex items-center gap-2 mb-3">
-      <select id="filaFiltro" onchange="renderFila()" class="p-2 text-sm rounded-lg bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600">
-        <option value="">Todos os status</option><option value="pendente">Pendente</option><option value="enviado">Enviado</option><option value="falha">Falha</option><option value="cancelado">Cancelado</option>
-      </select>
-      <button onclick="carregarFila()" class="text-sm px-3 py-2 rounded-lg bg-slate-100 dark:bg-ink-700 hover:bg-slate-200">Atualizar</button>
+    <div class="rounded-xl border border-slate-200 dark:border-ink-600 bg-white dark:bg-ink-800 p-4 mb-4">
+      <div class="text-sm font-semibold mb-0.5">Visão geral da fila</div>
+      <p class="text-[13px] text-slate-500 dark:text-slate-400 mb-3">Envios de <b id="filaLojaNome">—</b> nas últimas 24 horas.</p>
+      <div id="filaCards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2"></div>
     </div>
-    <div id="filaList" class="rounded-xl border border-slate-200 dark:border-ink-600 overflow-hidden"></div>
+
+    <div class="rounded-xl border border-slate-200 dark:border-ink-600 bg-white dark:bg-ink-800 overflow-hidden">
+      <div class="p-4 border-b border-slate-100 dark:border-ink-700">
+        <p class="text-[13px] text-slate-500 dark:text-slate-400 mb-3">Cada linha é um evento da loja que passou por um gatilho.</p>
+        <div class="flex flex-wrap items-end gap-2">
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">Estado</label>
+            <select id="filaFiltro" onchange="renderFila()" class="p-2 text-sm rounded-lg bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600">
+              <option value="">Todos</option>
+              <option value="enviado">Enviado</option>
+              <option value="erro">Erro</option>
+              <option value="ignorado">Ignorado</option>
+              <option value="aguardando_modelo">Aguardando modelo</option>
+              <option value="simulado">Simulado (modo seco)</option>
+            </select>
+          </div>
+          <div class="flex-1 min-w-[160px]">
+            <label class="block text-[11px] text-slate-400 mb-1">Buscar</label>
+            <input id="filaBusca" oninput="renderFila()" placeholder="Pedido, telefone ou evento" class="w-full p-2 text-sm rounded-lg bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600">
+          </div>
+          <button onclick="carregarFila()" class="text-sm px-3 py-2 rounded-lg bg-slate-100 dark:bg-ink-700 hover:bg-slate-200">Atualizar</button>
+        </div>
+      </div>
+      <div id="filaList" class="overflow-x-auto"></div>
+    </div>
   </div>
 </div>
 </div>
@@ -115,7 +136,7 @@ const LOJAS = [
   { key:'troquecommerce', nome:'TroqueCommerce', desc:'Trocas, devoluções, vale e estorno',  logo:'/img/troquecommerce.png' },
   { key:'fidelizar',      nome:'Fidelizar',      desc:'Pontos, cupons e aniversário',        logo:'/img/fidelizar.svg' }
 ];
-let sb=null, GATILHOS=[], FILA=[], TAB='gatilhos';
+let sb=null, GATILHOS=[], FILA=[], TAB='gatilhos', FILA_SEM_LOJA=false;
 let TPLS=[], WHK=null, TOKEN=null;
 let LOJA = (function(){ try{ return localStorage.getItem('autom_loja') || 'loja_integrada'; }catch(e){ return 'loja_integrada'; } })();
 async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2'); sb=createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true}}); } return sb; }
@@ -129,7 +150,7 @@ async function bootstrap(){
   await carregarGatilhos(); await carregarFila();
   carregarTemplates(); carregarWebhook();
   // realtime na fila
-  c.channel('automacoes').on('postgres_changes',{event:'*',schema:'public',table:'at_fila_envios'},()=>carregarFila()).subscribe();
+  c.channel('automacoes').on('postgres_changes',{event:'*',schema:'public',table:'at_disparos_log'},()=>carregarFila()).subscribe();
 }
 
 async function carregarGatilhos(){
@@ -273,7 +294,7 @@ function renderLojas(){
       + '</button>';
   }).join('');
 }
-function trocarLoja(k){ LOJA=k; try{ localStorage.setItem('autom_loja',k); }catch(e){} renderLojas(); renderGatilhos(); renderWebhook(); }
+function trocarLoja(k){ LOJA=k; try{ localStorage.setItem('autom_loja',k); }catch(e){} renderLojas(); renderGatilhos(); renderWebhook(); carregarFila(); }
 
 function renderGatilhos(){
   const cats={pedido:'Eventos do pedido', nota:'Eventos de nota fiscal', troca:'Eventos de troca', fidelizar:'Fidelidade', rastreio:'Rastreio da entrega', vale:'Vales e cupons', nps:'Pesquisa de satisfação'};
@@ -326,24 +347,80 @@ async function salvarMsg(id){ const g=GATILHOS.find(x=>x.id===id);
 
 async function carregarFila(){
   const c=await getSb();
-  const { data }=await c.from('at_fila_envios').select('*').order('created_at',{ascending:false}).limit(200);
-  FILA=data||[]; document.getElementById('filaBadge').textContent=FILA.filter(f=>f.status==='pendente').length; renderFila();
+  // Fila POR LOJA. Antes vinha de at_fila_envios, que só tem disparo de campanha e não
+  // guarda a loja — por isso aparecia tudo junto. A fonte certa é o at_disparos_log, que
+  // registra cada evento da loja que passou por um gatilho.
+  let q = c.from('at_disparos_log').select('*').order('created_at',{ascending:false}).limit(300);
+  q = q.eq('loja', LOJA);
+  let { data, error } = await q;
+  if(error){
+    // banco ainda sem a coluna loja: mostra tudo em vez de quebrar a tela
+    const r = await c.from('at_disparos_log').select('*').order('created_at',{ascending:false}).limit(300);
+    data = r.data || []; FILA_SEM_LOJA = true;
+  } else { FILA_SEM_LOJA = false; }
+  FILA = data || [];
+  const pend = FILA.filter(x=>x.status==='aguardando_modelo').length;
+  document.getElementById('filaBadge').textContent = pend;
+  renderFila();
 }
+
+function nomeEvento(k){
+  const g = GATILHOS.find(x => String(x.evento_code) === String(k) && x.loja === LOJA);
+  return (g && g.evento_nome) || String(k||'—');
+}
+const FILA_ROTULO = { enviado:'Enviado', erro:'Erro', ignorado:'Ignorado', aguardando_modelo:'Aguardando modelo', simulado:'Simulado' };
+function filaCor(s){
+  return s==='enviado' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+       : s==='erro'    ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+       : s==='ignorado'? 'bg-slate-200 text-slate-600 dark:bg-ink-600 dark:text-slate-300'
+       : s==='simulado'? 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300'
+       : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300';
+}
+function cartao(rotulo, valor, classe){
+  return '<div class="rounded-lg bg-slate-50 dark:bg-ink-700 p-3"><div class="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">'+rotulo+'</div>'
+       + '<div class="text-xl font-bold mt-0.5 '+(classe||'')+'">'+valor+'</div></div>';
+}
+
 function renderFila(){
-  const f=document.getElementById('filaFiltro').value;
-  const arr=FILA.filter(x=>!f||x.status===f);
+  const lj = LOJAS.find(l=>l.key===LOJA);
+  const nomeEl = document.getElementById('filaLojaNome');
+  if(nomeEl) nomeEl.textContent = FILA_SEM_LOJA ? 'todas as lojas' : ((lj&&lj.nome)||LOJA);
+
+  const desde = Date.now() - 24*3600*1000;
+  const dia = FILA.filter(x => new Date(x.created_at).getTime() >= desde);
+  const cnt = st => dia.filter(x => x.status===st).length;
+  const cards = document.getElementById('filaCards');
+  if(cards) cards.innerHTML =
+      cartao('Total de eventos', dia.length, '')
+    + cartao('Enviados', cnt('enviado'), 'text-emerald-600')
+    + cartao('Erros', cnt('erro'), 'text-red-600')
+    + cartao('Ignorados', cnt('ignorado'), 'text-slate-500')
+    + cartao('Aguardando modelo', cnt('aguardando_modelo'), 'text-amber-600');
+
+  const f=(document.getElementById('filaFiltro')||{}).value||'';
+  const bq=((document.getElementById('filaBusca')||{}).value||'').toLowerCase().trim();
+  const arr=FILA.filter(x=>(!f||x.status===f) && (!bq
+    || String(x.pedido||'').toLowerCase().includes(bq)
+    || String(x.telefone||'').toLowerCase().includes(bq)
+    || nomeEvento(x.evento_key).toLowerCase().includes(bq)));
+
   const el=document.getElementById('filaList');
-  if(!arr.length){ el.innerHTML='<div class="p-8 text-center text-sm text-slate-400 bg-white dark:bg-ink-800">Fila vazia. Quando um evento da loja disparar um gatilho ativo, a mensagem aparece aqui.</div>'; return; }
-  el.innerHTML=`<div class="bg-white dark:bg-ink-800 divide-y divide-slate-100 dark:divide-ink-700">`+arr.map(x=>`
-    <div class="p-3 flex items-start gap-3 text-sm">
-      <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold ${filaCor(x.status)} shrink-0">${x.status}</span>
-      <div class="min-w-0 flex-1">
-        <div class="truncate">${esc(x.conteudo||'')}</div>
-        <div class="text-[11px] text-slate-400 mt-0.5">${x.pedido_numero?('Pedido '+esc(x.pedido_numero)+' · '):''}${esc(x.telefone||'')} · ${new Date(x.created_at).toLocaleString('pt-BR')}${x.erro?(' · <span class=\"text-red-500\">'+esc(x.erro)+'</span>'):''}</div>
-      </div>
-    </div>`).join('')+`</div>`;
+  if(!arr.length){ el.innerHTML='<div class="p-8 text-center text-sm text-slate-400">A fila de envios está vazia.</div>'; return; }
+  el.innerHTML =
+    '<table class="w-full text-sm"><thead><tr class="text-left text-[11px] uppercase tracking-wide text-slate-400 border-b border-slate-100 dark:border-ink-700">'
+    + '<th class="px-4 py-2 font-semibold">Nome do evento</th><th class="px-4 py-2 font-semibold">Criado em</th>'
+    + '<th class="px-4 py-2 font-semibold">Pedido</th><th class="px-4 py-2 font-semibold">Telefone de destino</th>'
+    + '<th class="px-4 py-2 font-semibold">Estado</th></tr></thead><tbody>'
+    + arr.map(x=>'<tr class="border-b border-slate-50 dark:border-ink-700/60 align-top">'
+        + '<td class="px-4 py-2"><div class="font-medium">'+esc(nomeEvento(x.evento_key))+'</div>'
+        + (x.detalhe?'<div class="text-[11px] text-slate-400 mt-0.5">'+esc(x.detalhe)+'</div>':'')+'</td>'
+        + '<td class="px-4 py-2 whitespace-nowrap text-slate-500">'+new Date(x.created_at).toLocaleString('pt-BR')+'</td>'
+        + '<td class="px-4 py-2 whitespace-nowrap">'+esc(x.pedido||'—')+'</td>'
+        + '<td class="px-4 py-2 whitespace-nowrap">'+esc(x.telefone||'—')+'</td>'
+        + '<td class="px-4 py-2 whitespace-nowrap"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold '+filaCor(x.status)+'">'
+        + esc(FILA_ROTULO[x.status]||x.status||'—')+'</span></td></tr>').join('')
+    + '</tbody></table>';
 }
-function filaCor(s){ return s==='enviado'?'bg-emerald-100 text-emerald-700':s==='falha'?'bg-red-100 text-red-700':s==='cancelado'?'bg-slate-200 text-slate-600':'bg-amber-100 text-amber-700'; }
 
 function setTab(t){ TAB=t; document.querySelectorAll('.tab').forEach(el=>el.dataset.active=el.dataset.tab===t?'1':'0');
   document.getElementById('viewGatilhos').classList.toggle('hidden',t!=='gatilhos');
