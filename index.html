@@ -1658,14 +1658,73 @@ function isLightColor(hex){
   return lum > 200;
 }
 // Calcula data prevista automática (5 dias úteis pra nome/prof, 10 pra logo/ambos)
-function calcPrazoBordado(tipo){
+// Converte o que vier (data pura "2026-07-24", timestamp ISO, Date ou nada) no DIA
+// correspondente no horario de Fortaleza, com hora zerada. Sem isso a contagem de
+// dias uteis escorrega um dia quando o pedido entra de noite.
+function dataBaseBordado(base){
+  if (!base) return new Date();
+  if (base instanceof Date) return new Date(base.getFullYear(), base.getMonth(), base.getDate());
+  const s = String(base).trim();
+  const temFuso = /(Z|[+\-]\d{2}:?\d{2})$/.test(s);
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m && !temFuso) return new Date(+m[1], +m[2]-1, +m[3]);   // ja vem no horario do Brasil
+  const t = new Date(s);
+  if (isNaN(t)) return new Date();
+  const f = new Date(t.getTime() - 3*3600*1000);               // UTC -> Fortaleza
+  return new Date(f.getUTCFullYear(), f.getUTCMonth(), f.getUTCDate());
+}
+// ===== Feriados que param a producao (nacionais + Ceara + Fortaleza) =====
+// Pra mexer na lista e so editar FERIADOS_FIXOS. Os moveis (carnaval, sexta-feira
+// santa, corpus christi) sao calculados a partir da Pascoa, entao valem pra qualquer ano.
+const FERIADOS_FIXOS = [
+  '01-01', // Confraternizacao Universal
+  '03-25', // Data Magna do Ceara
+  '04-21', // Tiradentes
+  '05-01', // Dia do Trabalho
+  '08-15', // N. Sra. da Assuncao - padroeira de Fortaleza
+  '09-07', // Independencia
+  '10-12', // N. Sra. Aparecida
+  '11-02', // Finados
+  '11-15', // Proclamacao da Republica
+  '11-20', // Consciencia Negra
+  '12-25', // Natal
+];
+const _feriadosCache = {};
+function feriadosDoAno(ano){
+  if (_feriadosCache[ano]) return _feriadosCache[ano];
+  const s = new Set(FERIADOS_FIXOS.map(md => ano + '-' + md));
+  // Pascoa pelo algoritmo de Meeus/Gauss
+  const a=ano%19, b=Math.floor(ano/100), c=ano%100;
+  const d=Math.floor(b/4), e=b%4, f=Math.floor((b+8)/25), g=Math.floor((b-f+1)/3);
+  const h=(19*a+b-d-g+15)%30, i=Math.floor(c/4), k=c%4;
+  const l=(32+2*e+2*i-h-k)%7, m=Math.floor((a+11*h+22*l)/451);
+  const mes=Math.floor((h+l-7*m+114)/31), dia=((h+l-7*m+114)%31)+1;
+  const pascoa = new Date(ano, mes-1, dia);
+  const off = n => { const x = new Date(pascoa); x.setDate(x.getDate()+n);
+    return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'); };
+  s.add(off(-48));  // segunda de carnaval
+  s.add(off(-47));  // terca de carnaval
+  s.add(off(-2));   // sexta-feira santa
+  s.add(off(60));   // corpus christi
+  _feriadosCache[ano] = s;
+  return s;
+}
+function ehFeriado(d){
+  const iso = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  return feriadosDoAno(d.getFullYear()).has(iso);
+}
+// Prazo do bordado em dias uteis contados A PARTIR DA DATA DO PEDIDO (2o argumento).
+// Antes a conta partia sempre de new Date(): todo card que nascia sem prazo e so era
+// aberto dias depois ganhava um prazo novo em folha, empurrando a data limite pra
+// frente e atrasando a producao. Sem o 2o argumento continua valendo hoje.
+function calcPrazoBordado(tipo, base){
   const dias = (tipo === 'logomarca' || tipo === 'ambos') ? 10 : 5;
-  const d = new Date();
+  const d = dataBaseBordado(base);
   let adicionados = 0;
   while (adicionados < dias){
     d.setDate(d.getDate() + 1);
     const dw = d.getDay();
-    if (dw !== 0 && dw !== 6) adicionados++;
+    if (dw !== 0 && dw !== 6 && !ehFeriado(d)) adicionados++;   // sab, dom e feriado nao contam
   }
   const yyyy = d.getFullYear(), mm = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0');
   return `${yyyy}-${mm}-${dd}`;
@@ -2111,7 +2170,8 @@ async function criarCardPedidoManual(list, listCards){
       bordado_cor_hex: _b.corHex||null, bordado_cor_nome: _b.corNome||null, bordado_fonte: _b.fonte||null,
       bordado_lado: _b.lado||null, bordado_lado_logo: _b.ladoLogo||null,
       bordado_imagem_url: _b.imagem||null, bordado_detalhes: _b.detalhes||null,
-      due_date: (typeof calcPrazoBordado==='function' ? calcPrazoBordado(_tipo) : null)
+      pedido_data: (data.data_criacao ? String(data.data_criacao).slice(0,10) : null),
+      due_date: (typeof calcPrazoBordado==='function' ? calcPrazoBordado(_tipo, data.data_criacao) : null)
     }).select().single();
     if (error){ toast('Erro ao criar card: '+error.message); return; }
     if (nc){
@@ -3024,7 +3084,8 @@ async function openCard(id){
   // Prazo automático pra bordado: 5 dias úteis (nome/prof) ou 10 dias úteis (logo/ambos)
   let dueVal = c.due_date || '';
   if (bType === 'bordado' && !dueVal && c.bordado_tipo){
-    dueVal = calcPrazoBordado(c.bordado_tipo);
+    // Conta do pedido (ou da criacao do card), NUNCA de hoje.
+    dueVal = calcPrazoBordado(c.bordado_tipo, c.pedido_data || c.created_at);
     // Salva no banco pra não recalcular
     sb.from('cards').update({due_date: dueVal}).eq('id', c.id).then(() => { c.due_date = dueVal; });
   }
@@ -5839,7 +5900,8 @@ window.addEventListener('message', async (e) => {
       title,
       position: Date.now(),
       created_by: user.id,
-      due_date: calcPrazoBordado(o.bordado_tipo),
+      pedido_data: (o.pedido_data ? String(o.pedido_data).slice(0,10) : null),
+      due_date: calcPrazoBordado(o.bordado_tipo, o.pedido_data),
       pedido_numero: o.pedido_numero,
       ...payload,
     }).select().single();
