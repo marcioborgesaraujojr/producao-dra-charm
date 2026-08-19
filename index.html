@@ -6134,7 +6134,8 @@ window.openUsers = async () => {
   const body = document.getElementById('usersBody');
   body.innerHTML = dcLoad('Carregando usuários');
   try {
-    const { data: users, error } = await sb.from('profiles').select('id, email, full_name, access, role').order('email');
+    // select('*') de propósito: assim uma coluna nova em profiles (ex.: setor) não quebra a tela.
+    const { data: users, error } = await sb.from('profiles').select('*').order('email');
     if (error) throw error;
     const { data: boardsList } = await sb.from('boards').select('id, name').order('name');
     const { data: allMembers } = await sb.from('board_members').select('board_id, user_id, can_edit, label_filter');
@@ -6155,7 +6156,10 @@ window.openUsers = async () => {
       {key:'marketing', label:'Marketing'},
       {key:'painel', label:'Painel'},
     ];
-    window.__uc = { users, boards: boardsList||[], memberSet, memberEdit, memberLabelFilter, labelsByBoard, systems };
+    // Sugestões do campo Setor: os setores que já existem + a lista padrão da fábrica.
+    const setoresPadrao = ['Corte','Costura','Acabamento','Bordado / Personalização','Estoque','Logística','Expedição','Atendimento','Marketing','Financeiro','Administrativo','Parceiro externo'];
+    const setores = [...new Set([...(users||[]).map(u => (u.setor||'').trim()).filter(Boolean), ...setoresPadrao])].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+    window.__uc = { users, boards: boardsList||[], memberSet, memberEdit, memberLabelFilter, labelsByBoard, systems, setores };
     renderUsersList();
   } catch(e){
     document.getElementById('usersBody').innerHTML = '<div class="text-center text-red-500 py-12">Erro: '+e.message+'</div>';
@@ -6172,7 +6176,10 @@ window.renderUsersList = () => {
         <div class="flex items-center gap-3 py-3">
           <div class="w-9 h-9 rounded-full text-white flex items-center justify-center font-semibold flex-shrink-0" style="background:${userColor(u)}">${escapeHtml((u.full_name||u.email||'?').charAt(0).toUpperCase())}</div>
           <div class="flex-1 min-w-0">
-            <div class="font-medium text-slate-800 dark:text-slate-100 truncate">${escapeHtml(u.full_name || u.email.split('@')[0])}</div>
+            <div class="font-medium text-slate-800 dark:text-slate-100 truncate flex items-center gap-1.5">
+              <span class="truncate">${escapeHtml(u.full_name || u.email.split('@')[0])}</span>
+              ${u.setor ? `<span class="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-ink-700 dark:text-slate-300">${escapeHtml(u.setor)}</span>` : ''}
+            </div>
             <div class="text-xs text-slate-500 truncate">${escapeHtml(u.email)}</div>
           </div>
           <div class="hidden sm:block">${roleBadge(u.role)}</div>
@@ -6196,7 +6203,13 @@ window.editUserRow = (uid) => {
         <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">Dados do usuário</h3>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div><label class="text-xs text-slate-500">Nome</label><input id="euNome" class="mt-1 w-full p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm" value="${escapeHtml(u.full_name||'')}"></div>
-          <div><label class="text-xs text-slate-500">E-mail</label><input class="mt-1 w-full p-2.5 rounded-lg border border-slate-200 dark:border-ink-700 bg-slate-100 dark:bg-ink-800 text-sm text-slate-500" value="${escapeHtml(u.email||'')}" disabled></div>
+          <div>
+            <label class="text-xs text-slate-500">Setor</label>
+            <input id="euSetor" list="euSetorOpts" placeholder="Ex.: Acabamento" class="mt-1 w-full p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm" value="${escapeHtml(u.setor||'')}">
+            <datalist id="euSetorOpts">${(c.setores||[]).map(s => `<option value="${escapeHtml(s)}"></option>`).join('')}</datalist>
+            <p class="text-[11px] text-slate-400 mt-1">Só pra registro: dá pra pôr o nome da pessoa acima e ainda saber de que setor ela é.</p>
+          </div>
+          <div class="sm:col-span-2"><label class="text-xs text-slate-500">E-mail</label><input class="mt-1 w-full p-2.5 rounded-lg border border-slate-200 dark:border-ink-700 bg-slate-100 dark:bg-ink-800 text-sm text-slate-500" value="${escapeHtml(u.email||'')}" disabled></div>
         </div>
       </section>
       <section>
@@ -6274,10 +6287,16 @@ window.saveUserRow = async (uid, btn) => {
   btn.disabled = true; st.textContent = 'Salvando...'; st.className = 'text-xs text-slate-500 mr-auto';
   try {
     const full_name = document.getElementById('euNome').value.trim();
+    const setor = (document.getElementById('euSetor')?.value || '').trim() || null;
     const role = document.getElementById('euRole').value;
     const access = {};
     document.querySelectorAll('#usersBody input[data-sys]').forEach(cb => { if (cb.checked) access[cb.dataset.sys] = true; });
-    const { error: e1 } = await sb.from('profiles').update({ full_name, role, access }).eq('id', uid);
+    let { error: e1 } = await sb.from('profiles').update({ full_name, role, access, setor }).eq('id', uid);
+    // Se a coluna setor ainda não existe no banco, salva o resto em vez de perder tudo.
+    if (e1 && /setor/i.test(e1.message || '')){
+      ({ error: e1 } = await sb.from('profiles').update({ full_name, role, access }).eq('id', uid));
+      if (!e1) toast('Salvei, mas o campo Setor ainda não existe no banco. Rode o SQL de migração.');
+    }
     if (e1) throw e1;
     c.memberEdit = c.memberEdit || {};
     for (const b of c.boards) {
@@ -6303,7 +6322,7 @@ window.saveUserRow = async (uid, btn) => {
         c.memberEdit[key] = wantEdit; c.memberLabelFilter[key] = lf;
       }
     }
-    u.full_name = full_name; u.role = role; u.access = access;
+    u.full_name = full_name; u.role = role; u.access = access; u.setor = setor;
     st.textContent = 'Salvo!'; st.className = 'text-xs text-emerald-600 mr-auto';
     setTimeout(() => renderUsersList(), 700);
   } catch(e){
