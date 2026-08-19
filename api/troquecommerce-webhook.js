@@ -68,6 +68,37 @@ async function callerEmail(token) {
   } catch (e) { return null; }
 }
 
+// ===== ESPELHO =====
+// A TroqueCommerce guarda a lista de webhooks, mas o painel so deixa editar UM.
+// Enquanto o Notificacoes Inteligentes ainda estiver no ar, o NOSSO endereco
+// fica cadastrado la e REPASSA uma copia identica do evento pro endereco antigo,
+// pra nada parar de funcionar durante a virada.
+// Endereco do espelho: sys_config.chave = 'troque_espelho_url'
+//   (apagar a linha, ou deixar em branco, desliga o repasse)
+let _espCache = { v: null, em: 0 };
+async function espelhoUrl() {
+  if (Date.now() - _espCache.em < 60000) return _espCache.v;
+  let v = null;
+  try {
+    const r = await sb('sys_config?chave=eq.troque_espelho_url&select=valor&limit=1');
+    const row = Array.isArray(r.data) ? r.data[0] : null;
+    if (row && row.valor && /^https:\/\//.test(String(row.valor).trim())) v = String(row.valor).trim();
+  } catch (e) { v = null; }
+  _espCache = { v, em: Date.now() };
+  return v;
+}
+async function espelhar(body) {
+  const url = await espelhoUrl();
+  if (!url) return null;
+  try {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), 6000);
+    const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctl.signal });
+    clearTimeout(t);
+    return r.status;
+  } catch (e) { return 'falhou'; }
+}
+
 let _secoCache = { v: true, em: 0 };
 async function modoSeco() {
   if (Date.now() - _secoCache.em < 30000) return _secoCache.v;
@@ -109,28 +140,83 @@ function achatar(obj, prefixo, saida, nivel) {
   return saida;
 }
 
-// procura um valor em vários nomes possíveis (a doc da TroqueCommerce não é pública)
+// procura um valor em varios nomes possiveis (a doc da TroqueCommerce nao e publica).
+// Primeiro tenta o caminho exato; so depois aceita "termina com".
 function garimpa(obj, nomes) {
   const plano = achatar(obj);
+  const chaves = Object.keys(plano);
   for (const n of nomes) {
-    const achou = Object.keys(plano).find(c => c.toLowerCase().endsWith(n.toLowerCase()));
+    const exato = chaves.find(c => c.toLowerCase() === n.toLowerCase());
+    if (exato && plano[exato]) return plano[exato];
+  }
+  for (const n of nomes) {
+    const achou = chaves.find(c => c.toLowerCase().endsWith('.' + n.toLowerCase()));
+    if (achou && plano[achou]) return plano[achou];
+  }
+  for (const n of nomes) {
+    const achou = chaves.find(c => c.toLowerCase().endsWith(n.toLowerCase()));
     if (achou && plano[achou]) return plano[achou];
   }
   return '';
 }
 
+// O codigo do evento pode chegar solto ou dentro de um envelope.
+function codigoEvento(b) {
+  const cand = [b.evento, b.event_id, b.eventId, b.codigo, b.code, b.tipo, b.type, b.event];
+  for (const c of cand) {
+    if (c == null) continue;
+    if (typeof c === 'object') { const i = c.id || c.code || c.codigo; if (i != null) return String(i).trim(); continue; }
+    const s = String(c).trim();
+    if (s && EVENTOS[s]) return s;
+  }
+  for (const c of cand) { if (c != null && typeof c !== 'object' && String(c).trim()) return String(c).trim(); }
+  return String(b.status || '').trim();
+}
+
 function lerEvento(b) {
-  const cod = String(b.evento || b.event || b.codigo || b.code || b.status || b.tipo || '').trim();
+  const cod = codigoEvento(b);
   const ev  = EVENTOS[cod] || null;
   return {
     codigoBruto: cod,
     code:   ev ? ev.code : ('desconhecido_' + (cod || 'sem_codigo')),
     label:  ev ? ev.label : ('Evento ' + (cod || '?')),
-    nome:   garimpa(b, ['first_name', 'nome_cliente', 'cliente.nome', 'customer.name', 'nome']),
-    email:  garimpa(b, ['email']) || null,
-    waid:   normalizeWa(garimpa(b, ['telefone_celular', 'celular', 'phone', 'telefone', 'whatsapp'])),
-    pedido: garimpa(b, ['numero_pedido', 'order_id', 'pedido', 'numero'])
+    nome:   garimpa(b, ['client.name', 'cliente.nome', 'customer.name', 'first_name', 'nome_cliente', 'nome']),
+    email:  garimpa(b, ['client.email', 'email']) || null,
+    waid:   normalizeWa(garimpa(b, ['client.phone', 'telefone_celular', 'celular', 'phone', 'telefone', 'whatsapp'])),
+    pedido: garimpa(b, ['ecommerce_number', 'numero_pedido', 'order_id', 'pedido', 'numero'])
   };
+}
+
+// Um item do mapa do gatilho pode ser:
+//   "client.name"                  -> valor que veio no webhook
+//   "nome" / "pedido" / "aviso"    -> atalhos prontos
+//   "txt:em ate 7 dias uteis"      -> texto fixo (quando a loja nao manda o dado)
+//   "brl:reverse_coupon.value"     -> 189.9      vira  R$ 189,90
+//   "data:reverse_coupon.validity" -> 2026-12-31 vira  31/12/2026
+function resolverVar(k, body, atalhos) {
+  k = String(k || '');
+  if (k.slice(0, 4) === 'txt:') return k.slice(4).trim() || '-';
+  let fmt = null, caminho = k;
+  const m = /^(brl|data):(.+)$/.exec(k);
+  if (m) { fmt = m[1]; caminho = m[2]; }
+  let v = (atalhos[caminho] != null && atalhos[caminho] !== '') ? String(atalhos[caminho]) : valorDoCaminho(body, caminho);
+  if (v == null || v === '') return '-';
+  if (fmt === 'brl') {
+    const n = Number(String(v).replace(/[^\d.,-]/g, '').replace(',', '.'));
+    if (!isFinite(n)) return String(v);
+    const p = n.toFixed(2).split('.');
+    return 'R$ ' + p[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + p[1];
+  }
+  if (fmt === 'data') {
+    const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v));
+    if (iso) return iso[3] + '/' + iso[2] + '/' + iso[1];
+    const d = new Date(v);
+    if (!isNaN(d.getTime())) {
+      const z = x => String(x).padStart(2, '0');
+      return z(d.getUTCDate()) + '/' + z(d.getUTCMonth() + 1) + '/' + d.getUTCFullYear();
+    }
+  }
+  return String(v);
 }
 
 async function acharConversa(waid) {
@@ -250,6 +336,9 @@ export default async function handler(req, res) {
     (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim() || body.token || null;
   if (tokenRecebido !== tk) return res.status(401).json({ error: 'token inválido' });
 
+  // repassa uma copia pro Notificacoes Inteligentes (enquanto a virada nao termina)
+  try { await espelhar(body); } catch (e) {}
+
   // Daqui pra baixo nunca devolvemos erro: se responder != 2xx, a TroqueCommerce
   // reenvia o evento e o cliente leva mensagem repetida.
   try {
@@ -287,11 +376,7 @@ export default async function handler(req, res) {
 
     const atalhos = { nome: p.nome, pedido: p.pedido, aviso };
     const mapa = Array.isArray(g.template_mapa) ? g.template_mapa : [];
-    const params = mapa.map(k => {
-      if (atalhos[k] != null && atalhos[k] !== '') return String(atalhos[k]);
-      const v = valorDoCaminho(body, k);
-      return (v == null || v === '') ? '-' : v;
-    });
+    const params = mapa.map(k => resolverVar(k, body, atalhos));
 
     if (!g.template_name) {
       await sb('at_disparos_log', { method: 'POST', body: JSON.stringify({
