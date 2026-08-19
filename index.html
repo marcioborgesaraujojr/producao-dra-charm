@@ -423,9 +423,11 @@
         </div>
       </div>
       <button onclick="doLogin()" class="w-full p-3 rounded-lg bg-pink-500 text-white font-semibold hover:bg-pink-600">Entrar</button>
-      <button onclick="doMagicLink()" class="w-full p-3 rounded-lg bg-slate-100 dark:bg-ink-700 text-sm hover:bg-slate-200">Ou receba um link por email</button>
     </div>
-    <div class="text-xs text-slate-500 mt-4 text-center">Primeira vez? Peça pro Marcio te enviar um convite.</div>
+    <!-- O botão "Ou receba um link por email" saiu daqui: o e-mail embutido do Supabase
+         entrega 2 mensagens/hora e só pra membro do projeto, então ele só dava erro.
+         Acesso e senha são definidos pelo Marcio na tela de Usuários. -->
+    <div class="text-xs text-slate-500 mt-4 text-center">Primeira vez ou esqueceu a senha? Peça pro Marcio criar seu acesso ou definir uma senha nova.</div>
   </div>
 </div>
 
@@ -1863,19 +1865,8 @@ window.doLogin = async () => {
   const { error } = await sb.auth.signInWithPassword({ email, password });
   if (error){ err.textContent = error.message; err.classList.remove('hidden'); }
 };
-window.doMagicLink = async () => {
-  const email = document.getElementById('authEmail').value.trim();
-  if (!email){ toast('Digite seu email'); return; }
-  const { error } = await sb.auth.signInWithOtp({ email, options:{ emailRedirectTo: window.location.origin }});
-  // O serviço de e-mail embutido do Supabase entrega só 2 mensagens por hora e apenas para
-  // quem é membro do projeto. Sem SMTP próprio configurado, o link por e-mail falha assim.
-  // Em vez do texto cru em inglês, explica o que fazer.
-  if (error && /rate limit|over_email_send_rate|429/i.test(error.message || '')){
-    toast('O envio por e-mail atingiu o limite. Entre com seu e-mail e senha — se não souber a senha, peça pro Marcio.');
-  }
-  else if (error) toast('Erro: '+error.message);
-  else toast('Link enviado! Confere seu email.');
-};
+// Login por link de e-mail foi removido: dependia do e-mail do Supabase (2/hora, só
+// pra membro do projeto) e só dava erro. Quem cria acesso e senha é o admin.
 window.doLogout = async () => { await sysLogAcesso('saida'); await sb.auth.signOut(); location.reload(); };
 // Clicar no logo do sistema (A) volta pra home do suíte (só se logado)
 document.addEventListener('click', (e) => {
@@ -6276,8 +6267,8 @@ window.editUserRow = (uid) => {
           <button onclick="adminSetPassword('${uid}', this)" class="px-4 py-2 rounded-lg bg-slate-800 text-white text-sm hover:bg-slate-900">Definir senha</button>
           <span id="euPassStatus" class="text-xs text-slate-500"></span>
         </div>
-        <p class="text-xs text-slate-400 mb-3">Define a senha na hora (você escolhe e passa pra pessoa). Ou use o link por e-mail abaixo pra ela mesma criar.</p>
-        <button onclick="resetUserPassword('${escapeHtml(u.email)}', this)" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-ink-600 text-sm hover:bg-slate-50 dark:hover:bg-ink-700">Enviar link de redefinição de senha por e-mail</button>
+        <p class="text-xs text-slate-400 mb-3">Você escolhe a senha e passa pra pessoa. Não depende de e-mail nenhum.</p>
+        <button onclick="copiarAcesso('${escapeHtml(u.email)}', 'euNewPass', this)" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-ink-600 text-sm hover:bg-slate-50 dark:hover:bg-ink-700">Copiar e-mail e senha pra mandar no WhatsApp</button>
       </section>
       <div class="flex items-center justify-end gap-3 pt-2 border-t border-slate-200 dark:border-ink-700">
         <span id="euStatus" class="text-xs text-slate-500 mr-auto"></span>
@@ -6335,12 +6326,16 @@ window.saveUserRow = async (uid, btn) => {
     st.textContent = 'Erro: '+e.message; st.className = 'text-xs text-red-600 mr-auto';
   } finally { btn.disabled = false; }
 };
-window.resetUserPassword = async (email, btn) => {
-  if (!(await uiConfirm('Enviar link de redefinição de senha para '+email+'?', {title:'Redefinir senha', okText:'Enviar'}))) return;
-  const old = btn.textContent; btn.disabled = true; btn.textContent = 'Enviando...';
-  try { const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin }); if (error) throw error; btn.textContent = 'Link enviado'; }
-  catch(e){ toast('Erro: '+e.message); btn.textContent = old; }
-  finally { btn.disabled = false; }
+// Monta o recado pronto pra colar no WhatsApp da pessoa. Sem e-mail no meio.
+window.copiarAcesso = async (email, campoSenhaId, btn) => {
+  const senha = ((document.getElementById(campoSenhaId)||{}).value || '').trim();
+  if (senha.length < 6){ toast('Digite a senha no campo ao lado (mínimo 6) antes de copiar.'); return; }
+  const txt = 'Seu acesso ao Sistema Grupo Aragão:\n' + location.origin + '\nE-mail: ' + email + '\nSenha: ' + senha;
+  const old = btn.textContent;
+  try { await navigator.clipboard.writeText(txt); }
+  catch(e){ const t=document.createElement('textarea'); t.value=txt; document.body.appendChild(t); t.select(); try{ document.execCommand('copy'); }catch(_){} t.remove(); }
+  btn.textContent = 'Copiado';
+  setTimeout(()=>{ btn.textContent = old; }, 1800);
 };
 window.togglePassView = (id) => {
   const el = document.getElementById(id);
@@ -6414,7 +6409,7 @@ h.push('<section id="suiteConexoesSec"><div class="flex items-center justify-bet
 h.push('</div><div class="suite-panel hidden" data-suite-panel="armazenamento">');
 h.push('<section id="suiteArmazenamentoSec"><div class="flex items-center justify-between mb-3"><h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Armazenamento</h3><button id="suiteArmReload" onclick="carregarArmazenamento()" class="text-xs text-pink-600 hover:text-pink-700">Atualizar</button></div><p class="text-xs text-slate-500 mb-3">Quanto de espaço está sendo usado e limpeza de arquivos antigos.</p><div id="suiteArmBody"><div class="text-xs text-slate-400">Carregando uso do armazenamento…</div></div></section>');
 h.push('</div><div class="suite-panel hidden" data-suite-panel="permissoes">');
-h.push('<section><h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">Convidar usuário</h3><p class="text-xs text-slate-500 mb-3">A conta nasce pronta, sem e-mail de confirmação. Passe o e-mail e a senha provisória pra pessoa na mão.</p><div class="flex flex-wrap items-end gap-3"><div class="flex-1 min-w-[180px]"><label class="text-xs text-slate-500">Email</label><input id="inviteEmail" type="email" placeholder="pessoa@dracharm.com.br" class="mt-1 w-full p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm"></div><div class="min-w-[140px]"><label class="text-xs text-slate-500">Nome</label><input id="inviteNome" placeholder="Ex.: Jael" class="mt-1 w-full p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm"></div><div class="min-w-[130px]"><label class="text-xs text-slate-500">Setor</label><input id="inviteSetor" placeholder="Ex.: Acabamento" class="mt-1 w-full p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm"></div><div class="min-w-[150px]"><label class="text-xs text-slate-500">Senha provisória</label><input id="invitePass" type="text" placeholder="mínimo 6 caracteres" class="mt-1 w-full p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm"></div><button id="inviteBtn" class="px-4 py-2.5 rounded-lg bg-slate-800 text-white text-sm hover:bg-slate-900">Criar acesso</button></div><div id="inviteStatus" class="text-xs mt-2"></div></section>');
+h.push('<section><h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">Convidar usuário</h3><p class="text-xs text-slate-500 mb-3">A conta nasce pronta, sem e-mail de confirmação. Passe o e-mail e a senha provisória pra pessoa na mão.</p><div class="flex flex-wrap items-end gap-3"><div class="flex-1 min-w-[180px]"><label class="text-xs text-slate-500">Email</label><input id="inviteEmail" type="email" placeholder="pessoa@dracharm.com.br" class="mt-1 w-full p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm"></div><div class="min-w-[140px]"><label class="text-xs text-slate-500">Nome</label><input id="inviteNome" placeholder="Ex.: Jael" class="mt-1 w-full p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm"></div><div class="min-w-[130px]"><label class="text-xs text-slate-500">Setor</label><input id="inviteSetor" placeholder="Ex.: Acabamento" class="mt-1 w-full p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm"></div><div class="min-w-[150px]"><label class="text-xs text-slate-500">Senha provisória</label><input id="invitePass" type="text" placeholder="mínimo 6 caracteres" class="mt-1 w-full p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm"></div><button id="inviteGerar" type="button" class="px-3 py-2.5 rounded-lg border border-slate-300 dark:border-ink-600 text-sm hover:bg-slate-50 dark:hover:bg-ink-700">Gerar senha</button><button id="inviteBtn" class="px-4 py-2.5 rounded-lg bg-slate-800 text-white text-sm hover:bg-slate-900">Criar acesso</button></div><div id="inviteStatus" class="text-xs mt-2"></div></section>');
 h.push('</div></div></div>');
 d.innerHTML=h.join('');document.body.appendChild(d);}
 window.openSuiteSettings=function(){ensSuiteModal();var m=document.getElementById('suiteSettingsModal');m.classList.remove('hidden');m.classList.add('flex');carregarConexoes();try{var adm=(user&&(user.email||'').toLowerCase()===ADMIN_EMAIL);['conexoes','armazenamento'].forEach(function(t){var b=document.querySelector('#suiteTabBar [data-suite-tab="'+t+'"]');if(b)b.style.display=adm?'':'none';});if(typeof suiteTab==='function')suiteTab('aparencia');}catch(_){}};
@@ -6457,6 +6452,14 @@ document.addEventListener('click',function(e){if(e.target.closest('#suiteFavicon
 document.addEventListener('change',async function(e){ if(e.target && e.target.id==='faviconInput' && e.target.files[0]){ var file=e.target.files[0]; file=await otimizarImagem(file,{maxW:256,maxH:256,limiteKB:60}); var st=document.getElementById('faviconStatus'); var _v=validarImagemUpload(file,2); if(!_v.ok){ if(st){st.className='text-red-600';st.textContent=_v.msg;} e.target.value=''; return; } if(st){st.className='text-slate-500';st.textContent='Enviando...';} try{ var r=await sb.storage.from('system-assets').upload('favicon.png', file, {upsert:true, contentType:file.type}); if(r.error) throw r.error; applyFavicon(); if(st){st.className='text-emerald-600';st.textContent='Favicon atualizado!';} }catch(err){ if(st){st.className='text-red-600';st.textContent='Erro: '+err.message;} } } });
 document.addEventListener('click',function(e){if(e.target.closest('#suiteLogoBtn'))document.getElementById('logoInput').click();});
 document.addEventListener('change',async function(e){if(e.target&&e.target.id==='suiteBgInput'&&e.target.files[0]){var file=e.target.files[0];file=await otimizarImagem(file,{maxW:2000,maxH:1400});var st=document.getElementById('suiteBgStatus');var _v=validarImagemUpload(file,5);if(!_v.ok){st.className='text-xs mt-1 text-red-600';st.textContent=_v.msg;e.target.value='';return;}st.className='text-xs mt-1 text-slate-500';st.textContent='Enviando wallpaper...';try{var r=await sb.storage.from('system-assets').upload('suite-bg.jpg',file,{upsert:true,contentType:file.type});if(r.error)throw r.error;applySuiteBg();st.className='text-xs mt-1 text-emerald-600';st.textContent='Wallpaper atualizado!';}catch(err){st.className='text-xs mt-1 text-red-600';st.textContent='Erro: '+err.message;}}});
+document.addEventListener('click',function(e){
+  if(!e.target.closest('#inviteGerar')) return;
+  // Senha provisória fácil de ditar no WhatsApp: uma palavra + 4 números.
+  var palavras=['aragao','charm','scrub','fabrica','costura','bordado'];
+  var p=palavras[Math.floor(Math.random()*palavras.length)]+String(Math.floor(1000+Math.random()*9000));
+  var campo=document.getElementById('invitePass');
+  if(campo){ campo.value=p; campo.focus(); }
+});
 document.addEventListener('click',async function(e){
   if(!e.target.closest('#inviteBtn')) return;
   var email=(document.getElementById('inviteEmail').value||'').trim();
@@ -6478,13 +6481,21 @@ document.addEventListener('click',async function(e){
     });
     var j = await r.json();
     if(!r.ok) throw new Error(j.error||('erro '+r.status));
+    // Deixa o recado pronto pra colar no WhatsApp — nada de e-mail no meio.
+    var recado='Seu acesso ao Sistema Grupo Aragão:\n'+location.origin+'\nE-mail: '+email+'\nSenha: '+pass;
     st.className='text-xs mt-2 text-emerald-600';
-    st.textContent='Acesso criado para '+email+'. Passe o e-mail e a senha provisória pra pessoa e libere os sistemas na ficha dela.';
+    st.innerHTML='Acesso criado para '+email+'. Agora libere os sistemas na ficha dela. '
+      +'<button id="inviteCopiar" type="button" class="ml-1 underline font-semibold">Copiar e-mail e senha</button>';
+    var _bc=document.getElementById('inviteCopiar');
+    if(_bc) _bc.onclick=async function(){
+      try{ await navigator.clipboard.writeText(recado); }
+      catch(_){ var t=document.createElement('textarea'); t.value=recado; document.body.appendChild(t); t.select(); try{ document.execCommand('copy'); }catch(__){} t.remove(); }
+      _bc.textContent='Copiado';
+    };
     document.getElementById('inviteEmail').value='';
     document.getElementById('invitePass').value='';
     if(document.getElementById('inviteNome')) document.getElementById('inviteNome').value='';
     if(document.getElementById('inviteSetor')) document.getElementById('inviteSetor').value='';
-    try{ await openUsers(); }catch(_){}
   }catch(err){
     st.className='text-xs mt-2 text-red-600';
     st.textContent='Erro: '+err.message;
