@@ -63,26 +63,22 @@
 <div id="appWrap" class="hidden">
 <header class="h-14 flex items-center justify-between px-4 bg-white/95 dark:bg-ink-800/95 border-b border-slate-200 dark:border-ink-600 sticky top-0 z-30 backdrop-blur">
   <div class="flex items-center gap-3">
-    <button onclick="location.href='/'" title="Voltar à Suíte" class="w-9 h-9 rounded-xl shadow hover:scale-105 hover:shadow-md transition flex items-center justify-center text-white bg-gradient-to-br from-amber-500 to-orange-500"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg></button>
-    <div class="leading-tight"><div class="text-sm font-semibold">Automações</div><div class="text-[11px] text-slate-500 dark:text-slate-400">Gatilhos e Fila de envios · Grupo Aragão</div></div>
+    <button onclick="location.href='/'" title="Voltar à Suíte" class="w-9 h-9 rounded-xl shadow hover:scale-105 hover:shadow-md transition flex items-center justify-center text-white bg-gradient-to-br from-rose-500 to-pink-600"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1.5-5h15L21 9M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M3 9h18M9 20v-6h6v6"/></svg></button>
+    <div class="leading-tight"><div class="text-sm font-semibold">Lojas</div><div class="text-[11px] text-slate-500 dark:text-slate-400">Integrações de loja · Grupo Aragão</div></div>
   </div>
   <div class="flex items-center gap-1">
-    <button onclick="location.href='/'" class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 hover:text-pink-500 flex items-center justify-center text-slate-500" title="Voltar à Suíte"><img src="/icone-app.png" alt="Suíte" class="w-6 h-6 rounded-md object-cover"></button>
+    <button onclick="location.href='/'" class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 hover:text-pink-500 flex items-center justify-center text-slate-500" title="Voltar"><img src="/icone-app.png" alt="Suíte" class="w-6 h-6 rounded-md object-cover"></button>
     <button onclick="document.documentElement.classList.toggle('dark')" class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 hover:text-pink-500 flex items-center justify-center text-slate-500" title="Tema"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
   </div>
 </header>
 
-<div class="px-4 pt-4 max-w-5xl mx-auto">
-  <!-- A loja fica ACIMA das abas, igual ao painel da loja: escolhe a loja em cima e
-       mexe embaixo. Antes o seletor vivia dentro da aba Gatilhos, então quem entrava
-       direto na Fila via as lojas de novo, embaixo das abas. -->
-  <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">Escolha a loja. Cada loja tem os próprios gatilhos, mensagens e fila de envios.</p>
-  <div id="lojasBar" class="flex flex-wrap gap-3 mb-5"></div>
+<div class="p-4 max-w-6xl mx-auto space-y-4">
 
-  <div class="flex items-center gap-6 border-b border-slate-200 dark:border-ink-600 mb-4">
-    <span class="tab" data-tab="gatilhos" data-active="1" onclick="setTab('gatilhos')">Gatilhos</span>
-    <span class="tab" data-tab="fila" onclick="setTab('fila')">Fila de envios <span id="filaBadge" class="ml-0.5 text-[10px] bg-slate-200 text-slate-600 dark:bg-ink-600 dark:text-slate-300 rounded-full px-1.5 py-0.5 align-middle">0</span></span>
-  </div>
+  <!-- Mesmo cabeçalho, mesmos cards de loja e MESMA barra de abas do /lojas.html.
+       Gatilhos e Fila de envios moram aqui; as outras abas voltam pro painel. Assim a
+       página "monta" igual, clicando em qualquer aba. -->
+  <div id="chips" class="flex gap-3 flex-wrap"></div>
+  <div id="abas" class="flex gap-1 flex-wrap border-b border-slate-200 dark:border-ink-600 pb-px"></div>
 
   <!-- Gatilhos -->
   <div id="viewGatilhos">
@@ -147,6 +143,7 @@ async function bootstrap(){
   if(!session){ document.getElementById('authGate').classList.remove('hidden'); return; }
   TOKEN = session.access_token;
   document.getElementById('appWrap').classList.remove('hidden');
+  renderAbas();
   await carregarGatilhos(); await carregarFila();
   carregarTemplates(); carregarWebhook();
   // realtime na fila
@@ -277,7 +274,7 @@ function marcaLoja(l, tam){
 }
 
 function renderLojas(){
-  const el=document.getElementById('lojasBar'); if(!el) return;
+  const el=document.getElementById('chips'); if(!el) return;
   el.innerHTML=LOJAS.map(l=>{
     const meus=GATILHOS.filter(g=>(g.loja||'loja_integrada')===l.key);
     const on=meus.filter(g=>g.ativo).length;
@@ -346,21 +343,19 @@ async function salvarMsg(id){ const g=GATILHOS.find(x=>x.id===id);
   catch(e){ alert('Erro ao salvar: '+e.message); btn.textContent='Salvar'; } finally{ btn.disabled=false; setTimeout(()=>{btn.textContent='Salvar';},1500); } }
 
 async function carregarFila(){
-  const c=await getSb();
-  // Fila POR LOJA. Antes vinha de at_fila_envios, que só tem disparo de campanha e não
-  // guarda a loja — por isso aparecia tudo junto. A fonte certa é o at_disparos_log, que
-  // registra cada evento da loja que passou por um gatilho.
-  let q = c.from('at_disparos_log').select('*').order('created_at',{ascending:false}).limit(300);
-  q = q.eq('loja', LOJA);
-  let { data, error } = await q;
-  if(error){
-    // banco ainda sem a coluna loja: mostra tudo em vez de quebrar a tela
-    const r = await c.from('at_disparos_log').select('*').order('created_at',{ascending:false}).limit(300);
-    data = r.data || []; FILA_SEM_LOJA = true;
-  } else { FILA_SEM_LOJA = false; }
-  FILA = data || [];
-  const pend = FILA.filter(x=>x.status==='aguardando_modelo').length;
-  document.getElementById('filaBadge').textContent = pend;
+  // A leitura vai pelo /api/disparos-log: at_disparos_log tem RLS ligada e nenhuma
+  // política, então ler direto do navegador devolve lista VAZIA sem erro nenhum — foi
+  // exatamente o que aconteceu na primeira versão desta aba.
+  try{
+    const r = await fetch('/api/disparos-log?loja='+encodeURIComponent(LOJA)+'&limite=300', { headers:{ Authorization:'Bearer '+TOKEN } });
+    const j = await r.json();
+    if(!r.ok) throw new Error(j.error || ('erro '+r.status));
+    FILA = j.itens || [];
+    FILA_SEM_LOJA = !!j.semColuna;
+  }catch(e){
+    console.warn('fila:', e.message); FILA = [];
+  }
+  renderAbas();
   renderFila();
 }
 
@@ -422,9 +417,44 @@ function renderFila(){
     + '</tbody></table>';
 }
 
-function setTab(t){ TAB=t; document.querySelectorAll('.tab').forEach(el=>el.dataset.active=el.dataset.tab===t?'1':'0');
+// A MESMA barra de abas do /lojas.html. Gatilhos e Fila são desta página; as outras
+// levam de volta pro painel. O Marcio reclamou (duas vezes) que a página "montava
+// diferente" ao clicar em Gatilhos/Fila — era porque aqui havia outro cabeçalho e só
+// duas abas. Se mexer nas abas de lá, mexa aqui também.
+const ABAS = [
+  { key:'resumo',    nome:'Visão geral',    vaiPara:'/lojas.html#resumo' },
+  { key:'gatilhos',  nome:'Gatilhos' },
+  { key:'eventos',   nome:'Eventos',        vaiPara:'/lojas.html#eventos' },
+  { key:'webhook',   nome:'Webhook',        vaiPara:'/lojas.html#webhook' },
+  { key:'relatorio', nome:'Relatórios',     vaiPara:'/lojas.html#relatorio' },
+  { key:'fila',      nome:'Fila de envios' },
+  { key:'leads',     nome:'Lista de leads', vaiPara:'/lojas.html#leads' }
+];
+function irPara(a){
+  if(a.vaiPara){ try{ localStorage.setItem('autom_loja',LOJA); }catch(e){} location.href=a.vaiPara; return; }
+  setTab(a.key);
+}
+function renderAbas(){
+  const el=document.getElementById('abas'); if(!el) return;
+  el.innerHTML = ABAS.map(a=>{
+    const on = a.key===TAB && !a.vaiPara;
+    const pend = (FILA||[]).filter(x=>x.status==='aguardando_modelo' || x.status==='erro').length;
+    const badge = (a.key==='fila' && pend) ? ' <span class="ml-0.5 text-[10px] bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 rounded-full px-1.5 py-0.5 align-middle">'+pend+'</span>' : '';
+    return '<button onclick=\'irPara('+JSON.stringify(a)+')\' class="px-3 py-2 text-[13px] font-semibold rounded-t-lg border-b-2 transition '
+      + (on ? 'border-pink-500 text-pink-600 dark:text-pink-300'
+            : 'border-transparent text-slate-500 hover:text-pink-600 dark:text-slate-400') + '">'
+      + esc(a.nome) + badge + '</button>';
+  }).join('');
+}
+
+function setTab(t){
+  TAB=t;
+  history.replaceState(null,'','#'+t);
+  renderAbas();
   document.getElementById('viewGatilhos').classList.toggle('hidden',t!=='gatilhos');
-  document.getElementById('viewFila').classList.toggle('hidden',t!=='fila'); }
+  document.getElementById('viewFila').classList.toggle('hidden',t!=='fila');
+  renderFila();   // o badge é recriado a cada renderAbas
+}
 
 // o menu lateral aponta pra /automacoes.html#gatilhos e #fila
 function abaDoHash(){ const h=(location.hash||'').replace('#',''); if(h==='gatilhos'||h==='fila') setTab(h); }
