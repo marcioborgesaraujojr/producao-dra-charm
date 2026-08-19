@@ -209,6 +209,16 @@
     <div id="composerEncerrada" class="hidden shrink-0 border-t border-slate-200 dark:border-ink-600 bg-slate-50 dark:bg-ink-900 px-4 py-3 text-center text-sm text-slate-500">
       Conversa encerrada. <button onclick="toggleResolver()" class="text-pink-600 font-semibold hover:underline">Reabrir</button>
     </div>
+    <div id="composerJanela" class="hidden shrink-0 border-t border-slate-200 dark:border-ink-600 bg-amber-50 dark:bg-amber-900/20 px-4 py-3">
+      <div class="flex items-center gap-3 flex-wrap">
+        <svg class="w-5 h-5 shrink-0 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v5l3 2"/></svg>
+        <div class="text-[13px] text-amber-800 dark:text-amber-300 flex-1 min-w-[220px]">
+          <b>A janela de 24h fechou.</b> Pra falar com este cliente agora, mande um modelo aprovado —
+          quando ele responder, a conversa reabre e você digita normalmente.
+        </div>
+        <button onclick="abrirTemplates()" class="text-sm font-semibold px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white shrink-0">Enviar modelo</button>
+      </div>
+    </div>
   </main>
 
   <aside id="profile" class="w-[320px] shrink-0 overflow-y-auto list-scroll bg-white dark:bg-ink-800 border-l border-slate-200 dark:border-ink-600 hidden"></aside>
@@ -276,7 +286,8 @@ async function loadConversas(){
     return { id:cv.id, nome:cli.nome||'Cliente', inicial:(cli.nome||'C')[0].toUpperCase(), cor:CORES[i%CORES.length],
       clienteId:cli.id||null, foto:cli.foto_url||'',
       canal:cv.canal==='whatsapp_oficial'?'API Oficial':(cv.canal||'—'), status:cv.status, naoLida:cv.nao_lida, minha:true,
-      janela:(cv.status==='encerrada'||j<=0)?'—':`${Math.floor(j/3600000)}h${String(Math.floor(j%3600000/60000)).padStart(2,'0')}min`,
+      janela:cv.status==='encerrada'?'—':(j<=0?'fechada':`${Math.floor(j/3600000)}h${String(Math.floor(j%3600000/60000)).padStart(2,'0')}min`),
+      janelaMs:j,
       tel:cli.telefone||'', email:cli.email||'', waid:cli.whatsapp_id||'',
       ultimaAtividade:new Date(cv.ultima_msg_em).toLocaleString('pt-BR'), ultimaMsgEm:cv.ultima_msg_em,
       tags:(cv.tags||[]).map(x=>x.tag).filter(Boolean),
@@ -486,8 +497,11 @@ async function selecionar(id){
   else { br.textContent='Resolver'; br.className='text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600'; }
   renderChat(cv); renderProfile(cv);
   { const rb=document.getElementById('resolvBanner'); if(cv.status==='encerrada'){ rb.className='shrink-0 text-white text-center text-xs font-semibold py-2 cursor-pointer transition-colors bg-emerald-500 hover:bg-emerald-600'; rb.textContent='Conversa resolvida ✓ — clique para reabrir'; } else { rb.className='shrink-0 text-white text-center text-xs font-semibold py-2 cursor-pointer transition-colors bg-rose-500 hover:bg-rose-600'; rb.textContent='Esta conversa não está resolvida — clique para resolver'; } }
-  document.getElementById('composer').classList.toggle('hidden', cv.status==='encerrada');
+  // 3 estados: conversa resolvida - janela de 24h fechada (so modelo) - normal
+  const janelaFechada = cv.status!=='encerrada' && !(cv.janelaMs>0);
+  document.getElementById('composer').classList.toggle('hidden', cv.status==='encerrada' || janelaFechada);
   document.getElementById('composerEncerrada').classList.toggle('hidden', cv.status!=='encerrada');
+  document.getElementById('composerJanela').classList.toggle('hidden', !janelaFechada);
   document.getElementById('qrBox').classList.add('hidden');
   const inp=document.getElementById('msgInput'); inp.placeholder=`Mande uma mensagem para ${cv.nome.split(' ')[0]}…`; inp.value=''; updCount(); setNotaUI();
   enrichPedido(cv);
@@ -725,7 +739,7 @@ async function marcarNaoLida(id){ hideConvCtx(); const cv=CONVERSAS.find(x=>x.id
 async function marcarResolvida(id){ hideConvCtx(); const cv=CONVERSAS.find(x=>x.id===id); if(!cv) return; const novo=cv.status==='encerrada'?'aberta':'encerrada'; cv.status=novo; renderList(); if(SEL===id) selecionar(id); try{ const c=await getSb(); await c.from('at_conversas').update({status:novo}).eq('id',id); await c.from('at_mensagens').insert({conversa_id:id,direcao:'sys',tipo:'evento',conteudo:(novo==='encerrada'?AGENTE+' resolveu a conversa':AGENTE+' reabriu a conversa'),meta:{evento:novo==='encerrada'?'resolvida':'reabriu'},autor:'sistema'}); }catch(e){} }
 document.addEventListener('click',e=>{ if(!e.target.closest('#convCtx')&&!e.target.closest('.conv-dots')) hideConvCtx(); });
 
-async function excluirConversa(id){ hideConvCtx(); if(!IS_ADMIN){ dcToast('Apenas o administrador pode excluir conversas.','err'); return; } const _ok=await dcConfirm({titulo:'Excluir conversa',texto:'Excluir esta conversa e todas as mensagens dela? Esta ação não pode ser desfeita.',ok:'Excluir',perigo:true}); if(!_ok) return; try{ const c=await getSb(); await c.from('at_mensagens').delete().eq('conversa_id',id); try{ await c.from('at_conversa_tags').delete().eq('conversa_id',id); }catch(e){} const { error }=await c.from('at_conversas').delete().eq('id',id); if(error) throw error; CONVERSAS=CONVERSAS.filter(x=>x.id!==id); if(SEL===id){ SEL=null; document.getElementById('chatArea').classList.add('hidden'); document.getElementById('composer').classList.add('hidden'); document.getElementById('composerEncerrada').classList.add('hidden'); document.getElementById('resolvBanner').classList.add('hidden'); document.getElementById('profile').classList.add('hidden'); document.getElementById('emptyState').classList.remove('hidden'); } renderList(); dcToast('Conversa excluída.','ok'); }catch(e){ dcToast('Não foi possível excluir: '+(e.message||e),'err'); } }
+async function excluirConversa(id){ hideConvCtx(); if(!IS_ADMIN){ dcToast('Apenas o administrador pode excluir conversas.','err'); return; } const _ok=await dcConfirm({titulo:'Excluir conversa',texto:'Excluir esta conversa e todas as mensagens dela? Esta ação não pode ser desfeita.',ok:'Excluir',perigo:true}); if(!_ok) return; try{ const c=await getSb(); await c.from('at_mensagens').delete().eq('conversa_id',id); try{ await c.from('at_conversa_tags').delete().eq('conversa_id',id); }catch(e){} const { error }=await c.from('at_conversas').delete().eq('id',id); if(error) throw error; CONVERSAS=CONVERSAS.filter(x=>x.id!==id); if(SEL===id){ SEL=null; document.getElementById('chatArea').classList.add('hidden'); document.getElementById('composer').classList.add('hidden'); document.getElementById('composerEncerrada').classList.add('hidden'); document.getElementById('composerJanela').classList.add('hidden'); document.getElementById('resolvBanner').classList.add('hidden'); document.getElementById('profile').classList.add('hidden'); document.getElementById('emptyState').classList.remove('hidden'); } renderList(); dcToast('Conversa excluída.','ok'); }catch(e){ dcToast('Não foi possível excluir: '+(e.message||e),'err'); } }
 
 const DC_BG_KEY='bg-atendimento.jpg';
 const DC_BG_URL='https://wwytzoyeibekhstinott.supabase.co/storage/v1/object/public/system-assets/'+DC_BG_KEY;
