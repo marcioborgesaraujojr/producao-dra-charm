@@ -355,12 +355,30 @@ export default async function handler(req,res){
     return new Date(Date.UTC(f.getUTCFullYear(),f.getUTCMonth(),f.getUTCDate()));
   }
   function dataPedidoISO(v){ const d=soDataFortaleza(v); return d? d.toISOString().slice(0,10) : null; }
+  // Feriados que param a producao (nacionais + Ceara + Fortaleza). Mesma lista do index.html.
+  // Os moveis (carnaval, sexta-feira santa, corpus christi) saem da Pascoa, valem pra qualquer ano.
+  const FERIADOS_FIXOS=['01-01','03-25','04-21','05-01','08-15','09-07','10-12','11-02','11-15','11-20','12-25'];
+  const _fer={};
+  function feriadosDoAno(ano){
+    if(_fer[ano]) return _fer[ano];
+    const s=new Set(FERIADOS_FIXOS.map(md=>ano+'-'+md));
+    const a=ano%19, b=Math.floor(ano/100), c=ano%100;
+    const d=Math.floor(b/4), e=b%4, f=Math.floor((b+8)/25), g=Math.floor((b-f+1)/3);
+    const h=(19*a+b-d-g+15)%30, i=Math.floor(c/4), k=c%4;
+    const l=(32+2*e+2*i-h-k)%7, m=Math.floor((a+11*h+22*l)/451);
+    const mes=Math.floor((h+l-7*m+114)/31), dia=((h+l-7*m+114)%31)+1;
+    const pascoa=Date.UTC(ano,mes-1,dia);
+    const off=n=>new Date(pascoa+n*86400000).toISOString().slice(0,10);
+    s.add(off(-48)); s.add(off(-47)); s.add(off(-2)); s.add(off(60));
+    _fer[ano]=s; return s;
+  }
+  function ehFeriado(d){ return feriadosDoAno(d.getUTCFullYear()).has(d.toISOString().slice(0,10)); }
   function prazoBordado(tipo, base){
     const dias=(tipo==='logomarca'||tipo==='ambos')?10:5;
     let d=soDataFortaleza(base);
     if(!d){ const a=new Date(Date.now()-3*3600*1000); d=new Date(Date.UTC(a.getUTCFullYear(),a.getUTCMonth(),a.getUTCDate())); }
     let n=0;
-    while(n<dias){ d.setUTCDate(d.getUTCDate()+1); const dw=d.getUTCDay(); if(dw!==0&&dw!==6) n++; }
+    while(n<dias){ d.setUTCDate(d.getUTCDate()+1); const dw=d.getUTCDay(); if(dw!==0&&dw!==6&&!ehFeriado(d)) n++; }
     return d.toISOString().slice(0,10);
   }
 
