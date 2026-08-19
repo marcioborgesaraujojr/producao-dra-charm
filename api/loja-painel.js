@@ -20,6 +20,18 @@ async function sb(path) {
   return Array.isArray(data) ? data : [];
 }
 
+// o PostgREST corta em 1000 linhas, então contagem tem que vir do content-range
+async function contar(path) {
+  try {
+    const r = await fetch(SB() + '/rest/v1/' + path + '&select=id&limit=1', {
+      headers: { apikey: KEY(), Authorization: 'Bearer ' + KEY(), Prefer: 'count=exact' }
+    });
+    const cr = r.headers.get('content-range') || '';
+    const n = Number(String(cr).split('/')[1]);
+    return isFinite(n) ? n : 0;
+  } catch (e) { return 0; }
+}
+
 async function callerEmail(token) {
   if (!token) return null;
   try {
@@ -32,8 +44,17 @@ async function callerEmail(token) {
 // os códigos de evento que pertencem a esta loja (pra filtrar o log de disparos,
 // que guarda só o evento_key, sem a loja)
 async function codigosDaLoja(loja) {
-  const g = await sb('at_gatilhos?loja=eq.' + encodeURIComponent(loja) + '&select=evento_code,evento_nome,ativo,template_name');
+  const g = await sb('at_gatilhos?loja=eq.' + encodeURIComponent(loja) + '&select=evento_code,li_codigo,evento_nome,ativo,template_name');
   return g;
+}
+
+// O log de disparos guarda a chave que o webhook usou: na Loja Integrada é a
+// situação dela (li_codigo); na TroqueCommerce é o nosso evento_code. Então o
+// filtro tem que aceitar os dois.
+function chavesDeLog(gatilhos) {
+  const s = new Set();
+  gatilhos.forEach(g => { if (g.evento_code) s.add(g.evento_code); if (g.li_codigo) s.add(g.li_codigo); });
+  return [...s];
 }
 
 function diaISO(d) { return new Date(d).toISOString().slice(0, 10); }
@@ -57,14 +78,18 @@ export default async function handler(req, res) {
 
   try {
     const gatilhos = await codigosDaLoja(loja);
-    const codigos = gatilhos.map(g => g.evento_code).filter(Boolean);
+    const codigos = chavesDeLog(gatilhos);
     const nomeDoCodigo = {};
-    gatilhos.forEach(g => { nomeDoCodigo[g.evento_code] = g.evento_nome || g.evento_code; });
+    gatilhos.forEach(g => {
+      const nome = g.evento_nome || g.evento_code;
+      if (g.evento_code) nomeDoCodigo[g.evento_code] = nome;
+      if (g.li_codigo) nomeDoCodigo[g.li_codigo] = nome;
+    });
 
     // ---------- RESUMO ----------
     if (aba === 'resumo') {
-      const ev24 = await sb('loja_eventos?loja=eq.' + loja + '&created_at=gte.' +
-        encodeURIComponent(new Date(Date.now() - 86400000).toISOString()) + '&select=id&limit=5000');
+      const ev24 = await contar('loja_eventos?loja=eq.' + loja + '&created_at=gte.' +
+        encodeURIComponent(new Date(Date.now() - 86400000).toISOString()));
       const ult = await sb('loja_eventos?loja=eq.' + loja +
         '&select=evento_codigo,evento_label,cliente_nome,pedido,cliente_telefone,created_at&order=created_at.desc&limit=12');
 
@@ -78,7 +103,7 @@ export default async function handler(req, res) {
       }
       return res.status(200).json({
         ok: true,
-        eventos24h: ev24.length, enviados24h: enviados, erros24h: erros,
+        eventos24h: ev24, enviados24h: enviados, erros24h: erros,
         gatilhosLigados: gatilhos.filter(g => g.ativo).length, gatilhosTotal: gatilhos.length,
         ultimos: ult
       });
