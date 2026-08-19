@@ -177,7 +177,9 @@ async function acharConversa(waid) {
     const c = await sb('at_clientes?whatsapp_id=eq.' + waid + '&select=id&limit=1');
     const cli = Array.isArray(c.data) ? c.data[0] : null;
     if (!cli || !cli.id) return null;
-    const f = await sb('at_conversas?cliente_id=eq.' + cli.id + '&status=neq.encerrada&select=id&order=ultima_msg_em.desc&limit=1');
+    // qualquer conversa do cliente serve - inclusive a que ja foi resolvida,
+    // pro historico ficar num fio so e nada sumir quando a equipe clica em Resolver.
+    const f = await sb('at_conversas?cliente_id=eq.' + cli.id + '&select=id&order=ultima_msg_em.desc.nullslast&limit=1');
     return (Array.isArray(f.data) && f.data.length) ? f.data[0].id : null;
   } catch (e) { return null; }
 }
@@ -189,8 +191,15 @@ async function acharOuCriarConversa(waid, nome) {
   });
   const cli = Array.isArray(c.data) ? c.data[0] : c.data;
   if (!cli || !cli.id) return null;
-  const f = await sb('at_conversas?cliente_id=eq.' + cli.id + '&status=neq.encerrada&select=id&order=ultima_msg_em.desc&limit=1');
-  if (Array.isArray(f.data) && f.data.length) return f.data[0].id;
+  // reaproveita a ultima conversa do cliente, mesmo resolvida - reabre em vez de criar outra
+  const f = await sb('at_conversas?cliente_id=eq.' + cli.id + '&select=id,status&order=ultima_msg_em.desc.nullslast&limit=1');
+  if (Array.isArray(f.data) && f.data.length) {
+    const ja = f.data[0];
+    if (ja.status === 'encerrada') {
+      await sb('at_conversas?id=eq.' + ja.id, { method: 'PATCH', body: JSON.stringify({ status: 'aberta' }) });
+    }
+    return ja.id;
+  }
   const nv = await sb('at_conversas', {
     method: 'POST', headers: { Prefer: 'return=representation' },
     body: JSON.stringify({ cliente_id: cli.id, canal: 'loja', status: 'aberta', nao_lida: true, ultima_msg_em: new Date().toISOString() })
@@ -451,9 +460,12 @@ export default async function handler(req, res) {
           conversa_id: conversaId, direcao: ok ? 'out' : 'in', tipo: ok ? 'template' : 'nota',
           conteudo: nota, autor: 'Automação · Loja Integrada',
           meta: { gatilho: g.evento_code, situacao: p.codigo, pedido: p.numero } }) });
-        await sb('at_conversas?id=eq.' + conversaId, { method: 'PATCH', body: JSON.stringify({
+        const patch = {
           ultima_msg_preview: nota.slice(0, 120), ultima_msg_em: new Date().toISOString(),
-          janela_expira_em: new Date(Date.now() + 24 * 3600 * 1000).toISOString() }) });
+          janela_expira_em: new Date(Date.now() + 24 * 3600 * 1000).toISOString() };
+        // amarra o pedido na conversa pra aparecer no painel do atendimento
+        if (p.numero) patch.pedido_numero = String(p.numero);
+        await sb('at_conversas?id=eq.' + conversaId, { method: 'PATCH', body: JSON.stringify(patch) });
       }
     } catch (e) { /* nota é bônus, não pode derrubar o disparo */ }
 

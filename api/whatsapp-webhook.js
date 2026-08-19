@@ -49,10 +49,18 @@ async function upsertCliente({ waid, nome, telefone }) {
 
 // acha conversa aberta/pendente do cliente, senão cria
 async function getOrCreateConversa(clienteId) {
+  // Pega a ULTIMA conversa do cliente, mesmo resolvida, e reabre. Antes criavamos
+  // uma conversa nova e o historico anterior parecia ter sumido pra quem atendia.
   const found = await sbFetch(
-    'at_conversas?cliente_id=eq.' + clienteId + '&status=neq.encerrada&select=id&order=ultima_msg_em.desc&limit=1'
+    'at_conversas?cliente_id=eq.' + clienteId + '&select=id,status&order=ultima_msg_em.desc.nullslast&limit=1'
   );
-  if (Array.isArray(found) && found.length) return found[0].id;
+  if (Array.isArray(found) && found.length) {
+    const ja = found[0];
+    if (ja.status === 'encerrada') {
+      await sbFetch('at_conversas?id=eq.' + ja.id, { method: 'PATCH', body: JSON.stringify({ status: 'aberta', nao_lida: true }) });
+    }
+    return ja.id;
+  }
   const created = await sbFetch('at_conversas', {
     method: 'POST',
     headers: { Prefer: 'return=representation' },
