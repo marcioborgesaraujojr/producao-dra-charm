@@ -408,7 +408,7 @@ export default async function handler(req, res) {
     if (!g.template_name) {
       // não é falha: o gatilho está ligado mas ainda não escolheram o modelo.
       await sb('at_disparos_log', { method: 'POST', body: JSON.stringify({
-        evento_key: p.codigo, telefone: p.waid, pedido: p.numero || null,
+        evento_key: p.codigo, loja: 'loja_integrada', telefone: p.waid, pedido: p.numero || null,
         status: 'aguardando_modelo',
         detalhe: 'gatilho "' + (g.evento_nome || p.codigo) + '" está ligado, mas falta escolher o modelo aprovado',
         payload: fonte }) });
@@ -419,7 +419,7 @@ export default async function handler(req, res) {
     const seco = await modoSeco();
     if (seco || !process.env.WA_ACCESS_TOKEN || !process.env.WA_PHONE_NUMBER_ID) {
       await sb('at_disparos_log', { method: 'POST', body: JSON.stringify({
-        evento_key: p.codigo, telefone: p.waid, pedido: p.numero || null,
+        evento_key: p.codigo, loja: 'loja_integrada', telefone: p.waid, pedido: p.numero || null,
         template_name: g.template_name, status: 'simulado',
         detalhe: seco ? 'modo seco ligado' : 'whatsapp não configurado', payload: { params, fonte } }) });
       try {
@@ -468,7 +468,7 @@ export default async function handler(req, res) {
     } catch (e) { /* nota é bônus, não pode derrubar o disparo */ }
 
     await sb('at_disparos_log', { method: 'POST', body: JSON.stringify({
-      evento_key: p.codigo, telefone: p.waid, pedido: p.numero || null,
+      evento_key: p.codigo, loja: 'loja_integrada', telefone: p.waid, pedido: p.numero || null,
       template_name: g.template_name, status: ok ? 'enviado' : 'erro',
       detalhe: erro, wamid, payload: { params, fonte } }) });
 

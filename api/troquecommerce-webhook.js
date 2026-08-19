@@ -411,7 +411,7 @@ export default async function handler(req, res) {
     const faltando = mapa.filter((k, i) => vazio(k, params[i]));
     if (faltando.length) {
       await sb('at_disparos_log', { method: 'POST', body: JSON.stringify({
-        evento_key: p.code, telefone: p.waid, pedido: p.pedido || null,
+        evento_key: p.code, loja: LOJA, telefone: p.waid, pedido: p.pedido || null,
         template_name: g.template_name, status: 'ignorado',
         detalhe: 'não enviado: a loja não mandou ' + faltando.join(', '),
         payload: { params, atalhos } }) });
@@ -420,7 +420,7 @@ export default async function handler(req, res) {
 
     if (!g.template_name) {
       await sb('at_disparos_log', { method: 'POST', body: JSON.stringify({
-        evento_key: p.code, telefone: p.waid, pedido: p.pedido || null,
+        evento_key: p.code, loja: LOJA, telefone: p.waid, pedido: p.pedido || null,
         status: 'aguardando_modelo',
         detalhe: 'gatilho "' + (g.evento_nome || p.code) + '" está ligado, mas falta escolher o modelo aprovado',
         payload: atalhos }) });
@@ -430,7 +430,7 @@ export default async function handler(req, res) {
     const seco = await modoSeco();
     if (seco || !process.env.WA_ACCESS_TOKEN || !process.env.WA_PHONE_NUMBER_ID) {
       await sb('at_disparos_log', { method: 'POST', body: JSON.stringify({
-        evento_key: p.code, telefone: p.waid, pedido: p.pedido || null,
+        evento_key: p.code, loja: LOJA, telefone: p.waid, pedido: p.pedido || null,
         template_name: g.template_name, status: 'simulado',
         detalhe: seco ? 'modo seco ligado' : 'whatsapp não configurado', payload: { params, atalhos } }) });
       try {
@@ -476,7 +476,7 @@ export default async function handler(req, res) {
     } catch (e) { /* nota é bônus */ }
 
     await sb('at_disparos_log', { method: 'POST', body: JSON.stringify({
-      evento_key: p.code, telefone: p.waid, pedido: p.pedido || null,
+      evento_key: p.code, loja: LOJA, telefone: p.waid, pedido: p.pedido || null,
       template_name: g.template_name, status: ok ? 'enviado' : 'erro',
       detalhe: erro, wamid, payload: { params, atalhos } }) });
 
