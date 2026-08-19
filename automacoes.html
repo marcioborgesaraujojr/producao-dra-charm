@@ -73,6 +73,12 @@
 </header>
 
 <div class="px-4 pt-4 max-w-5xl mx-auto">
+  <!-- A loja fica ACIMA das abas, igual ao painel da loja: escolhe a loja em cima e
+       mexe embaixo. Antes o seletor vivia dentro da aba Gatilhos, então quem entrava
+       direto na Fila via as lojas de novo, embaixo das abas. -->
+  <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">Escolha a loja. Cada loja tem os próprios gatilhos, mensagens e fila de envios.</p>
+  <div id="lojasBar" class="flex flex-wrap gap-3 mb-5"></div>
+
   <div class="flex items-center gap-6 border-b border-slate-200 dark:border-ink-600 mb-4">
     <span class="tab" data-tab="gatilhos" data-active="1" onclick="setTab('gatilhos')">Gatilhos</span>
     <span class="tab" data-tab="fila" onclick="setTab('fila')">Fila de envios <span id="filaBadge" class="ml-0.5 text-[10px] bg-slate-200 text-slate-600 dark:bg-ink-600 dark:text-slate-300 rounded-full px-1.5 py-0.5 align-middle">0</span></span>
@@ -80,14 +86,16 @@
 
   <!-- Gatilhos -->
   <div id="viewGatilhos">
-    <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">Escolha a loja e ative os eventos que devem avisar o cliente. Cada loja tem os próprios gatilhos e as próprias mensagens.</p>
-    <div id="lojasBar" class="flex flex-wrap gap-3 mb-5"></div>
+    <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">Ative os eventos que devem avisar o cliente.</p>
     <div id="webhookBox" class="hidden mb-4"></div>
     <div id="gatilhosList" class="space-y-6 pb-10"></div>
   </div>
 
   <!-- Fila -->
   <div id="viewFila" class="hidden pb-10">
+    <!-- A fila é comum a todas as lojas (at_fila_envios não guarda a loja), então deixo
+         isso claro em vez de dar a impressão de que o seletor de cima filtra aqui. -->
+    <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">Envios de <b>todas as lojas</b>, do mais novo para o mais antigo.</p>
     <div class="flex items-center gap-2 mb-3">
       <select id="filaFiltro" onchange="renderFila()" class="p-2 text-sm rounded-lg bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600">
         <option value="">Todos os status</option><option value="pendente">Pendente</option><option value="enviado">Enviado</option><option value="falha">Falha</option><option value="cancelado">Cancelado</option>

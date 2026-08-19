@@ -268,6 +268,13 @@ const QUICK_REPLIES = [
   {atalho:'/obrigada', txt:'Obrigada pelo contato! Qualquer coisa, estamos por aqui. 💗'},
 ];
 const CORES = ['#ff3c6f','#f59e0b','#3b82f6','#14b8a6','#a855f7','#22c55e','#ef4444','#0ea5e9'];
+// Cor do avatar SEMPRE a mesma pra mesma pessoa. Antes era CORES[i], o índice na lista —
+// e como a lista se reordena a cada mensagem nova, a cor de todo mundo trocava sozinha.
+function corFixa(chave){
+  let h = 0x811c9dc5; const t = String(chave||'?');
+  for (let i=0;i<t.length;i++){ h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return CORES[h % CORES.length];
+}
 
 let sb=null, CONVERSAS=[], TAB='minhas', SEL=null, NOTA=false, PROFILES=[], SORT='recentes', IS_ADMIN=false, AT_CONFIG={identificacao:false,formato:'primeiro_nome'};
 async function loadAtConfig(){ try{ const r=await fetch('https://wwytzoyeibekhstinott.supabase.co/storage/v1/object/public/system-assets/at-config.json?t='+Date.now()); if(r.ok){ const j=JSON.parse(await r.text()); if(j&&typeof j==='object') AT_CONFIG=Object.assign(AT_CONFIG,j); } }catch(e){} }
@@ -292,7 +299,7 @@ async function loadConversas(){
   return (data||[]).map((cv,i)=>{
     const cli=cv.cliente||{};
     const j=cv.janela_expira_em?new Date(cv.janela_expira_em)-Date.now():0;
-    return { id:cv.id, nome:cli.nome||'Cliente', inicial:(cli.nome||'C')[0].toUpperCase(), cor:CORES[i%CORES.length],
+    return { id:cv.id, nome:cli.nome||'Cliente', inicial:(cli.nome||'C')[0].toUpperCase(), cor:corFixa(cli.id||cv.id),
       clienteId:cli.id||null, foto:cli.foto_url||'',
       canal:cv.canal==='whatsapp_oficial'?'API Oficial':(cv.canal||'—'), status:cv.status, naoLida:cv.nao_lida, minha:true,
       janela:cv.status==='encerrada'?'—':(j<=0?'fechada':`${Math.floor(j/3600000)}h${String(Math.floor(j%3600000/60000)).padStart(2,'0')}min`),
@@ -592,6 +599,10 @@ async function selecionar(id){
 }
 function renderChat(cv){
   const chat=document.getElementById('chatArea');
+  // Guarda onde a pessoa estava ANTES de redesenhar (o chat inteiro é reconstruído a
+  // cada mensagem nova; sem isso a tela pulava toda vez).
+  const _scrollAntes = chat.scrollTop;
+  const _estavaNoFim = (chat.scrollHeight - chat.scrollTop - chat.clientHeight) < 80;
   chat.innerHTML=`<div class="flex justify-center"><span class="text-[11px] text-slate-400 bg-slate-100 dark:bg-ink-700 px-3 py-1 rounded-full">Conversa</span></div>`
    + cv.msgs.map(m=>{
       if(m.t==='sys'){ const s={reabriu:'bg-orange-100 text-orange-700',resolvida:'bg-green-100 text-green-700'}; return `<div class="flex justify-center"><span class="sys-chip ${s[m.k]||'bg-slate-100 text-slate-600'}">${esc(m.txt)}</span></div>`; }
@@ -615,9 +626,12 @@ function renderChat(cv){
       if(!_media && _rot[_txt]){ _txt=_rot[_txt]; _cls='text-sm text-slate-500 dark:text-slate-400'; }  // mídia sem arquivo -> rótulo
       const _showTxt=!!_txt;
       const _vazio=(!_media && !_showTxt)?`<div class="text-sm italic text-slate-400">[mensagem sem conteúdo]</div>`:'';
-      return `<div class="flex ${out?'justify-end':'justify-start'}"><div class="max-w-[70%] ${out?'bubble-out':'bubble-in'} rounded-2xl px-4 py-2 shadow-sm" data-fade>${_media}${_showTxt?`<div class="${_cls}">${esc(_txt)}</div>`:''}${_vazio}<div class="text-[10px] text-slate-400 text-right mt-1">${m.hora}${out?' <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:inline-block;vertical-align:-0.15em;flex:none"><path d="m1 13 4 4 8-8"/><path d="m10 13 4 4 9-9"/></svg>':''}</div></div></div>`;
+      return `<div class="flex ${out?'justify-end':'justify-start'}"><div class="max-w-[70%] ${out?'bubble-out':'bubble-in'} rounded-2xl px-4 py-2 shadow-sm">${_media}${_showTxt?`<div class="${_cls}">${esc(_txt)}</div>`:''}${_vazio}<div class="text-[10px] text-slate-400 text-right mt-1">${m.hora}${out?' <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:inline-block;vertical-align:-0.15em;flex:none"><path d="m1 13 4 4 8-8"/><path d="m10 13 4 4 9-9"/></svg>':''}</div></div></div>`;
     }).join('');
-  chat.scrollTop=chat.scrollHeight;
+  // Só desce sozinho se a pessoa já estava no fim. Se ela subiu pra ler algo antigo,
+  // uma mensagem nova não arranca mais a tela do lugar.
+  if(_estavaNoFim) chat.scrollTop=chat.scrollHeight;
+  else chat.scrollTop=_scrollAntes;
 }
 function renderProfile(cv){
   const p=document.getElementById('profile'); p.classList.remove('hidden'); const ped=cv.pedido;
