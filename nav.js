@@ -17,9 +17,13 @@
     { key: 'lojas', label: 'Lojas', admin: true,
       icon: '<path d="M3 9l1.5-5h15L21 9M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M3 9h18M9 20v-6h6v6"/>',
       sub: [
-        { href: '/lojas.html', label: 'Visão geral' },
+        { href: '/lojas.html#resumo', label: 'Visão geral' },
         { href: '/automacoes.html#gatilhos', label: 'Gatilhos' },
-        { href: '/automacoes.html#fila', label: 'Fila de envios' }
+        { href: '/lojas.html#eventos', label: 'Eventos' },
+        { href: '/lojas.html#webhook', label: 'Webhook' },
+        { href: '/lojas.html#relatorio', label: 'Relatórios' },
+        { href: '/automacoes.html#fila', label: 'Fila de envios' },
+        { href: '/lojas.html#leads', label: 'Lista de leads' }
       ] },
 
     { key: 'chatbot', href: '/chatbot.html', label: 'Chatbot IA', admin: true,
