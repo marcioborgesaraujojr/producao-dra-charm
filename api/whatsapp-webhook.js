@@ -180,7 +180,19 @@ function resumoHorario(cfg) {
   return 'Atendemos ' + abertos.map(x => DIAS_NOME[x.i] + ' das ' + x.d.de + ' às ' + x.d.ate).join(', ') + '.';
 }
 
-async function maybeAusencia(conversaId, waid) {
+// O nome vem do perfil do WhatsApp do cliente, então pode vir com emoji, tudo
+// minúsculo, ou nome de empresa. Fica só o primeiro nome, limpo. Se não der pra
+// aproveitar, devolve vazio e o texto se ajeita sem ele.
+function primeiroNome(bruto) {
+  const s = String(bruto || '').replace(/[^\p{L}\p{M}\s'-]/gu, ' ').trim();
+  if (!s) return '';
+  const titulos = /^(dr|dra|sr|sra|srta|prof|profa|enf|tec|tecn)$/i;
+  const palavra = s.split(/\s+/).find(p => p.length >= 2 && !titulos.test(p));
+  if (!palavra || /^(cliente|client)$/i.test(palavra)) return '';
+  return palavra.charAt(0).toUpperCase() + palavra.slice(1).toLowerCase();
+}
+
+async function maybeAusencia(conversaId, waid, nomeBruto) {
   try {
     if (!process.env.WA_ACCESS_TOKEN || !process.env.WA_PHONE_NUMBER_ID) return;
 
@@ -204,7 +216,15 @@ async function maybeAusencia(conversaId, waid) {
       if (Array.isArray(ja) && ja.length) return;
     }
 
-    const texto = String(cfg.texto || '').replace(/\{\{\s*horario\s*\}\}/g, resumoHorario(cfg)).trim();
+    const pn = primeiroNome(nomeBruto);
+    let texto = String(cfg.texto || '')
+      .replace(/\{\{\s*horario\s*\}\}/g, resumoHorario(cfg))
+      .replace(/\{\{\s*nome\s*\}\}/g, pn);
+    // sem nome, sobra "Oi !" ou "Olá, !" — arruma a pontuação órfã
+    if (!pn) {
+      texto = texto.replace(/,\s*([!?.])/g, '$1').replace(/ +([,!?.])/g, '$1').replace(/[ \t]{2,}/g, ' ');
+    }
+    texto = texto.trim();
     if (!texto) return;
 
     const r = await fetch(GRAPH + '/' + process.env.WA_PHONE_NUMBER_ID + '/messages', {
@@ -366,7 +386,7 @@ export default async function handler(req, res) {
           // Chatbot IA: só reage a mensagem de TEXTO do cliente (não figurinha/áudio/etc)
           if (m.type === 'text') {
             await maybeBotReply(conversaId, contatoNome || 'Cliente', conteudo, waid, host);
-            await maybeAusencia(conversaId, waid);
+            await maybeAusencia(conversaId, waid, contatoNome);
           }
         }
       }

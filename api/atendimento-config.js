@@ -27,7 +27,7 @@ const PADRAO = {
     { on: true,  de: '07:00', ate: '16:00' },
     { on: false, de: '08:00', ate: '12:00' }
   ],
-  texto: 'Oi! 💛 Você chegou fora do nosso horário de atendimento.\n\n{{horario}}\n\nPode deixar sua mensagem por aqui que assim que abrirmos a gente te responde. 🙂',
+  texto: 'Oi {{nome}}! Você chegou fora do nosso horário de atendimento.\n\n{{horario}}\n\nPode deixar sua mensagem por aqui que assim que abrirmos a gente te responde. 🙂',
   repetir_horas: 6
 };
 
