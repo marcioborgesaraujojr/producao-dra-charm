@@ -173,13 +173,15 @@ async function abaResumo(){
 
 // ================= EVENTOS =================
 let filtroEvento='';
-async function abaEventos(){
-  carregando();
+// O miolo é usado em DOIS lugares: na aba Eventos e no fim da aba Webhook — porque no
+// Notificações a página "Webhooks" mostra justamente a lista do que a plataforma mandou.
+// Se mexer nas colunas, vale para os dois.
+async function blocoEventosHtml(titulo){
   const j = await api('eventos', filtroEvento ? { evento:filtroEvento } : {});
-  if(!j.ok) return box('<div class="card p-4 text-sm text-rose-600">Não deu pra carregar.</div>');
+  if(!j.ok) return '<div class="card p-4 text-sm text-rose-600">Não deu pra carregar os eventos.</div>';
   const tipos = Object.entries(j.tipos||{}).sort((a,b)=>b[1]-a[1]);
   const chips = '<div class="flex gap-1.5 flex-wrap mb-3">'
-    + '<button onclick="filtrarEvento(\'\')" class="px-2.5 py-1 rounded-full text-[11px] font-semibold '+(!filtroEvento?'bg-pink-100 text-pink-700':'bg-slate-100 text-slate-500 dark:bg-ink-700 dark:text-slate-300')+'">todos</button>'
+    + '<button onclick="filtrarEvento(\'\')" class="px-2.5 py-1 rounded-full text-[11px] font-semibold '+(!filtroEvento?'bg-pink-100 text-pink-700':'bg-slate-100 text-slate-500 dark:bg-ink-700 dark:text-slate-300')+'">Todos</button>'
     + tipos.map(([c,n])=>'<button onclick="filtrarEvento(\''+c+'\')" class="px-2.5 py-1 rounded-full text-[11px] font-semibold '
         +(filtroEvento===c?'bg-pink-100 text-pink-700':'bg-slate-100 text-slate-500 dark:bg-ink-700 dark:text-slate-300')+'">'
         +esc(j.nomeDoCodigo[c]||c)+' <span class="opacity-60">'+n+'</span></button>').join('')
@@ -187,20 +189,26 @@ async function abaEventos(){
 
   const linhas = (j.linhas||[]).map(l =>
       '<tr onclick="verEvento('+l.id+')" class="border-t border-slate-100 dark:border-ink-700 cursor-pointer hover:bg-pink-50/60 dark:hover:bg-ink-700/40 transition">'
+    + '<td class="py-2 pr-3 text-[12px] text-slate-400 whitespace-nowrap">'+new Date(l.created_at).toLocaleString('pt-BR')+'</td>'
     + '<td class="py-2 pr-3 text-[13px]">'+esc(l.evento_label||l.evento_codigo)+'</td>'
     + '<td class="py-2 pr-3 text-[13px]">'+esc(l.cliente_nome||'—')+'</td>'
     + '<td class="py-2 pr-3 text-[12px] text-slate-500 font-mono">'+esc(l.pedido||'—')+'</td>'
     + '<td class="py-2 pr-3 text-[12px] text-slate-500 font-mono">'+esc(l.cliente_telefone||'—')+'</td>'
-    + '<td class="py-2 text-[12px] text-slate-400 whitespace-nowrap">'+new Date(l.created_at).toLocaleString('pt-BR')+'</td>'
+    + '<td class="py-2 pr-3 text-[12px] text-slate-500 truncate max-w-[180px]">'+esc(l.cliente_email||'—')+'</td>'
     + '<td class="py-2 pl-2 text-slate-300 text-[13px]">›</td></tr>').join('');
 
-  box(cartao('Eventos que a loja mandou <span class="text-[11px] font-normal text-slate-400">(últimos 200 · clique pra ver o que chegou)</span>',
+  return cartao(titulo + ' <span class="text-[11px] font-normal text-slate-400">(últimos 200 · clique pra ver o que chegou)</span>',
     chips + (linhas
       ? '<div class="overflow-x-auto"><table class="w-full text-left"><thead><tr class="text-[11px] uppercase tracking-wide text-slate-400">'
-        + '<th class="pb-1 pr-3">Evento</th><th class="pb-1 pr-3">Cliente</th><th class="pb-1 pr-3">Pedido</th><th class="pb-1 pr-3">Telefone</th><th class="pb-1">Quando</th><th></th></tr></thead><tbody>'
+        + '<th class="pb-1 pr-3">Quando aconteceu</th><th class="pb-1 pr-3">Evento</th><th class="pb-1 pr-3">Cliente</th><th class="pb-1 pr-3">Pedido</th><th class="pb-1 pr-3">Telefone</th><th class="pb-1 pr-3">E-mail</th><th></th></tr></thead><tbody>'
         + linhas + '</tbody></table></div>'
       : '<div class="text-center text-sm text-slate-400 py-6">Nenhum evento com esse filtro.</div>'),
-    '<button onclick="carregarAba()" class="text-[12px] text-pink-600 font-semibold hover:underline">Atualizar</button>'));
+    '<button onclick="carregarAba()" class="text-[12px] text-pink-600 font-semibold hover:underline">Atualizar</button>');
+}
+
+async function abaEventos(){
+  carregando();
+  box(await blocoEventosHtml('Eventos que a loja mandou'));
 }
 // ================= UM EVENTO (o que a loja mandou) =================
 // Mesma ideia da tela de webhook do Notificações: clicou no evento, vê o que chegou.
@@ -333,6 +341,21 @@ async function abaWebhook(){
        ? 'Este endereço já está registrado na Loja Integrada. Ela chama a cada mudança de situação do pedido.'
        : 'Na TroqueCommerce: <b>Automações e Integrações → Webhook</b> → Ativar · cole a URL acima · marque os eventos · Salvar. O painel deles aceita <b>um webhook só</b>.')
     + '</div>'));
+
+  // Igual à página "Webhooks" do Notificações: embaixo do endereço, o que a plataforma
+  // realmente mandou. Antes esta aba tinha só a URL e o Marcio não via chegada nenhuma.
+  const alvo = document.getElementById('conteudo');
+  if(alvo){
+    alvo.insertAdjacentHTML('beforeend', '<div id="whkRecebidos" class="text-center text-sm text-slate-400 py-6">carregando o que chegou…</div>');
+    try{
+      const html = await blocoEventosHtml('Webhooks recebidos da ' + esc(l.nome));
+      const cx = document.getElementById('whkRecebidos');
+      if(cx) cx.outerHTML = html;
+    }catch(e){
+      const cx = document.getElementById('whkRecebidos');
+      if(cx) cx.outerHTML = '<div class="card p-4 text-sm text-rose-600">Não deu pra carregar o que chegou.</div>';
+    }
+  }
 }
 function copiarUrl(){ const el=document.getElementById('whkUrl'); if(!el) return; el.select(); try{ navigator.clipboard.writeText(el.value); }catch(e){ document.execCommand('copy'); } toast('Endereço copiado'); }
 
