@@ -82,38 +82,67 @@ tailwind.config = {
 })();
 
 /* ============================================================
-   AUTO-ATUALIZAÇÃO — quando sai um deploy novo, os apps recarregam
-   sozinhos, SEM interromper quem está digitando. A Vercel preenche
-   /api/version com o hash do commit a cada deploy (automático).
-   Recarrega ao detectar versão nova quando: nada está sendo digitado,
-   ou quando o usuário volta pra aba. Assim ninguém fica com versão velha.
+   AVISO DE VERSÃO NOVA — quando sai um deploy, aparece o banner
+   "Nova versão disponível" com o botão Atualizar. QUEM DECIDE A HORA
+   DE RECARREGAR É O USUÁRIO. A Vercel preenche /api/version com o
+   hash do commit a cada deploy (automático).
+
+   ⚠️ NÃO voltar a recarregar sozinho. A versão antiga deste arquivo
+   chamava location.reload() ao detectar deploy novo sempre que a aba
+   ganhava foco e ninguém estava digitando — o atendimento perdia a
+   conversa aberta no meio do atendimento ao cliente (reclamação real
+   da equipe, 19/08/2026). Quem está lendo uma conversa não está com o
+   cursor num campo, então a trava de "está digitando" não protegia.
+
+   Este é o ÚNICO lugar que trata isso — vale para todos os apps que
+   carregam o theme.js. Não duplicar em página nenhuma.
    ============================================================ */
 (function(){
-  var loaded = null, pending = false;
-  function podeReload(){
-    var el = document.activeElement;
-    if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return false; // não recarrega no meio de uma digitação
-    return true;
+  var loaded = null, avisado = false;
+
+  function mostrarAviso(){
+    if (avisado || document.getElementById('updBanner')) return;
+    avisado = true;
+    var b = document.createElement('div');
+    b.id = 'updBanner';
+    b.setAttribute('style','position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:99999;display:flex;align-items:center;gap:12px;background:#0f172a;color:#fff;padding:11px 14px 11px 16px;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.28);font-family:Poppins,system-ui,sans-serif;font-size:13px;max-width:92vw;animation:updIn .35s ease');
+    var txt = document.createElement('span');
+    txt.style.cssText = 'display:inline-flex;align-items:center;gap:8px';
+    txt.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15"/></svg><span>Nova versão disponível</span>';
+    var btn = document.createElement('button');
+    btn.textContent = 'Atualizar';
+    btn.setAttribute('style','background:#22c55e;color:#06280f;border:none;border-radius:9px;padding:7px 14px;font-weight:600;font-size:13px;cursor:pointer;font-family:inherit');
+    btn.onclick = function(){ try { location.reload(); } catch(e){} };
+    var x = document.createElement('button');
+    x.textContent = '✕';
+    x.setAttribute('title','Depois');
+    x.setAttribute('style','background:none;border:none;color:#94a3b8;font-size:14px;cursor:pointer;padding:2px 4px;line-height:1');
+    x.onclick = function(){ var e = document.getElementById('updBanner'); if (e) e.remove(); };
+    b.appendChild(txt); b.appendChild(btn); b.appendChild(x);
+    (document.body || document.documentElement).appendChild(b);
+    if (!document.getElementById('updKf')){
+      var st = document.createElement('style'); st.id = 'updKf';
+      st.textContent = '@keyframes updIn{from{opacity:0;transform:translate(-50%,12px)}to{opacity:1;transform:translate(-50%,0)}}';
+      document.head.appendChild(st);
+    }
   }
-  function doReload(){ try { location.reload(); } catch(e){} }
-  function fetchV(){
-    return fetch('/api/version', { cache:'no-store' })
-      .then(function(r){ return r.json(); })
-      .then(function(j){ return (j && j.v) || null; })
-      .catch(function(){ return null; });
-  }
+
   function check(){
-    fetchV().then(function(v){
-      if (!v) return;
-      if (loaded === null){ loaded = v; return; }         // 1ª leitura: guarda a versão atual
-      if (v !== loaded){ pending = true; if (podeReload()) doReload(); }
-    });
+    fetch('/api/version', { cache:'no-store' })
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(j){
+        var v = (j && j.v) || null;
+        if (!v) return;
+        if (loaded === null){ loaded = v; return; }   // 1ª leitura: versão que o usuário carregou
+        if (v !== loaded) mostrarAviso();
+      })
+      .catch(function(){});
   }
-  function checkOrReload(){ if (pending && podeReload()) doReload(); else check(); }
+
   try {
-    setInterval(check, 600000);  // reforço bem leve a cada 10 min (o gatilho principal é voltar pra aba)
-    document.addEventListener('visibilitychange', function(){ if (!document.hidden) checkOrReload(); });
-    window.addEventListener('focus', checkOrReload);
+    setInterval(check, 60000);
+    document.addEventListener('visibilitychange', function(){ if (!document.hidden) check(); });
+    window.addEventListener('focus', check);
     check();
   } catch(e){}
 })();
