@@ -20,6 +20,32 @@ async function sb(path) {
   return Array.isArray(data) ? data : [];
 }
 
+// o PostgREST corta em 1000 linhas por resposta. Quando a gente precisa das linhas
+// (e não só do total), tem que ir buscando de mil em mil com o header Range.
+async function sbTudo(path, teto) {
+  teto = teto || 20000;
+  const passo = 1000;
+  const saida = [];
+  for (let ini = 0; ini < teto; ini += passo) {
+    const fim = ini + passo - 1;
+    let lote = [];
+    try {
+      const r = await fetch(SB() + '/rest/v1/' + path, {
+        headers: {
+          apikey: KEY(), Authorization: 'Bearer ' + KEY(),
+          Range: ini + '-' + fim, 'Range-Unit': 'items'
+        }
+      });
+      const txt = await r.text();
+      try { lote = JSON.parse(txt); } catch (e) { lote = []; }
+      if (!Array.isArray(lote)) lote = [];
+    } catch (e) { lote = []; }
+    saida.push(...lote);
+    if (lote.length < passo) break;
+  }
+  return saida;
+}
+
 // o PostgREST corta em 1000 linhas, então contagem tem que vir do content-range
 async function contar(path) {
   try {
@@ -96,10 +122,11 @@ export default async function handler(req, res) {
       let enviados = 0, erros = 0;
       if (codigos.length) {
         const inCod = '(' + codigos.map(c => '"' + c + '"').join(',') + ')';
-        const log = await sb('at_disparos_log?evento_key=in.' + encodeURIComponent(inCod) +
-          '&created_at=gte.' + encodeURIComponent(new Date(Date.now() - 86400000).toISOString()) +
-          '&select=status&limit=5000');
-        log.forEach(l => { if (l.status === 'enviado') enviados++; else if (l.status === 'erro') erros++; });
+        const base = 'at_disparos_log?evento_key=in.' + encodeURIComponent(inCod) +
+          '&created_at=gte.' + encodeURIComponent(new Date(Date.now() - 86400000).toISOString());
+        // conta direto no banco: passar de 1000 disparos em 24h é normal por aqui
+        enviados = await contar(base + '&status=eq.enviado');
+        erros    = await contar(base + '&status=eq.erro');
       }
       return res.status(200).json({
         ok: true,
@@ -129,9 +156,9 @@ export default async function handler(req, res) {
     if (aba === 'relatorio') {
       if (!codigos.length) return res.status(200).json({ ok: true, porDia: [], porEvento: [], total: 0 });
       const inCod = '(' + codigos.map(c => '"' + c + '"').join(',') + ')';
-      const log = await sb('at_disparos_log?evento_key=in.' + encodeURIComponent(inCod) +
+      const log = await sbTudo('at_disparos_log?evento_key=in.' + encodeURIComponent(inCod) +
         '&created_at=gte.' + encodeURIComponent(desde) +
-        '&select=evento_key,status,created_at&order=created_at.desc&limit=10000');
+        '&select=evento_key,status,created_at&order=created_at.desc');
 
       const dia = {}, evt = {};
       log.forEach(l => {
@@ -150,9 +177,9 @@ export default async function handler(req, res) {
 
     // ---------- LEADS (só quem veio desta loja) ----------
     if (aba === 'leads') {
-      const ev = await sb('loja_eventos?loja=eq.' + loja +
+      const ev = await sbTudo('loja_eventos?loja=eq.' + loja +
         '&select=cliente_nome,cliente_telefone,cliente_email,pedido,evento_label,created_at' +
-        '&order=created_at.desc&limit=4000');
+        '&order=created_at.desc', 20000);
       const porTel = new Map();
       ev.forEach(e => {
         const tel = String(e.cliente_telefone || '').trim();
