@@ -360,8 +360,13 @@ async function carregarFila(){
 }
 
 function nomeEvento(k){
-  const g = GATILHOS.find(x => String(x.evento_code) === String(k) && x.loja === LOJA);
-  return (g && g.evento_nome) || String(k||'—');
+  // O log grava o código que a LOJA mandou: na Loja Integrada isso bate com li_codigo,
+  // não com o nosso evento_code. Por isso a busca tenta os dois — senão a tabela mostra
+  // "pedido_enviado" cru em vez de "Pedido enviado".
+  const alvo = String(k||'');
+  const g = GATILHOS.find(x => x.loja === LOJA && (String(x.evento_code) === alvo || String(x.li_codigo||'') === alvo))
+         || GATILHOS.find(x => String(x.evento_code) === alvo || String(x.li_codigo||'') === alvo);
+  return (g && g.evento_nome) || alvo || '—';
 }
 const FILA_ROTULO = { enviado:'Enviado', erro:'Erro', ignorado:'Ignorado', aguardando_modelo:'Aguardando modelo', simulado:'Simulado' };
 function filaCor(s){
