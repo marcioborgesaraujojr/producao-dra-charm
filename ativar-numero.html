@@ -109,10 +109,36 @@
       <div class="out" id="out-subscribed"></div>
     </div>
 
-    <!-- Mensagens da API (em breve) -->
+    <!-- Horário de atendimento + mensagem de ausência -->
     <div class="rounded-2xl border bg-white dark:bg-ink-800 p-5">
-      <div class="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1 flex items-center gap-2">Mensagens da API oficial <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">Em breve</span></div>
-      <p class="text-sm text-slate-500 dark:text-slate-400">Aqui vão entrar: modelos de mensagem (templates), saudação automática, mensagem de ausência e horários. Vamos montar isso na sequência.</p>
+      <div class="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Horário de atendimento</div>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">Fora dos horários marcados, quem mandar mensagem recebe um aviso automático. Isso só acontece quando o <b>chatbot está desligado</b> — se o robô estiver ligado, ele responde e a ausência não entra.</p>
+
+      <label class="flex items-center gap-2 mb-3 cursor-pointer">
+        <input type="checkbox" id="ausAtivo" class="w-4 h-4 accent-pink-500">
+        <span class="text-sm font-semibold">Ligar a mensagem de ausência</span>
+      </label>
+
+      <div id="ausDias" class="space-y-1.5 mb-4"></div>
+
+      <div class="text-[13px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Mensagem enviada fora do horário</div>
+      <textarea id="ausTexto" rows="5" class="w-full p-2 text-sm rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-pink-500 outline-none"></textarea>
+      <div class="text-[11px] text-slate-400 mt-1">Escreva <code>&#123;&#123;horario&#125;&#125;</code> em qualquer lugar do texto e o sistema troca pelos dias e horas marcados acima.</div>
+
+      <div class="flex items-center gap-2 mt-3 flex-wrap">
+        <span class="text-[13px] text-slate-500 dark:text-slate-400">Mandar no máximo</span>
+        <select id="ausRepetir" class="p-2 text-sm rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600">
+          <option value="0">toda vez que ele escrever</option>
+          <option value="6">1 vez a cada 6 horas</option>
+          <option value="24">1 vez por dia</option>
+        </select>
+        <span class="text-[13px] text-slate-500 dark:text-slate-400">para o mesmo cliente</span>
+      </div>
+
+      <div class="mt-4 flex items-center gap-3">
+        <button onclick="salvarAus(this)" class="text-sm font-semibold px-4 py-2 rounded-lg bg-pink-500 hover:bg-pink-600 text-white">Salvar</button>
+        <span id="ausMsg" class="text-[13px]"></span>
+      </div>
     </div>
 
     <!-- Config avançada -->
@@ -156,7 +182,62 @@
     document.getElementById('chaveWrap').style.display='none';
     carregarStatus();
     loadIdc();
+    carregarAus();
   }
+
+  // ===== horário de atendimento + mensagem de ausência =====
+  const AUS_DIAS = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+  let AUS = null;
+
+  window.carregarAus = async () => {
+    try{
+      const r = await fetch('/api/atendimento-config', { headers:{ Authorization:'Bearer '+TOKEN } });
+      const j = await r.json();
+      AUS = j.config || null;
+    }catch(e){ AUS = null; }
+    if(!AUS) return;
+    document.getElementById('ausAtivo').checked = !!AUS.ativo;
+    document.getElementById('ausTexto').value = AUS.texto || '';
+    document.getElementById('ausRepetir').value = String(AUS.repetir_horas != null ? AUS.repetir_horas : 6);
+    document.getElementById('ausDias').innerHTML = AUS_DIAS.map((nome, i) => {
+      const d = (AUS.dias || [])[i] || { on:false, de:'07:00', ate:'17:00' };
+      return '<div class="flex items-center gap-2 flex-wrap">'
+        + '<label class="flex items-center gap-2 w-28 shrink-0 cursor-pointer"><input type="checkbox" class="w-4 h-4 accent-pink-500" id="d'+i+'on" '+(d.on?'checked':'')+'><span class="text-sm">'+nome+'</span></label>'
+        + '<input type="time" id="d'+i+'de" value="'+d.de+'" class="p-1.5 text-sm rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600">'
+        + '<span class="text-slate-400 text-sm">às</span>'
+        + '<input type="time" id="d'+i+'ate" value="'+d.ate+'" class="p-1.5 text-sm rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600">'
+        + '</div>';
+    }).join('');
+  };
+
+  window.salvarAus = async (btn) => {
+    const msg = document.getElementById('ausMsg');
+    msg.textContent = 'Salvando...'; msg.className = 'text-[13px] text-slate-500';
+    const dias = [];
+    for(let i=0;i<7;i++){
+      dias.push({
+        on: document.getElementById('d'+i+'on').checked,
+        de: document.getElementById('d'+i+'de').value || '07:00',
+        ate: document.getElementById('d'+i+'ate').value || '17:00'
+      });
+    }
+    const body = {
+      ativo: document.getElementById('ausAtivo').checked,
+      tz: (AUS && AUS.tz) || 'America/Fortaleza',
+      dias,
+      texto: document.getElementById('ausTexto').value,
+      repetir_horas: Number(document.getElementById('ausRepetir').value)
+    };
+    if(btn) btn.disabled = true;
+    try{
+      const r = await fetch('/api/atendimento-config', { method:'POST',
+        headers:{ Authorization:'Bearer '+TOKEN, 'Content-Type':'application/json' }, body: JSON.stringify(body) });
+      const j = await r.json();
+      if(!r.ok){ msg.textContent = j.error || 'Não deu pra salvar'; msg.className = 'text-[13px] text-rose-600'; }
+      else { AUS = j.config; msg.textContent = 'Salvo ✓'; msg.className = 'text-[13px] text-emerald-600'; }
+    }catch(e){ msg.textContent = 'Erro: '+e.message; msg.className = 'text-[13px] text-rose-600'; }
+    finally{ if(btn) btn.disabled = false; }
+  };
 
   window.v = (id)=>{ const el=document.getElementById(id); return el?el.value.trim():''; };
   window.show = (step, cls, txt)=>{ const el=document.getElementById('out-'+step); if(el){ el.className='out '+cls; el.textContent=txt; } };
