@@ -139,6 +139,90 @@ async function baixarMidia(mediaId){
   }catch(e){ console.error('baixarMidia:', e.message); return null; }
 }
 
+// ===== FORA DO HORÁRIO: mensagem de ausência =====
+// Só entra em ação quando o chatbot está DESLIGADO — se o robô responde, ele já
+// dá conta. A configuração fica em sys_config.atend_config (tela Conexão WhatsApp).
+const DIAS_NOME = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+
+async function lerAtendCfg() {
+  try {
+    const r = await sbFetch('sys_config?chave=eq.atend_config&select=valor&limit=1');
+    const row = Array.isArray(r) ? r[0] : r;
+    if (!row || !row.valor) return null;
+    return JSON.parse(row.valor);
+  } catch (e) { return null; }
+}
+
+// dia da semana (0=domingo) e minutos do dia, no fuso da loja
+function agoraLocal(tz) {
+  const p = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz || 'America/Fortaleza', hour12: false,
+    weekday: 'short', hour: '2-digit', minute: '2-digit'
+  }).formatToParts(new Date());
+  const g = t => (p.find(x => x.type === t) || {}).value;
+  const mapa = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  let h = parseInt(g('hour'), 10); if (h === 24) h = 0;
+  return { dia: mapa[g('weekday')] || 0, min: h * 60 + parseInt(g('minute'), 10) };
+}
+
+function dentroDoHorario(cfg) {
+  const { dia, min } = agoraLocal(cfg.tz);
+  const d = (cfg.dias || [])[dia];
+  if (!d || !d.on) return false;
+  const a = String(d.de || '00:00').split(':').map(Number);
+  const b = String(d.ate || '23:59').split(':').map(Number);
+  return min >= (a[0] * 60 + a[1]) && min < (b[0] * 60 + b[1]);
+}
+
+function resumoHorario(cfg) {
+  const abertos = (cfg.dias || []).map((d, i) => ({ d, i })).filter(x => x.d && x.d.on);
+  if (!abertos.length) return '';
+  return 'Atendemos ' + abertos.map(x => DIAS_NOME[x.i] + ' das ' + x.d.de + ' às ' + x.d.ate).join(', ') + '.';
+}
+
+async function maybeAusencia(conversaId, waid) {
+  try {
+    if (!process.env.WA_ACCESS_TOKEN || !process.env.WA_PHONE_NUMBER_ID) return;
+
+    // robô ligado? então ele responde e a ausência não entra
+    try {
+      const bot = await sbFetch('at_chatbot?id=eq.1&select=ativo');
+      const b = Array.isArray(bot) ? bot[0] : bot;
+      if (b && b.ativo) return;
+    } catch (e) {}
+
+    const cfg = await lerAtendCfg();
+    if (!cfg || !cfg.ativo) return;
+    if (dentroDoHorario(cfg)) return;
+
+    // não repete pro mesmo cliente dentro da janela configurada
+    const horas = Number(cfg.repetir_horas || 6);
+    if (horas > 0) {
+      const desde = new Date(Date.now() - horas * 3600 * 1000).toISOString();
+      const ja = await sbFetch('at_mensagens?conversa_id=eq.' + conversaId +
+        '&meta->>ausencia=eq.1&created_at=gte.' + encodeURIComponent(desde) + '&select=id&limit=1');
+      if (Array.isArray(ja) && ja.length) return;
+    }
+
+    const texto = String(cfg.texto || '').replace(/\{\{\s*horario\s*\}\}/g, resumoHorario(cfg)).trim();
+    if (!texto) return;
+
+    const r = await fetch(GRAPH + '/' + process.env.WA_PHONE_NUMBER_ID + '/messages', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + process.env.WA_ACCESS_TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messaging_product: 'whatsapp', to: normalizeWa(waid), type: 'text', text: { body: texto } })
+    });
+    if (!r.ok) return;
+
+    await sbFetch('at_mensagens', { method: 'POST', body: JSON.stringify({
+      conversa_id: conversaId, direcao: 'out', tipo: 'texto', conteudo: texto,
+      autor: 'Automático · fora do horário', meta: { ausencia: '1' } }) });
+    // continua NÃO LIDA de propósito: a equipe precisa ver isso quando abrir
+    await sbFetch('at_conversas?id=eq.' + conversaId, { method: 'PATCH', body: JSON.stringify({
+      ultima_msg_preview: texto.slice(0, 120), ultima_msg_em: new Date().toISOString() }) });
+  } catch (e) { console.error('ausencia:', e && e.message); }
+}
+
 // ===== CHATBOT IA: responde sozinho quando ATIVO e ninguém humano assumiu =====
 async function maybeBotReply(conversaId, clienteNome, inboundText, waid, host) {
   try {
@@ -282,6 +366,7 @@ export default async function handler(req, res) {
           // Chatbot IA: só reage a mensagem de TEXTO do cliente (não figurinha/áudio/etc)
           if (m.type === 'text') {
             await maybeBotReply(conversaId, contatoNome || 'Cliente', conteudo, waid, host);
+            await maybeAusencia(conversaId, waid);
           }
         }
       }
