@@ -71,7 +71,7 @@ const LOJAS = [
   { key:'loja_integrada', nome:'Loja Integrada', sigla:'LI', desc:'Pedidos, pagamento, envio e entrega',
     logo:'/img/loja-integrada.svg', fundo:'bg-white dark:bg-white', api:'/api/li-webhook' },
   { key:'troquecommerce', nome:'TroqueCommerce', sigla:'TC', desc:'Trocas, devoluções, vale e estorno',
-    logo:'/img/troquecommerce.svg', fundo:'bg-white dark:bg-white', api:'/api/troquecommerce-webhook' }
+    logo:'/img/troquecommerce.png', fundo:'bg-white dark:bg-white', api:'/api/troquecommerce-webhook' }
 ];
 const ABAS = [
   { key:'resumo',    nome:'Visão geral' },
@@ -186,21 +186,128 @@ async function abaEventos(){
     + '</div>';
 
   const linhas = (j.linhas||[]).map(l =>
-      '<tr class="border-t border-slate-100 dark:border-ink-700">'
+      '<tr onclick="verEvento('+l.id+')" class="border-t border-slate-100 dark:border-ink-700 cursor-pointer hover:bg-pink-50/60 dark:hover:bg-ink-700/40 transition">'
     + '<td class="py-2 pr-3 text-[13px]">'+esc(l.evento_label||l.evento_codigo)+'</td>'
     + '<td class="py-2 pr-3 text-[13px]">'+esc(l.cliente_nome||'—')+'</td>'
     + '<td class="py-2 pr-3 text-[12px] text-slate-500 font-mono">'+esc(l.pedido||'—')+'</td>'
     + '<td class="py-2 pr-3 text-[12px] text-slate-500 font-mono">'+esc(l.cliente_telefone||'—')+'</td>'
-    + '<td class="py-2 text-[12px] text-slate-400 whitespace-nowrap">'+new Date(l.created_at).toLocaleString('pt-BR')+'</td></tr>').join('');
+    + '<td class="py-2 text-[12px] text-slate-400 whitespace-nowrap">'+new Date(l.created_at).toLocaleString('pt-BR')+'</td>'
+    + '<td class="py-2 pl-2 text-slate-300 text-[13px]">›</td></tr>').join('');
 
-  box(cartao('Eventos que a loja mandou <span class="text-[11px] font-normal text-slate-400">(últimos 200)</span>',
+  box(cartao('Eventos que a loja mandou <span class="text-[11px] font-normal text-slate-400">(últimos 200 · clique pra ver o que chegou)</span>',
     chips + (linhas
       ? '<div class="overflow-x-auto"><table class="w-full text-left"><thead><tr class="text-[11px] uppercase tracking-wide text-slate-400">'
-        + '<th class="pb-1 pr-3">Evento</th><th class="pb-1 pr-3">Cliente</th><th class="pb-1 pr-3">Pedido</th><th class="pb-1 pr-3">Telefone</th><th class="pb-1">Quando</th></tr></thead><tbody>'
+        + '<th class="pb-1 pr-3">Evento</th><th class="pb-1 pr-3">Cliente</th><th class="pb-1 pr-3">Pedido</th><th class="pb-1 pr-3">Telefone</th><th class="pb-1">Quando</th><th></th></tr></thead><tbody>'
         + linhas + '</tbody></table></div>'
       : '<div class="text-center text-sm text-slate-400 py-6">Nenhum evento com esse filtro.</div>'),
     '<button onclick="carregarAba()" class="text-[12px] text-pink-600 font-semibold hover:underline">Atualizar</button>'));
 }
+// ================= UM EVENTO (o que a loja mandou) =================
+// Mesma ideia da tela de webhook do Notificações: clicou no evento, vê o que chegou.
+function fecharEvento(){
+  const m=document.getElementById('modalEvento');
+  if(m) m.remove();
+  document.removeEventListener('keydown', escFecha);
+}
+function escFecha(e){ if(e.key==='Escape') fecharEvento(); }
+
+function linhaInfo(rot, val, mono){
+  return '<div class="flex gap-2 py-1 border-b border-slate-100 dark:border-ink-700 last:border-0">'
+    + '<div class="w-36 shrink-0 text-[11px] text-slate-400 pt-0.5">'+rot+'</div>'
+    + '<div class="text-[12px] '+(mono?'font-mono break-all':'')+'">'+val+'</div></div>';
+}
+
+function seloDisparo(st){
+  const m = { enviado:'bg-emerald-100 text-emerald-700', erro:'bg-rose-100 text-rose-700',
+              simulado:'bg-slate-100 text-slate-500', aguardando_modelo:'bg-amber-100 text-amber-700' };
+  return '<span class="text-[10px] px-1.5 py-0.5 rounded-full font-semibold '+(m[st]||'bg-slate-100 text-slate-500')+'">'+esc(st||'?')+'</span>';
+}
+
+async function verEvento(id){
+  fecharEvento();
+  document.body.insertAdjacentHTML('beforeend',
+    '<div id="modalEvento" class="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-6">'
+    + '<div onclick="fecharEvento()" class="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]"></div>'
+    + '<div class="relative w-full sm:max-w-3xl max-h-[92vh] sm:max-h-[85vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-white dark:bg-ink-800 shadow-2xl">'
+    + '<div id="modalCorpo" class="p-5"><div class="text-center text-sm text-slate-400 py-10">carregando…</div></div>'
+    + '</div></div>');
+  document.addEventListener('keydown', escFecha);
+
+  let j={};
+  try{ j = await api('evento', { id }); }catch(e){ j={}; }
+  const alvo = document.getElementById('modalCorpo');
+  if(!alvo) return;
+  if(!j.ok){
+    alvo.innerHTML = '<div class="text-sm text-rose-600">Não deu pra carregar esse evento.</div>'
+      + '<button onclick="fecharEvento()" class="mt-3 text-[12px] font-semibold text-pink-600">fechar</button>';
+    return;
+  }
+
+  const e = j.evento;
+  const campos = Object.entries(j.campos||{});
+  const disparos = j.disparos||[];
+
+  const cabecalho =
+    '<div class="flex items-start gap-3 mb-4">'
+    + marcaLoja(lojaAtual(), 40)
+    + '<div class="min-w-0 flex-1"><div class="font-semibold text-[15px]">'+esc(e.label||e.codigo)+'</div>'
+    + '<div class="text-[11px] text-slate-400">'+esc(e.codigo)+' · '+new Date(e.created_at).toLocaleString('pt-BR')+'</div></div>'
+    + '<button onclick="fecharEvento()" class="text-slate-400 hover:text-slate-600 text-xl leading-none px-2">×</button></div>';
+
+  const aviso = j.reconhecido ? ''
+    : '<div class="mb-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-3 text-[12px] text-amber-800 dark:text-amber-200">'
+      + '<b>A suíte não reconheceu esse evento.</b> Ele foi guardado, mas nenhum gatilho combina com ele — '
+      + 'por isso nenhuma mensagem saiu. Olhe os campos abaixo pra achar onde a loja mandou o código do evento.</div>';
+
+  const entendeu = '<div class="rounded-xl border border-slate-200 dark:border-ink-600 p-3 mb-4">'
+    + '<div class="text-[11px] uppercase tracking-wide text-slate-400 mb-1.5">O que a suíte entendeu</div>'
+    + linhaInfo('Cliente', esc(e.cliente_nome||'—'))
+    + linhaInfo('Telefone', esc(e.cliente_telefone||'—'), true)
+    + linhaInfo('E-mail', esc(e.cliente_email||'—'), true)
+    + linhaInfo('Pedido', esc(e.pedido||'—'), true)
+    + linhaInfo('Gatilho', j.gatilho ? esc(j.gatilho) : '<span class="text-slate-400">nenhum</span>')
+    + '</div>';
+
+  const feito = '<div class="rounded-xl border border-slate-200 dark:border-ink-600 p-3 mb-4">'
+    + '<div class="text-[11px] uppercase tracking-wide text-slate-400 mb-1.5">Mensagens desse pedido</div>'
+    + (disparos.length
+        ? '<div class="space-y-1.5">' + disparos.map(d =>
+            '<div class="flex items-center gap-2 text-[12px]">'
+            + seloDisparo(d.status)
+            + '<span class="font-mono text-[11px] text-slate-500">'+esc(d.evento_key||'')+'</span>'
+            + '<span class="text-slate-400 text-[11px] truncate flex-1">'+esc(d.template_name||d.detalhe||'')+'</span>'
+            + '<span class="text-slate-400 text-[11px] shrink-0">'+new Date(d.created_at).toLocaleString('pt-BR')+'</span>'
+            + '</div>').join('') + '</div>'
+        : '<div class="text-[12px] text-slate-400 py-1">Nenhuma mensagem registrada pra esse pedido.</div>')
+    + '</div>';
+
+  const tabela = '<div class="rounded-xl border border-slate-200 dark:border-ink-600 p-3 mb-4">'
+    + '<div class="text-[11px] uppercase tracking-wide text-slate-400 mb-1.5">Campos que chegaram <span class="normal-case">('+campos.length+')</span></div>'
+    + (campos.length
+        ? '<div class="max-h-72 overflow-y-auto"><table class="w-full text-left text-[12px]"><tbody>'
+          + campos.map(([k,v]) =>
+              '<tr class="border-b border-slate-100 dark:border-ink-700 last:border-0">'
+              + '<td class="py-1 pr-3 font-mono text-[11px] text-slate-500 align-top whitespace-nowrap">'+esc(k)+'</td>'
+              + '<td class="py-1 break-all">'+esc(v)+'</td></tr>').join('')
+          + '</tbody></table></div>'
+        : '<div class="text-[12px] text-slate-400 py-1">Esse evento foi guardado sem o corpo original.</div>')
+    + '</div>';
+
+  const cru = j.payload ? '<div class="rounded-xl border border-slate-200 dark:border-ink-600 p-3">'
+    + '<div class="flex items-center justify-between mb-1.5">'
+    + '<div class="text-[11px] uppercase tracking-wide text-slate-400">JSON cru</div>'
+    + '<button onclick="copiarPayload()" class="text-[11px] font-semibold text-pink-600 hover:underline">copiar</button></div>'
+    + '<pre id="payloadCru" class="text-[11px] font-mono whitespace-pre-wrap break-all max-h-72 overflow-y-auto bg-slate-50 dark:bg-ink-900/60 rounded-lg p-2">'
+    + esc(JSON.stringify(j.payload, null, 2)) + '</pre></div>' : '';
+
+  alvo.innerHTML = cabecalho + aviso + entendeu + feito + tabela + cru;
+}
+
+function copiarPayload(){
+  const el=document.getElementById('payloadCru'); if(!el) return;
+  navigator.clipboard.writeText(el.textContent).then(()=>toast('JSON copiado'), ()=>toast('não deu pra copiar'));
+}
+
 function filtrarEvento(c){ filtroEvento=c; abaEventos(); }
 
 // ================= WEBHOOK =================

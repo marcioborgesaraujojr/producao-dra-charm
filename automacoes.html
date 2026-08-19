@@ -24,14 +24,6 @@
   .var-chip{font-size:11px;font-family:ui-monospace,monospace;background:#fdf2f8;color:#ff3c6f;border:1px solid #fbcfe8;border-radius:6px;padding:2px 6px;cursor:pointer}
   .dark .var-chip{background:#3f1d2b;color:#f9a8d4;border-color:#6d2647}
   [data-fade]{animation:fade .18s ease}@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-  .loja-chip{display:inline-flex;align-items:center;gap:.45rem;padding:.5rem .85rem;border-radius:.75rem;font-size:13px;font-weight:600;cursor:pointer;
-    background:#fff;border:1px solid #e2e8f0;color:#475569;transition:.15s}
-  .loja-chip:hover{border-color:#cbd5e1}
-  .loja-chip[data-on="1"]{background:#ff3c6f;border-color:#ff3c6f;color:#fff}
-  .dark .loja-chip{background:#1e293b;border-color:#334155;color:#cbd5e1}
-  .dark .loja-chip[data-on="1"]{background:#ff3c6f;border-color:#ff3c6f;color:#fff}
-  .loja-chip .cnt{font-size:11px;padding:.05rem .4rem;border-radius:999px;background:rgba(100,116,139,.15)}
-  .loja-chip[data-on="1"] .cnt{background:rgba(255,255,255,.25)}
 </style>
 
 <!-- ===== Tema Dra. Charm: Poppins + cards foscos flutuando (mantém o fundo existente) ===== -->
@@ -89,7 +81,7 @@
   <!-- Gatilhos -->
   <div id="viewGatilhos">
     <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">Escolha a loja e ative os eventos que devem avisar o cliente. Cada loja tem os próprios gatilhos e as próprias mensagens.</p>
-    <div id="lojasBar" class="flex flex-wrap gap-2 mb-4"></div>
+    <div id="lojasBar" class="flex flex-wrap gap-3 mb-5"></div>
     <div id="webhookBox" class="hidden mb-4"></div>
     <div id="gatilhosList" class="space-y-6 pb-10"></div>
   </div>
@@ -111,9 +103,9 @@
 const SUPA = { url:'https://wwytzoyeibekhstinott.supabase.co', key:'sb_publishable_uMoCEK4Ed_u8ZIfjVZ7Jrg_tdR4b9bO' };
 const VARS = ['{{nome}}','{{pedido}}','{{produto}}','{{codigo_rastreio}}','{{valor}}','{{loja}}'];
 const LOJAS = [
-  { key:'loja_integrada', nome:'Loja Integrada', desc:'Dra. Charm' },
-  { key:'troquecommerce', nome:'TroqueCommerce', desc:'Trocas e devoluções' },
-  { key:'fidelizar',      nome:'Fidelizar',      desc:'Dra. Charm Fidelizar' }
+  { key:'loja_integrada', nome:'Loja Integrada', desc:'Pedidos, pagamento, envio e entrega', logo:'/img/loja-integrada.svg' },
+  { key:'troquecommerce', nome:'TroqueCommerce', desc:'Trocas, devoluções, vale e estorno',  logo:'/img/troquecommerce.png' },
+  { key:'fidelizar',      nome:'Fidelizar',      desc:'Pontos, cupons e aniversário',        logo:'/img/fidelizar.svg' }
 ];
 let sb=null, GATILHOS=[], FILA=[], TAB='gatilhos';
 let TPLS=[], WHK=null, TOKEN=null;
@@ -245,13 +237,32 @@ function blocoTemplate(g){
 }
 function trocouTpl(id){ const g=GATILHOS.find(x=>x.id===id); if(!g) return; g.template_name=document.getElementById('tp_'+id).value||null; g.template_mapa=[]; renderGatilhos(); document.getElementById('ed_'+id).classList.remove('hidden'); }
 
+// mesmo cartao de loja da tela de Lojas, pro sistema ter uma cara so
+function marcaLoja(l, tam){
+  const r = tam >= 40 ? 'rounded-xl' : 'rounded-lg';
+  const p = tam >= 40 ? 'p-1.5' : 'p-1';
+  return '<div class="'+r+' bg-white border border-slate-200 dark:border-ink-600 '+p
+    + ' flex items-center justify-center shrink-0" style="width:'+tam+'px;height:'+tam+'px">'
+    + '<img src="'+l.logo+'" alt="'+esc(l.nome)+'" class="w-full h-full object-contain" loading="lazy">'
+    + '</div>';
+}
+
 function renderLojas(){
   const el=document.getElementById('lojasBar'); if(!el) return;
   el.innerHTML=LOJAS.map(l=>{
     const meus=GATILHOS.filter(g=>(g.loja||'loja_integrada')===l.key);
     const on=meus.filter(g=>g.ativo).length;
-    return `<button class="loja-chip" data-on="${LOJA===l.key?1:0}" onclick="trocarLoja('${l.key}')" title="${esc(l.desc)}">
-      ${esc(l.nome)}<span class="cnt">${on}/${meus.length}</span></button>`;
+    const sel=LOJA===l.key;
+    return '<button onclick="trocarLoja(\''+l.key+'\')" class="flex items-center gap-3 px-4 py-3 rounded-2xl border transition text-left '
+      + (sel ? 'bg-white dark:bg-ink-800 border-pink-300 dark:border-pink-700 ring-2 ring-pink-200 dark:ring-pink-900/50 shadow-sm'
+             : 'bg-white/60 dark:bg-ink-800/50 border-slate-200 dark:border-ink-600 hover:border-slate-300') + '">'
+      + marcaLoja(l, 40)
+      + '<div><div class="text-sm font-semibold '+(sel?'':'text-slate-500 dark:text-slate-400')+'">'+esc(l.nome)+'</div>'
+      + '<div class="text-[11px] text-slate-400">'+esc(l.desc)+'</div></div>'
+      + '<span class="ml-2 text-[11px] font-semibold px-2 py-0.5 rounded-full '
+      + (sel ? 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-200' : 'bg-slate-100 text-slate-500 dark:bg-ink-700 dark:text-slate-300')
+      + '">'+on+'/'+meus.length+'</span>'
+      + '</button>';
   }).join('');
 }
 function trocarLoja(k){ LOJA=k; try{ localStorage.setItem('autom_loja',k); }catch(e){} renderLojas(); renderGatilhos(); renderWebhook(); }
