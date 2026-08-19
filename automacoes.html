@@ -60,7 +60,7 @@
   </div>
 </div>
 
-<div id="appWrap" class="hidden">
+<div id="appWrap">
 <header class="h-14 flex items-center justify-between px-4 bg-white/95 dark:bg-ink-800/95 border-b border-slate-200 dark:border-ink-600 sticky top-0 z-30 backdrop-blur">
   <div class="flex items-center gap-3">
     <button onclick="location.href='/'" title="Voltar à Suíte" class="w-9 h-9 rounded-xl shadow hover:scale-105 hover:shadow-md transition flex items-center justify-center text-white bg-gradient-to-br from-rose-500 to-pink-600"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1.5-5h15L21 9M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M3 9h18M9 20v-6h6v6"/></svg></button>
@@ -98,7 +98,7 @@
 
     <div class="rounded-xl border border-slate-200 dark:border-ink-600 bg-white dark:bg-ink-800 overflow-hidden">
       <div class="p-4 border-b border-slate-100 dark:border-ink-700">
-        <p class="text-[13px] text-slate-500 dark:text-slate-400 mb-3">Cada linha é um evento da loja que passou por um gatilho.</p>
+        <p class="text-[13px] text-slate-500 dark:text-slate-400 mb-3">Cada linha é um evento da loja que passou por um gatilho. A lista mostra os <b>200 mais recentes</b>; os números acima contam as 24 h inteiras.</p>
         <div class="flex flex-wrap items-end gap-2">
           <div>
             <label class="block text-[11px] text-slate-400 mb-1">Estado</label>
@@ -129,12 +129,15 @@ const SUPA = { url:'https://wwytzoyeibekhstinott.supabase.co', key:'sb_publishab
 const VARS = ['{{nome}}','{{pedido}}','{{produto}}','{{codigo_rastreio}}','{{valor}}','{{loja}}'];
 const LOJAS = [
   { key:'loja_integrada', nome:'Loja Integrada', desc:'Pedidos, pagamento, envio e entrega', logo:'/img/loja-integrada.svg' },
-  { key:'troquecommerce', nome:'TroqueCommerce', desc:'Trocas, devoluções, vale e estorno',  logo:'/img/troquecommerce.png' },
-  { key:'fidelizar',      nome:'Fidelizar',      desc:'Pontos, cupons e aniversário',        logo:'/img/fidelizar.svg' }
+  { key:'troquecommerce', nome:'TroqueCommerce', desc:'Trocas, devoluções, vale e estorno',  logo:'/img/troquecommerce.png' }
+  // Fidelizar saiu: o painel de lojas (/lojas.html) só tem estas duas, e as telas têm
+  // que mostrar a mesma coisa. Se voltar a existir, tem que voltar NOS DOIS arquivos.
+
 ];
-let sb=null, GATILHOS=[], FILA=[], TAB='gatilhos', FILA_SEM_LOJA=false;
+let sb=null, GATILHOS=[], FILA=[], TAB='gatilhos', FILA_SEM_LOJA=false, FILA_RESUMO=null;
 let TPLS=[], WHK=null, TOKEN=null;
 let LOJA = (function(){ try{ return localStorage.getItem('autom_loja') || 'loja_integrada'; }catch(e){ return 'loja_integrada'; } })();
+if(!LOJAS.some(l=>l.key===LOJA)) LOJA='loja_integrada';   // ex.: quem tinha 'fidelizar' salvo
 async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2'); sb=createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true}}); } return sb; }
 function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[x])); }
 
@@ -285,9 +288,9 @@ function renderLojas(){
       + marcaLoja(l, 40)
       + '<div><div class="text-sm font-semibold '+(sel?'':'text-slate-500 dark:text-slate-400')+'">'+esc(l.nome)+'</div>'
       + '<div class="text-[11px] text-slate-400">'+esc(l.desc)+'</div></div>'
-      + '<span class="ml-2 text-[11px] font-semibold px-2 py-0.5 rounded-full '
-      + (sel ? 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-200' : 'bg-slate-100 text-slate-500 dark:bg-ink-700 dark:text-slate-300')
-      + '">'+on+'/'+meus.length+'</span>'
+      + (meus.length ? ('<span class="ml-2 text-[11px] font-semibold px-2 py-0.5 rounded-full '
+          + (sel ? 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-200' : 'bg-slate-100 text-slate-500 dark:bg-ink-700 dark:text-slate-300')
+          + '">'+on+'/'+meus.length+'</span>') : '')
       + '</button>';
   }).join('');
 }
@@ -347,13 +350,14 @@ async function carregarFila(){
   // política, então ler direto do navegador devolve lista VAZIA sem erro nenhum — foi
   // exatamente o que aconteceu na primeira versão desta aba.
   try{
-    const r = await fetch('/api/disparos-log?loja='+encodeURIComponent(LOJA)+'&limite=300', { headers:{ Authorization:'Bearer '+TOKEN } });
+    const r = await fetch('/api/disparos-log?loja='+encodeURIComponent(LOJA)+'&limite=200', { headers:{ Authorization:'Bearer '+TOKEN } });
     const j = await r.json();
     if(!r.ok) throw new Error(j.error || ('erro '+r.status));
     FILA = j.itens || [];
+    FILA_RESUMO = j.resumo || null;
     FILA_SEM_LOJA = !!j.semColuna;
   }catch(e){
-    console.warn('fila:', e.message); FILA = [];
+    console.warn('fila:', e.message); FILA = []; FILA_RESUMO = null;
   }
   renderAbas();
   renderFila();
@@ -386,16 +390,17 @@ function renderFila(){
   const nomeEl = document.getElementById('filaLojaNome');
   if(nomeEl) nomeEl.textContent = FILA_SEM_LOJA ? 'todas as lojas' : ((lj&&lj.nome)||LOJA);
 
-  const desde = Date.now() - 24*3600*1000;
-  const dia = FILA.filter(x => new Date(x.created_at).getTime() >= desde);
-  const cnt = st => dia.filter(x => x.status===st).length;
+  // Os números vêm CONTADOS do servidor. Contar as linhas da tabela daria o tamanho do
+  // fetch (o cartão mostrava exatamente 300 porque 300 era o limite), não o movimento real.
+  const R = FILA_RESUMO;
+  const n = v => (R ? Number(v||0).toLocaleString('pt-BR') : '—');
   const cards = document.getElementById('filaCards');
   if(cards) cards.innerHTML =
-      cartao('Total de eventos', dia.length, '')
-    + cartao('Enviados', cnt('enviado'), 'text-emerald-600')
-    + cartao('Erros', cnt('erro'), 'text-red-600')
-    + cartao('Ignorados', cnt('ignorado'), 'text-slate-500')
-    + cartao('Aguardando modelo', cnt('aguardando_modelo'), 'text-amber-600');
+      cartao('Total de eventos', n(R&&R.total), '')
+    + cartao('Enviados', n(R&&R.enviado), 'text-emerald-600')
+    + cartao('Erros', n(R&&R.erro), 'text-red-600')
+    + cartao('Ignorados', n(R&&R.ignorado), 'text-slate-500')
+    + cartao('Aguardando modelo', n(R&&R.aguardando_modelo), 'text-amber-600');
 
   const f=(document.getElementById('filaFiltro')||{}).value||'';
   const bq=((document.getElementById('filaBusca')||{}).value||'').toLowerCase().trim();
@@ -443,7 +448,7 @@ function renderAbas(){
   const el=document.getElementById('abas'); if(!el) return;
   el.innerHTML = ABAS.map(a=>{
     const on = a.key===TAB && !a.vaiPara;
-    const pend = (FILA||[]).filter(x=>x.status==='aguardando_modelo' || x.status==='erro').length;
+    const pend = FILA_RESUMO ? ((FILA_RESUMO.erro||0) + (FILA_RESUMO.aguardando_modelo||0)) : 0;
     const badge = (a.key==='fila' && pend) ? ' <span class="ml-0.5 text-[10px] bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 rounded-full px-1.5 py-0.5 align-middle">'+pend+'</span>' : '';
     return '<button onclick=\'irPara('+JSON.stringify(a)+')\' class="px-3 py-2 text-[13px] font-semibold rounded-t-lg border-b-2 transition '
       + (on ? 'border-pink-500 text-pink-600 dark:text-pink-300'
@@ -465,6 +470,10 @@ function setTab(t){
 function abaDoHash(){ const h=(location.hash||'').replace('#',''); if(h==='gatilhos'||h==='fila') setTab(h); }
 window.addEventListener('hashchange', abaDoHash);
 
+// Desenha a casca IMEDIATAMENTE (não depende de login nem de dados): assim, vindo do
+// painel de lojas, o cabeçalho, os cards e as abas já aparecem no primeiro quadro e não
+// há aquela piscada de tela vazia enquanto o supabase-js carrega.
+try{ renderLojas(); renderAbas(); }catch(e){}
 bootstrap().then(abaDoHash).catch(()=>abaDoHash());
 </script>
 <script src="/nav.js"></script>
