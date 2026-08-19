@@ -259,7 +259,7 @@ async function maybeBotReply(conversaId, clienteNome, inboundText, waid, host) {
     const termos = String(cfg.handoff_termos || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
     if (termos.some(t => t && String(inboundText || '').toLowerCase().includes(t))) {
       await sbFetch('at_conversas?id=eq.' + conversaId, { method: 'PATCH', body: JSON.stringify({ modo: 'humano', nao_lida: true }) });
-      await sbFetch('at_mensagens', { method: 'POST', body: JSON.stringify({ conversa_id: conversaId, direcao: 'in', tipo: 'nota', conteudo: '🙋 Cliente pediu atendente humano (palavra-chave). Robô pausado.', autor: 'Sistema' }) });
+      await sbFetch('at_mensagens', { method: 'POST', body: JSON.stringify({ conversa_id: conversaId, direcao: 'in', tipo: 'nota', conteudo: 'Cliente pediu atendente humano (palavra-chave). Robô pausado.', autor: 'Sistema' }) });
       return;
     }
 
@@ -287,7 +287,7 @@ async function maybeBotReply(conversaId, clienteNome, inboundText, waid, host) {
       body: JSON.stringify({ messaging_product: 'whatsapp', to, type: 'text', text: { body: String(j.reply) } })
     });
     // grava a resposta do robô e mantém o modo bot
-    await sbFetch('at_mensagens', { method: 'POST', body: JSON.stringify({ conversa_id: conversaId, direcao: 'out', tipo: 'texto', conteudo: j.reply, autor: '🤖 ' + (cfg.nome || 'Assistente'), meta: { bot: true } }) });
+    await sbFetch('at_mensagens', { method: 'POST', body: JSON.stringify({ conversa_id: conversaId, direcao: 'out', tipo: 'texto', conteudo: j.reply, autor: (cfg.nome || 'Assistente'), meta: { bot: true } }) });
     await sbFetch('at_conversas?id=eq.' + conversaId, { method: 'PATCH', body: JSON.stringify({ modo: 'bot', ultima_msg_preview: String(j.reply).slice(0, 120), ultima_msg_em: new Date().toISOString(), nao_lida: false }) });
     if (j.handoff) { await sbFetch('at_conversas?id=eq.' + conversaId, { method: 'PATCH', body: JSON.stringify({ modo: 'humano', nao_lida: true }) }); }
   } catch (e) { console.error('bot reply erro:', e.message); }
