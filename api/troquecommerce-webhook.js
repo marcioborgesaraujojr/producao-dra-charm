@@ -399,6 +399,27 @@ export default async function handler(req, res) {
     const mapa = Array.isArray(g.template_mapa) ? g.template_mapa : [];
     const params = mapa.map(k => resolverVar(k, body, atalhos));
 
+    // Se algum dado que vem do webhook não chegou, a mensagem sairia com um traço
+    // no lugar ("Código de rastreio: -"). Nesse caso é melhor não mandar nada.
+    // Texto fixo (txt:) nunca conta como faltando.
+    // valor em dinheiro zerado também conta como faltando: "seu estorno de R$ 0,00"
+    // não faz sentido pra cliente (acontece no tipo "Sem Reembolso").
+    const vazio = (k, v) => {
+      if (String(k).slice(0, 4) === 'txt:') return false;
+      if (v === '-') return true;
+      if (String(k).slice(0, 4) === 'brl:') return /^R\$ 0,00$/.test(String(v));
+      return false;
+    };
+    const faltando = mapa.filter((k, i) => vazio(k, params[i]));
+    if (faltando.length) {
+      await sb('at_disparos_log', { method: 'POST', body: JSON.stringify({
+        evento_key: p.code, telefone: p.waid, pedido: p.pedido || null,
+        template_name: g.template_name, status: 'ignorado',
+        detalhe: 'não enviado: a loja não mandou ' + faltando.join(', '),
+        payload: { params, atalhos } }) });
+      return res.status(200).json({ received: true, resultado: 'faltou dado', faltando });
+    }
+
     if (!g.template_name) {
       await sb('at_disparos_log', { method: 'POST', body: JSON.stringify({
         evento_key: p.code, telefone: p.waid, pedido: p.pedido || null,
