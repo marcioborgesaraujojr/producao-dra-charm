@@ -227,7 +227,7 @@ export default async function handler(req,res){
       const _hasPerso=_skus.includes(SKU_PERSONALIZACAO);
       const tipoOrder=(_hasLogo&&_hasPerso)?'ambos':(_hasLogo?'logomarca':(_hasPerso?'nome_profissao':null));
       const bordado=buildBordado(tipoOrder, d.cliente_obs);
-      return res.status(200).json({ ok:true, numero:num, cliente, telefone:telClienteDoPedido(d), produtos: rb.produtos||[], bordado_tipo:tipoOrder, bordado });
+      return res.status(200).json({ ok:true, numero:num, cliente, telefone:telClienteDoPedido(d), produtos: rb.produtos||[], bordado_tipo:tipoOrder, bordado, data_criacao: d.data_criacao||null });
     }catch(e){ return res.status(500).json({error:e.message}); }
   }
   const commit = q.commit==='1';
@@ -338,6 +338,32 @@ export default async function handler(req,res){
     }catch(e){ return res.status(500).json({error:e.message, stack:String(e.stack||'').slice(0,300)}); }
   }
 
+  // ===== Prazo do bordado =====
+  // Dias uteis contados A PARTIR DA DATA DO PEDIDO na Loja Integrada. Antes o card
+  // nascia sem due_date e a tela preenchia com "hoje" na primeira vez que alguem
+  // abrisse o card - o que empurrava a data limite dias pra frente e atrasava a
+  // producao (foi o que aconteceu no pedido #241278).
+  function soDataFortaleza(v){
+    if(!v) return null;
+    const t=String(v).trim();
+    const m=t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if(!m) return null;
+    const temFuso=/(Z|[+\-]\d{2}:?\d{2})$/.test(t);
+    if(!temFuso) return new Date(Date.UTC(+m[1],+m[2]-1,+m[3]));  // LI manda no horario do Brasil
+    const dt=new Date(t); if(isNaN(dt)) return null;
+    const f=new Date(dt.getTime()-3*3600*1000);
+    return new Date(Date.UTC(f.getUTCFullYear(),f.getUTCMonth(),f.getUTCDate()));
+  }
+  function dataPedidoISO(v){ const d=soDataFortaleza(v); return d? d.toISOString().slice(0,10) : null; }
+  function prazoBordado(tipo, base){
+    const dias=(tipo==='logomarca'||tipo==='ambos')?10:5;
+    let d=soDataFortaleza(base);
+    if(!d){ const a=new Date(Date.now()-3*3600*1000); d=new Date(Date.UTC(a.getUTCFullYear(),a.getUTCMonth(),a.getUTCDate())); }
+    let n=0;
+    while(n<dias){ d.setUTCDate(d.getUTCDate()+1); const dw=d.getUTCDay(); if(dw!==0&&dw!==6) n++; }
+    return d.toISOString().slice(0,10);
+  }
+
   try{
     const candidatos=[]; let pagina=0; let scanned=0; const perPage=50;
     const maxScan = usaData ? 3000 : limit;   // com janela de datas, varre tudo no período
@@ -367,7 +393,7 @@ export default async function handler(req,res){
         const sit=d.situacao;
         if(sit){ if(typeof sit==='string'){ try{ const sd=await liGet(sit); sitTxt=((sd.j&&(sd.j.codigo||sd.j.nome))||''); }catch(e){} } else { sitTxt=(sit.codigo||sit.nome||sit.situacao||''); } }
         const b=buildBordado(tipoOrder, d.cliente_obs);
-        candidatos.push({ numero:String(d.numero), id_li:d.id, cliente:(d.cliente&&(d.cliente.nome||d.cliente.email))||null, telefone:telClienteDoPedido(d), b, situacao:String(sitTxt||'?'), itens:d.itens, obs:d.cliente_obs });
+        candidatos.push({ numero:String(d.numero), id_li:d.id, data_pedido:(d.data_criacao||o.data_criacao||null), cliente:(d.cliente&&(d.cliente.nome||d.cliente.email))||null, telefone:telClienteDoPedido(d), b, situacao:String(sitTxt||'?'), itens:d.itens, obs:d.cliente_obs });
       }
       if(objs.length<perPage) break; pagina++;
     }
@@ -392,6 +418,8 @@ export default async function handler(req,res){
     const rows=toCreate.map(c=>({
       list_id:PERSO_LIST, title:(c.cliente||('Pedido '+c.numero)), position:Date.now(), created_by:userId,
       pedido_numero:c.numero, pedido_cliente:c.cliente, pedido_telefone:c.telefone,
+      pedido_data: dataPedidoISO(c.data_pedido),
+      due_date: prazoBordado(c.b.tipo, c.data_pedido),
       bordado_tipo:c.b.tipo, bordado_linha1:c.b.linha1, bordado_linha2:c.b.linha2, bordado_linha3:c.b.linha3,
       bordado_cor_hex:c.b.corHex, bordado_cor_nome:c.b.corNome, bordado_fonte:c.b.fonte, bordado_lado:c.b.lado, bordado_lado_logo:c.b.ladoLogo,
       bordado_imagem_url:c.b.imagem, bordado_detalhes:c.b.detalhes,
