@@ -53,7 +53,11 @@ export default async function handler(req, res){
       Authorization: 'Bearer ' + process.env.SUPABASE_SERVICE_ROLE_KEY,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ password: String(password) })
+    // email_confirm: true junto de propósito. Quem foi criado no tempo do signUp() ficou
+    // com "Email not confirmed" esperando um e-mail que nunca chegou (o serviço embutido do
+    // Supabase manda 2 por hora e só pra membro do projeto). Se o admin está definindo a
+    // senha da pessoa na mão, ele já está confirmando quem ela é.
+    body: JSON.stringify({ password: String(password), email_confirm: true })
   });
   let j = null; try{ j = await r.json(); }catch(e){}
   if(!r.ok){
