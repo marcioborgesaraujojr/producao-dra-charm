@@ -32,33 +32,53 @@ export default async function handler(req, res){
   if(!quem) return res.status(403).json({ error: 'Sessão inválida. Faça login na suíte.' });
 
   const loja = String(req.query.loja || '').trim();
-  const limite = Math.min(parseInt(req.query.limite, 10) || 300, 1000);
+  const limite = Math.min(parseInt(req.query.limite, 10) || 200, 1000);
 
   const H = {
     apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
     Authorization: 'Bearer ' + process.env.SUPABASE_SERVICE_ROLE_KEY
   };
-  const base = process.env.SUPABASE_URL + '/rest/v1/at_disparos_log'
-             + '?select=id,evento_key,loja,telefone,pedido,template_name,status,detalhe,created_at'
-             + '&order=created_at.desc&limit=' + limite;
+  const REST = process.env.SUPABASE_URL + '/rest/v1/at_disparos_log?';
+  const filtroLoja = loja ? '&loja=eq.' + encodeURIComponent(loja) : '';
+  const desde24h = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
 
-  // Com filtro de loja. Se a coluna ainda não existir no banco, cai pra sem filtro e avisa.
-  let url = base + (loja ? '&loja=eq.' + encodeURIComponent(loja) : '');
-  let r = await fetch(url, { headers: H });
+  // CONTAGEM de verdade (não dá pra contar em cima das linhas trazidas: o PostgREST corta
+  // em 1000 e o próprio limite da tela mentiria o número — foi o que aconteceu, os cartões
+  // mostravam exatamente 300 porque 300 era o limite do fetch).
+  async function contar(extra){
+    const r = await fetch(REST + 'select=id&created_at=gte.' + encodeURIComponent(desde24h) + filtroLoja + (extra || ''),
+      { headers: { ...H, Prefer: 'count=exact', Range: '0-0' } });
+    if (!r.ok) return null;
+    const cr = r.headers.get('content-range') || '';
+    const n = parseInt(String(cr).split('/')[1], 10);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  const ESTADOS = ['enviado', 'erro', 'ignorado', 'aguardando_modelo', 'simulado'];
+  let resumo = null;
+  try {
+    const [total, ...porEstado] = await Promise.all([contar(''), ...ESTADOS.map(e => contar('&status=eq.' + e))]);
+    if (total !== null) {
+      resumo = { total };
+      ESTADOS.forEach((e, i) => { resumo[e] = porEstado[i] || 0; });
+    }
+  } catch (e) { /* sem resumo a tela ainda mostra a tabela */ }
+
+  // Últimas linhas para a tabela.
+  const base = REST + 'select=id,evento_key,loja,telefone,pedido,template_name,status,detalhe,created_at'
+             + '&order=created_at.desc&limit=' + limite;
+  let r = await fetch(base + filtroLoja, { headers: H });
   let semColuna = false;
 
-  if(!r.ok && loja){
-    let t = ''; try{ t = await r.text(); }catch(e){}
-    if(/loja/i.test(t)){
-      semColuna = true;
-      r = await fetch(base, { headers: H });
-    }
+  if (!r.ok && loja) {
+    let t = ''; try { t = await r.text(); } catch (e) {}
+    if (/loja/i.test(t)) { semColuna = true; r = await fetch(base, { headers: H }); }
   }
-  if(!r.ok){
-    let t = ''; try{ t = await r.text(); }catch(e){}
+  if (!r.ok) {
+    let t = ''; try { t = await r.text(); } catch (e) {}
     return res.status(500).json({ error: 'Não consegui ler o log: ' + (t || r.status) });
   }
 
   const itens = await r.json();
-  return res.status(200).json({ itens: Array.isArray(itens) ? itens : [], loja, semColuna });
+  return res.status(200).json({ itens: Array.isArray(itens) ? itens : [], resumo, loja, semColuna });
 }
