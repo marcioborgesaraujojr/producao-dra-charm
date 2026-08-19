@@ -167,7 +167,7 @@ async function salvar(key){
       body:JSON.stringify({action:'save',evento_key:key,ativo:r.ativo,template_name:r.template_name||null,template_language:r.template_language||'pt_BR',mapa:r.mapa||[]})});
     const j=await resp.json().catch(()=>({}));
     if(!resp.ok){ toast(j.error||'erro ao salvar','err'); return; }
-    REGRAS[key]=j.regra||r; toast('Salvo ✓');
+    REGRAS[key]=j.regra||r; toast('Salvo');
   }catch(e){ toast('Erro: '+e.message,'err'); }
 }
 
@@ -180,7 +180,7 @@ async function testar(){
     const r=await fetch('/api/disparo-evento',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+TOKEN},body:JSON.stringify(body)});
     const j=await r.json().catch(()=>({}));
     const res=j.resultado||{};
-    if(j.ok) toast('Disparo enviado ✓');
+    if(j.ok) toast('Disparo enviado');
     else toast('Não enviou: '+(res.detalhe||j.error||res.status||'erro'),'err');
   }catch(e){ toast('Erro: '+e.message,'err'); }
   finally{ btn.disabled=false; btn.textContent=orig; }

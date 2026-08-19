@@ -17,7 +17,7 @@
   document.addEventListener('DOMContentLoaded',function(){
     var el=document.createElement('div');
     el.style.cssText='position:fixed;top:0;left:0;right:0;padding:14px;text-align:center;font-weight:700;z-index:999;color:#fff;background:'+(ok?'#43a047':'#e53935');
-    el.textContent=ok?'Bling Taymah conectado com sucesso ✓':('Falha ao conectar Bling: '+msg);
+    el.textContent=ok?'Bling Taymah conectado com sucesso':('Falha ao conectar Bling: '+msg);
     document.body.appendChild(el);
   });
 })();
@@ -110,7 +110,7 @@ function bordadoBox(b){
     const nome = [x.linha1,x.linha2].filter(Boolean).join(' · ');
     const det = [x.cor?('Cor: '+x.cor):'', x.fonte?('Fonte: '+x.fonte):''].filter(Boolean).join(' · ');
     return `<div style="padding:6px 0;border-bottom:1px solid #f3e6ee">
-      <div style="font-weight:700">✒️ ${esc(nome)||'Personalização'}</div>
+      <div style="font-weight:700"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;display:inline-block;vertical-align:-0.15em;flex:none"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> ${esc(nome)||'Personalização'}</div>
       ${det?`<div style="color:#a05; font-size:13px">${esc(det)}</div>`:''}</div>`;
   }).join('');
   return `<div style="background:#fff5fa;border:1px solid #f3d6e6;border-radius:12px;padding:12px 14px;margin:10px 0">
@@ -128,7 +128,7 @@ function stepper(status){
   const dots = FUNNEL.map((s,i)=>{
     const done = i<=cur && cur>=0;
     return `<div style="flex:1;text-align:center;position:relative">
-      <div style="width:22px;height:22px;border-radius:50%;margin:0 auto;background:${done?'var(--brand)':'#e0e0e0'};color:#fff;font-size:12px;line-height:22px">${done?'✓':i+1}</div>
+      <div style="width:22px;height:22px;border-radius:50%;margin:0 auto;background:${done?'var(--brand)':'#e0e0e0'};color:#fff;font-size:12px;line-height:22px">${done?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;display:inline-block;vertical-align:-0.15em;flex:none"><path d="M20 6 9 17l-5-5"/></svg>':i+1}</div>
       <div style="font-size:11px;margin-top:5px;color:${done?'#333':'#aaa'}">${s[1]}</div>
       ${i<FUNNEL.length-1?`<div style="position:absolute;top:11px;left:60%;width:80%;height:2px;background:${i<cur?'var(--brand)':'#e0e0e0'}"></div>`:''}
     </div>`;

@@ -87,7 +87,7 @@ tailwind.config = {
    DE RECARREGAR É O USUÁRIO. A Vercel preenche /api/version com o
    hash do commit a cada deploy (automático).
 
-   ⚠️ NÃO voltar a recarregar sozinho. A versão antiga deste arquivo
+   ATENÇÃO: NÃO voltar a recarregar sozinho. A versão antiga deste arquivo
    chamava location.reload() ao detectar deploy novo sempre que a aba
    ganhava foco e ninguém estava digitando — o atendimento perdia a
    conversa aberta no meio do atendimento ao cliente (reclamação real
@@ -114,7 +114,7 @@ tailwind.config = {
     btn.setAttribute('style','background:#22c55e;color:#06280f;border:none;border-radius:9px;padding:7px 14px;font-weight:600;font-size:13px;cursor:pointer;font-family:inherit');
     btn.onclick = function(){ try { location.reload(); } catch(e){} };
     var x = document.createElement('button');
-    x.textContent = '✕';
+    x.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="width:12px;height:12px;display:block"><path d="M18 6 6 18M6 6l12 12"/></svg>';
     x.setAttribute('title','Depois');
     x.setAttribute('style','background:none;border:none;color:#94a3b8;font-size:14px;cursor:pointer;padding:2px 4px;line-height:1');
     x.onclick = function(){ var e = document.getElementById('updBanner'); if (e) e.remove(); };

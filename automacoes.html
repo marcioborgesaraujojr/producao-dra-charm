@@ -313,7 +313,7 @@ async function salvarMsg(id){ const g=GATILHOS.find(x=>x.id===id);
   if(t) for(let i=0;i<t.vars;i++){ const e2=document.getElementById('mp_'+id+'_'+i); mapa.push(e2?e2.value:'nome'); }
   g.template_name=tp; g.template_mapa=mapa; g.mensagem = t? (t.body||'') : '';
   const btn=event.target; btn.textContent='Salvando…'; btn.disabled=true;
-  try{ await (await getSb()).from('at_gatilhos').update({mensagem:g.mensagem,template_name:tp,template_mapa:mapa,updated_at:new Date().toISOString()}).eq('id',id); btn.textContent='Salvo ✓'; }
+  try{ await (await getSb()).from('at_gatilhos').update({mensagem:g.mensagem,template_name:tp,template_mapa:mapa,updated_at:new Date().toISOString()}).eq('id',id); btn.textContent='Salvo'; }
   catch(e){ alert('Erro ao salvar: '+e.message); btn.textContent='Salvar'; } finally{ btn.disabled=false; setTimeout(()=>{btn.textContent='Salvar';},1500); } }
 
 async function carregarFila(){

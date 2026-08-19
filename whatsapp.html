@@ -93,7 +93,7 @@
         <div><div class="font-semibold text-sm">Autoproteção de envios</div><p class="text-[12px] text-slate-500 dark:text-slate-400 mt-1">Interrompe automaticamente o envio quando a qualidade do número cai, evitando bloqueios da conta do WhatsApp e da Business Manager.</p></div>
         <div class="flex items-start gap-3"><div id="swModerado" class="sw" onclick="toggle('auto_moderado',this)"></div><div><div class="text-sm font-semibold">Moderado</div><div class="text-[12px] text-slate-500 dark:text-slate-400">Pausa os envios quando a qualidade estiver em nível médio (amarelo) ou com alertas recentes.</div></div></div>
         <div class="flex items-start gap-3"><div id="swRuim" class="sw" onclick="toggle('auto_ruim',this)"></div><div><div class="text-sm font-semibold">Ruim <span class="text-[11px] font-medium text-emerald-600">· recomendado</span></div><div class="text-[12px] text-slate-500 dark:text-slate-400">Quando o número está crítico (vermelho), suspende imediatamente os envios, protegendo a reputação.</div></div></div>
-        <div class="text-[12px] bg-sky-50 dark:bg-sky-900/20 border border-sky-200 dark:border-sky-800 text-sky-700 dark:text-sky-300 rounded-lg p-3">💡 Manter a suspensão automática para qualidade "Ruim" é essencial para evitar bloqueios permanentes.</div>
+        <div class="text-[12px] bg-sky-50 dark:bg-sky-900/20 border border-sky-200 dark:border-sky-800 text-sky-700 dark:text-sky-300 rounded-lg p-3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;display:inline-block;vertical-align:-0.15em;flex:none"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg> Manter a suspensão automática para qualidade "Ruim" é essencial para evitar bloqueios permanentes.</div>
       </div>
       <div class="card p-4" data-fade><div class="flex items-start gap-3"><div id="swOptout" class="sw" onclick="toggle('optout_auto',this)"></div><div><div class="text-sm font-semibold">Opt-out automático para leads com baixo engajamento</div><div class="text-[12px] text-slate-500 dark:text-slate-400">Remove das listas de envio quem não interage. <span class="text-slate-400">(entra em ação junto com as Campanhas)</span></div></div></div></div>
     </section>
@@ -166,13 +166,13 @@ async function carregarSaude(manual){
   try{ const r=await fetch('/api/whatsapp-saude',{headers:{Authorization:'Bearer '+TOKEN}}); const j=await r.json(); if(!r.ok) return;
     STATE=j; pintaSaude(j);
     setSw(document.getElementById('swModerado'),j.auto_moderado); setSw(document.getElementById('swRuim'),j.auto_ruim); setSw(document.getElementById('swOptout'),j.optout_auto);
-    if(manual) toast('Atualizado ✓');
+    if(manual) toast('Atualizado');
   }catch(e){}
 }
 async function toggle(campo,el){
   const novo=!el.classList.contains('on'); setSw(el,novo);
   try{ const r=await fetch('/api/whatsapp-saude',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+TOKEN},body:JSON.stringify({[campo]:novo})}); const j=await r.json();
-    if(!r.ok){ setSw(el,!novo); toast('Não salvou: '+(j.error||'erro')); return; } toast('Salvo ✓');
+    if(!r.ok){ setSw(el,!novo); toast('Não salvou: '+(j.error||'erro')); return; } toast('Salvo');
   }catch(e){ setSw(el,!novo); toast('Erro: '+e.message); }
 }
 

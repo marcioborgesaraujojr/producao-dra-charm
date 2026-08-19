@@ -489,7 +489,7 @@ async function salvarBloqueiosDia(){
   try{
     if (inserts.length) await sb.from('ag_agendamentos').insert(inserts.map(s=>({ cliente_nome:'🔒 Bloqueado', inicio:s.inicio, fim:s.fim, status:'confirmado', bloqueio:true })));
     if (deletes.length) await sb.from('ag_agendamentos').delete().in('id', deletes);
-    dcToast('Bloqueios salvos ✓','ok'); await verBloqueiosDia();
+    dcToast('Bloqueios salvos','ok'); await verBloqueiosDia();
   }catch(e){ dcToast('Erro ao salvar bloqueios.','err'); console.error(e); }
   btn.disabled=false; btn.textContent=_t;
 }
@@ -586,7 +586,7 @@ async function exportarLeads(){
     const a = document.createElement('a'); a.href = url; a.download = nomeArq;
     document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
     if (info) info.textContent = linhas.length + ' lead(s) exportado(s). Importe em Clientes → Importar na Loja Integrada.';
-    dcToast(linhas.length+' lead(s) exportado(s). 📥','ok');
+    dcToast(linhas.length+' lead(s) exportado(s).','ok');
   } finally {
     btn.disabled = false; btn.classList.remove('loading');
   }
@@ -620,7 +620,7 @@ function cardAgenda(a){
     <div class="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
       <div class="min-w-0"><p class="font-medium text-sm break-words">${escapeHtml(a.cliente_nome)}</p>
       <p class="text-xs text-slate-400 break-words">${fmtDia(a.inicio)} · ${fmtHora(a.inicio)}–${fmtHora(a.fim)} ${a.cliente_telefone?('· '+escapeHtml(a.cliente_telefone)):''}</p>
-      ${a.cliente_email?`<p class="text-[11px] text-slate-400 break-words">✉ ${escapeHtml(a.cliente_email)}</p>`:''}
+      ${a.cliente_email?`<p class="text-[11px] text-slate-400 break-words"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;display:inline-block;vertical-align:-0.15em;flex:none"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg> ${escapeHtml(a.cliente_email)}</p>`:''}
       ${a.cliente_cpf?`<p class="text-[11px] text-slate-400">CPF: ${escapeHtml(fmtCPF(a.cliente_cpf))}</p>`:''}</div>
       <div class="flex items-center gap-2 flex-wrap sm:shrink-0 sm:justify-end">${whats}<button data-atendido="${a.id}" class="act act-ok">${IC.check}<span>Atendido</span></button><button data-reagendar="${a.id}" class="act act-copy">${IC.cal}<span>Reagendar</span></button><button data-cancelar="${a.id}" data-link="${a.link_id||''}" class="act act-del">${IC.x}<span>Cancelar</span></button></div>
     </div>${pcs}</div>`;
@@ -656,7 +656,7 @@ async function finalizarAtendimento(id){
   if (!ok) return;
   const { error } = await sb.from('ag_agendamentos').update({ status:'atendido' }).eq('id', id);
   if (error){ dcToast('Não foi possível finalizar: '+(error.message||'erro'), 'err'); return; }
-  dcToast('Atendimento finalizado. 🎉', 'ok');
+  dcToast('Atendimento finalizado.', 'ok');
   carregarAgenda();
 }
 async function excluirLink(id){
@@ -710,7 +710,7 @@ async function carregarConfig(){
 }
 function renderBloq(){
   cfgBloq.sort();
-  $('cfgListaBloq').innerHTML = cfgBloq.length ? cfgBloq.map(d=>`<span class="inline-flex items-center gap-1 bg-slate-100 dark:bg-ink-700 rounded-lg px-2 py-1 text-xs">${d.split('-').reverse().join('/')}<button data-del="${d}" class="text-red-500">✕</button></span>`).join('') : '<span class="text-xs text-slate-400">Nenhuma.</span>';
+  $('cfgListaBloq').innerHTML = cfgBloq.length ? cfgBloq.map(d=>`<span class="inline-flex items-center gap-1 bg-slate-100 dark:bg-ink-700 rounded-lg px-2 py-1 text-xs">${d.split('-').reverse().join('/')}<button data-del="${d}" class="text-red-500" style="width:12px;height:12px"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></span>`).join('') : '<span class="text-xs text-slate-400">Nenhuma.</span>';
   document.querySelectorAll('[data-del]').forEach(b=> b.onclick=()=>{ cfgBloq = cfgBloq.filter(x=>x!==b.dataset.del); renderBloq(); });
 }
 $('btnAddBloq').onclick = ()=>{ const v=$('cfgDataBloq').value; if(v && !cfgBloq.includes(v)){ cfgBloq.push(v); renderBloq(); } };
@@ -727,7 +727,7 @@ $('btnSalvarCfg').onclick = async ()=>{
     almoco_inicio: $('cfgAlmoIni').value||null, almoco_fim: $('cfgAlmoFim').value||null,
     datas_bloqueadas: cfgBloq, atualizado_em: new Date().toISOString() };
   const { error } = await sb.from('ag_config').update(payload).eq('id',1);
-  $('cfgMsg').textContent = error ? 'Erro ao salvar.' : 'Salvo ✓'; if (error) console.error(error);
+  $('cfgMsg').textContent = error ? 'Erro ao salvar.' : 'Salvo'; if (error) console.error(error);
   setTimeout(()=>$('cfgMsg').textContent='',2500);
 };
 
@@ -740,7 +740,7 @@ $('bgClienteInput').onchange = async (e)=>{
   st.textContent='Enviando…'; st.className='text-xs ml-2 text-slate-500';
   const { error } = await sb.storage.from('system-assets').upload('agendar-bg.png', f, { upsert:true, contentType:f.type });
   if (error){ st.textContent='Erro: '+error.message; st.className='text-xs ml-2 text-red-500'; console.error(error); }
-  else { st.textContent='Fundo atualizado! ✓'; st.className='text-xs ml-2 text-emerald-600'; }
+  else { st.textContent='Fundo atualizado!'; st.className='text-xs ml-2 text-emerald-600'; }
   e.target.value='';
 };
 

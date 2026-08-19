@@ -443,7 +443,7 @@ async function salvarPecas(){
   const { error } = await sb.rpc('ag_set_pecas', { p_token: TOKEN, p_pecas: arr });
   btn.disabled = false; btn.textContent = 'Salvar minhas peças';
   if (error){ m.textContent = 'Não foi possível salvar. Tente de novo.'; m.className = 'text-center text-xs mt-2 text-red-500'; }
-  else { m.textContent = arr.length ? ('✓ '+arr.length+' peça(s) enviada(s)! A gente já separa pra você.') : '✓ Salvo.'; m.className = 'text-center text-xs mt-2 text-emerald-600'; }
+  else { m.textContent = arr.length ? (''+arr.length+' peça(s) enviada(s)! A gente já separa pra você.') : 'Salvo.'; m.className = 'text-center text-xs mt-2 text-emerald-600'; }
 }
 init();
 </script>

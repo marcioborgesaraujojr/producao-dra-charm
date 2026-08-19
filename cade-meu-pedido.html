@@ -502,7 +502,7 @@ window.__open=async(id)=>{
       <div><div class="muted" style="font-size:12px">PEDIDO</div>
         <h2 style="margin:2px 0">#${esc(o.numero)} ${pill(o.status)}</h2>
         <div style="font-weight:700">${esc(o.cliente_nome)||'—'}</div>
-        <div style="margin-top:3px;font-size:13px">${contatoLinha(o)} <button class="btn ghost" style="padding:1px 7px;font-size:11px" onclick="__altEmail(${id},'${esc(o.cliente_email||'')}')">✎ e-mail</button></div>
+        <div style="margin-top:3px;font-size:13px">${contatoLinha(o)} <button class="btn ghost" style="padding:1px 7px;font-size:11px" onclick="__altEmail(${id},'${esc(o.cliente_email||'')}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;display:inline-block;vertical-align:-0.15em;flex:none"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> e-mail</button></div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <a class="btn ghost" target="_blank" href="${acompanhar}">${IC.eye} Acompanhar Pedido</a>

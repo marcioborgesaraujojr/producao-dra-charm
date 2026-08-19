@@ -168,7 +168,7 @@ function renderSteps(){
         <div class="flex items-center gap-1 text-slate-400">
           <button onclick="moveStep(${i},-1)" class="hover:text-pink-600">▲</button>
           <button onclick="moveStep(${i},1)" class="hover:text-pink-600">▼</button>
-          <button onclick="delStep(${i})" class="hover:text-red-500">✕</button>
+          <button onclick="delStep(${i})" class="hover:text-red-500" style="width:14px;height:14px"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
         </div>
       </div>${corpo}
     </div>`;
@@ -184,7 +184,7 @@ async function salvar(){
     await c.from('at_workflow_steps').delete().eq('workflow_id',id);
     if(STEPS.length){ const rows=STEPS.map((s,i)=>{ const {tipo,...rest}=s; return {workflow_id:id, ordem:i, tipo, config:rest}; });
       const { error:e2 }=await c.from('at_workflow_steps').insert(rows); if(e2) throw e2; }
-    btn.textContent='Salvo ✓'; await carregar();
+    btn.textContent='Salvo'; await carregar();
   }catch(e){ alert('Erro: '+e.message); btn.textContent='Salvar workflow'; }
   finally{ btn.disabled=false; setTimeout(()=>btn.textContent='Salvar workflow',1500); }
 }

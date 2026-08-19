@@ -178,7 +178,7 @@
     if(!isAdmin){ document.getElementById('gateMsg').textContent='Esta área é só para administradores.'; document.getElementById('authGate').classList.remove('hidden'); return; }
     TOKEN = session.access_token;
     document.getElementById('appWrap').classList.remove('hidden');
-    const st=document.getElementById('authStatus'); st.className='out ok'; st.textContent='✓ Logado como '+email;
+    const st=document.getElementById('authStatus'); st.className='out ok'; st.textContent='Logado como '+email;
     document.getElementById('chaveWrap').style.display='none';
     carregarStatus();
     loadIdc();
@@ -234,7 +234,7 @@
         headers:{ Authorization:'Bearer '+TOKEN, 'Content-Type':'application/json' }, body: JSON.stringify(body) });
       const j = await r.json();
       if(!r.ok){ msg.textContent = j.error || 'Não deu pra salvar'; msg.className = 'text-[13px] text-rose-600'; }
-      else { AUS = j.config; msg.textContent = 'Salvo ✓'; msg.className = 'text-[13px] text-emerald-600'; }
+      else { AUS = j.config; msg.textContent = 'Salvo'; msg.className = 'text-[13px] text-emerald-600'; }
     }catch(e){ msg.textContent = 'Erro: '+e.message; msg.className = 'text-[13px] text-rose-600'; }
     finally{ if(btn) btn.disabled = false; }
   };
@@ -256,7 +256,7 @@
     window.show(step,'info','Processando...');
     try{
       const { httpOk, j } = await apiCall(step, extra);
-      if(httpOk && (j.ok===undefined || j.ok)) window.show(step,'ok','OK ✓\n'+JSON.stringify(j.data||j,null,2));
+      if(httpOk && (j.ok===undefined || j.ok)) window.show(step,'ok','OK\n'+JSON.stringify(j.data||j,null,2));
       else { const msg=(j&&(j.error||(j.data&&j.data.error&&j.data.error.message)))||'Falha'; window.show(step,'err','Erro: '+msg+'\n'+JSON.stringify(j.data||j,null,2)); }
     }catch(e){ window.show(step,'err','Erro de conexão: '+e.message); }
     finally{ if(btn) btn.disabled=false; }
@@ -296,7 +296,7 @@
       const blob=new Blob([JSON.stringify(cfg)]);
       let r=await sb.storage.from('system-assets').upload('at-config.json', blob, {upsert:true, contentType:'text/plain', cacheControl:'0'});
       if(r.error) r=await sb.storage.from('system-assets').upload('at-config.json', blob, {upsert:true, contentType:'image/jpeg', cacheControl:'0'});
-      if(r.error) throw r.error; msg.textContent='Salvo! ✓'; msg.className='text-sm font-semibold text-emerald-600';
+      if(r.error) throw r.error; msg.textContent='Salvo!'; msg.className='text-sm font-semibold text-emerald-600';
     }catch(e){ msg.textContent='Erro ao salvar: '+(e.message||e); msg.className='text-sm text-rose-600'; }
   };
 

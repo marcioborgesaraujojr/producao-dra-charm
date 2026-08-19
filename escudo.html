@@ -89,7 +89,7 @@
     </div>
 
     <div class="text-[12px] bg-sky-50 dark:bg-sky-900/20 border border-sky-200 dark:border-sky-800 text-sky-700 dark:text-sky-300 rounded-lg p-3">
-      💡 Manter a suspensão automática para qualidade "Ruim" é essencial para evitar bloqueios permanentes e garantir a entrega das suas mensagens.
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;display:inline-block;vertical-align:-0.15em;flex:none"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg> Manter a suspensão automática para qualidade "Ruim" é essencial para evitar bloqueios permanentes e garantir a entrega das suas mensagens.
     </div>
   </div>
 
@@ -144,7 +144,7 @@ async function verificar(manual){
     setSw(document.getElementById('swModerado'), j.auto_moderado);
     setSw(document.getElementById('swRuim'), j.auto_ruim);
     setSw(document.getElementById('swOptout'), j.optout_auto);
-    if(manual) toast('Atualizado ✓');
+    if(manual) toast('Atualizado');
   }catch(e){ toast('Erro: '+e.message); }
 }
 
@@ -155,7 +155,7 @@ async function toggle(campo, el){
     const r=await fetch('/api/whatsapp-saude',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+TOKEN},body:JSON.stringify({[campo]:novo})});
     const j=await r.json();
     if(!r.ok){ setSw(el,!novo); toast('Não salvou: '+(j.error||'erro')); return; }
-    STATE[campo]=novo; toast('Salvo ✓');
+    STATE[campo]=novo; toast('Salvo');
   }catch(e){ setSw(el,!novo); toast('Erro: '+e.message); }
 }
 

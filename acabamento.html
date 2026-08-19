@@ -161,7 +161,7 @@
       <label class="text-sm font-semibold text-slate-600 dark:text-slate-300">Mês</label>
       <input id="mes" type="month" class="p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm font-semibold" onchange="carregarMes()">
       <button onclick="carregarMes()" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-ink-600 text-sm hover:bg-slate-50 dark:hover:bg-ink-700">Atualizar</button>
-      <button onclick="editarFaixas()" class="px-3 py-2 rounded-lg border border-violet-300 text-violet-700 dark:text-violet-300 dark:border-violet-700 text-sm hover:bg-violet-50 dark:hover:bg-violet-900/20">⚙ Faixas & qualidade</button>
+      <button onclick="editarFaixas()" class="px-3 py-2 rounded-lg border border-violet-300 text-violet-700 dark:text-violet-300 dark:border-violet-700 text-sm hover:bg-violet-50 dark:hover:bg-violet-900/20"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;display:inline-block;vertical-align:-0.15em;flex:none"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg> Faixas &amp; qualidade</button>
     </div>
     <div id="cmpCards" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4"></div>
     <div class="card p-4 mb-4">
@@ -327,7 +327,7 @@ window.salvar=async function(){
     const c=await getSb();
     const {error}=await c.from('ac_producao').upsert(rows,{onConflict:'data,operadora_id'});
     if(error) throw error;
-    msg('Dia salvo ✓','emerald'); btn.innerHTML=old; btn.disabled=false;
+    msg('Dia salvo','emerald'); btn.innerHTML=old; btn.disabled=false;
   }catch(e){ msg('Erro ao salvar: '+(e.message||e),'rose'); btn.innerHTML=old; btn.disabled=false; }
 };
 
@@ -536,7 +536,7 @@ window.carregarMes=async function(){
     const piso=CFG.meta_checkpoint*4;
     const rank=arr.filter(b=>b.dias).sort((a,b)=>b.total-a.total);
     const max=rank.length?rank[0].total:1;
-    const lg=document.getElementById('faixasLegenda'); if(lg) lg.innerHTML=`Faixas por <b>média/dia</b>: Piso ${piso} · Meta ${CFG.meta_bonus} · Superação ${CFG.meta_super}. 🏆 Prêmio só com defeito ≤ ${CFG.defeito_max}%.`;
+    const lg=document.getElementById('faixasLegenda'); if(lg) lg.innerHTML=`Faixas por <b>média/dia</b>: Piso ${piso} · Meta ${CFG.meta_bonus} · Superação ${CFG.meta_super}. Prêmio só com defeito ≤ ${CFG.defeito_max}%.`;
     document.getElementById('ranking').innerHTML = rank.length ? rank.map((b,i)=>{
       const efm=b.dias?Math.round(b.somaEf/b.dias*100):0;
       const media=Math.round(b.total/b.dias);
@@ -554,7 +554,7 @@ window.carregarMes=async function(){
           <span class="text-[11px] text-slate-500">${media}/dia</span>
           <span class="chip ${efClass(efm)}">${efm}%</span>
           <span class="chip ${dpct<=CFG.defeito_max?'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300':'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'}">${dpct.toFixed(1)}% defeito</span>
-          ${fi.premio?`<span class="chip bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">🏆 Prêmio ${fi.label}</span>`:(fi.premiavel?`<span class="chip bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">fora do prêmio (qualidade)</span>`:'')}
+          ${fi.premio?`<span class="chip bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;display:inline-block;vertical-align:-0.15em;flex:none"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.7V17c0 .6-.5 1-1 1.2C7.9 18.8 7 20.2 7 22"/><path d="M14 14.7V17c0 .6.5 1 1 1.2 1.1.6 2 2 2 3.8"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg> Prêmio ${fi.label}</span>`:(fi.premiavel?`<span class="chip bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">fora do prêmio (qualidade)</span>`:'')}
           ${b.faltas?`<span class="text-[11px] text-rose-500">${b.faltas} falta(s)</span>`:''}
         </div>
       </div>`;

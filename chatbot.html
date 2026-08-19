@@ -145,8 +145,8 @@ async function salvar(){
     persona:document.getElementById('persona').value, base_conhecimento:document.getElementById('base').value,
     modelo:document.getElementById('modelo').value, saudacao:document.getElementById('saudacao').value,
     handoff_termos:document.getElementById('handoff').value, updated_at:new Date().toISOString() };
-  try{ await (await getSb()).from('at_chatbot').update(patch).eq('id',1); CFG={...CFG,...patch}; btn.textContent='Salvo ✓'; }
-  catch(e){ btn.textContent='⚠️ Erro ao salvar'; }
+  try{ await (await getSb()).from('at_chatbot').update(patch).eq('id',1); CFG={...CFG,...patch}; btn.textContent='Salvo'; }
+  catch(e){ btn.textContent='Erro ao salvar'; }
   finally{ btn.disabled=false; setTimeout(()=>btn.textContent='Salvar configuração',1500); }
 }
 function addMsg(quem,txt){
@@ -163,10 +163,10 @@ async function testar(){
   try{
     const r=await fetch('/api/chatbot-reply',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+window._token},body:JSON.stringify({mensagens:TESTE})});
     const j=await r.json(); document.getElementById('typing')?.remove();
-    if(!r.ok){ addMsg('bot','⚠️ '+(j.error||'erro')); return; }
+    if(!r.ok){ addMsg('bot','Erro: '+(j.error||'erro')); return; }
     addMsg('bot',j.reply); TESTE.push({role:'assistant',content:j.reply});
-    if(j.handoff) addMsg('bot','↪️ (transferiria para um atendente humano)');
-  }catch(e){ document.getElementById('typing')?.remove(); addMsg('bot','⚠️ '+e.message); }
+    if(j.handoff) addMsg('bot','(transferiria para um atendente humano)');
+  }catch(e){ document.getElementById('typing')?.remove(); addMsg('bot','Erro: '+e.message); }
 }
 function limparTeste(){ TESTE=[]; document.getElementById('chat').innerHTML=''; if(CFG.saudacao) addMsg('bot',CFG.saudacao); }
 bootstrap();

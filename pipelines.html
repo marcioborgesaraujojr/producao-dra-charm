@@ -120,7 +120,7 @@ function cardHtml(cd,fases){
   return `<div class="bin rounded-lg p-2.5 shadow-sm" data-fade>
     <div class="flex items-center justify-between gap-2">
       <span class="text-[13px] font-semibold truncate">${esc(cli.nome||'Lead')}</span>
-      <button onclick="removerCard('${cd.id}')" class="text-slate-300 hover:text-red-500 text-xs">✕</button>
+      <button onclick="removerCard('${cd.id}')" class="text-slate-300 hover:text-red-500" style="width:14px;height:14px"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
     </div>
     ${cli.telefone?`<div class="text-[11px] text-slate-400">${esc(cli.telefone)}</div>`:''}
     <select onchange="moverCard('${cd.id}',this.value)" class="fld text-[12px] w-full mt-1.5 py-1">

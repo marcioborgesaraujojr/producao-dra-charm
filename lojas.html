@@ -334,7 +334,7 @@ async function abaWebhook(){
        : 'Na TroqueCommerce: <b>Automações e Integrações → Webhook</b> → Ativar · cole a URL acima · marque os eventos · Salvar. O painel deles aceita <b>um webhook só</b>.')
     + '</div>'));
 }
-function copiarUrl(){ const el=document.getElementById('whkUrl'); if(!el) return; el.select(); try{ navigator.clipboard.writeText(el.value); }catch(e){ document.execCommand('copy'); } toast('Endereço copiado ✓'); }
+function copiarUrl(){ const el=document.getElementById('whkUrl'); if(!el) return; el.select(); try{ navigator.clipboard.writeText(el.value); }catch(e){ document.execCommand('copy'); } toast('Endereço copiado'); }
 
 // ================= RELATÓRIOS =================
 let dias=7;
