@@ -79,69 +79,128 @@ async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.
 function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[x])); }
 async function count(tabela, filtro){ const c=await getSb(); let q=c.from(tabela).select('*',{count:'exact',head:true}); if(filtro) q=filtro(q); const { count:n }=await q; return n||0; }
 
+let TOKEN=null;
 async function bootstrap(){
   const c=await getSb(); const { data:{ session } }=await c.auth.getSession();
   if(!session){ document.getElementById('authGate').classList.remove('hidden'); return; }
+  TOKEN = session.access_token;
   document.getElementById('appWrap').classList.remove('hidden');
   carregar();
 }
 
+// Relatórios da central de atendimento, no formato do Notificações Inteligentes:
+// período escolhido, cada número comparado com o período anterior de mesmo tamanho,
+// movimento por dia e desempenho por operador. Os números são CONTADOS no servidor
+// (/api/atendimento-relatorio) — a versão antiga lia 2000 conversas no navegador e
+// chamava aquilo de total.
+function hojeStr(){ return new Date().toISOString().slice(0,10); }
+function diasAtrasStr(n){ return new Date(Date.now()-n*86400000).toISOString().slice(0,10); }
+let R_DE = diasAtrasStr(6), R_ATE = hojeStr();
+
+window.mudarPeriodo = () => {
+  R_DE  = document.getElementById('relDe').value  || R_DE;
+  R_ATE = document.getElementById('relAte').value || R_ATE;
+  carregar();
+};
+window.periodoRapido = (n) => { R_DE = diasAtrasStr(n-1); R_ATE = hojeStr(); carregar(); };
+
+function variacao(atual, anterior){
+  if(!anterior) return '<span class="text-[11px] text-slate-400">sem base de comparação</span>';
+  const p = ((atual - anterior) / anterior) * 100;
+  const sobe = p >= 0;
+  const cor = sobe ? 'text-emerald-600' : 'text-rose-600';
+  return '<span class="text-[11px] '+cor+' font-semibold">' + (sobe?'+':'') + p.toFixed(1).replace('.',',') + '%</span>'
+       + '<span class="text-[11px] text-slate-400"> vs ' + Number(anterior).toLocaleString('pt-BR') + '</span>';
+}
+function cartaoNum(rot, valor, comparacao, dica){
+  return '<div class="kpi"><div class="text-[12px] text-slate-500 dark:text-slate-400">'+esc(rot)+'</div>'
+    + '<div class="text-2xl font-bold mt-1">'+ (valor===null||valor===undefined ? '—' : Number(valor).toLocaleString('pt-BR')) +'</div>'
+    + '<div class="mt-1">'+(comparacao||'')+'</div>'
+    + (dica ? '<div class="text-[11px] text-slate-400 mt-1">'+esc(dica)+'</div>' : '')
+    + '</div>';
+}
+function duracaoTexto(min){
+  if(min===null||min===undefined) return '—';
+  if(min < 60) return min + ' min';
+  const h = Math.floor(min/60), m = min%60;
+  return h + 'h' + String(m).padStart(2,'0');
+}
+
 async function carregar(){
-  const c=await getSb();
-  const hojeISO=new Date(new Date().setHours(0,0,0,0)).toISOString();
-  const [convs, fila, gats, totalClientes, totalMsgs, msgsHoje] = await Promise.all([
-    c.from('at_conversas').select('status, atendente:profiles(full_name)').limit(2000).then(r=>r.data||[]),
-    c.from('at_fila_envios').select('status').limit(5000).then(r=>r.data||[]),
-    c.from('at_gatilhos').select('ativo, categoria').then(r=>r.data||[]),
-    count('at_clientes'),
-    count('at_mensagens'),
-    count('at_mensagens', q=>q.gte('enviada_em',hojeISO)),
-  ]);
+  const el = document.getElementById('conteudo');
+  el.innerHTML = '<div class="text-center text-sm text-slate-400 py-10">carregando…</div>';
+  let j = null;
+  try{
+    const r = await fetch('/api/atendimento-relatorio?de='+R_DE+'&ate='+R_ATE, { headers:{ Authorization:'Bearer '+TOKEN } });
+    j = await r.json();
+    if(!r.ok) throw new Error(j.error || ('erro '+r.status));
+  }catch(e){
+    el.innerHTML = '<div class="kpi text-sm text-rose-600">Não deu pra montar o relatório: '+esc(e.message)+'</div>';
+    return;
+  }
 
-  const cs = { aberta:0, pendente:0, encerrada:0 };
-  const porAtend = {};
-  convs.forEach(x=>{ cs[x.status]=(cs[x.status]||0)+1; const a=(x.atendente&&x.atendente.full_name)||'Não atribuído'; porAtend[a]=(porAtend[a]||0)+1; });
-  const totalConv = convs.length;
-  const fs = { pendente:0, enviado:0, falha:0, cancelado:0 };
-  fila.forEach(x=>{ fs[x.status]=(fs[x.status]||0)+1; });
-  const gatAtivos = gats.filter(g=>g.ativo).length;
+  const maxDia = Math.max(1, ...j.porDia.map(d => d.recebidas + d.enviadas));
+  const linhasDia = j.porDia.map(d => {
+    const tot = d.recebidas + d.enviadas;
+    const larg = Math.round((tot / maxDia) * 100);
+    const pIn = tot ? Math.round((d.recebidas / tot) * 100) : 0;
+    return '<div class="flex items-center gap-2 py-1">'
+      + '<div class="w-16 text-[12px] text-slate-500 shrink-0">'+d.dia.split('-').reverse().slice(0,2).join('/')+'</div>'
+      + '<div class="flex-1 h-4 rounded bg-slate-100 dark:bg-ink-700 overflow-hidden"><div class="h-full flex" style="width:'+larg+'%">'
+      +   '<div style="width:'+pIn+'%;background:#0ea5e9"></div><div style="width:'+(100-pIn)+'%;background:#ff3c6f"></div>'
+      + '</div></div>'
+      + '<div class="w-32 text-right text-[12px] tabular-nums text-slate-500">'
+      +   '<b class="text-slate-700 dark:text-slate-200">'+tot+'</b> · '+d.atendimentos+' atend.</div>'
+      + '</div>';
+  }).join('');
 
-  const el=document.getElementById('conteudo');
-  el.innerHTML=`
-  <div data-fade>
-    <div class="text-sm font-semibold mb-2">Atendimento</div>
-    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
-      ${kpi('Conversas', totalConv, 'slate')}
-      ${kpi('Abertas', cs.aberta||0, 'emerald')}
-      ${kpi('Pendentes', cs.pendente||0, 'amber')}
-      ${kpi('Encerradas', cs.encerrada||0, 'slate')}
-      ${kpi('Clientes', totalClientes, 'pink')}
-    </div>
-  </div>
+  const ops = (j.operadores||[]).map(o => '<tr class="border-t border-slate-100 dark:border-ink-700">'
+    + '<td class="py-2 pr-3 text-[13px]">'+esc(o.operador)+'</td>'
+    + '<td class="py-2 pr-3 text-[13px] tabular-nums">'+o.atribuidas+'</td>'
+    + '<td class="py-2 pr-3 text-[13px] tabular-nums text-emerald-600 font-semibold">'+o.resolvidas+'</td>'
+    + '<td class="py-2 text-[13px] tabular-nums text-amber-600">'+o.ativas+'</td></tr>').join('');
 
-  <div data-fade>
-    <div class="text-sm font-semibold mb-2">Mensagens</div>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-      ${kpi('Total de mensagens', totalMsgs, 'blue')}
-      ${kpi('Mensagens hoje', msgsHoje, 'blue')}
-      ${kpi('Gatilhos ativos', gatAtivos+'/'+gats.length, 'teal')}
-      ${kpi('Na fila (pendente)', fs.pendente, 'amber')}
-    </div>
-  </div>
+  el.innerHTML =
+    '<div class="kpi" data-fade>'
+    + '<div class="text-sm font-semibold mb-2">Relatórios da central de atendimento</div>'
+    + '<div class="flex flex-wrap items-end gap-2">'
+    +   '<div><label class="block text-[11px] text-slate-400 mb-1">De</label><input id="relDe" type="date" value="'+R_DE+'" onchange="mudarPeriodo()" class="fld"></div>'
+    +   '<div><label class="block text-[11px] text-slate-400 mb-1">Até</label><input id="relAte" type="date" value="'+R_ATE+'" onchange="mudarPeriodo()" class="fld"></div>'
+    +   '<div class="dc-tabs ml-1">'
+    +     '<button class="dc-tab" onclick="periodoRapido(7)">7 dias</button>'
+    +     '<button class="dc-tab" onclick="periodoRapido(15)">15 dias</button>'
+    +     '<button class="dc-tab" onclick="periodoRapido(30)">30 dias</button>'
+    +   '</div>'
+    + '</div>'
+    + '<div class="text-[11px] text-slate-400 mt-2">Comparando com '+j.anterior.de.split('-').reverse().join('/')+' a '+j.anterior.ate.split('-').reverse().join('/')+'.</div>'
+    + '</div>'
 
-  <div class="grid md:grid-cols-2 gap-4" data-fade>
-    <div class="kpi">
-      <div class="text-sm font-semibold mb-3">Conversas por atendente</div>
-      ${barras(porAtend, totalConv, '#ff3c6f')}
-    </div>
-    <div class="kpi">
-      <div class="text-sm font-semibold mb-3">Fila de envios</div>
-      ${barras({Pendente:fs.pendente,Enviado:fs.enviado,Falha:fs.falha,Cancelado:fs.cancelado}, fila.length||1, '#0ea5e9')}
-      <div class="text-[11px] text-slate-400 mt-2">Os envios saem quando o WhatsApp estiver conectado.</div>
-    </div>
-  </div>
+    + '<div class="grid grid-cols-2 md:grid-cols-4 gap-3" data-fade>'
+    +   cartaoNum('Total de mensagens', j.mensagens.total, variacao(j.mensagens.total, j.mensagens.anterior), j.mensagens.recebidas+' recebidas · '+j.mensagens.enviadas+' enviadas')
+    +   cartaoNum('Total de atendimentos', j.atendimentos.total, variacao(j.atendimentos.total, j.atendimentos.anterior), j.atendimentos.resolvidas+' resolvidos no período')
+    +   cartaoNum('Clientes novos', j.clientes.total, variacao(j.clientes.total, j.clientes.anterior), '')
+    +   '<div class="kpi"><div class="text-[12px] text-slate-500 dark:text-slate-400">Tempo médio de atendimento</div>'
+    +     '<div class="text-2xl font-bold mt-1">'+duracaoTexto(j.duracaoMediaMin)+'</div>'
+    +     '<div class="text-[11px] text-slate-400 mt-1">da abertura até a última mensagem, só nos encerrados</div></div>'
+    + '</div>'
 
-  <div class="text-[11px] text-slate-400" data-fade>Atualizado em ${new Date().toLocaleString('pt-BR')}</div>`;
+    + '<div class="kpi" data-fade><div class="text-sm font-semibold mb-1">Mensagens por dia</div>'
+    +   '<div class="text-[11px] text-slate-400 mb-3"><span class="inline-block w-2 h-2 rounded-sm align-middle" style="background:#0ea5e9"></span> recebidas · '
+    +   '<span class="inline-block w-2 h-2 rounded-sm align-middle" style="background:#ff3c6f"></span> enviadas</div>'
+    +   (linhasDia || '<div class="text-sm text-slate-400 py-4 text-center">Sem movimento no período.</div>')
+    + '</div>'
+
+    + '<div class="kpi" data-fade><div class="text-sm font-semibold mb-3">Desempenho por operador</div>'
+    +   (ops
+      ? '<div class="overflow-x-auto"><table class="w-full text-left"><thead><tr class="text-[11px] uppercase tracking-wide text-slate-400">'
+        + '<th class="pb-1 pr-3">Operador</th><th class="pb-1 pr-3">Conversas atribuídas</th><th class="pb-1 pr-3">Resolvidas</th><th class="pb-1">Ativas</th></tr></thead><tbody>'
+        + ops + '</tbody></table></div>'
+      : '<div class="text-sm text-slate-400 py-4 text-center">Nenhum atendimento no período.</div>')
+    + '</div>'
+
+    + '<div class="text-[11px] text-slate-400" data-fade>Atualizado em '+new Date().toLocaleString('pt-BR')+'.'
+    +   (j.amostraConversas >= 5000 ? ' Período muito grande: o desempenho por operador considera as 5.000 conversas mais antigas do intervalo.' : '')
+    + '</div>';
 }
 
 function kpi(label, valor, cor){
