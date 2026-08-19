@@ -1867,7 +1867,13 @@ window.doMagicLink = async () => {
   const email = document.getElementById('authEmail').value.trim();
   if (!email){ toast('Digite seu email'); return; }
   const { error } = await sb.auth.signInWithOtp({ email, options:{ emailRedirectTo: window.location.origin }});
-  if (error) toast('Erro: '+error.message);
+  // O serviço de e-mail embutido do Supabase entrega só 2 mensagens por hora e apenas para
+  // quem é membro do projeto. Sem SMTP próprio configurado, o link por e-mail falha assim.
+  // Em vez do texto cru em inglês, explica o que fazer.
+  if (error && /rate limit|over_email_send_rate|429/i.test(error.message || '')){
+    toast('O envio por e-mail atingiu o limite. Entre com seu e-mail e senha — se não souber a senha, peça pro Marcio.');
+  }
+  else if (error) toast('Erro: '+error.message);
   else toast('Link enviado! Confere seu email.');
 };
 window.doLogout = async () => { await sysLogAcesso('saida'); await sb.auth.signOut(); location.reload(); };
@@ -6408,7 +6414,7 @@ h.push('<section id="suiteConexoesSec"><div class="flex items-center justify-bet
 h.push('</div><div class="suite-panel hidden" data-suite-panel="armazenamento">');
 h.push('<section id="suiteArmazenamentoSec"><div class="flex items-center justify-between mb-3"><h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Armazenamento</h3><button id="suiteArmReload" onclick="carregarArmazenamento()" class="text-xs text-pink-600 hover:text-pink-700">Atualizar</button></div><p class="text-xs text-slate-500 mb-3">Quanto de espaço está sendo usado e limpeza de arquivos antigos.</p><div id="suiteArmBody"><div class="text-xs text-slate-400">Carregando uso do armazenamento…</div></div></section>');
 h.push('</div><div class="suite-panel hidden" data-suite-panel="permissoes">');
-h.push('<section><h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">Convidar usuário</h3><div class="flex flex-wrap items-end gap-3"><div class="flex-1 min-w-[180px]"><label class="text-xs text-slate-500">Email</label><input id="inviteEmail" type="email" placeholder="pessoa@dracharm.com.br" class="mt-1 w-full p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm"></div><div class="min-w-[150px]"><label class="text-xs text-slate-500">Senha provisória</label><input id="invitePass" type="text" placeholder="mínimo 6 caracteres" class="mt-1 w-full p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm"></div><button id="inviteBtn" class="px-4 py-2.5 rounded-lg bg-slate-800 text-white text-sm hover:bg-slate-900">Criar acesso</button></div><div id="inviteStatus" class="text-xs mt-2"></div></section>');
+h.push('<section><h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">Convidar usuário</h3><p class="text-xs text-slate-500 mb-3">A conta nasce pronta, sem e-mail de confirmação. Passe o e-mail e a senha provisória pra pessoa na mão.</p><div class="flex flex-wrap items-end gap-3"><div class="flex-1 min-w-[180px]"><label class="text-xs text-slate-500">Email</label><input id="inviteEmail" type="email" placeholder="pessoa@dracharm.com.br" class="mt-1 w-full p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm"></div><div class="min-w-[140px]"><label class="text-xs text-slate-500">Nome</label><input id="inviteNome" placeholder="Ex.: Jael" class="mt-1 w-full p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm"></div><div class="min-w-[130px]"><label class="text-xs text-slate-500">Setor</label><input id="inviteSetor" placeholder="Ex.: Acabamento" class="mt-1 w-full p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm"></div><div class="min-w-[150px]"><label class="text-xs text-slate-500">Senha provisória</label><input id="invitePass" type="text" placeholder="mínimo 6 caracteres" class="mt-1 w-full p-2.5 rounded-lg border border-slate-300 dark:border-ink-600 bg-white dark:bg-ink-900 text-sm"></div><button id="inviteBtn" class="px-4 py-2.5 rounded-lg bg-slate-800 text-white text-sm hover:bg-slate-900">Criar acesso</button></div><div id="inviteStatus" class="text-xs mt-2"></div></section>');
 h.push('</div></div></div>');
 d.innerHTML=h.join('');document.body.appendChild(d);}
 window.openSuiteSettings=function(){ensSuiteModal();var m=document.getElementById('suiteSettingsModal');m.classList.remove('hidden');m.classList.add('flex');carregarConexoes();try{var adm=(user&&(user.email||'').toLowerCase()===ADMIN_EMAIL);['conexoes','armazenamento'].forEach(function(t){var b=document.querySelector('#suiteTabBar [data-suite-tab="'+t+'"]');if(b)b.style.display=adm?'':'none';});if(typeof suiteTab==='function')suiteTab('aparencia');}catch(_){}};
@@ -6451,7 +6457,39 @@ document.addEventListener('click',function(e){if(e.target.closest('#suiteFavicon
 document.addEventListener('change',async function(e){ if(e.target && e.target.id==='faviconInput' && e.target.files[0]){ var file=e.target.files[0]; file=await otimizarImagem(file,{maxW:256,maxH:256,limiteKB:60}); var st=document.getElementById('faviconStatus'); var _v=validarImagemUpload(file,2); if(!_v.ok){ if(st){st.className='text-red-600';st.textContent=_v.msg;} e.target.value=''; return; } if(st){st.className='text-slate-500';st.textContent='Enviando...';} try{ var r=await sb.storage.from('system-assets').upload('favicon.png', file, {upsert:true, contentType:file.type}); if(r.error) throw r.error; applyFavicon(); if(st){st.className='text-emerald-600';st.textContent='Favicon atualizado!';} }catch(err){ if(st){st.className='text-red-600';st.textContent='Erro: '+err.message;} } } });
 document.addEventListener('click',function(e){if(e.target.closest('#suiteLogoBtn'))document.getElementById('logoInput').click();});
 document.addEventListener('change',async function(e){if(e.target&&e.target.id==='suiteBgInput'&&e.target.files[0]){var file=e.target.files[0];file=await otimizarImagem(file,{maxW:2000,maxH:1400});var st=document.getElementById('suiteBgStatus');var _v=validarImagemUpload(file,5);if(!_v.ok){st.className='text-xs mt-1 text-red-600';st.textContent=_v.msg;e.target.value='';return;}st.className='text-xs mt-1 text-slate-500';st.textContent='Enviando wallpaper...';try{var r=await sb.storage.from('system-assets').upload('suite-bg.jpg',file,{upsert:true,contentType:file.type});if(r.error)throw r.error;applySuiteBg();st.className='text-xs mt-1 text-emerald-600';st.textContent='Wallpaper atualizado!';}catch(err){st.className='text-xs mt-1 text-red-600';st.textContent='Erro: '+err.message;}}});
-document.addEventListener('click',async function(e){if(e.target.closest('#inviteBtn')){var email=(document.getElementById('inviteEmail').value||'').trim();var pass=(document.getElementById('invitePass').value||'').trim();var st=document.getElementById('inviteStatus');if(!email||pass.length<6){st.className='text-xs mt-2 text-red-600';st.textContent='Informe email e senha (mínimo 6 caracteres).';return;}st.className='text-xs mt-2 text-slate-500';st.textContent='Criando acesso...';try{var c2=createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:false,storageKey:'dc_invite_tmp'}});var r=await c2.auth.signUp({email:email,password:pass});if(r.error)throw r.error;st.className='text-xs mt-2 text-emerald-600';st.textContent='Acesso criado para '+email+'. Passe email e senha provisória pra pessoa e libere os sistemas em Permissões. (Se a confirmação de email estiver ligada no Supabase, a pessoa precisa confirmar antes.)';document.getElementById('inviteEmail').value='';document.getElementById('invitePass').value='';}catch(err){st.className='text-xs mt-2 text-red-600';st.textContent='Erro: '+err.message;}}});
+document.addEventListener('click',async function(e){
+  if(!e.target.closest('#inviteBtn')) return;
+  var email=(document.getElementById('inviteEmail').value||'').trim();
+  var pass=(document.getElementById('invitePass').value||'').trim();
+  var nome=(document.getElementById('inviteNome')?.value||'').trim();
+  var setor=(document.getElementById('inviteSetor')?.value||'').trim();
+  var st=document.getElementById('inviteStatus');
+  if(!email||pass.length<6){ st.className='text-xs mt-2 text-red-600'; st.textContent='Informe email e senha (mínimo 6 caracteres).'; return; }
+  st.className='text-xs mt-2 text-slate-500'; st.textContent='Criando acesso...';
+  try{
+    // Criação pela Admin API no servidor: a conta já nasce confirmada e NENHUM e-mail é
+    // enviado. O signUp() do navegador dependia do e-mail do Supabase, que só entrega
+    // 2 mensagens por hora — daí o "email rate limit exceeded".
+    var { data:{ session:_s } } = await sb.auth.getSession();
+    var r = await fetch('/api/admin-create-user', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+(_s&&_s.access_token) },
+      body: JSON.stringify({ email:email, password:pass, nome:nome, setor:setor })
+    });
+    var j = await r.json();
+    if(!r.ok) throw new Error(j.error||('erro '+r.status));
+    st.className='text-xs mt-2 text-emerald-600';
+    st.textContent='Acesso criado para '+email+'. Passe o e-mail e a senha provisória pra pessoa e libere os sistemas na ficha dela.';
+    document.getElementById('inviteEmail').value='';
+    document.getElementById('invitePass').value='';
+    if(document.getElementById('inviteNome')) document.getElementById('inviteNome').value='';
+    if(document.getElementById('inviteSetor')) document.getElementById('inviteSetor').value='';
+    try{ await openUsers(); }catch(_){}
+  }catch(err){
+    st.className='text-xs mt-2 text-red-600';
+    st.textContent='Erro: '+err.message;
+  }
+});
 applySuiteBg();
 
 // ============ PAINEL DE MÉTRICAS (admin + acesso por quadro) ============
