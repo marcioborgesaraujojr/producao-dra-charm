@@ -6174,8 +6174,9 @@ window.renderUsersList = () => {
           <div class="w-9 h-9 rounded-full text-white flex items-center justify-center font-semibold flex-shrink-0" style="background:${userColor(u)}">${escapeHtml((u.full_name||u.email||'?').charAt(0).toUpperCase())}</div>
           <div class="flex-1 min-w-0">
             <div class="font-medium text-slate-800 dark:text-slate-100 truncate flex items-center gap-1.5">
-              <span class="truncate">${escapeHtml(u.full_name || u.email.split('@')[0])}</span>
+              <span class="truncate ${u.ativo === false ? 'line-through text-slate-400' : ''}">${escapeHtml(u.full_name || u.email.split('@')[0])}</span>
               ${u.setor ? `<span class="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-ink-700 dark:text-slate-300">${escapeHtml(u.setor)}</span>` : ''}
+              ${u.ativo === false ? '<span class="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">Saiu da empresa</span>' : ''}
             </div>
             <div class="text-xs text-slate-500 truncate">${escapeHtml(u.email)}</div>
           </div>
@@ -6270,6 +6271,23 @@ window.editUserRow = (uid) => {
         <p class="text-xs text-slate-400 mb-3">Você escolhe a senha e passa pra pessoa. Não depende de e-mail nenhum.</p>
         <button onclick="copiarAcesso('${escapeHtml(u.email)}', 'euNewPass', this)" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-ink-600 text-sm hover:bg-slate-50 dark:hover:bg-ink-700">Copiar e-mail e senha pra mandar no WhatsApp</button>
       </section>
+      <section class="rounded-xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/50 dark:bg-rose-900/10 p-4">
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-400 mb-1">Saiu da empresa</h3>
+        ${u.ativo === false ? `
+          <p class="text-xs text-slate-600 dark:text-slate-300 mb-3">Esta pessoa está <b>desativada</b>: não consegue entrar no sistema. O histórico dela continua no lugar.</p>
+          <button onclick="mudarAcessoUsuario('${uid}','reativar',this)" class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm hover:bg-emerald-700">Reativar acesso</button>
+          <p class="text-[11px] text-slate-500 mt-2">Depois de reativar, marque de novo os módulos e quadros — eles foram zerados.</p>
+        ` : `
+          <p class="text-xs text-slate-600 dark:text-slate-300 mb-3">Bloqueia o login, zera os módulos e tira a pessoa de todos os quadros. <b>Nada do histórico se perde</b>: comentários, menções e o log continuam com o nome dela. Dá pra reativar depois.</p>
+          <button onclick="mudarAcessoUsuario('${uid}','desativar',this)" class="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium hover:bg-rose-700">Desativar acesso</button>
+        `}
+        <details class="mt-3">
+          <summary class="text-[11px] text-slate-500 cursor-pointer select-none hover:text-slate-700 dark:hover:text-slate-300">Apagar de vez (raro)</summary>
+          <p class="text-[11px] text-slate-500 mt-2 mb-2">Apaga a conta e o cadastro. Não dá pra desfazer, e se a pessoa tiver histórico o banco vai recusar — nesse caso use Desativar.</p>
+          <button onclick="mudarAcessoUsuario('${uid}','excluir',this)" class="px-3 py-1.5 rounded-lg border border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-400 text-xs hover:bg-rose-50 dark:hover:bg-rose-900/20">Excluir definitivamente</button>
+        </details>
+        <span id="euRiscoStatus" class="block text-xs mt-2"></span>
+      </section>
       <div class="flex items-center justify-end gap-3 pt-2 border-t border-slate-200 dark:border-ink-700">
         <span id="euStatus" class="text-xs text-slate-500 mr-auto"></span>
         <button onclick="renderUsersList()" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-ink-600 text-sm">Cancelar</button>
@@ -6337,6 +6355,47 @@ window.copiarAcesso = async (email, campoSenhaId, btn) => {
   btn.textContent = 'Copiado';
   setTimeout(()=>{ btn.textContent = old; }, 1800);
 };
+// Desativar / reativar / excluir alguém que saiu da empresa.
+// O padrão é DESATIVAR: bloqueia o login e preserva todo o histórico.
+window.mudarAcessoUsuario = async (uid, acao, btn) => {
+  const c = window.__uc;
+  const u = (c && c.users.find(x => x.id === uid)) || {};
+  const quem = u.full_name || u.email || 'esta pessoa';
+  const textos = {
+    desativar: { t:'Desativar acesso', m:'Bloquear o login de '+quem+'?\n\nEla sai de todos os quadros e perde os módulos, mas o histórico (comentários, menções e log) continua no lugar. Dá pra reativar depois.', ok:'Desativar', perigo:true },
+    reativar:  { t:'Reativar acesso',  m:'Liberar o login de '+quem+' de novo?\n\nDepois é preciso marcar os módulos e quadros outra vez.', ok:'Reativar', perigo:false },
+    excluir:   { t:'Excluir definitivamente', m:'APAGAR a conta e o cadastro de '+quem+'?\n\nIsso não tem volta. Se ela tiver histórico no sistema, o banco vai recusar — e aí o caminho é Desativar.', ok:'Excluir', perigo:true }
+  }[acao];
+  if (!textos) return;
+  if (!(await uiConfirm(textos.m, { title: textos.t, okText: textos.ok, danger: textos.perigo }))) return;
+
+  const st = document.getElementById('euRiscoStatus');
+  const rotulo = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Aguarde...';
+  if (st){ st.className = 'block text-xs mt-2 text-slate-500'; st.textContent = 'Aplicando...'; }
+  try{
+    const { data:{ session } } = await sb.auth.getSession();
+    const r = await fetch('/api/admin-remove-user', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+(session && session.access_token) },
+      body: JSON.stringify({ userId: uid, acao })
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || ('erro '+r.status));
+    if (acao === 'excluir'){ toast('Usuário excluído.'); await openUsers(); return; }
+    toast(acao === 'desativar' ? 'Acesso desativado.' : 'Acesso reativado.');
+    if (j.perfilAtualizado === false){
+      await uiAlert('O login foi '+(acao==='desativar'?'bloqueado':'liberado')+', mas o cadastro não guardou o estado — falta rodar o SQL db/add-ativo-profiles.sql no Supabase.', { title:'Quase lá' });
+    }
+    await openUsers();
+    editUserRow(uid);
+  }catch(e){
+    if (st){ st.className = 'block text-xs mt-2 text-red-600'; st.textContent = 'Erro: '+e.message; }
+    else toast('Erro: '+e.message);
+    btn.disabled = false; btn.textContent = rotulo;
+  }
+};
+
 window.togglePassView = (id) => {
   const el = document.getElementById(id);
   if (el) el.type = (el.type === 'password') ? 'text' : 'password';

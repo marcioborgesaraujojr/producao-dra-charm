@@ -36,6 +36,15 @@
   .sk-bloco{background:linear-gradient(90deg,#eef2f7 25%,#e2e8f0 37%,#eef2f7 63%);background-size:400% 100%;animation:skGlow 1.2s ease-in-out infinite}
   .dark .sk-bloco{background:linear-gradient(90deg,#1e293b 25%,#273449 37%,#1e293b 63%);background-size:400% 100%}
   @keyframes skGlow{0%{background-position:100% 50%}100%{background-position:0 50%}}
+  /* Quem está com a conversa aberta (e digitando) — mostrado na lista de conversas */
+  .pres-pill{display:inline-flex;align-items:center;gap:3px;background:#f1f5f9;border-radius:999px;padding:2px 3px 2px 7px}
+  .dark .pres-pill{background:#1f2937}
+  .pres-ini{width:18px;height:18px;border-radius:999px;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none}
+  .pres-dots{display:inline-flex;gap:2px;align-items:center}
+  .pres-dots i{width:4px;height:4px;border-radius:999px;background:#94a3b8;display:block;animation:presDot 1.2s infinite ease-in-out}
+  .pres-dots i:nth-child(2){animation-delay:.18s}
+  .pres-dots i:nth-child(3){animation-delay:.36s}
+  @keyframes presDot{0%,60%,100%{opacity:.25;transform:translateY(0)}30%{opacity:1;transform:translateY(-2px)}}
 </style>
 <script id="dc-fav-std">(function(){try{document.querySelectorAll('link[rel="icon"],link[rel="shortcut icon"]').forEach(function(l){l.remove();});var l=document.createElement('link');l.rel='icon';l.type='image/png';l.href='https://wwytzoyeibekhstinott.supabase.co/storage/v1/object/public/system-assets/favicon.png';document.head.appendChild(l);}catch(e){}})();</script>
 
@@ -199,7 +208,7 @@
         <span id="charCount" class="ml-auto text-[11px] tabular-nums">0 / 2.000</span>
       </div>
       <div class="flex items-center gap-2">
-        <input id="msgInput" maxlength="2000" oninput="updCount()" onkeydown="if(event.key==='Enter'){enviar();}" placeholder="Mande uma mensagem…" class="flex-1 py-2 px-2 text-sm bg-transparent outline-none">
+        <input id="msgInput" maxlength="2000" oninput="updCount();marcarDigitando()" onkeydown="if(event.key==='Enter'){enviar();}" placeholder="Mande uma mensagem…" class="flex-1 py-2 px-2 text-sm bg-transparent outline-none">
         <button id="btnEnviar" onclick="enviar()" class="w-9 h-9 rounded-full bg-pink-500 text-white flex items-center justify-center shrink-0 hover:bg-pink-600 transition"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
       </div>
       <div id="qrBox" class="hidden absolute bottom-full left-4 mb-2 w-80 bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600 rounded-xl shadow-xl p-1.5" data-fade>
@@ -372,6 +381,7 @@ async function bootstrap(){
   }
   else { document.getElementById('emptyState').classList.remove('hidden'); }
   subscribeRealtime();
+  try{ subscribePresenca(); }catch(e){ console.warn('presença:', e && e.message); }
 }
 
 /* ===== Tempo real (Supabase Realtime) ===== */
@@ -384,6 +394,70 @@ async function subscribeRealtime(){
    .on('postgres_changes',{event:'*',schema:'public',table:'at_mensagens'}, handleMsg)
    .subscribe();
 }
+/* ===== Quem está na conversa (presença) =====
+   Mostra na lista quem está com a conversa aberta e, se estiver digitando, as bolinhas
+   piscando. Usa o Realtime Presence do Supabase: nada é gravado no banco, o estado vive
+   só enquanto a aba está aberta e some sozinho quando a pessoa fecha. */
+let PRESENCA = {};            // { conversaId: [ {nome, inicial, cor, digitando} ] }
+let _canalPres = null, _digitando = false, _tDigit = null;
+
+function corDoNome(nome){
+  const paleta = ['#f59e0b','#8b5cf6','#0ea5e9','#10b981','#ef4444','#ec4899','#14b8a6','#6366f1'];
+  // FNV-1a: espalha melhor que soma simples, senão dois nomes caem na mesma cor.
+  let h = 0x811c9dc5; const t = String(nome||'?').toLowerCase();
+  for (let i=0;i<t.length;i++){ h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return paleta[h % paleta.length];
+}
+
+function presencaHtml(convId){
+  const gente = (PRESENCA[convId]||[]).filter(p => p.nome !== AGENTE);
+  if(!gente.length) return '';
+  return gente.slice(0,3).map(p => {
+    const bolinhas = p.digitando ? '<span class="pres-dots"><i></i><i></i><i></i></span>' : '';
+    const titulo = esc(p.nome) + (p.digitando ? ' está digitando' : ' está nesta conversa');
+    return '<span class="pres-pill" title="'+titulo+'">'+bolinhas
+         + '<span class="pres-ini" style="background:'+p.cor+'">'+esc(p.inicial)+'</span></span>';
+  }).join('');
+}
+
+async function subscribePresenca(){
+  const c = await getSb();
+  _canalPres = c.channel('at-presenca', { config: { presence: { key: (ATEND_ID || AGENTE || 'anon') } } });
+  _canalPres.on('presence', { event: 'sync' }, () => {
+    const estado = _canalPres.presenceState();
+    const mapa = {};
+    Object.keys(estado).forEach(k => {
+      (estado[k]||[]).forEach(p => {
+        if(!p || !p.conversa) return;
+        (mapa[p.conversa] = mapa[p.conversa] || []).push({
+          nome: p.nome || 'Alguém',
+          inicial: String(p.nome||'?').trim().charAt(0).toUpperCase(),
+          cor: corDoNome(p.nome),
+          digitando: !!p.digitando
+        });
+      });
+    });
+    PRESENCA = mapa;
+    renderList();
+  });
+  _canalPres.subscribe(async (st) => { if(st === 'SUBSCRIBED') await enviarPresenca(); });
+  // Ao fechar a aba, avisa que saiu (senão o marcador some só depois do timeout).
+  window.addEventListener('beforeunload', () => { try{ _canalPres && _canalPres.untrack(); }catch(e){} });
+  document.addEventListener('visibilitychange', () => { if(document.hidden){ _digitando = false; enviarPresenca(); } });
+}
+
+async function enviarPresenca(){
+  if(!_canalPres) return;
+  try{ await _canalPres.track({ nome: AGENTE, conversa: SEL || null, digitando: _digitando }); }catch(e){}
+}
+
+// Chamado a cada tecla no campo de mensagem. Para de "digitar" sozinho após 3s parado.
+function marcarDigitando(){
+  if(!_digitando){ _digitando = true; enviarPresenca(); }
+  clearTimeout(_tDigit);
+  _tDigit = setTimeout(() => { _digitando = false; enviarPresenca(); }, 3000);
+}
+
 function softReload(){ clearTimeout(_rtTimer); _rtTimer=setTimeout(async()=>{
   const keep=SEL; CONVERSAS=await loadConversas(); renderList();
   const cv=CONVERSAS.find(x=>x.id===keep); if(cv){ await carregarMsgs(cv); renderChat(cv); renderProfile(cv); enrichPedido(cv); }
@@ -473,7 +547,7 @@ function renderList(){
         ${statusBadge(cv)}
       </div>
       <div class="min-w-0 flex-1">
-        <div class="flex items-center justify-between gap-2"><div class="truncate text-sm font-semibold">${esc(cv.nome)}${cv.atendenteNome?' <span class="text-slate-400 font-normal">· '+esc(cv.atendenteNome)+'</span>':''}</div><div class="flex items-center gap-1 shrink-0 text-[11px] text-slate-400"><span>${relTime(cv.ultimaMsgEm)}</span><button onclick="event.stopPropagation();convMenu(event,'${cv.id}')" class="conv-dots hover:text-slate-600 dark:hover:text-slate-200 leading-none text-base px-1 -mr-1" title="Opções">⋯</button></div></div>
+        <div class="flex items-center justify-between gap-2"><div class="truncate text-sm font-semibold">${esc(cv.nome)}${cv.atendenteNome?' <span class="text-slate-400 font-normal">· '+esc(cv.atendenteNome)+'</span>':''}</div><div class="flex items-center gap-1 shrink-0 text-[11px] text-slate-400">${presencaHtml(cv.id)}<span>${relTime(cv.ultimaMsgEm)}</span><button onclick="event.stopPropagation();convMenu(event,'${cv.id}')" class="conv-dots hover:text-slate-600 dark:hover:text-slate-200 leading-none text-base px-1 -mr-1" title="Opções">⋯</button></div></div>
         <div class="truncate text-[13px] ${cv.naoLida?'font-semibold text-slate-700 dark:text-slate-200':'text-slate-500 dark:text-slate-400'}">${esc(cv.preview)}</div>
         <div class="mt-1 flex items-center gap-1 text-[11px] text-slate-400">
           <svg class="w-3.5 h-3.5 text-green-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15l-1.4 5 5.1-1.3A10 10 0 1 0 12 2z"/></svg>${esc(cv.canal)}
@@ -492,6 +566,7 @@ function fecharPerfilMobile(){ const p=document.getElementById('profile'); const
 async function selecionar(id){
   SEL=id; NOTA=false; const cv=cur(); if(!cv) return;
   try{ localStorage.setItem('at_sel', id); }catch(e){}   // pra reabrir aqui mesmo depois de um refresh
+  _digitando=false; enviarPresenca();   // avisa os outros que estou nesta conversa
   setView('chat');
   if(!cv._msgsLoaded) await carregarMsgs(cv);
   if(cv.naoLida){ cv.naoLida=false; try{ (await getSb()).from('at_conversas').update({nao_lida:false}).eq('id',id).then(()=>{}); }catch(e){} }
