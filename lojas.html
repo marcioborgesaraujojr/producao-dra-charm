@@ -69,9 +69,9 @@ function dataBr(d){ if(!d) return '—'; return new Date(d).toLocaleDateString('
 // ---- as lojas ----
 const LOJAS = [
   { key:'loja_integrada', nome:'Loja Integrada', sigla:'LI', desc:'Pedidos, pagamento, envio e entrega',
-    marca:'from-emerald-400 to-violet-500', api:'/api/li-webhook' },
+    logo:'/img/loja-integrada.svg', fundo:'bg-white dark:bg-white', api:'/api/li-webhook' },
   { key:'troquecommerce', nome:'TroqueCommerce', sigla:'TC', desc:'Trocas, devoluções, vale e estorno',
-    marca:'from-teal-400 to-cyan-600', api:'/api/troquecommerce-webhook' }
+    logo:'/img/troquecommerce.svg', fundo:'bg-white dark:bg-white', api:'/api/troquecommerce-webhook' }
 ];
 const ABAS = [
   { key:'resumo',    nome:'Visão geral' },
@@ -90,6 +90,16 @@ if(!ABAS.some(a=>a.key===ABA)) ABA='resumo';
 
 const lojaAtual = () => LOJAS.find(l=>l.key===LOJA);
 
+// quadradinho com a marca da loja (SVG local, sem depender do site do parceiro)
+function marcaLoja(l, tam){
+  const p = tam >= 40 ? 'p-1.5' : 'p-1';
+  const r = tam >= 40 ? 'rounded-xl' : 'rounded-lg';
+  return '<div class="'+r+' '+l.fundo+' border border-slate-200 dark:border-ink-600 '+p
+    + ' flex items-center justify-center shrink-0" style="width:'+tam+'px;height:'+tam+'px">'
+    + '<img src="'+l.logo+'" alt="'+esc(l.nome)+'" class="w-full h-full object-contain" loading="lazy">'
+    + '</div>';
+}
+
 function trocarLoja(k){
   LOJA=k; try{ localStorage.setItem('autom_loja',k); }catch(e){}
   renderChips(); renderAbas(); carregarAba();
@@ -105,7 +115,7 @@ function renderChips(){
     return '<button onclick="trocarLoja(\''+l.key+'\')" class="flex items-center gap-3 px-4 py-3 rounded-2xl border transition text-left '
       + (on ? 'bg-white dark:bg-ink-800 border-pink-300 dark:border-pink-700 ring-2 ring-pink-200 dark:ring-pink-900/50 shadow-sm'
             : 'bg-white/60 dark:bg-ink-800/50 border-slate-200 dark:border-ink-600 hover:border-slate-300') + '">'
-      + '<div class="w-10 h-10 rounded-xl bg-gradient-to-br '+l.marca+' text-white font-bold text-sm flex items-center justify-center shrink-0">'+l.sigla+'</div>'
+      + marcaLoja(l, 40)
       + '<div><div class="text-sm font-semibold '+(on?'':'text-slate-500 dark:text-slate-400')+'">'+esc(l.nome)+'</div>'
       + '<div class="text-[11px] text-slate-400">'+esc(l.desc)+'</div></div></button>';
   }).join('');
@@ -145,7 +155,7 @@ async function abaResumo(){
   if(!j.ok) return box('<div class="card p-4 text-sm text-rose-600">Não deu pra carregar.</div>');
   const ult = (j.ultimos||[]).map(x =>
     '<div class="flex items-center gap-3 p-2 rounded-lg bg-slate-50 dark:bg-ink-800/60">'
-    + '<div class="w-8 h-8 rounded-lg bg-gradient-to-br '+lojaAtual().marca+' text-white text-[10px] font-bold flex items-center justify-center shrink-0">'+lojaAtual().sigla+'</div>'
+    + marcaLoja(lojaAtual(), 32)
     + '<div class="min-w-0 flex-1"><div class="text-[13px] font-semibold truncate">'+esc(x.evento_label||x.evento_codigo||'Evento')+'</div>'
     + '<div class="text-[11px] text-slate-500 truncate">'+esc(x.cliente_nome||'—')+(x.pedido?(' · pedido '+esc(x.pedido)):'')+'</div></div>'
     + '<div class="text-[11px] text-slate-400 shrink-0">'+relt(x.created_at)+'</div></div>').join('');
