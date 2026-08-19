@@ -30,9 +30,7 @@
   html.dark .inp{background:#0f172a;border-color:#334155;color:#e5e7eb}
   .inp:disabled{background:#f1f5f9;color:#94a3b8}
   html.dark .inp:disabled{background:#111827;color:#475569}
-  .tab{padding:8px 14px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;color:#64748b}
-  .tab[data-on="1"]{background:#ede9fe;color:#6d28d9}
-  html.dark .tab[data-on="1"]{background:#3730a3;color:#e0e7ff}
+  /* As abas agora vêm do padrão .dc-tab, no theme.js. */
   th{font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.02em}
   html.dark th{color:#94a3b8}
   .chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px}
@@ -98,10 +96,10 @@
 
   <!-- Abas -->
   <div class="flex items-center gap-2 mb-4">
-    <div class="tab" data-on="1" data-tab="lancamento" onclick="switchTab('lancamento')">Lançamento diário</div>
-    <div class="tab" data-on="0" data-tab="quadro" onclick="switchTab('quadro')">Quadro do mês</div>
-    <div class="tab" data-on="0" data-tab="comparativo" onclick="switchTab('comparativo')">Comparativo</div>
-    <div class="tab" data-on="0" data-tab="rastreio" onclick="switchTab('rastreio')">Rastreabilidade</div>
+    <div class="dc-tab" data-on="1" data-tab="lancamento" onclick="switchTab('lancamento')">Lançamento diário</div>
+    <div class="dc-tab" data-on="0" data-tab="quadro" onclick="switchTab('quadro')">Quadro do mês</div>
+    <div class="dc-tab" data-on="0" data-tab="comparativo" onclick="switchTab('comparativo')">Comparativo</div>
+    <div class="dc-tab" data-on="0" data-tab="rastreio" onclick="switchTab('rastreio')">Rastreabilidade</div>
   </div>
 
   <!-- ===================== LANÇAMENTO ===================== -->
@@ -422,7 +420,7 @@ window.editarFaixas=async function(){
   catch(e){ uiAlert('Erro ao salvar faixas: '+(e.message||e)); }
 };
 window.switchTab=function(t){
-  document.querySelectorAll('.tab').forEach(el=>el.dataset.on = el.dataset.tab===t?'1':'0');
+  document.querySelectorAll('.dc-tab').forEach(el=>el.dataset.on = el.dataset.tab===t?'1':'0');
   document.getElementById('tab-lancamento').classList.toggle('hidden',t!=='lancamento');
   document.getElementById('tab-quadro').classList.toggle('hidden',t!=='quadro');
   document.getElementById('tab-comparativo').classList.toggle('hidden',t!=='comparativo');

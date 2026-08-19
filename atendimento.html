@@ -285,7 +285,7 @@ const cur=()=>CONVERSAS.find(x=>x.id===SEL);
 /* ===== Carregamento do Supabase ===== */
 function _mapMsgs(rawMsgs){
   return (rawMsgs||[]).slice().sort((a,b)=>new Date(a.enviada_em)-new Date(b.enviada_em)).map(m=>({
-    id:m.id, t: m.tipo==='nota'?'nota':m.direcao, k:(m.meta&&m.meta.evento)||undefined, txt:m.conteudo||'', midia:m.midia_url||null, midiaTipo:m.midia_tipo||null,
+    id:m.id, t: m.tipo==='nota'?'nota':m.direcao, k:(m.meta&&m.meta.evento)||undefined, txt:m.conteudo||'', midia:m.midia_url||null, midiaTipo:m.midia_tipo||null, autor:m.autor||null,
     hora:new Date(m.enviada_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) }));
 }
 // A LISTA não carrega as mensagens (só a prévia) -> abre rápido. As mensagens de cada conversa
@@ -626,7 +626,7 @@ function renderChat(cv){
       if(!_media && _rot[_txt]){ _txt=_rot[_txt]; _cls='text-sm text-slate-500 dark:text-slate-400'; }  // mídia sem arquivo -> rótulo
       const _showTxt=!!_txt;
       const _vazio=(!_media && !_showTxt)?`<div class="text-sm italic text-slate-400">[mensagem sem conteúdo]</div>`:'';
-      return `<div class="flex ${out?'justify-end':'justify-start'}"><div class="max-w-[70%] ${out?'bubble-out':'bubble-in'} rounded-2xl px-4 py-2 shadow-sm">${_media}${_showTxt?`<div class="${_cls}">${esc(_txt)}</div>`:''}${_vazio}<div class="text-[10px] text-slate-400 text-right mt-1">${m.hora}${out?' <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:inline-block;vertical-align:-0.15em;flex:none"><path d="m1 13 4 4 8-8"/><path d="m10 13 4 4 9-9"/></svg>':''}</div></div></div>`;
+      return `<div class="flex ${out?'justify-end':'justify-start'}"><div class="max-w-[70%] ${out?'bubble-out':'bubble-in'} rounded-2xl px-4 py-2 shadow-sm">${(out && m.autor && m.autor!=='sistema') ? `<div class="text-[11px] font-bold opacity-70 mb-0.5">${esc(m.autor)}</div>` : ''}${_media}${_showTxt?`<div class="${_cls}">${esc(_txt)}</div>`:''}${_vazio}<div class="text-[10px] text-slate-400 text-right mt-1">${m.hora}${out?' <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:inline-block;vertical-align:-0.15em;flex:none"><path d="m1 13 4 4 8-8"/><path d="m10 13 4 4 9-9"/></svg>':''}</div></div></div>`;
     }).join('');
   // Só desce sozinho se a pessoa já estava no fim. Se ela subiu pra ler algo antigo,
   // uma mensagem nova não arranca mais a tela do lugar.
@@ -730,7 +730,7 @@ async function enviarFoto(file){
     let url='';
     { const sg=await c.storage.from('at-media').createSignedUrl(path, 60*60*2);
       url=(sg && sg.data && sg.data.signedUrl) || c.storage.from('at-media').getPublicUrl(path).data.publicUrl; }
-    cv.msgs.push({t:'out', txt:caption, hora, midia:url, midiaTipo:'imagem'});
+    cv.msgs.push({t:'out', txt:caption, hora, midia:url, midiaTipo:'imagem', autor:AGENTE});
     document.getElementById('msgInput').value=''; updCount(); renderChat(cv);
     const {data:{session}}=await c.auth.getSession();
     const r=await fetch('/api/whatsapp-send-media',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+(session&&session.access_token)},body:JSON.stringify({to:destino, midia_url:url, text:caption, conversa_id:cv.id})});
@@ -758,7 +758,7 @@ async function enviar(){
   const hora=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
   const isNota=NOTA;
   if(!isNota && AT_CONFIG && AT_CONFIG.identificacao){ const _n=nomeAtendente(); if(_n) txt=_n+':\n'+txt; }
-  cv.msgs.push(isNota?{t:'nota',txt,hora}:{t:'out',txt,hora});
+  cv.msgs.push(isNota?{t:'nota',txt,hora,autor:AGENTE}:{t:'out',txt,hora,autor:AGENTE});
   if(!isNota){ cv.preview=txt; cv.ultimaAtividade=new Date().toLocaleString('pt-BR'); }
   inp.value=''; updCount(); renderChat(cv); if(isNota){NOTA=false;setNotaUI();} renderList();
   const destino = cv.waid || (cv.tel||'').replace(/\D/g,'');   // número do cliente (formato internacional, ex: 5585...)
@@ -912,7 +912,7 @@ async function escolherTemplate(t, cv){
   let preview=t.body||('[modelo: '+t.name+']');
   params.forEach((p,i)=>{ preview=preview.replace(new RegExp('\\{\\{\\s*'+(i+1)+'\\s*\\}\\}','g'), p); });
   const destino=cv.waid||(cv.tel||'').replace(/\D/g,'');
-  cv.msgs.push({t:'out',txt:preview,hora:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})});
+  cv.msgs.push({t:'out',txt:preview,hora:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),autor:AGENTE});
   cv.preview=preview; renderChat(cv); renderList();
   try{ const c=await getSb(); const { data:{ session } }=await c.auth.getSession();
     const r=await fetch('/api/whatsapp-templates',{ method:'POST', headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+(session&&session.access_token) }, body: JSON.stringify({ to:destino, name:t.name, language:t.language||'pt_BR', params, conversa_id:cv.id, preview }) });

@@ -73,7 +73,21 @@ tailwind.config = {
       + '.dc-lift:hover{box-shadow:var(--dc-lift)}'
       /* girar o ícone de atualizar enquanto carrega */
       + '@keyframes dc-spin{to{transform:rotate(360deg)}}'
-      + '.dc-refreshing svg{animation:dc-spin .7s linear infinite}';
+      + '.dc-refreshing svg{animation:dc-spin .7s linear infinite}'
+      /* ====== PADRÃO DAS ABAS (dc-tab) ======
+         Um só desenho de aba pra suíte inteira. Antes cada app inventava o seu:
+         acabamento em roxo, estoque dentro de uma caixinha com ícone… Agora é aqui.
+         Uso: <div class="dc-tabs"><div class="dc-tab" data-on="1">Nome</div>…</div>
+         Aceita data-on="1" ou data-active="1" pra marcar a aba escolhida. */
+      + '.dc-tabs{display:flex;flex-wrap:wrap;gap:8px;align-items:center}'
+      + '.dc-tab{padding:8px 16px;border-radius:12px;font-size:14px;font-weight:600;line-height:1.2;'
+      +   'cursor:pointer;white-space:nowrap;border:none;color:#64748b;background:#fff;'
+      +   'box-shadow:0 1px 3px rgba(15,23,42,.07);transition:background .12s,color .12s,box-shadow .12s}'
+      + '.dark .dc-tab{background:#1f2937;color:#94a3b8;box-shadow:none}'
+      + '.dc-tab:hover{color:var(--dc-pink-600);background:var(--dc-pink-50)}'
+      + '.dark .dc-tab:hover{background:rgba(255,60,111,.16);color:#ff9db4}'
+      + '.dc-tab[data-on="1"],.dc-tab[data-active="1"]{background:var(--dc-pink);color:#fff;box-shadow:0 2px 8px rgba(255,60,111,.35)}'
+      + '.dc-tab[data-on="1"]:hover,.dc-tab[data-active="1"]:hover{background:var(--dc-pink-600);color:#fff}';
     var s = document.createElement('style');
     s.id = 'dc-ui';
     s.textContent = css;

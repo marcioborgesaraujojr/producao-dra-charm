@@ -23,12 +23,8 @@
   body.has-bg #appWrap{position:relative;z-index:1}
   body.has-bg header{background:rgba(255,255,255,.85)!important;backdrop-filter:blur(8px)}
   body.has-bg.dark header{background:rgba(17,24,39,.85)!important}
-  .tabbar{display:inline-flex;gap:4px;padding:5px;border-radius:14px;background:rgba(255,255,255,.72);backdrop-filter:blur(10px);box-shadow:0 2px 10px rgba(15,23,42,.08);border:1px solid rgba(255,255,255,.5)}
-  .dark .tabbar{background:rgba(17,24,39,.72);border-color:rgba(255,255,255,.08)}
-  .tab{padding:7px 14px;border-radius:10px;font-size:14px;font-weight:600;color:#64748b;cursor:pointer;transition:all .12s;display:flex;align-items:center;gap:6px;white-space:nowrap}
-  .tab:not([data-active="1"]):hover{color:var(--dc-pink-600);background:var(--dc-pink-50)}
-  .tab[data-active="1"]{background:var(--dc-pink);color:#fff;box-shadow:0 2px 8px rgba(255,60,111,.35)}
-  .dark .tab{color:#94a3b8}
+  /* As abas agora vêm do padrão .dc-tab, no theme.js (sem caixinha e sem ícone,
+     igual às da Produção · Acabamento). */
   .card{background:#fff;border:1px solid #eef2f7;border-radius:14px}.dark .card{background:#111827;border-color:#334155}
   .prod{background:#fff;border:1px solid #eef2f7;border-radius:14px;overflow:hidden;transition:transform .1s,box-shadow .1s}
   .prod:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)}
@@ -130,9 +126,9 @@
 <div class="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-5">
   <!-- Abas -->
   <div class="flex items-center justify-between gap-2 mb-5">
-    <div class="tabbar">
-      <div class="tab" data-tab="estoque" data-active="1" onclick="switchTab('estoque')"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8V21H3V8"/><rect x="1" y="3" width="22" height="5" rx="1"/><path d="M10 12h4"/></svg>Estoque / Reposição</div>
-      <div class="tab" data-tab="vendas" onclick="switchTab('vendas')"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M19 9l-5 5-4-4-4 4"/></svg>Vendas</div>
+    <div class="dc-tabs">
+      <div class="dc-tab" data-tab="estoque" data-active="1" onclick="switchTab('estoque')">Estoque / Reposição</div>
+      <div class="dc-tab" data-tab="vendas" onclick="switchTab('vendas')">Vendas</div>
     </div>
     <div class="text-[10px] text-slate-600 dark:text-slate-200 bg-white/75 dark:bg-ink-800/75 backdrop-blur px-2.5 py-1 rounded-lg shadow-sm hidden sm:block" id="atualizadoInfo"></div>
   </div>
@@ -287,7 +283,7 @@ async function carregar(){
 }
 
 window.switchTab=(t)=>{
-  document.querySelectorAll('.tab').forEach(x=>x.dataset.active = x.dataset.tab===t?'1':'0');
+  document.querySelectorAll('.dc-tab').forEach(x=>x.dataset.active = x.dataset.tab===t?'1':'0');
   document.getElementById('tab-estoque').classList.toggle('hidden', t!=='estoque');
   document.getElementById('tab-vendas').classList.toggle('hidden', t!=='vendas');
 };
