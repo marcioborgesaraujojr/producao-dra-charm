@@ -194,15 +194,13 @@ async function acharOuCriarConversa(waid, nome) {
   // reaproveita a ultima conversa do cliente, mesmo resolvida - reabre em vez de criar outra
   const f = await sb('at_conversas?cliente_id=eq.' + cli.id + '&select=id,status&order=ultima_msg_em.desc.nullslast&limit=1');
   if (Array.isArray(f.data) && f.data.length) {
-    const ja = f.data[0];
-    if (ja.status === 'encerrada') {
-      await sb('at_conversas?id=eq.' + ja.id, { method: 'PATCH', body: JSON.stringify({ status: 'aberta' }) });
-    }
-    return ja.id;
+    // Mensagem automática NÃO reabre conversa resolvida nem marca como não lida.
+    // Quem reabre é a cliente, quando ela responde de verdade (whatsapp-webhook).
+    return f.data[0].id;
   }
   const nv = await sb('at_conversas', {
     method: 'POST', headers: { Prefer: 'return=representation' },
-    body: JSON.stringify({ cliente_id: cli.id, canal: 'loja', status: 'aberta', nao_lida: true, ultima_msg_em: new Date().toISOString() })
+    body: JSON.stringify({ cliente_id: cli.id, canal: 'loja', status: 'encerrada', nao_lida: false, ultima_msg_em: new Date().toISOString() })
   });
   const conv = Array.isArray(nv.data) ? nv.data[0] : nv.data;
   return conv && conv.id ? conv.id : null;

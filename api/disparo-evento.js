@@ -84,11 +84,14 @@ async function upsertClienteConversa(waid, nome) {
   });
   const cli = Array.isArray(c.data) ? c.data[0] : c.data;
   if (!cli || !cli.id) return null;
-  const f = await sb('at_conversas?cliente_id=eq.' + cli.id + '&status=neq.encerrada&select=id&order=ultima_msg_em.desc&limit=1');
+  // reaproveita qualquer conversa do cliente, inclusive resolvida - assim o
+  // historico fica num fio so e a automacao nao cria conversa duplicada
+  const f = await sb('at_conversas?cliente_id=eq.' + cli.id + '&select=id&order=ultima_msg_em.desc.nullslast&limit=1');
   if (Array.isArray(f.data) && f.data.length) return f.data[0].id;
+  // nasce ja resolvida e lida: e so aviso automatico, nao e atendimento
   const nv = await sb('at_conversas', {
     method: 'POST', headers: { Prefer: 'return=representation' },
-    body: JSON.stringify({ cliente_id: cli.id, canal: 'loja', status: 'aberta', nao_lida: true, ultima_msg_em: new Date().toISOString() })
+    body: JSON.stringify({ cliente_id: cli.id, canal: 'loja', status: 'encerrada', nao_lida: false, ultima_msg_em: new Date().toISOString() })
   });
   const conv = Array.isArray(nv.data) ? nv.data[0] : nv.data;
   return conv && conv.id ? conv.id : null;
