@@ -7,6 +7,7 @@
 //   &dias=7            (relatorio)
 //   &q=texto           (eventos/leads)
 //   &evento=codigo     (eventos)
+//   &id=123            (aba=evento: o payload cru daquele evento)
 
 const SB  = () => process.env.SUPABASE_URL;
 const KEY = () => process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -81,6 +82,26 @@ function chavesDeLog(gatilhos) {
   const s = new Set();
   gatilhos.forEach(g => { if (g.evento_code) s.add(g.evento_code); if (g.li_codigo) s.add(g.li_codigo); });
   return [...s];
+}
+
+// Achata o payload cru pra virar tabela ("client.address.city" -> "Fortaleza").
+// Igual ao do webhook, mas guardando o valor inteiro (aqui a gente quer ver tudo).
+function achatar(obj, prefixo, saida, nivel) {
+  saida = saida || {}; nivel = nivel || 0;
+  if (obj == null || nivel > 6) return saida;
+  if (Array.isArray(obj)) {
+    if (!obj.length && prefixo) saida[prefixo] = '(lista vazia)';
+    obj.forEach((v, i) => achatar(v, (prefixo ? prefixo + '.' : '') + i, saida, nivel + 1));
+    return saida;
+  }
+  if (typeof obj === 'object') {
+    const ks = Object.keys(obj);
+    if (!ks.length && prefixo) saida[prefixo] = '(vazio)';
+    ks.forEach(k => achatar(obj[k], (prefixo ? prefixo + '.' : '') + k, saida, nivel + 1));
+    return saida;
+  }
+  if (prefixo) saida[prefixo] = String(obj);
+  return saida;
 }
 
 function diaISO(d) { return new Date(d).toISOString().slice(0, 10); }
@@ -205,6 +226,41 @@ export default async function handler(req, res) {
       }
       leads.sort((a, b) => a.visto < b.visto ? 1 : -1);
       return res.status(200).json({ ok: true, total: porTel.size, leads: leads.slice(0, 300) });
+    }
+
+    // ---------- UM EVENTO (o que a loja mandou e o que a suíte fez) ----------
+    if (aba === 'evento') {
+      const id = String(q.id || '').replace(/[^0-9]/g, '');
+      if (!id) return res.status(400).json({ error: 'falta o id' });
+
+      const ev = await sb('loja_eventos?id=eq.' + id + '&loja=eq.' + encodeURIComponent(loja) + '&select=*&limit=1');
+      const e = ev[0];
+      if (!e) return res.status(404).json({ error: 'evento não encontrado' });
+
+      // o que a suíte fez: disparos do mesmo pedido/telefone perto desse horário
+      let disparos = [];
+      const filtros = [];
+      if (e.pedido) filtros.push('pedido=eq.' + encodeURIComponent(e.pedido));
+      else if (e.cliente_telefone) filtros.push('telefone=eq.' + encodeURIComponent(e.cliente_telefone));
+      if (filtros.length) {
+        disparos = await sb('at_disparos_log?' + filtros.join('&') +
+          '&select=evento_key,status,detalhe,template_name,telefone,created_at' +
+          '&order=created_at.desc&limit=20');
+      }
+
+      const campos = e.payload ? achatar(e.payload) : {};
+      return res.status(200).json({
+        ok: true,
+        evento: {
+          id: e.id, codigo: e.evento_codigo, label: e.evento_label,
+          cliente_nome: e.cliente_nome, cliente_telefone: e.cliente_telefone,
+          cliente_email: e.cliente_email, pedido: e.pedido, created_at: e.created_at
+        },
+        reconhecido: !/^desconhecido_/.test(String(e.evento_codigo || '')),
+        gatilho: nomeDoCodigo[e.evento_codigo] || null,
+        campos, payload: e.payload || null,
+        disparos
+      });
     }
 
     return res.status(400).json({ error: 'aba desconhecida' });
