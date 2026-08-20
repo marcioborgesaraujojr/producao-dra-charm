@@ -24,6 +24,28 @@ async function callerEmail(token) {
   } catch (e) { return null; }
 }
 
+// A bolha da conversa mostra quem respondeu. Guardar o e-mail aqui fazia a atendente
+// ver "fulana@gmail.com" em cima de cada mensagem. Aqui a gente troca pelo nome do
+// perfil ANTES de gravar. Sem perfil/nome, arruma o começo do e-mail (ana.paula -> Ana Paula).
+function _capitalizaNome(s) {
+  return String(s || '').split(/[\s._-]+/).filter(Boolean)
+    .map(function (p) { return p.charAt(0).toUpperCase() + p.slice(1); }).join(' ');
+}
+async function nomeDoAtendente(email) {
+  const e = String(email || '').trim();
+  if (!e) return null;
+  try {
+    const r = await fetch(process.env.SUPABASE_URL + '/rest/v1/profiles?select=full_name&email=eq.'
+      + encodeURIComponent(e) + '&limit=1', {
+      headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY, Authorization: 'Bearer ' + process.env.SUPABASE_SERVICE_ROLE_KEY }
+    });
+    const j = await r.json();
+    const nome = Array.isArray(j) && j[0] && j[0].full_name ? String(j[0].full_name).trim() : '';
+    if (nome && nome.indexOf('@') === -1) return nome;
+  } catch (err) { /* nome é enfeite: nunca pode derrubar o envio */ }
+  return _capitalizaNome(e.split('@')[0]) || null;
+}
+
 async function sbInsertMsg(conversaId, midiaUrl, caption, autor) {
   await fetch(process.env.SUPABASE_URL + '/rest/v1/at_mensagens', {
     method: 'POST',
@@ -79,6 +101,6 @@ export default async function handler(req, res) {
   if (!r.ok) {
     return res.status(400).json({ error: (j && j.error && j.error.message) || 'Falha ao enviar a foto', detalhe: j });
   }
-  if (conversaId) { try { await sbInsertMsg(conversaId, midiaUrl, caption, email); } catch (e) {} }
+  if (conversaId) { try { await sbInsertMsg(conversaId, midiaUrl, caption, await nomeDoAtendente(email)); } catch (e) {} }
   return res.status(200).json({ ok: true, id: j && j.messages && j.messages[0] && j.messages[0].id || null });
 }

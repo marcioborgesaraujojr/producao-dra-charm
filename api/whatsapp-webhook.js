@@ -44,11 +44,46 @@ async function sbFetch(path, opts = {}) {
 }
 
 // upsert cliente por whatsapp_id, retorna o registro
+//
+// O WhatsApp manda o número OU COM OU SEM o 9º dígito, para a MESMA pessoa. Antes a
+// gente gravava exatamente como chegou, então nascia um cliente "5575999030660" e outro
+// "557599030660" — mesma cliente, dois cadastros, histórico partido ao meio. Medido em
+// 20/08: 129 pessoas duplicadas em 1.666 clientes.
+//
+// Agora: grava sempre na forma NORMALIZADA (com o 9), e antes de criar procura pelas
+// DUAS formas — assim quem já existe no formato antigo é reaproveitado em vez de virar
+// um cadastro novo.
 async function upsertCliente({ waid, nome, telefone }) {
+  const norm = normalizeWa(waid);
+  const cru  = String(waid || '').replace(/\D/g, '');
+
+  // procura pelos dois formatos (o normalizado e o que chegou)
+  const formas = [...new Set([norm, cru].filter(Boolean))];
+  if (formas.length) {
+    try {
+      const achados = await sbFetch('at_clientes?select=id,nome,whatsapp_id&whatsapp_id=in.('
+        + formas.map(f => '"' + f + '"').join(',') + ')&limit=2');
+      const ja = Array.isArray(achados) ? achados : [];
+      // prefere o que já está normalizado; se só existir o antigo, usa e conserta o número
+      const alvo = ja.find(x => x.whatsapp_id === norm) || ja[0];
+      if (alvo) {
+        const patch = {};
+        if (alvo.whatsapp_id !== norm) { patch.whatsapp_id = norm; patch.telefone = norm; }
+        // nome do perfil só melhora o cadastro se lá estiver o genérico
+        if (nome && (!alvo.nome || alvo.nome === 'Cliente')) patch.nome = nome;
+        if (Object.keys(patch).length) {
+          try { await sbFetch('at_clientes?id=eq.' + alvo.id, { method: 'PATCH', body: JSON.stringify(patch) }); }
+          catch (e) { /* se colidir com outro cadastro, segue com o que já existe */ }
+        }
+        return { ...alvo, ...patch, id: alvo.id };
+      }
+    } catch (e) { /* se a busca falhar, cai no upsert normal abaixo */ }
+  }
+
   const rows = await sbFetch('at_clientes?on_conflict=whatsapp_id', {
     method: 'POST',
     headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
-    body: JSON.stringify({ whatsapp_id: waid, nome: nome || 'Cliente', telefone: telefone || null })
+    body: JSON.stringify({ whatsapp_id: norm || waid, nome: nome || 'Cliente', telefone: norm || telefone || null })
   });
   return Array.isArray(rows) ? rows[0] : rows;
 }

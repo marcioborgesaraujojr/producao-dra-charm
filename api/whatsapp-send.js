@@ -59,6 +59,28 @@ async function callerEmail(token) {
   } catch (e) { return null; }
 }
 
+// A bolha da conversa mostra quem respondeu. Guardar o e-mail aqui fazia a atendente
+// ver "fulana@gmail.com" em cima de cada mensagem. Aqui a gente troca pelo nome do
+// perfil ANTES de gravar. Sem perfil/nome, arruma o começo do e-mail (ana.paula -> Ana Paula).
+function _capitalizaNome(s) {
+  return String(s || '').split(/[\s._-]+/).filter(Boolean)
+    .map(function (p) { return p.charAt(0).toUpperCase() + p.slice(1); }).join(' ');
+}
+async function nomeDoAtendente(email) {
+  const e = String(email || '').trim();
+  if (!e) return null;
+  try {
+    const r = await fetch(process.env.SUPABASE_URL + '/rest/v1/profiles?select=full_name&email=eq.'
+      + encodeURIComponent(e) + '&limit=1', {
+      headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY, Authorization: 'Bearer ' + process.env.SUPABASE_SERVICE_ROLE_KEY }
+    });
+    const j = await r.json();
+    const nome = Array.isArray(j) && j[0] && j[0].full_name ? String(j[0].full_name).trim() : '';
+    if (nome && nome.indexOf('@') === -1) return nome;
+  } catch (err) { /* nome é enfeite: nunca pode derrubar o envio */ }
+  return _capitalizaNome(e.split('@')[0]) || null;
+}
+
 // ESCUDO ANTIBANIMENTOS (fail-open): só BLOQUEIA se a qualidade estiver CONFIRMADAMENTE
 // ruim E o toggle correspondente estiver ligado. Qualquer dúvida/erro/desconhecido -> LIBERA.
 // Assim o envio nunca quebra por causa do escudo; ele só age no caso crítico de verdade.
@@ -121,7 +143,7 @@ export default async function handler(req, res) {
   if (!r.ok) {
     return res.status(400).json({ error: (j && j.error && j.error.message) || 'Falha ao enviar', detalhe: j });
   }
-  if (conversaId) { try { await sbInsertMsg(conversaId, text, email); } catch (e) {} }
+  if (conversaId) { try { await sbInsertMsg(conversaId, text, await nomeDoAtendente(email)); } catch (e) {} }
   // "para" = número normalizado usado no envio; "contatos" = wa_id que a Meta resolveu (útil pra depurar entrega).
   return res.status(200).json({ ok: true, id: j?.messages?.[0]?.id || null, para: toNorm, contatos: j?.contacts || null });
 }
