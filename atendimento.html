@@ -747,13 +747,51 @@ async function selecionar(id){
   const inp=document.getElementById('msgInput'); inp.placeholder=`Mande uma mensagem para ${cv.nome.split(' ')[0]}…`; inp.value=''; updCount(); setNotaUI();
   enrichPedido(cv);
 }
+/* ===== Rolagem do chat =====
+   Por que a tela "pulava um pouquinho pra cima" sozinha:
+   o chat inteiro é reconstruído a cada softReload, e softReload dispara em QUALQUER
+   mudança em at_conversas — inclusive automação mexendo em OUTRA conversa. A cada
+   reconstrução as imagens nascem de novo com altura 0 (loading="lazy") e só crescem
+   quando carregam. A gente rolava pro fim ANTES disso, então quando a imagem chegava
+   o conteúdo crescia embaixo e a última mensagem escapava da vista.
+
+   Três travas:
+   1. não redesenha o que não mudou (mata a maior parte do tremor);
+   2. mensagem nova leva pra ela, mesmo que a atendente estivesse mais acima;
+   3. segura no fim enquanto imagem/áudio/vídeo terminam de carregar.
+*/
+let _chatHtml='', _chatConversa=null, _chatQtd=0;
+let _pinTimer=null, _pinObs=null, _pinLigado=false;
+
+function _pinParar(){
+  clearTimeout(_pinTimer);
+  if(_pinObs){ try{ _pinObs.disconnect(); }catch(e){} _pinObs=null; }
+}
+function _fixarNoFim(chat, suave){
+  _pinParar();
+  const desce = () => { chat.scrollTop = chat.scrollHeight; };
+  if(suave){ try{ chat.scrollTo({ top: chat.scrollHeight, behavior:'smooth' }); }catch(e){ desce(); } }
+  else desce();
+
+  // a pessoa mexendo na roda/dedo manda mais que a gente: cancela o grude na hora
+  if(!_pinLigado){
+    _pinLigado = true;
+    ['wheel','touchmove','keydown'].forEach(ev => chat.addEventListener(ev, _pinParar, {passive:true}));
+  }
+  if(window.ResizeObserver){
+    _pinObs = new ResizeObserver(desce);
+    try{ Array.from(chat.children).forEach(el => _pinObs.observe(el)); }catch(e){}
+  }
+  chat.querySelectorAll('img,video,audio').forEach(el => {
+    el.addEventListener('load', desce, {once:true});
+    el.addEventListener('loadedmetadata', desce, {once:true});
+  });
+  _pinTimer = setTimeout(_pinParar, 2500);   // depois disso o layout já assentou
+}
+
 function renderChat(cv){
   const chat=document.getElementById('chatArea');
-  // Guarda onde a pessoa estava ANTES de redesenhar (o chat inteiro é reconstruído a
-  // cada mensagem nova; sem isso a tela pulava toda vez).
-  const _scrollAntes = chat.scrollTop;
-  const _estavaNoFim = (chat.scrollHeight - chat.scrollTop - chat.clientHeight) < 80;
-  chat.innerHTML=`<div class="flex justify-center"><span class="text-[11px] text-slate-400 bg-slate-100 dark:bg-ink-700 px-3 py-1 rounded-full">Conversa</span></div>`
+  const _html=`<div class="flex justify-center"><span class="text-[11px] text-slate-400 bg-slate-100 dark:bg-ink-700 px-3 py-1 rounded-full">Conversa</span></div>`
    + cv.msgs.map(m=>{
       if(m.t==='sys'){ const s={reabriu:'bg-orange-100 text-orange-700',resolvida:'bg-green-100 text-green-700'}; return `<div class="flex justify-center"><span class="sys-chip ${s[m.k]||'bg-slate-100 text-slate-600'}">${esc(m.txt)}</span></div>`; }
       if(m.t==='nota') return `<div class="flex justify-end"><div class="max-w-[70%] bubble-note rounded-2xl px-4 py-2 shadow-sm" data-fade><div class="text-[10px] font-semibold text-amber-600 mb-0.5">Nota interna${(m.autor && m.autor!=='sistema') ? ' · '+esc(nomeDoAutor(m.autor)) : ''}</div><div class="text-sm whitespace-pre-wrap">${esc(m.txt)}</div><div class="text-[10px] text-amber-500/70 text-right mt-1">${m.hora}</div></div></div>`;
@@ -778,10 +816,29 @@ function renderChat(cv){
       const _vazio=(!_media && !_showTxt)?`<div class="text-sm italic text-slate-400">[mensagem sem conteúdo]</div>`:'';
       return `<div class="flex ${out?'justify-end':'justify-start'}"><div class="max-w-[70%] ${out?'bubble-out':'bubble-in'} rounded-2xl px-4 py-2 shadow-sm">${(out && m.autor && m.autor!=='sistema') ? `<div class="text-[11px] font-bold opacity-70 mb-0.5">${esc(nomeDoAutor(m.autor))}</div>` : ''}${_media}${_showTxt?`<div class="${_cls}">${esc(_txt)}</div>`:''}${_vazio}<div class="text-[10px] text-slate-400 text-right mt-1">${m.hora}${out?' <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:inline-block;vertical-align:-0.15em;flex:none"><path d="m1 13 4 4 8-8"/><path d="m10 13 4 4 9-9"/></svg>':''}</div></div></div>`;
     }).join('');
-  // Só desce sozinho se a pessoa já estava no fim. Se ela subiu pra ler algo antigo,
-  // uma mensagem nova não arranca mais a tela do lugar.
-  if(_estavaNoFim) chat.scrollTop=chat.scrollHeight;
-  else chat.scrollTop=_scrollAntes;
+
+  const trocouConversa = (_chatConversa !== cv.id);
+  // Redesenhar o que está idêntico é o que fazia a imagem recarregar e a tela tremer.
+  if(!trocouConversa && _html === _chatHtml) return;
+
+  const chegouMsg   = !trocouConversa && cv.msgs.length > _chatQtd;
+  const scrollAntes = chat.scrollTop;
+  const estavaNoFim = (chat.scrollHeight - chat.scrollTop - chat.clientHeight) < 120;
+  const longeDoFim  = !estavaNoFim;
+
+  // Solta o grude ANTES de trocar o conteúdo. Sem isso, o ResizeObserver da pintura
+  // anterior via os nós antigos irem a zero ao serem removidos, achava que era imagem
+  // carregando e arrastava a tela pro fim — justamente quando a atendente tinha subido.
+  _pinParar();
+  chat.innerHTML = _html;
+  _chatHtml = _html; _chatConversa = cv.id; _chatQtd = cv.msgs.length;
+
+  // Mensagem nova sempre leva pra ela — foi o pedido: "se eu to com a barra mais acima
+  // e o cliente manda outra msg, é pra descer pra dar pra visualizar". Quando ela estava
+  // lendo algo mais acima, desce deslizando, pra ficar claro que a tela andou.
+  if(trocouConversa || chegouMsg) _fixarNoFim(chat, chegouMsg && longeDoFim);
+  else if(estavaNoFim)            _fixarNoFim(chat, false);
+  else                            chat.scrollTop = scrollAntes;
 }
 function renderProfile(cv){
   const p=document.getElementById('profile'); p.classList.remove('hidden'); const ped=cv.pedido;
