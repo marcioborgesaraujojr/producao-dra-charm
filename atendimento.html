@@ -869,9 +869,14 @@ function _escurecer(hex, p){ const m=/^#?([0-9a-f]{6})$/i.exec(String(hex||''));
   const n=parseInt(m[1],16), f=x=>Math.round(x*(1-p));
   return '#'+[f((n>>16)&255),f((n>>8)&255),f(n&255)].map(x=>x.toString(16).padStart(2,'0')).join(''); }
 
+// '#ff3c6f' é o rosa que o código carimbava em TODA tag criada — ninguém escolheu.
+// Se aceitássemos como cor escolhida, o painel inteiro ficaria de um tom só, que é
+// exatamente o que ele não quer. Então esse valor conta como "sem cor" e a cor sai do nome.
+const COR_PADRAO_ANTIGA = '#ff3c6f';
 function corDeTag(t){
   const nome = typeof t==='string' ? t : String((t&&t.nome)||'');
   let hex    = typeof t==='string' ? null : (t&&t.cor);
+  if(String(hex||'').toLowerCase() === COR_PADRAO_ANTIGA) hex = null;
   if(CORES_TAG[hex]) return CORES_TAG[hex];
   const l = _luz(hex);
   if(l === null) return _corFixaTag(nome);
@@ -1114,7 +1119,7 @@ async function aplicarTagNaConversa(nome){
   try{
     const c=await getSb();
     let { data: tag } = await c.from('at_tags').select('*').eq('nome',nome).maybeSingle();
-    if(!tag){ const r=await c.from('at_tags').insert({nome, cor:'#ff3c6f'}).select().single(); tag=r.data; }
+    if(!tag){ const r=await c.from('at_tags').insert({nome, cor:null}).select().single(); tag=r.data; }
     if(!tag) return;
     if(cv.tags.some(t=>t.id===tag.id)) return;
 

@@ -318,7 +318,10 @@ function renderTags(){
     + '<div class="tb-h" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr) 90px 30px"><div>Etiqueta</div><div>Descrição</div><div>Conversas</div><div></div></div>'
     + lista.map(t => {
         const g = grupoDo(t.nome), v = valorDo(t.nome);
-        const cor = t.cor || fixa(v).tx;
+        // o rosa '#ff3c6f' era carimbado em toda tag criada — ninguem escolheu.
+        // Tratar como cor escolhida deixaria a lista inteira de um tom so.
+        const escolhida = (String(t.cor||'').toLowerCase() === '#ff3c6f') ? null : t.cor;
+        const cor = escolhida || fixa(v).tx;
         const n = USO[t.id] || 0;
         return '<div class="tb-l" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr) 90px 30px;cursor:pointer" onclick="abrirTag(' + JSON.stringify(String(t.id)) + ')">'
           + '<div style="padding:6px 8px">'
@@ -599,7 +602,7 @@ async function moverPara(conversaId, valor){
   const nome = nomeTag(grupo(), valor);
   let alvo = TAGS.find(t => semAcento(t.nome) === semAcento(nome));
   if(!alvo){
-    const { data, error } = await c.from('at_tags').insert({ nome, cor:'#ff3c6f' }).select().single();
+    const { data, error } = await c.from('at_tags').insert({ nome, cor:null }).select().single();
     if(error){ alert('Não consegui criar a etiqueta: ' + error.message); return false; }
     alvo = data; TAGS.push(alvo);
   }
@@ -663,7 +666,7 @@ async function novaFase(){
   const c = await getSb();
   const alvo = nomeTag(grupo(), f);
   if(!TAGS.some(t => semAcento(t.nome) === semAcento(alvo))){
-    const { data } = await c.from('at_tags').insert({ nome: alvo, cor:'#ff3c6f' }).select().single();
+    const { data } = await c.from('at_tags').insert({ nome: alvo, cor:null }).select().single();
     if(data) TAGS.push(data);
   }
   if(await salvarPipe({ fases: fasesDo().concat([f]) })) render();
