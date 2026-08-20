@@ -124,6 +124,51 @@ function motivoErro(m) {
   return String(det || '').replace(/\.$/, '').trim();
 }
 
+/* ===== AVISO DE FALHA DA META =====
+   A Meta manda "statuses" no mesmo webhook: sent, delivered, read e FAILED. A gente só
+   lia "messages" e ignorava isso — então mensagem recusada por ela (janela de 24h fechada,
+   número inválido, template não aprovado) sumia em silêncio, e na tela da atendente ficava
+   o visto duplo de uma mensagem que nunca chegou. Ela seguia a conversa achando que a
+   cliente tinha recebido.
+
+   Agora falha vira nota na conversa E marca como não lida, porque é caso de gente. */
+async function avisarFalhaEnvio(st) {
+  const erro  = (st.errors && st.errors[0]) || {};
+  const motivo = erro.title || (erro.error_data && erro.error_data.details) || erro.message || 'motivo não informado';
+  const wamid = st.id;
+  let conversaId = null;
+
+  // acha a conversa pelo wamid da mensagem que falhou (guardado no envio)
+  if (wamid) {
+    try {
+      const r = await sbFetch('at_mensagens?select=conversa_id&meta->>wamid=eq.' + encodeURIComponent(wamid) + '&limit=1');
+      conversaId = Array.isArray(r) && r[0] ? r[0].conversa_id : null;
+    } catch (e) {}
+  }
+  // sem wamid casado, tenta pelo número de destino
+  if (!conversaId && st.recipient_id) {
+    try {
+      const cli = await sbFetch('at_clientes?select=id&whatsapp_id=eq.' + normalizeWa(st.recipient_id) + '&limit=1');
+      if (Array.isArray(cli) && cli[0]) {
+        const cv = await sbFetch('at_conversas?select=id&cliente_id=eq.' + cli[0].id + '&order=ultima_msg_em.desc.nullslast&limit=1');
+        conversaId = Array.isArray(cv) && cv[0] ? cv[0].id : null;
+      }
+    } catch (e) {}
+  }
+  if (!conversaId) { console.error('falha de envio sem conversa:', wamid, motivo); return; }
+
+  const janeleta = /24|window|re-?engagement/i.test(motivo)
+    ? ' A janela de 24h provavelmente fechou: só dá pra falar com ela por modelo aprovado até ela responder.'
+    : '';
+  try {
+    await sbFetch('at_mensagens', { method: 'POST', body: JSON.stringify({
+      conversa_id: conversaId, direcao: 'in', tipo: 'nota',
+      conteudo: 'ATENÇÃO: o WhatsApp NÃO entregou a última mensagem. Motivo: ' + motivo + '.' + janeleta,
+      autor: 'Sistema', meta: { falha_envio: true, wamid: wamid || null } }) });
+    await sbFetch('at_conversas?id=eq.' + conversaId, { method: 'PATCH', body: JSON.stringify({ nao_lida: true }) });
+  } catch (e) { console.error('gravar falha de envio:', e.message); }
+}
+
 /* ===== REAÇÃO (o joinha, o ✅) =====
    Reação NÃO é mensagem. Ela pertence ao balão que recebeu o emoji.
    Antes o webhook transformava cada reação numa mensagem nova "reagiu ✅": marcava a
@@ -552,6 +597,12 @@ export default async function handler(req, res) {
         if (process.env.WA_PHONE_NUMBER_ID && numeroDestino && numeroDestino !== process.env.WA_PHONE_NUMBER_ID) {
           continue;
         }
+        // Falha de entrega vem em "statuses", não em "messages". Tratada ANTES, porque
+        // uma notificação de status não traz messages e sairia do laço sem fazer nada.
+        for (const st of (value.statuses || [])) {
+          if (st && st.status === 'failed') { try { await avisarFalhaEnvio(st); } catch (e) { console.error('status failed:', e.message); } }
+        }
+
         const messages = value.messages || [];
         const contatoNome = value.contacts?.[0]?.profile?.name || null;
         for (const m of messages) {
