@@ -97,13 +97,23 @@
   </div>
 </header>
 
-<div class="p-4 grid md:grid-cols-2 gap-4 max-w-5xl mx-auto">
+<!-- Barra de abas — padrão .dc-tab da suíte (theme.js). O robô virou várias telas:
+     Treinamento é a que já existia; as outras espelham as páginas do Notificações. -->
+<div class="max-w-5xl mx-auto px-4 pt-4">
+  <div class="dc-tabs" id="abas" style="min-height:41px">
+    <div class="dc-tab" data-aba="treinamento" onclick="irAba('treinamento')">Treinamento</div>
+    <div class="dc-tab" data-aba="configuracoes" onclick="irAba('configuracoes')">Configurações</div>
+    <div class="dc-tab" data-aba="atendimento" onclick="irAba('atendimento')">Atendimento</div>
+    <div class="dc-tab" data-aba="gatilhos" onclick="irAba('gatilhos')">Gatilhos</div>
+    <div class="dc-tab" data-aba="metricas" onclick="irAba('metricas')">Métricas</div>
+    <div class="dc-tab" data-aba="custos" onclick="irAba('custos')">Custos</div>
+  </div>
+</div>
+
+<!-- ============ TREINAMENTO ============ -->
+<div class="p-4 grid md:grid-cols-2 gap-4 max-w-5xl mx-auto" data-painel="treinamento">
   <!-- Config -->
   <div class="space-y-3">
-    <div class="flex items-center gap-3 bin rounded-xl p-3">
-      <div id="swAtivo" class="switch" data-on="0" onclick="toggleAtivo()"></div>
-      <div><div class="text-sm font-semibold">Chatbot ativo</div><div class="text-[11px] text-slate-400">Quando ligado, responde automaticamente (após conectar o WhatsApp).</div></div>
-    </div>
     <div class="grid grid-cols-2 gap-3">
       <div><label>Nome do robô</label><input id="nome" class="fld mt-1" placeholder="Ex.: Aline"></div>
       <div><label>Cargo / função</label><input id="cargo" class="fld mt-1" placeholder="Ex.: Sucesso do cliente"></div>
@@ -121,7 +131,6 @@
       </div>
       <div><label>Saudação</label><input id="saudacao" class="fld mt-1"></div>
     </div>
-    <div><label>Palavras que transferem pra humano (separadas por vírgula)</label><input id="handoff" class="fld mt-1"></div>
     <div><label>Sites em que o robô pode confiar ao mandar link</label><textarea id="sites" rows="2" class="fld mt-1" placeholder="www.dracharm.com.br, dracharm.troque.app.br"></textarea>
       <div class="text-[11px] text-slate-400 mt-1">Um por linha ou separados por vírgula. Link de endereço fora desta lista é apagado da resposta antes de sair.</div>
     </div>
@@ -172,6 +181,182 @@
     <div id="intLista"><div class="text-xs text-slate-400">carregando…</div></div>
   </div>
 </div>
+
+<!-- ============ CONFIGURAÇÕES ============ -->
+<div class="p-4 space-y-4 max-w-5xl mx-auto" data-painel="configuracoes" hidden>
+
+  <div class="bin rounded-xl p-4 flex items-center gap-3">
+    <div id="swAtivo" class="switch" data-on="0" onclick="toggleAtivo()"></div>
+    <div class="mr-auto">
+      <div class="text-sm font-semibold">Chatbot ativo</div>
+      <div class="text-[11px] text-slate-400">Desligado, ele não responde ninguém — nem com gatilho cadastrado.</div>
+    </div>
+    <span id="avisoAtivo" class="text-[11px] font-semibold rounded-full px-2.5 py-1"></span>
+  </div>
+
+  <div class="bin rounded-xl p-4 space-y-3">
+    <div>
+      <div class="text-sm font-semibold">Identificação</div>
+      <div class="text-[11px] text-slate-400">Só pra você se achar aqui dentro. O cliente não vê a descrição.</div>
+    </div>
+    <div><label>Descrição do robô</label><input id="descricao" class="fld mt-1" placeholder="Ex.: Atende dúvidas de pedido e troca fora do horário"></div>
+  </div>
+
+  <div class="bin rounded-xl p-4 space-y-4">
+    <div>
+      <div class="text-sm font-semibold">Como ele conversa</div>
+      <div class="text-[11px] text-slate-400">Estes dois mexem direto na conta: mais contexto e mais respostas = mais token.</div>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-4">
+      <div>
+        <label>Mensagens anteriores que ele lê</label>
+        <input id="contextoMsgs" type="number" min="2" max="40" class="fld mt-1">
+        <div class="text-[11px] text-slate-400 mt-1">Quanto ele lembra da conversa. Menos que 6 ele perde o fio; acima de 20 encarece sem melhorar muito.</div>
+      </div>
+      <div>
+        <label>Respostas por conversa antes de chamar humano</label>
+        <input id="limiteMsgs" type="number" min="0" max="50" class="fld mt-1">
+        <div class="text-[11px] text-slate-400 mt-1"><b>0 = sem limite.</b> Se você puser 6, na 7ª pergunta do cliente ele passa pra fila em vez de insistir.</div>
+      </div>
+    </div>
+
+    <div><label>Palavras que transferem pra humano (separadas por vírgula)</label><input id="handoff" class="fld mt-1">
+      <div class="text-[11px] text-slate-400 mt-1">Atalho barato: bate a palavra, transfere sem nem chamar a IA.</div>
+    </div>
+  </div>
+
+  <div class="bin rounded-xl p-4 space-y-3">
+    <div class="text-sm font-semibold">Comportamento</div>
+    <div class="flex items-start gap-3 py-1">
+      <div id="swLoop" class="switch mt-0.5" data-on="0" onclick="toggleSw('swLoop')"></div>
+      <div><div class="text-sm">Detectar conversa travada</div>
+        <div class="text-[11px] text-slate-400">Cliente repetindo a mesma mensagem três vezes é sinal de que não está sendo entendido (ou tem outro robô do outro lado). Em vez de rodar em círculo, passa pra humano.</div></div>
+    </div>
+    <div class="flex items-start gap-3 py-1">
+      <div id="swLida" class="switch mt-0.5" data-on="0" onclick="toggleSw('swLida')"></div>
+      <div><div class="text-sm">Marcar como lida no WhatsApp do cliente</div>
+        <div class="text-[11px] text-slate-400">O tiquinho azul aparece pra ele assim que o robô lê. Sem isso a mensagem fica "não lida" mesmo já respondida.</div></div>
+    </div>
+  </div>
+
+  <button onclick="salvarConfig(this)" class="w-full text-sm font-semibold px-4 py-2.5 rounded-lg bg-pink-500 hover:bg-pink-600 text-white">Salvar configurações</button>
+</div>
+
+<!-- ============ ATENDIMENTO (timeout) ============ -->
+<div class="p-4 space-y-4 max-w-5xl mx-auto" data-painel="atendimento" hidden>
+  <div class="bin rounded-xl p-4 space-y-4">
+    <div>
+      <div class="text-sm font-semibold">Encerrar por inatividade</div>
+      <div class="text-[11px] text-slate-400">Cliente que some no meio da conversa não pode ficar ocupando a fila como se estivesse esperando resposta.</div>
+    </div>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div>
+        <label>Minutos de silêncio até encerrar</label>
+        <input id="inatividadeMin" type="number" min="0" max="1440" class="fld mt-1">
+        <div class="text-[11px] text-slate-400 mt-1"><b>0 = nunca encerra.</b> No Notificações o padrão é 30.</div>
+      </div>
+      <div>
+        <label>Horas até o robô poder atender de novo</label>
+        <input id="reentradaHoras" type="number" min="0" max="720" class="fld mt-1">
+        <div class="text-[11px] text-slate-400 mt-1"><b>0 = sem espera.</b> Serve pra cliente que acabou de falar com humano não cair de novo no robô.</div>
+      </div>
+    </div>
+    <div>
+      <label>Mensagem de encerramento</label>
+      <textarea id="msgEncerramento" rows="2" class="fld mt-1" placeholder="Ex.: Vou encerrar por aqui, tá bom? Se precisar de mais alguma coisa é só chamar de novo 😊"></textarea>
+      <div class="text-[11px] text-slate-400 mt-1">Deixe vazio pra encerrar calado, sem mandar nada pro cliente.</div>
+    </div>
+  </div>
+
+  <div class="bin rounded-xl p-4">
+    <div class="text-[11px] text-slate-500 leading-relaxed">
+      <b class="text-slate-700 dark:text-slate-200">Como o encerramento funciona aqui:</b> uma rotina roda de 10 em 10 minutos,
+      procura conversa em modo robô parada há mais tempo que o limite, manda a mensagem
+      (se tiver uma) e devolve a conversa pro estado normal. Conversa que já tem atendente
+      não é tocada.
+    </div>
+  </div>
+
+  <button onclick="salvarAtendimento(this)" class="w-full text-sm font-semibold px-4 py-2.5 rounded-lg bg-pink-500 hover:bg-pink-600 text-white">Salvar atendimento</button>
+</div>
+
+<!-- ============ GATILHOS ============ -->
+<div class="p-4 space-y-4 max-w-5xl mx-auto" data-painel="gatilhos" hidden>
+  <div id="gatAviso" class="rounded-xl p-3 text-[12px]"></div>
+
+  <div class="bin rounded-xl p-4 space-y-3">
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="mr-auto">
+        <div class="text-sm font-semibold flex items-center gap-2">Frases que ligam o robô
+          <span id="gatCont" class="text-[11px] font-semibold text-slate-500 bg-slate-100 dark:bg-ink-700 rounded-full px-2 py-0.5">—</span>
+        </div>
+        <div class="text-[11px] text-slate-400">Sem nenhuma frase cadastrada, ele responde todas as conversas.</div>
+      </div>
+      <button onclick="novoGatilho()" class="text-xs font-semibold px-3 py-2 rounded-lg bg-slate-100 dark:bg-ink-700 hover:bg-slate-200">Novo gatilho</button>
+      <button id="btnGat" onclick="salvarGatilhos(this)" class="text-xs font-semibold px-3 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-900">Salvar gatilhos</button>
+    </div>
+    <div id="gatLista"><div class="text-xs text-slate-400">carregando…</div></div>
+  </div>
+
+  <div class="bin rounded-xl p-4">
+    <div class="text-sm font-semibold mb-2">Testar uma frase</div>
+    <div class="flex gap-2">
+      <input id="gatTeste" oninput="testarGatilho()" class="fld flex-1" placeholder="Escreva como o cliente escreveria…">
+    </div>
+    <div id="gatResultado" class="text-[12px] mt-2 text-slate-400">Digite pra ver se o robô entraria nessa conversa.</div>
+  </div>
+</div>
+
+<!-- ============ MÉTRICAS ============ -->
+<div class="p-4 space-y-4 max-w-5xl mx-auto" data-painel="metricas" hidden>
+  <div class="flex flex-wrap items-center gap-2">
+    <div class="text-sm font-semibold mr-auto">Como o robô se saiu</div>
+    <select id="metPeriodo" onchange="carregarMetricas()" class="fld" style="width:auto">
+      <option value="7">Últimos 7 dias</option>
+      <option value="15">Últimos 15 dias</option>
+      <option value="30" selected>Últimos 30 dias</option>
+    </select>
+  </div>
+  <div id="metCards" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+  <div class="bin rounded-xl p-4">
+    <div class="text-sm font-semibold mb-3">Respostas por dia</div>
+    <div id="metGrafico"></div>
+  </div>
+  <div id="metNota" class="text-[11px] text-slate-400"></div>
+</div>
+
+<!-- ============ CUSTOS ============ -->
+<div class="p-4 space-y-4 max-w-5xl mx-auto" data-painel="custos" hidden>
+  <div class="flex flex-wrap items-center gap-2">
+    <div class="mr-auto">
+      <div class="text-sm font-semibold">Quanto o robô está custando</div>
+      <div class="text-[11px] text-slate-400">Medido pelos tokens que a API cobrou de verdade, não por estimativa em cima do número de mensagens.</div>
+    </div>
+    <select id="custoPeriodo" onchange="carregarCustos()" class="fld" style="width:auto">
+      <option value="1">Hoje</option>
+      <option value="7" selected>Últimos 7 dias</option>
+      <option value="30">Últimos 30 dias</option>
+    </select>
+  </div>
+  <div id="custoCards" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+  <div class="bin rounded-xl p-4">
+    <div class="text-sm font-semibold mb-1">Projeção do mês</div>
+    <div id="custoProjecao" class="text-[12px] text-slate-500">—</div>
+  </div>
+  <div class="bin rounded-xl p-4 space-y-2">
+    <div class="text-sm font-semibold">Onde vai o dinheiro</div>
+    <div id="custoDetalhe" class="text-[12px]"></div>
+  </div>
+  <div class="bin rounded-xl p-4">
+    <div class="text-[11px] text-slate-500 leading-relaxed">
+      <b class="text-slate-700 dark:text-slate-200">Saldo não aparece aqui de propósito.</b> A Anthropic não publica o saldo por API —
+      só dentro do Console dela. Este painel mostra o <b>gasto</b>; o <b>saldo</b> e a recarga
+      automática ficam em <span class="font-mono">console.anthropic.com → Settings → Billing</span>.
+      Quando o crédito acaba a API para de responder, e aí toda conversa cai direto pra fila humana.
+    </div>
+  </div>
+</div>
 </div>
 
 <script>
@@ -198,15 +383,105 @@ async function bootstrap(){
   document.getElementById('handoff').value=CFG.handoff_termos||'';
   if(CFG.modelo) document.getElementById('modelo').value=CFG.modelo;
   if(CFG.saudacao){ TESTE=[]; addMsg('bot',CFG.saudacao); }
+
+  // ---- campos das abas novas ----
+  // Se o SQL db/add-chatbot-abas.sql ainda não rodou, estas colunas não existem: cai no
+  // padrão em vez de deixar campo vazio e o usuário salvar zero sem querer.
+  document.getElementById('descricao').value       = CFG.descricao || '';
+  document.getElementById('contextoMsgs').value    = CFG.contexto_msgs   != null ? CFG.contexto_msgs   : 12;
+  document.getElementById('limiteMsgs').value      = CFG.limite_msgs     != null ? CFG.limite_msgs     : 0;
+  document.getElementById('inatividadeMin').value  = CFG.inatividade_min != null ? CFG.inatividade_min : 30;
+  document.getElementById('reentradaHoras').value  = CFG.reentrada_horas != null ? CFG.reentrada_horas : 0;
+  document.getElementById('msgEncerramento').value = CFG.msg_encerramento || '';
+  document.getElementById('swLoop').dataset.on = (CFG.detectar_loop === false) ? 0 : 1;
+  document.getElementById('swLida').dataset.on = (CFG.marcar_lida   === false) ? 0 : 1;
+  pintarAviso();
+
+  irAba(location.hash.slice(1) || 'treinamento', true);
 }
-function toggleAtivo(){ const s=document.getElementById('swAtivo'); s.dataset.on=s.dataset.on==='1'?'0':'1'; }
+
+// Salva só as colunas da aba, sem arrastar junto o que está em outra tela.
+async function salvarParcial(btn, patch, rotulo){
+  const antes = btn.textContent; btn.textContent = 'Salvando…'; btn.disabled = true;
+  try{
+    const { error } = await (await getSb()).from('at_chatbot').update(patch).eq('id', 1);
+    if(error) throw error;
+    CFG = { ...CFG, ...patch };
+    btn.textContent = 'Salvo';
+  }catch(e){
+    // coluna que não existe = SQL das abas ainda não rodou
+    const falta = /column .* does not exist|schema cache/i.test(e.message || '');
+    btn.textContent = falta ? 'Falta rodar o SQL' : 'Erro ao salvar';
+    if(falta) alert('Falta rodar o SQL db/add-chatbot-abas.sql no Supabase — sem ele estas colunas não existem ainda.');
+    else console.warn(rotulo, e);
+  }finally{
+    btn.disabled = false; setTimeout(() => btn.textContent = antes, 1800);
+  }
+}
+
+function salvarConfig(btn){
+  return salvarParcial(btn, {
+    ativo:         ligado('swAtivo'),
+    descricao:     document.getElementById('descricao').value || null,
+    contexto_msgs: Math.min(Math.max(num('contextoMsgs', 12), 2), 40),
+    limite_msgs:   Math.max(num('limiteMsgs', 0), 0),
+    handoff_termos: document.getElementById('handoff').value,
+    detectar_loop: ligado('swLoop'),
+    marcar_lida:   ligado('swLida'),
+    updated_at:    new Date().toISOString()
+  }, 'config');
+}
+
+function salvarAtendimento(btn){
+  return salvarParcial(btn, {
+    inatividade_min:  Math.max(num('inatividadeMin', 30), 0),
+    reentrada_horas:  Math.max(num('reentradaHoras', 0), 0),
+    msg_encerramento: document.getElementById('msgEncerramento').value || null,
+    updated_at:       new Date().toISOString()
+  }, 'atendimento');
+}
+function toggleSw(id){ const s=document.getElementById(id); s.dataset.on = s.dataset.on==='1' ? '0' : '1'; }
+function ligado(id){ return document.getElementById(id).dataset.on === '1'; }
+function toggleAtivo(){ toggleSw('swAtivo'); pintarAviso(); }
+function num(id, padrao){ const v = parseInt(document.getElementById(id).value, 10); return Number.isFinite(v) ? v : padrao; }
+
+function pintarAviso(){
+  const el = document.getElementById('avisoAtivo'); if(!el) return;
+  const on = ligado('swAtivo');
+  el.textContent = on ? 'respondendo clientes' : 'desligado';
+  el.className = 'text-[11px] font-semibold rounded-full px-2.5 py-1 '
+    + (on ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500 dark:bg-ink-700 dark:text-slate-400');
+}
+
+/* ===== Abas =====
+   Uma página só, seis telas, endereço no #. Igual a automacoes.html — quem manda o
+   link chatbot.html#custos cai direto na tela certa. */
+const ABAS = ['treinamento','configuracoes','atendimento','gatilhos','metricas','custos'];
+let ABA = 'treinamento';
+
+function irAba(nome, semHash){
+  if(ABAS.indexOf(nome) < 0) nome = 'treinamento';
+  ABA = nome;
+  document.querySelectorAll('[data-aba]').forEach(t => {
+    if(t.dataset.aba === nome) t.setAttribute('data-on','1'); else t.removeAttribute('data-on');
+  });
+  document.querySelectorAll('[data-painel]').forEach(p => { p.hidden = (p.dataset.painel !== nome); });
+  if(!semHash && location.hash.slice(1) !== nome) location.hash = nome;
+  if(nome === 'gatilhos')  carregarGatilhos();
+  if(nome === 'metricas')  carregarMetricas();
+  if(nome === 'custos')    carregarCustos();
+}
+window.addEventListener('hashchange', () => irAba(location.hash.slice(1), true));
 async function salvar(){
   const btn=document.getElementById('btnSalvar'); btn.textContent='Salvando…'; btn.disabled=true;
-  const patch={ sites_permitidos:(document.getElementById('sites')||{}).value||null, ativo:document.getElementById('swAtivo').dataset.on==='1', nome:document.getElementById('nome').value,
+  // Só o que é da aba Treinamento. "Ativo" e as palavras de transferência agora moram
+  // em Configurações — se fossem salvos aqui também, uma tela desfaria a outra.
+  const patch={ sites_permitidos:(document.getElementById('sites')||{}).value||null,
+    nome:document.getElementById('nome').value,
     cargo:document.getElementById('cargo').value,
     persona:document.getElementById('persona').value, base_conhecimento:document.getElementById('base').value,
     modelo:document.getElementById('modelo').value, saudacao:document.getElementById('saudacao').value,
-    handoff_termos:document.getElementById('handoff').value, updated_at:new Date().toISOString() };
+    updated_at:new Date().toISOString() };
   try{ await (await getSb()).from('at_chatbot').update(patch).eq('id',1); CFG={...CFG,...patch}; btn.textContent='Salvo'; }
   catch(e){ btn.textContent='Erro ao salvar'; }
   finally{ btn.disabled=false; setTimeout(()=>btn.textContent='Salvar configuração',1500); }
@@ -306,6 +581,106 @@ function renderInts(){
   ajustar(el);
 }
 
+/* ===== Gatilhos =====
+   Frase que faz o robô ENTRAR na conversa. Nenhuma frase ativa = ele responde tudo.
+   A checagem de verdade é no whatsapp-webhook.js; aqui é só cadastro + um testador,
+   porque "será que essa frase pega?" é a dúvida que dá vontade de testar no cliente. */
+let GATS = [];
+
+async function carregarGatilhos(){
+  const el = document.getElementById('gatLista');
+  const { data, error } = await (await getSb()).from('at_chatbot_gatilhos').select('*').order('ordem').order('id');
+  if(error){
+    el.innerHTML = '<div class="text-xs text-amber-600">Falta rodar o SQL <b>db/add-chatbot-abas.sql</b> no Supabase para usar esta aba.</div>';
+    document.getElementById('gatAviso').innerHTML = '';
+    return;
+  }
+  GATS = data || [];
+  renderGatilhos();
+}
+
+function renderGatilhos(){
+  const el = document.getElementById('gatLista');
+  const ativos = GATS.filter(g => g.ativo && String(g.texto || '').trim()).length;
+  document.getElementById('gatCont').textContent = GATS.length + (GATS.length === 1 ? ' gatilho' : ' gatilhos');
+
+  const aviso = document.getElementById('gatAviso');
+  aviso.className = 'rounded-xl p-3 text-[12px] ' + (ativos
+    ? 'bg-info-50 text-info-700 dark:bg-ink-800 dark:text-info-500'
+    : 'bg-warning-50 text-warning-700 dark:bg-ink-800');
+  aviso.innerHTML = ativos
+    ? 'Com ' + ativos + (ativos === 1 ? ' gatilho ativo' : ' gatilhos ativos') + ', o robô <b>só entra</b> quando o cliente escrever uma dessas frases. Todo o resto vai direto pra fila humana.'
+    : 'Nenhum gatilho ativo: <b>o robô responde todas as conversas</b> enquanto estiver ligado.';
+
+  if(!GATS.length){ el.innerHTML = '<div class="text-xs text-slate-400">Nenhum gatilho. Clique em "Novo gatilho" — ou deixe assim pra ele responder tudo.</div>'; return; }
+
+  const tipos = [['contem','contém'],['comeca','começa com'],['igual','é exatamente']];
+  el.innerHTML = '<div class="tb">'
+    + '<div class="tb-h" style="grid-template-columns:130px minmax(0,1fr) 74px 30px"><div>Quando a mensagem</div><div>Frase</div><div>Ativo</div><div></div></div>'
+    + GATS.map((g,i) => '<div class="tb-l" style="grid-template-columns:130px minmax(0,1fr) 74px 30px">'
+        + '<select class="cel" style="border-color:#e2e8f0" onchange="GATS['+i+'].tipo=this.value;GATS['+i+']._sujo=1;sujo(\'btnGat\')">'
+        +   tipos.map(t => '<option value="'+t[0]+'"'+(g.tipo===t[0]?' selected':'')+'>'+t[1]+'</option>').join('')
+        + '</select>'
+        + cel(g.texto, 'Ex.: quero trocar', "GATS["+i+"].texto=this.value;GATS["+i+"]._sujo=1;sujo('btnGat');testarGatilho()")
+        + '<div class="'+(g.ativo?'':'opacity-50')+'" style="padding-top:6px"><div class="switch" data-on="'+(g.ativo?1:0)+'" '
+        +   'onclick="GATS['+i+'].ativo=!GATS['+i+'].ativo;GATS['+i+']._sujo=1;sujo(\'btnGat\');renderGatilhos();testarGatilho()"></div></div>'
+        + xis('apagarGatilho('+g.id+')')
+      + '</div>').join('')
+    + '</div>';
+  ajustar(el);
+}
+
+async function novoGatilho(){
+  const c = await getSb();
+  const { data, error } = await c.from('at_chatbot_gatilhos').insert({ texto:'', tipo:'contem', ordem:GATS.length }).select().single();
+  if(error) return alert('Não deu: ' + error.message);
+  GATS.push(data); renderGatilhos();
+  const campos = document.querySelectorAll('#gatLista .tb-l .cel');
+  if(campos.length) campos[campos.length - 1].focus();
+}
+async function apagarGatilho(id){
+  if(!confirm('Apagar este gatilho?')) return;
+  await (await getSb()).from('at_chatbot_gatilhos').delete().eq('id', id);
+  GATS = GATS.filter(x => x.id !== id); renderGatilhos(); testarGatilho();
+}
+async function salvarGatilhos(btn){
+  const c = await getSb(); const antes = 'Salvar gatilhos';
+  const mexidos = GATS.filter(x => x._sujo);
+  if(!mexidos.length){ btn.textContent='Nada mudou'; setTimeout(()=>btn.textContent=antes,1200); return; }
+  btn.textContent = 'Salvando…';
+  for(const g of mexidos){
+    await c.from('at_chatbot_gatilhos').update({ texto:g.texto, tipo:g.tipo, ativo:g.ativo }).eq('id', g.id);
+    delete g._sujo;
+  }
+  limpo('btnGat');
+  btn.textContent = mexidos.length === 1 ? '1 salvo' : mexidos.length + ' salvos';
+  setTimeout(() => btn.textContent = antes, 1500);
+}
+
+// A MESMA regra que roda no servidor. Se mudar aqui, mudar no whatsapp-webhook.js.
+function baterGatilho(texto, gatilhos){
+  const ativos = (gatilhos || []).filter(g => g.ativo && String(g.texto || '').trim());
+  if(!ativos.length) return { entra:true, motivo:'sem gatilho — responde tudo' };
+  const t = semAcento(texto);
+  for(const g of ativos){
+    const f = semAcento(g.texto);
+    const bate = g.tipo === 'igual' ? t.trim() === f.trim()
+               : g.tipo === 'comeca' ? t.trim().startsWith(f.trim())
+               : t.includes(f);
+    if(bate) return { entra:true, motivo:'bateu com "' + g.texto + '"' };
+  }
+  return { entra:false, motivo:'não bate com nenhum gatilho' };
+}
+
+function testarGatilho(){
+  const txt = (document.getElementById('gatTeste') || {}).value || '';
+  const el = document.getElementById('gatResultado'); if(!el) return;
+  if(!txt.trim()){ el.className='text-[12px] mt-2 text-slate-400'; el.textContent='Digite pra ver se o robô entraria nessa conversa.'; return; }
+  const r = baterGatilho(txt, GATS);
+  el.className = 'text-[12px] mt-2 font-semibold ' + (r.entra ? 'text-emerald-600' : 'text-slate-500');
+  el.textContent = (r.entra ? 'O robô responde — ' : 'O robô fica quieto, vai pra fila humana — ') + r.motivo;
+}
+
 // Marca o botão de salvar quando tem coisa não salva — pra ninguém sair da tela sem salvar.
 function sujo(id){
   const b = document.getElementById(id); if(!b) return;
@@ -370,6 +745,117 @@ async function salvarInts(btn){
   limpo('btnInt');
   btn.textContent = mexidas.length === 1 ? '1 salva' : mexidas.length + ' salvas';
   setTimeout(()=>btn.textContent=antes, 1500);
+}
+
+/* ===== Métricas e Custos =====
+   Os dois números vêm da /api/chatbot-metricas (service role + contagem exata).
+   Ver o comentário lá em cima do arquivo: ler daqui do navegador devolveria vazio. */
+const BRL = 5.4;                       // dólar aproximado só pra dar noção; o preço da API é em USD
+const dinheiro = (usd) => 'US$ ' + usd.toFixed(2) + ' (~R$ ' + (usd * BRL).toFixed(2) + ')';
+const pct = (x) => (x * 100).toFixed(0) + '%';
+const milhar = (n) => (n || 0).toLocaleString('pt-BR');
+
+function cartao(rotulo, valor, rodape, cor){
+  return '<div class="bin rounded-xl p-3">'
+    + '<div class="text-[11px] text-slate-400">' + rotulo + '</div>'
+    + '<div class="text-xl font-bold mt-0.5 ' + (cor || '') + '">' + valor + '</div>'
+    + (rodape ? '<div class="text-[11px] text-slate-400 mt-0.5">' + rodape + '</div>' : '')
+    + '</div>';
+}
+function vazio(msg){
+  return '<div class="bin rounded-xl p-6 text-center text-sm text-slate-400" style="grid-column:1/-1">' + msg + '</div>';
+}
+async function buscarNumeros(dias, o){
+  const r = await fetch('/api/chatbot-metricas?dias=' + dias + (o ? '&o=' + o : ''),
+    { headers: { Authorization: 'Bearer ' + window._token } });
+  const j = await r.json();
+  if(!r.ok) throw new Error(j.error || 'erro');
+  return j;
+}
+
+async function carregarMetricas(){
+  const cards = document.getElementById('metCards');
+  cards.innerHTML = vazio('carregando…');
+  document.getElementById('metGrafico').innerHTML = '';
+  try{
+    const d = await buscarNumeros(document.getElementById('metPeriodo').value);
+    if(d.semDados){
+      cards.innerHTML = vazio('O robô ainda não respondeu ninguém neste período. Os números aparecem sozinhos depois que ele começar a atender.');
+      document.getElementById('metNota').textContent = '';
+      return;
+    }
+    cards.innerHTML =
+        cartao('Conversas que o robô pegou', milhar(d.conversas),
+               d.conversasNoPeriodo ? pct(d.fatia) + ' de todas as conversas do período' : '')
+      + cartao('Resolvidas sem humano', milhar(d.resolvidasSozinho),
+               d.conversas ? pct(1 - d.taxaTransferencia) + ' das que ele pegou' : '', 'text-emerald-600')
+      + cartao('Passadas pra atendente', milhar(d.transferidas), pct(d.taxaTransferencia) + ' das que ele pegou')
+      + cartao('Respostas por conversa', d.respostasPorConversa.toFixed(1),
+               d.duracaoMediaMin ? 'segurou ~' + d.duracaoMediaMin + ' min em média' : '');
+
+    const max = Math.max(1, ...d.porDia.map(x => x.respostas));
+    document.getElementById('metGrafico').innerHTML =
+      '<div style="display:flex;align-items:flex-end;gap:3px;height:120px">'
+      + d.porDia.map(x => '<div title="' + x.dia + ': ' + x.respostas + ' respostas, ' + x.transferencias + ' transferências" '
+          + 'style="flex:1;min-width:4px;display:flex;flex-direction:column;justify-content:flex-end;gap:1px">'
+          + '<div style="background:#ff3c6f;border-radius:3px 3px 0 0;height:' + Math.round((x.respostas / max) * 96) + 'px"></div>'
+          + (x.transferencias ? '<div style="background:#94a3b8;height:' + Math.round((x.transferencias / max) * 96) + 'px"></div>' : '')
+        + '</div>').join('')
+      + '</div>'
+      + '<div class="flex items-center gap-4 mt-2 text-[11px] text-slate-400">'
+      +   '<span><span style="display:inline-block;width:9px;height:9px;background:#ff3c6f;border-radius:2px"></span> respostas do robô</span>'
+      +   '<span><span style="display:inline-block;width:9px;height:9px;background:#94a3b8;border-radius:2px"></span> passou pra humano</span>'
+      + '</div>';
+
+    document.getElementById('metNota').textContent =
+      'Período de ' + d.periodo.de + ' a ' + d.periodo.ate + '.'
+      + (d.erros ? ' ' + d.erros + ' resposta(s) falharam — veja a aba Custos.' : '');
+  }catch(e){
+    cards.innerHTML = vazio('Não consegui carregar: ' + e.message);
+  }
+}
+
+async function carregarCustos(){
+  const cards = document.getElementById('custoCards');
+  cards.innerHTML = vazio('carregando…');
+  document.getElementById('custoDetalhe').innerHTML = '';
+  document.getElementById('custoProjecao').textContent = '—';
+  try{
+    const d = await buscarNumeros(document.getElementById('custoPeriodo').value, 'custos');
+    if(d.semDados){
+      cards.innerHTML = vazio('Nenhuma resposta do robô neste período — então nada foi gasto. O painel enche sozinho conforme ele atende.');
+      return;
+    }
+    cards.innerHTML =
+        cartao('Gasto no período', dinheiro(d.custoTotal), d.respostas + ' respostas')
+      + cartao('Por resposta', dinheiro(d.custoPorResposta), 'média')
+      + cartao('Por dia', dinheiro(d.mediaDiaria), 'média do período')
+      + cartao('Economia do cache', dinheiro(d.economiaCache),
+               'o que custaria sem cache de prompt', 'text-emerald-600');
+
+    document.getElementById('custoProjecao').innerHTML =
+      'Mantendo este ritmo, o mês fecha em <b>' + dinheiro(d.projecaoMes) + '</b>. '
+      + '<span class="text-slate-400">Média diária × 30. Se o volume mudar, a projeção muda junto.</span>';
+
+    const t = d.tokens;
+    document.getElementById('custoDetalhe').innerHTML =
+      '<div class="tb"><div class="tb-h" style="grid-template-columns:minmax(0,1fr) 110px 110px"><div>Modelo</div><div>Respostas</div><div>Custo</div></div>'
+      + d.porModelo.map(m => '<div class="tb-l" style="grid-template-columns:minmax(0,1fr) 110px 110px">'
+          + '<div style="padding:6px 8px;font-size:13px">' + esc(m.modelo) + '</div>'
+          + '<div style="padding:6px 8px;font-size:13px">' + milhar(m.respostas) + '</div>'
+          + '<div style="padding:6px 8px;font-size:13px">' + dinheiro(m.custo) + '</div>'
+        + '</div>').join('')
+      + '</div>'
+      + '<div class="text-[11px] text-slate-400 mt-3 leading-relaxed">'
+      +   'Tokens: <b>' + milhar(t.entrada) + '</b> de entrada, <b>' + milhar(t.saida) + '</b> de saída, '
+      +   '<b>' + milhar(t.cacheLido) + '</b> lidos do cache (custam 10% da entrada) e '
+      +   '<b>' + milhar(t.cacheGravado) + '</b> gravados nele. '
+      +   (d.erros ? d.erros + ' chamada(s) falharam — falha não é cobrada. ' : '')
+      +   'Conversão pelo dólar a R$ ' + BRL.toFixed(2) + ', só pra dar noção; a cobrança é em dólar.'
+      + '</div>';
+  }catch(e){
+    cards.innerHTML = vazio('Não consegui carregar: ' + e.message);
+  }
 }
 
 bootstrap();
