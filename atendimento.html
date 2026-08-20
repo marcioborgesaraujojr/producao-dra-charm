@@ -558,7 +558,18 @@ function renderList(){
   atualizarTitulo();
   const q=(document.getElementById('search').value||'').toLowerCase();
   const arr=CONVERSAS.filter(filtroTab).filter(cv=>!q||cv.nome.toLowerCase().includes(q)||(cv.tel||'').includes(q)||(cv.email||'').toLowerCase().includes(q)||(cv.pedidoNumero||'').includes(q));
-  if(SORT==='naolidas') arr.sort((a,b)=>(b.naoLida?1:0)-(a.naoLida?1:0));
+  /* ===== Ordem da lista =====
+     ANTES: no modo "mais recentes" não ordenava NADA — ficava a ordem em que as
+     conversas caíram no array, que o realtime embaralha ao longo do dia. E o modo
+     "não lidas primeiro" jogava as não lidas pra cima sem garantir a ordem de tempo
+     dentro de cada grupo.
+
+     AGORA: a lista é SEMPRE da mais recente pra mais antiga — isso é o mínimo de uma
+     lista de conversa. O botão só decide se as não lidas sobem pro topo, e mesmo lá
+     em cima elas continuam em ordem de tempo. */
+  const quando = cv => new Date(cv.ultimaMsgEm || 0).getTime() || 0;
+  arr.sort((a,b) => quando(b) - quando(a));
+  if(SORT==='naolidas') arr.sort((a,b)=>(b.naoLida?1:0)-(a.naoLida?1:0));   // sort estável: mantém o tempo dentro do grupo
   document.getElementById('badgeMinhas').textContent=CONVERSAS.filter(cv=>cv.status!=='encerrada').length;
   document.getElementById('badgeNaoLidas').textContent=CONVERSAS.filter(cv=>cv.naoLida).length;
   document.getElementById('badgePendentes').textContent=CONVERSAS.filter(cv=>cv.status==='pendente').length;
@@ -843,7 +854,20 @@ function setNotaUI(){ const on=NOTA; document.getElementById('notaBanner').class
 function fmt(ch){ const inp=document.getElementById('msgInput'); const s=inp.selectionStart,e=inp.selectionEnd,v=inp.value; if(s===e)return; inp.value=v.slice(0,s)+ch+v.slice(s,e)+ch+v.slice(e); updCount(); inp.focus(); }
 function updCount(){ document.getElementById('charCount').textContent=`${document.getElementById('msgInput').value.length} / 2.000`; }
 function setTab(t){ TAB=t; document.querySelectorAll('.conv-tab').forEach(el=>el.dataset.active=el.dataset.tab===t?'1':'0'); renderList(); }
-function toggleSort(){ SORT = SORT==='recentes'?'naolidas':'recentes'; const b=document.getElementById('btnSort'); b.title = SORT==='naolidas'?'Ordem: não lidas primeiro':'Ordem: mais recentes'; b.classList.toggle('text-pink-600', SORT==='naolidas'); renderList(); }
+function toggleSort(){
+  SORT = SORT==='recentes'?'naolidas':'recentes';
+  localStorage.at_sort = SORT;                       // a escolha da atendente não some ao recarregar
+  aplicarSort(); renderList();
+}
+function aplicarSort(){
+  const b=document.getElementById('btnSort'); if(!b) return;
+  b.title = SORT==='naolidas'
+    ? 'Não lidas no topo (dentro do grupo, sempre da mais recente pra mais antiga). Clique para voltar.'
+    : 'Da mais recente para a mais antiga. Clique para subir as não lidas.';
+  b.classList.toggle('text-pink-600', SORT==='naolidas');
+}
+try{ if(localStorage.at_sort==='naolidas' || localStorage.at_sort==='recentes') SORT = localStorage.at_sort; }catch(e){}
+document.addEventListener('DOMContentLoaded', aplicarSort);
 function rastrear(){ const cv=cur(); if(!cv||!cv.pedidoNumero) return; const url='/rastreio.html?pedido='+encodeURIComponent(cv.pedidoNumero)+'&doc='+encodeURIComponent(cv.email||'')+'&preview=1'; window.open(url,'_blank'); }
 function toggleDark(){ document.documentElement.classList.toggle('dark'); }
 function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[x])); }

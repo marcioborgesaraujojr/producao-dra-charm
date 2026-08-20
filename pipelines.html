@@ -19,9 +19,12 @@
   .scrollx{overflow-x:auto;scrollbar-width:thin}
 
   /* ===== Quadro ===== */
-  .col{width:272px;flex:0 0 272px;background:#f1f5f9;border-radius:14px;display:flex;flex-direction:column;
-       max-height:calc(100vh - 210px)}
-  .dark .col{background:#111827}
+  /* Coluna BRANCA sobre o fundo cinza da página. Já foi cinza igual ao fundo e as
+     colunas sumiam: dava a impressão de um monte de card solto flutuando, sem raia. */
+  .col{width:272px;flex:0 0 272px;background:#fff;border:1px solid #eef2f7;border-radius:14px;
+       display:flex;flex-direction:column;min-height:150px;max-height:calc(100vh - 210px);
+       box-shadow:0 1px 3px rgba(15,23,42,.06)}
+  .dark .col{background:#1f2937;border-color:#334155;box-shadow:none}
   .col[data-recolhida="1"]{width:52px;flex:0 0 52px}
   .col[data-recolhida="1"] .corpo,.col[data-recolhida="1"] .titulo{display:none}
   /* coluna recolhida: o nome deitado, igual ao Notificacoes */
@@ -32,9 +35,9 @@
   .corpo::-webkit-scrollbar{width:6px}.corpo::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:6px}
 
   /* card */
-  .card{background:#fff;border:1px solid #eef2f7;border-radius:10px;padding:9px;cursor:grab;
-        box-shadow:0 1px 2px rgba(15,23,42,.05);transition:box-shadow .12s,transform .12s}
-  .dark .card{background:#1f2937;border-color:#334155}
+  .card{background:#f8fafc;border:1px solid #eef2f7;border-radius:10px;padding:9px;cursor:grab;
+        transition:box-shadow .12s,background .12s}
+  .dark .card{background:#111827;border-color:#334155}
   .card:hover{box-shadow:0 3px 10px rgba(15,23,42,.10)}
   .card[data-arrastando="1"]{opacity:.4;cursor:grabbing}
   /* alvo de soltura: a coluna inteira acende, senao ninguem acha onde soltar */
