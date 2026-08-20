@@ -41,7 +41,7 @@
   .dark .pres-pill{background:#1f2937}
   .pres-ini{width:18px;height:18px;border-radius:999px;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none}
   .pres-dots{display:inline-flex;gap:2px;align-items:center}
-  .pres-dots i{width:4px;height:4px;border-radius:999px;background:#94a3b8;display:block;animation:presDot 1.2s infinite ease-in-out}
+  .pres-dots i{width:4px;height:4px;border-radius:999px;background:var(--pt,#94a3b8);display:block;animation:presDot 1.2s infinite ease-in-out}
   .pres-dots i:nth-child(2){animation-delay:.18s}
   .pres-dots i:nth-child(3){animation-delay:.36s}
   @keyframes presDot{0%,60%,100%{opacity:.25;transform:translateY(0)}30%{opacity:1;transform:translateY(-2px)}}
@@ -303,7 +303,7 @@ async function loadConversas(){
     const j=cv.janela_expira_em?new Date(cv.janela_expira_em)-Date.now():0;
     return { id:cv.id, nome:cli.nome||'Cliente', inicial:(cli.nome||'C')[0].toUpperCase(), cor:corFixa(cli.id||cv.id),
       clienteId:cli.id||null, foto:cli.foto_url||'',
-      canal:cv.canal==='whatsapp_oficial'?'API Oficial':(cv.canal||'—'), status:cv.status, naoLida:cv.nao_lida, minha:true, modo:cv.modo||null,
+      canal:cv.canal==='whatsapp_oficial'?'API Oficial':(cv.canal||'—'), status:cv.status, naoLida:cv.nao_lida, minha:true, modo:cv.modo||null, botDigitandoEm:cv.bot_digitando_em||null,
       janela:cv.status==='encerrada'?'—':(j<=0?'fechada':`${Math.floor(j/3600000)}h${String(Math.floor(j%3600000/60000)).padStart(2,'0')}min`),
       janelaMs:j,
       tel:cli.telefone||'', email:cli.email||'', waid:cli.whatsapp_id||'',
@@ -422,8 +422,14 @@ function corDoNome(nome){
 // Vira cinza assim que alguém humano assume (at_conversas.modo = 'humano').
 function botHtml(cv){
   if(!cv || cv.modo !== 'bot') return '';
-  return '<span title="Chatbot IA está respondendo" class="inline-flex items-center gap-1 pres-pill" style="background:#ecfdf5">'
-       + '<span class="pres-bot-dot"></span>'
+  // Digitando DE VERDADE: o webhook carimba bot_digitando_em antes de chamar a IA e
+  // limpa quando a resposta sai. Sem essa marca o ícone ficava sempre igual e não dava
+  // pra saber se o robô estava pensando ou se a conversa só tinha sido dele mais cedo.
+  // 40s de validade porque a chamada leva segundos — se estourar, é porque falhou.
+  const pensando = cv.botDigitandoEm && (Date.now() - new Date(cv.botDigitandoEm).getTime()) < 40000;
+  return '<span title="' + (pensando ? 'O robô está escrevendo' : 'O robô está cuidando desta conversa')
+       + '" class="inline-flex items-center gap-1 pres-pill" style="background:#ecfdf5">'
+       + (pensando ? '<span class="pres-dots" style="--pt:#047857"><i></i><i></i><i></i></span>' : '<span class="pres-bot-dot"></span>')
        + '<svg viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px">'
        + '<rect x="3" y="8" width="18" height="12" rx="2"/><path d="M12 8V4M8 2h8"/><circle cx="9" cy="14" r="1"/><circle cx="15" cy="14" r="1"/></svg></span>';
 }
@@ -566,11 +572,14 @@ function renderList(){
         ${statusBadge(cv)}
       </div>
       <div class="min-w-0 flex-1">
-        <div class="flex items-center justify-between gap-2"><div class="truncate text-sm font-semibold">${esc(cv.nome)}${cv.atendenteNome?' <span class="text-slate-400 font-normal">· '+esc(cv.atendenteNome)+'</span>':''}</div><div class="flex items-center gap-1 shrink-0 text-[11px] text-slate-400">${botHtml(cv)}${presencaHtml(cv.id)}<span>${relTime(cv.ultimaMsgEm)}</span><button onclick="event.stopPropagation();convMenu(event,'${cv.id}')" class="conv-dots hover:text-slate-600 dark:hover:text-slate-200 leading-none text-base px-1 -mr-1" title="Opções">⋯</button></div></div>
+        <div class="flex items-center justify-between gap-2"><div class="truncate text-sm font-semibold">${esc(cv.nome)}${cv.atendenteNome?' <span class="text-slate-400 font-normal">· '+esc(cv.atendenteNome)+'</span>':''}</div><div class="flex items-center gap-1 shrink-0 text-[11px] text-slate-400"><span>${relTime(cv.ultimaMsgEm)}</span><button onclick="event.stopPropagation();convMenu(event,'${cv.id}')" class="conv-dots hover:text-slate-600 dark:hover:text-slate-200 leading-none text-base px-1 -mr-1" title="Opções">⋯</button></div></div>
         <div class="truncate text-[13px] ${cv.naoLida?'font-semibold text-slate-700 dark:text-slate-200':'text-slate-500 dark:text-slate-400'}">${esc(cv.preview)}</div>
+        <!-- Quem está na conversa (robô ou colega) fica AQUI EMBAIXO, alinhado com o ⋯.
+             Em cima disputava espaço com o nome e a hora: nome comprido cortava o
+             indicador justo quando ele era mais útil. -->
         <div class="mt-1 flex items-center gap-1 text-[11px] text-slate-400">
           <svg class="w-3.5 h-3.5 text-green-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15l-1.4 5 5.1-1.3A10 10 0 1 0 12 2z"/></svg>${esc(cv.canal)}
-          ${cv.naoLida?'<span class="ml-auto w-2 h-2 rounded-full bg-pink-500"></span>':''}
+          <span class="ml-auto flex items-center gap-1">${botHtml(cv)}${presencaHtml(cv.id)}${cv.naoLida?'<span class="w-2 h-2 rounded-full bg-pink-500"></span>':''}</span>
         </div>
       </div>
     </div>`).join('');

@@ -16,8 +16,41 @@
   .fld{padding:8px 10px;font-size:14px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0;outline:none}
   .fld:focus{border-color:#ff3c6f}.dark .fld{background:#1f2937;border-color:#374151;color:#e5e7eb}
   .bin{background:#fff;border:1px solid #eef2f7}.dark .bin{background:#1f2937;border-color:#334155}
-  .col{width:260px;flex:0 0 260px;background:#f1f5f9;border-radius:12px}.dark .col{background:#111827}
   .scrollx{overflow-x:auto;scrollbar-width:thin}
+
+  /* ===== Quadro ===== */
+  .col{width:272px;flex:0 0 272px;background:#f1f5f9;border-radius:14px;display:flex;flex-direction:column;
+       max-height:calc(100vh - 210px)}
+  .dark .col{background:#111827}
+  .col[data-recolhida="1"]{width:52px;flex:0 0 52px}
+  .col[data-recolhida="1"] .corpo,.col[data-recolhida="1"] .titulo{display:none}
+  /* coluna recolhida: o nome deitado, igual ao Notificacoes */
+  .col[data-recolhida="1"] .deitado{display:flex}
+  .deitado{display:none;writing-mode:vertical-rl;transform:rotate(180deg);align-items:center;gap:8px;
+           padding:10px 0;font-size:12px;font-weight:600;color:#64748b;white-space:nowrap;overflow:hidden}
+  .corpo{overflow-y:auto;padding:0 8px 8px;scrollbar-width:thin;flex:1}
+  .corpo::-webkit-scrollbar{width:6px}.corpo::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:6px}
+
+  /* card */
+  .card{background:#fff;border:1px solid #eef2f7;border-radius:10px;padding:9px;cursor:grab;
+        box-shadow:0 1px 2px rgba(15,23,42,.05);transition:box-shadow .12s,transform .12s}
+  .dark .card{background:#1f2937;border-color:#334155}
+  .card:hover{box-shadow:0 3px 10px rgba(15,23,42,.10)}
+  .card[data-arrastando="1"]{opacity:.4;cursor:grabbing}
+  /* alvo de soltura: a coluna inteira acende, senao ninguem acha onde soltar */
+  .col[data-alvo="1"]{outline:2px dashed var(--dc-pink);outline-offset:-2px;background:var(--dc-pink-50)}
+  .dark .col[data-alvo="1"]{background:rgba(255,60,111,.10)}
+
+  /* etiqueta: rotulo cinza colado no valor colorido */
+  .tag{display:inline-flex;align-items:center;border-radius:6px;overflow:hidden;font-size:10px;
+       font-weight:600;line-height:1;margin:2px 3px 0 0;max-width:100%}
+  .tag b{background:#e2e8f0;color:#475569;padding:3px 5px;font-weight:600}
+  .dark .tag b{background:#334155;color:#cbd5e1}
+  .tag i{font-style:normal;padding:3px 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  .ava{width:26px;height:26px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;
+       font-size:11px;font-weight:700;color:#fff;overflow:hidden}
+  .ava img{width:100%;height:100%;object-fit:cover}
   [data-fade]{animation:fade .18s ease}@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 </style>
 
@@ -47,6 +80,7 @@
 </head>
 <body class="text-slate-800 dark:text-slate-100">
 
+
 <div id="authGate" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-50 dark:bg-ink-900">
   <div class="text-center">
     <div class="w-14 h-14 mx-auto rounded-2xl overflow-hidden mb-4"><img src="/icone-app.png" alt="Aragão" class="w-full h-full object-cover"></div>
@@ -61,89 +95,469 @@
     <button onclick="location.href='/'" title="Voltar à Suíte" class="w-9 h-9 rounded-xl shadow hover:scale-105 hover:shadow-md transition flex items-center justify-center text-white bg-gradient-to-br from-indigo-500 to-blue-600"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="4" height="16" rx="1"/><rect x="10" y="4" width="4" height="10" rx="1"/><rect x="17" y="4" width="4" height="6" rx="1"/></svg></button>
     <div class="leading-tight"><div class="text-sm font-semibold">Funil de Leads</div><div class="text-[11px] text-slate-500 dark:text-slate-400">Pipeline / CRM · Grupo Aragão</div></div>
   </div>
-  <div class="flex items-center gap-2">
-    <select id="pipeSel" onchange="abrir(this.value)" class="fld text-sm"></select>
-    <button onclick="novoPipe()" class="text-xs font-semibold text-white bg-pink-500 hover:bg-pink-600 px-2.5 py-2 rounded-lg">+ Funil</button>
+  <div class="flex items-center gap-1">
     <button onclick="location.href='/'" class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 hover:text-pink-500 flex items-center justify-center text-slate-500" title="Voltar"><img src="/icone-app.png" alt="Suíte" class="w-6 h-6 rounded-md object-cover"></button>
     <button onclick="document.documentElement.classList.toggle('dark')" class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 hover:text-pink-500 flex items-center justify-center text-slate-500" title="Tema"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
   </div>
 </header>
 
-<div class="p-4">
-  <div class="flex items-center gap-2 mb-3">
-    <select id="leadSel" class="fld text-sm"><option value="">Escolher lead…</option></select>
-    <button onclick="addLead()" class="text-sm font-semibold px-3 py-2 rounded-lg bg-pink-50 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300">+ Adicionar ao funil</button>
-    <span id="pipeInfo" class="text-[12px] text-slate-400 ml-2"></span>
+<div class="px-4 pt-4 max-w-full">
+  <!-- escolha do funil + busca -->
+  <div class="flex flex-wrap items-center gap-2 mb-3">
+    <select id="pipeSel" onchange="abrir(this.value)" class="fld text-sm font-semibold"></select>
+    <button onclick="novoPipe()" class="dc-chip" title="Criar um funil novo">+ Funil</button>
+    <button onclick="renomearPipe()" class="dc-chip" title="Renomear este funil">Renomear</button>
+
+    <div class="relative ml-auto" style="min-width:230px">
+      <svg class="w-4 h-4 absolute left-2.5 top-2.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="busca" oninput="render()" class="fld text-sm w-full" style="padding-left:30px" placeholder="Buscar por nome, e-mail, telefone ou etiqueta…">
+    </div>
+    <button onclick="abrirAdicionar()" class="text-sm font-semibold px-3 py-2 rounded-lg bg-pink-500 hover:bg-pink-600 text-white">+ Adicionar lead</button>
   </div>
-  <div id="board" class="scrollx flex gap-3 pb-4" style="min-height:60vh"></div>
+  <div id="pipeInfo" class="text-[12px] text-slate-400 mb-2"></div>
+
+  <div id="board" class="scrollx flex gap-3 pb-4 items-start" style="min-height:60vh"></div>
 </div>
+</div>
+
+<!-- ===== Janela: adicionar lead ===== -->
+<div id="mdAdd" class="hidden fixed inset-0 z-50 bg-slate-900/40 flex items-start justify-center p-4" onclick="if(event.target===this)fecharAdicionar()">
+  <div class="bin rounded-2xl w-full max-w-md mt-20 p-4 space-y-3" style="box-shadow:0 20px 60px rgba(15,23,42,.25)">
+    <div class="text-sm font-semibold">Adicionar lead ao funil</div>
+    <input id="addBusca" oninput="renderAdicionar()" class="fld text-sm w-full" placeholder="Procurar cliente por nome, telefone ou e-mail…" autocomplete="off">
+    <div id="addLista" class="space-y-1 overflow-y-auto" style="max-height:46vh"></div>
+    <div class="flex justify-end"><button onclick="fecharAdicionar()" class="dc-chip">Fechar</button></div>
+  </div>
+</div>
+
+<!-- ===== Janela: card ===== -->
+<div id="mdCard" class="hidden fixed inset-0 z-50 bg-slate-900/40 flex items-start justify-center p-4" onclick="if(event.target===this)fecharCard()">
+  <div class="bin rounded-2xl w-full max-w-lg mt-16 p-4 space-y-3" style="box-shadow:0 20px 60px rgba(15,23,42,.25)">
+    <div id="mdCardTopo" class="flex items-start gap-3"></div>
+    <div>
+      <label class="text-[12px] font-semibold text-slate-500">Etiquetas</label>
+      <div id="mdTags" class="mt-1"></div>
+      <div class="flex gap-2 mt-2">
+        <input id="tagGrupo" class="fld text-sm" style="width:38%" placeholder="Grupo (ex.: Problema)" list="gruposUsados">
+        <datalist id="gruposUsados"></datalist>
+        <input id="tagValor" onkeydown="if(event.key==='Enter')addTag()" class="fld text-sm flex-1" placeholder="Valor (ex.: PROCON)">
+        <button onclick="addTag()" class="dc-chip">Add</button>
+      </div>
+    </div>
+    <div>
+      <label class="text-[12px] font-semibold text-slate-500">Anotação</label>
+      <textarea id="mdObs" rows="3" class="fld text-sm w-full mt-1" placeholder="O que já foi feito, o que falta…"></textarea>
+    </div>
+    <div class="flex flex-wrap items-center gap-2 pt-1">
+      <a id="mdConversa" href="#" class="dc-chip" style="text-decoration:none">Abrir conversa</a>
+      <button onclick="removerCard()" class="dc-chip" style="color:#e11d48">Tirar do funil</button>
+      <button onclick="fecharCard()" class="dc-chip ml-auto">Cancelar</button>
+      <button onclick="salvarCard(this)" class="text-sm font-semibold px-3 py-2 rounded-lg bg-pink-500 hover:bg-pink-600 text-white">Salvar</button>
+    </div>
+  </div>
 </div>
 
 <script>
 const SUPA = { url:'https://wwytzoyeibekhstinott.supabase.co', key:'sb_publishable_uMoCEK4Ed_u8ZIfjVZ7Jrg_tdR4b9bO' };
-let sb=null, PIPES=[], PIPE=null, CARDS=[], CLIENTES=[];
+let sb=null, PIPES=[], PIPE=null, CARDS=[], CLIENTES=[], CARD=null;
+let RECOLHIDAS = {};                 // fase -> escondida?
+let MOSTRAR = {};                    // fase -> quantos cards já mostrados
+const PAGINA = 20;                   // a coluna começa com 20; o resto vem no "mostrar mais"
+
 async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2'); sb=createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true}}); } return sb; }
-function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[x])); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[x])); }
+function semAcento(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); }
+
+/* ===== Cores =====
+   A fase guarda o NOME da cor, não o hex — assim o dia que a marca mudar de tom, muda
+   aqui e vale pro funil inteiro. */
+const CORES = {
+  rosa:   { bg:'#ffe1e8', tx:'#c81a4e' },
+  azul:   { bg:'#dbeafe', tx:'#1d4ed8' },
+  verde:  { bg:'#d1fae5', tx:'#047857' },
+  ambar:  { bg:'#fef3c7', tx:'#b45309' },
+  roxo:   { bg:'#ede9fe', tx:'#6d28d9' },
+  ciano:  { bg:'#cffafe', tx:'#0e7490' },
+  cinza:  { bg:'#e2e8f0', tx:'#475569' }
+};
+const NOMES_COR = Object.keys(CORES);
+// Sem cor escolhida, a fase ganha uma fixa pelo nome — some sempre a mesma, e não muda
+// de cor quando alguém reordena as fases.
+function corDaFase(f){
+  const escolhida = (PIPE && PIPE.fases_cor && PIPE.fases_cor[f]) || null;
+  if(escolhida && CORES[escolhida]) return CORES[escolhida];
+  let h = 2166136261;
+  for(let i=0;i<f.length;i++){ h ^= f.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return CORES[NOMES_COR[Math.abs(h) % NOMES_COR.length]];
+}
+function corDoTexto(txt){
+  let h = 2166136261;
+  for(let i=0;i<txt.length;i++){ h ^= txt.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return CORES[NOMES_COR[Math.abs(h) % NOMES_COR.length]];
+}
 
 async function bootstrap(){
   const c=await getSb(); const { data:{ session } }=await c.auth.getSession();
   if(!session){ document.getElementById('authGate').classList.remove('hidden'); return; }
   document.getElementById('appWrap').classList.remove('hidden');
-  const [{data:pipes},{data:clis}]=await Promise.all([ c.from('at_pipelines').select('*').order('created_at'), c.from('at_clientes').select('id,nome,telefone').order('nome') ]);
+  const [{data:pipes},{data:clis}]=await Promise.all([
+    c.from('at_pipelines').select('*').order('created_at'),
+    c.from('at_clientes').select('id,nome,telefone,email,foto_url,whatsapp_id').order('nome')
+  ]);
   PIPES=pipes||[]; CLIENTES=clis||[];
   document.getElementById('pipeSel').innerHTML=PIPES.map(p=>`<option value="${p.id}">${esc(p.nome)}</option>`).join('');
-  document.getElementById('leadSel').innerHTML='<option value="">Escolher lead…</option>'+CLIENTES.map(cl=>`<option value="${cl.id}">${esc(cl.nome)}${cl.telefone?(' · '+esc(cl.telefone)):''}</option>`).join('');
-  if(PIPES.length){ abrir(PIPES[0].id); }
-  c.channel('pipe').on('postgres_changes',{event:'*',schema:'public',table:'at_pipeline_cards'},()=>{ if(PIPE) recarregarCards(); }).subscribe();
+  try{ RECOLHIDAS = JSON.parse(localStorage.pipe_recolhidas || '{}'); }catch(e){ RECOLHIDAS = {}; }
+  if(PIPES.length) abrir(localStorage.pipe_atual && PIPES.some(p=>p.id===localStorage.pipe_atual) ? localStorage.pipe_atual : PIPES[0].id);
+  else document.getElementById('board').innerHTML = '<div class="text-sm text-slate-400 py-10">Nenhum funil ainda. Clique em "+ Funil".</div>';
+  c.channel('pipe').on('postgres_changes',{event:'*',schema:'public',table:'at_pipeline_cards'},()=>{ if(PIPE && !CARD) recarregarCards(); }).subscribe();
 }
-async function abrir(id){ PIPE=PIPES.find(p=>p.id===id); document.getElementById('pipeSel').value=id; await recarregarCards(); }
+
+async function abrir(id){
+  PIPE=PIPES.find(p=>p.id===id); if(!PIPE) return;
+  localStorage.pipe_atual = id;
+  document.getElementById('pipeSel').value=id;
+  MOSTRAR = {};
+  await recarregarCards();
+}
 async function recarregarCards(){
   const c=await getSb();
-  const { data }=await c.from('at_pipeline_cards').select('*, cliente:at_clientes(nome,telefone)').eq('pipeline_id',PIPE.id);
+  const { data }=await c.from('at_pipeline_cards')
+    .select('*, cliente:at_clientes(nome,telefone,email,foto_url,whatsapp_id)')
+    .eq('pipeline_id',PIPE.id).order('ordem').order('id');
   CARDS=data||[]; render();
 }
-function render(){
-  const fases=PIPE.fases||[]; const el=document.getElementById('board');
-  document.getElementById('pipeInfo').textContent=CARDS.length+' lead(s) no funil "'+PIPE.nome+'"';
-  el.innerHTML=fases.map(f=>{
-    const cards=CARDS.filter(x=>x.fase===f);
-    return `<div class="col p-2" data-fade>
-      <div class="flex items-center justify-between px-1 py-1.5"><span class="text-[13px] font-semibold">${esc(f)}</span><span class="text-[11px] text-slate-400">${cards.length}</span></div>
-      <div class="space-y-2">
-        ${cards.map(cd=>cardHtml(cd,fases)).join('')||'<div class="text-[11px] text-slate-400 px-1 py-2">—</div>'}
-      </div>
-    </div>`;
-  }).join('');
+
+const fasesDo = () => (PIPE && PIPE.fases) || [];
+function tagsDo(cd){ return Array.isArray(cd.tags) ? cd.tags : []; }
+
+function combina(cd, termo){
+  if(!termo) return true;
+  const cli = cd.cliente || {};
+  const alvo = semAcento([cli.nome, cli.email, cli.telefone, cd.obs,
+    tagsDo(cd).map(t => (t.grupo||'') + ' ' + (t.valor||'')).join(' ')].join(' '));
+  return alvo.includes(termo);
 }
-function cardHtml(cd,fases){
-  const cli=cd.cliente||{};
-  return `<div class="bin rounded-lg p-2.5 shadow-sm" data-fade>
-    <div class="flex items-center justify-between gap-2">
-      <span class="text-[13px] font-semibold truncate">${esc(cli.nome||'Lead')}</span>
-      <button onclick="removerCard('${cd.id}')" class="text-slate-300 hover:text-red-500" style="width:14px;height:14px"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+
+function render(){
+  if(!PIPE) return;
+  const termo = semAcento(document.getElementById('busca').value.trim());
+  const fases = fasesDo();
+  const visiveis = CARDS.filter(cd => combina(cd, termo));
+
+  document.getElementById('pipeInfo').innerHTML = termo
+    ? '<b>'+visiveis.length+'</b> de '+CARDS.length+' cards batem com a busca.'
+    : '<b>'+CARDS.length+'</b> lead(s) em '+fases.length+' fase(s).';
+
+  document.getElementById('board').innerHTML = fases.map(f => colunaHtml(f, visiveis.filter(x => x.fase===f))).join('')
+    + `<div class="flex-none pt-1"><button onclick="novaFase()" class="dc-chip" style="white-space:nowrap">+ Adicionar fase</button></div>`;
+}
+
+function colunaHtml(f, cards){
+  const cor = corDaFase(f);
+  const limite = MOSTRAR[f] || PAGINA;
+  const mostra = cards.slice(0, limite);
+  const recolhida = RECOLHIDAS[f] ? '1' : '0';
+  return `<div class="col" data-fase="${esc(f)}" data-recolhida="${recolhida}"
+       ondragover="sobreColuna(event,'${esc(f)}')" ondragleave="saiColuna(event)" ondrop="soltar(event,'${esc(f)}')">
+
+    <div class="deitado" onclick="recolher('${esc(f)}')" title="Abrir coluna">
+      <span style="color:${cor.tx}">${esc(f)}</span><span class="text-slate-400">${cards.length}</span>
     </div>
-    ${cli.telefone?`<div class="text-[11px] text-slate-400">${esc(cli.telefone)}</div>`:''}
-    <select onchange="moverCard('${cd.id}',this.value)" class="fld text-[12px] w-full mt-1.5 py-1">
-      ${fases.map(f=>`<option value="${esc(f)}" ${f===cd.fase?'selected':''}>${esc(f)}</option>`).join('')}
-    </select>
+
+    <div class="titulo flex items-center gap-1 px-2 pt-2 pb-1.5">
+      <button onclick="recolher('${esc(f)}')" title="Recolher coluna" class="text-slate-400 hover:text-pink-600 p-0.5 shrink-0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" style="width:13px;height:13px"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <span class="tag" style="margin:0"><i style="background:${cor.bg};color:${cor.tx}">${esc(f)}</i></span>
+      <span class="text-[11px] font-semibold text-slate-400">${cards.length}</span>
+      <div class="ml-auto flex items-center gap-0.5 shrink-0">
+        <button onclick="mudarCorFase('${esc(f)}')" title="Cor da fase" class="text-slate-400 hover:text-pink-600 p-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18"/></svg></button>
+        <button onclick="renomearFase('${esc(f)}')" title="Renomear fase" class="text-slate-400 hover:text-pink-600 p-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:13px;height:13px"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
+        <button onclick="apagarFase('${esc(f)}')" title="Apagar fase" class="text-slate-400 hover:text-rose-500 p-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:13px;height:13px"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+    </div>
+
+    <div class="corpo space-y-2">
+      ${mostra.map(cardHtml).join('') || '<div class="text-[11px] text-slate-400 px-1 py-3 text-center">vazio</div>'}
+      ${cards.length > mostra.length
+        ? `<button onclick="mostrarMais('${esc(f)}')" class="w-full text-[11px] font-semibold text-slate-500 hover:text-pink-600 py-2">Mostrar mais ${cards.length - mostra.length}</button>`
+        : (cards.length ? '<div class="text-[10px] text-slate-300 text-center py-1">mostrando todos os cards</div>' : '')}
+    </div>
   </div>`;
 }
-async function moverCard(id,fase){ const c=await getSb(); const cd=CARDS.find(x=>x.id===id); if(cd) cd.fase=fase; render();
-  try{ await c.from('at_pipeline_cards').update({fase}).eq('id',id); }catch(e){ console.warn(e.message); } }
-async function removerCard(id){ const c=await getSb(); CARDS=CARDS.filter(x=>x.id!==id); render();
-  try{ await c.from('at_pipeline_cards').delete().eq('id',id); }catch(e){} }
-async function addLead(){ const cliId=document.getElementById('leadSel').value; if(!cliId||!PIPE) return;
-  if(CARDS.some(x=>x.cliente_id===cliId)){ alert('Esse lead já está no funil.'); return; }
-  const fase=(PIPE.fases||['Novo'])[0];
-  try{ const c=await getSb(); await c.from('at_pipeline_cards').insert({pipeline_id:PIPE.id, cliente_id:cliId, fase}); document.getElementById('leadSel').value=''; recarregarCards(); }
-  catch(e){ alert('Erro: '+e.message); } }
+
+function cardHtml(cd){
+  const cli = cd.cliente || {};
+  const nome = cli.nome || 'Lead';
+  const cor = corDoTexto(nome);
+  const foto = cli.foto_url
+    ? `<img src="${esc(cli.foto_url)}" alt="">`
+    : esc(nome.trim().charAt(0).toUpperCase() || '?');
+  const tags = tagsDo(cd).map(t => {
+    const c = corDoTexto(String(t.valor||''));
+    return `<span class="tag">${t.grupo?`<b>${esc(t.grupo)}</b>`:''}<i style="background:${c.bg};color:${c.tx}">${esc(t.valor)}</i></span>`;
+  }).join('');
+  return `<div class="card" draggable="true" data-id="${cd.id}"
+       ondragstart="pegar(event,'${cd.id}')" ondragend="largar(event)" onclick="abrirCard('${cd.id}')">
+    <div class="flex items-center gap-2">
+      <div class="ava" style="background:${cor.tx}">${foto}</div>
+      <div class="min-w-0 flex-1">
+        <div class="text-[12.5px] font-semibold truncate">${esc(nome)}</div>
+        ${cli.email?`<div class="text-[10.5px] text-slate-400 truncate">${esc(cli.email)}</div>`:''}
+        ${cli.telefone?`<div class="text-[10.5px] text-slate-400">${esc(cli.telefone)}</div>`:''}
+      </div>
+    </div>
+    ${tags?`<div class="mt-1.5 -mb-0.5">${tags}</div>`:''}
+    ${cd.obs?`<div class="text-[10.5px] text-slate-500 mt-1.5 line-clamp-2">${esc(cd.obs)}</div>`:''}
+  </div>`;
+}
+
+function mostrarMais(f){ MOSTRAR[f] = (MOSTRAR[f] || PAGINA) + PAGINA; render(); }
+function recolher(f){
+  RECOLHIDAS[f] = !RECOLHIDAS[f];
+  localStorage.pipe_recolhidas = JSON.stringify(RECOLHIDAS);
+  render();
+}
+
+/* ===== Arrastar =====
+   HTML5 puro. O card guarda o id no dataTransfer; a coluna acende ao passar por cima.
+   Sem o acender ninguém descobre onde soltar — foi a primeira coisa que senti falta
+   testando. */
+let ARRASTANDO = null;
+function pegar(ev, id){
+  ARRASTANDO = id;
+  ev.dataTransfer.setData('text/plain', id);
+  ev.dataTransfer.effectAllowed = 'move';
+  ev.currentTarget.dataset.arrastando = '1';
+}
+function largar(ev){
+  ev.currentTarget.dataset.arrastando = '0';
+  ARRASTANDO = null;
+  document.querySelectorAll('.col[data-alvo="1"]').forEach(c => c.removeAttribute('data-alvo'));
+}
+function sobreColuna(ev, f){
+  if(!ARRASTANDO) return;
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = 'move';
+  ev.currentTarget.setAttribute('data-alvo','1');
+}
+function saiColuna(ev){
+  // só apaga quando o ponteiro sai DE VERDADE da coluna — passar por cima de um card
+  // filho dispara dragleave e a coluna piscava sem parar
+  if(ev.currentTarget.contains(ev.relatedTarget)) return;
+  ev.currentTarget.removeAttribute('data-alvo');
+}
+async function soltar(ev, fase){
+  ev.preventDefault();
+  const id = ev.dataTransfer.getData('text/plain') || ARRASTANDO;
+  document.querySelectorAll('.col[data-alvo="1"]').forEach(c => c.removeAttribute('data-alvo'));
+  if(!id) return;
+  const cd = CARDS.find(x => String(x.id) === String(id));
+  if(!cd || cd.fase === fase) return;
+  const antes = cd.fase;
+  const ordem = Math.max(0, ...CARDS.filter(x => x.fase === fase).map(x => x.ordem || 0)) + 1;
+  cd.fase = fase; cd.ordem = ordem; render();          // move na hora, confirma depois
+  try{
+    const c = await getSb();
+    const { error } = await c.from('at_pipeline_cards').update({ fase, ordem }).eq('id', id);
+    if(error) throw error;
+  }catch(e){
+    cd.fase = antes; render();
+    alert('Não consegui mover: ' + e.message);
+  }
+}
+
+/* ===== Fases ===== */
+async function salvarFases(fases, cores){
+  const c = await getSb();
+  const patch = { fases };
+  if(cores) patch.fases_cor = cores;
+  const { error } = await c.from('at_pipelines').update(patch).eq('id', PIPE.id);
+  if(error){
+    if(/fases_cor/.test(error.message)) { alert('Falta rodar o SQL db/add-pipelines-completo.sql no Supabase.'); return false; }
+    alert('Não deu: ' + error.message); return false;
+  }
+  PIPE.fases = fases; if(cores) PIPE.fases_cor = cores;
+  render(); return true;
+}
+async function novaFase(){
+  const nome = prompt('Nome da fase nova:'); if(!nome || !nome.trim()) return;
+  const f = nome.trim();
+  if(fasesDo().includes(f)) return alert('Já existe uma fase com esse nome.');
+  await salvarFases(fasesDo().concat([f]));
+}
+async function renomearFase(f){
+  const novo = prompt('Novo nome da fase:', f); if(!novo || !novo.trim() || novo.trim()===f) return;
+  const n = novo.trim();
+  if(fasesDo().includes(n)) return alert('Já existe uma fase com esse nome.');
+  const cores = Object.assign({}, PIPE.fases_cor || {});
+  if(cores[f]){ cores[n] = cores[f]; delete cores[f]; }
+  if(!await salvarFases(fasesDo().map(x => x===f ? n : x), cores)) return;
+  // os cards precisam ir junto, senão somem do quadro (a fase deles deixou de existir)
+  const c = await getSb();
+  await c.from('at_pipeline_cards').update({ fase:n }).eq('pipeline_id', PIPE.id).eq('fase', f);
+  if(RECOLHIDAS[f]){ RECOLHIDAS[n] = true; delete RECOLHIDAS[f]; localStorage.pipe_recolhidas = JSON.stringify(RECOLHIDAS); }
+  recarregarCards();
+}
+async function apagarFase(f){
+  const dentro = CARDS.filter(x => x.fase === f);
+  if(fasesDo().length <= 1) return alert('O funil precisa de pelo menos uma fase.');
+  if(dentro.length){
+    const destino = fasesDo().filter(x => x !== f)[0];
+    if(!confirm('A fase "'+f+'" tem '+dentro.length+' card(s). Eles vão para "'+destino+'". Apagar a fase?')) return;
+    const c = await getSb();
+    await c.from('at_pipeline_cards').update({ fase:destino }).eq('pipeline_id', PIPE.id).eq('fase', f);
+  } else if(!confirm('Apagar a fase "'+f+'"?')) return;
+  const cores = Object.assign({}, PIPE.fases_cor || {}); delete cores[f];
+  if(await salvarFases(fasesDo().filter(x => x !== f), cores)) recarregarCards();
+}
+async function mudarCorFase(f){
+  const atual = (PIPE.fases_cor || {})[f] || '';
+  const nome = prompt('Cor da fase "'+f+'"\n\nOpções: ' + NOMES_COR.join(', '), atual);
+  if(nome === null) return;
+  const n = String(nome).trim().toLowerCase();
+  if(n && !CORES[n]) return alert('Cor desconhecida. Use uma destas: ' + NOMES_COR.join(', '));
+  const cores = Object.assign({}, PIPE.fases_cor || {});
+  if(n) cores[f] = n; else delete cores[f];
+  salvarFases(fasesDo(), cores);
+}
+
+/* ===== Funil ===== */
 async function novoPipe(){
-  const nome=prompt('Nome do funil:'); if(!nome) return;
-  const fasesStr=prompt('Fases (separadas por vírgula):','Novo, Em contato, Negociando, Ganho, Perdido'); if(fasesStr===null) return;
-  const fases=fasesStr.split(',').map(s=>s.trim()).filter(Boolean);
-  try{ const c=await getSb(); const {data,error}=await c.from('at_pipelines').insert({nome, fases}).select().single(); if(error) throw error;
-    PIPES.push(data); document.getElementById('pipeSel').innerHTML=PIPES.map(p=>`<option value="${p.id}">${esc(p.nome)}</option>`).join(''); abrir(data.id);
-  }catch(e){ alert('Erro: '+e.message); } }
+  const nome = prompt('Nome do funil:'); if(!nome || !nome.trim()) return;
+  const fasesStr = prompt('Fases (separadas por vírgula):','Novo, Em contato, Negociando, Ganho, Perdido');
+  if(fasesStr === null) return;
+  const fases = fasesStr.split(',').map(s => s.trim()).filter(Boolean);
+  if(!fases.length) return alert('Precisa de pelo menos uma fase.');
+  try{
+    const c = await getSb();
+    const { data, error } = await c.from('at_pipelines').insert({ nome:nome.trim(), fases }).select().single();
+    if(error) throw error;
+    PIPES.push(data);
+    document.getElementById('pipeSel').innerHTML = PIPES.map(p=>`<option value="${p.id}">${esc(p.nome)}</option>`).join('');
+    abrir(data.id);
+  }catch(e){ alert('Erro: ' + e.message); }
+}
+async function renomearPipe(){
+  if(!PIPE) return;
+  const novo = prompt('Novo nome do funil:', PIPE.nome);
+  if(!novo || !novo.trim() || novo.trim() === PIPE.nome) return;
+  try{
+    const c = await getSb();
+    const { error } = await c.from('at_pipelines').update({ nome:novo.trim() }).eq('id', PIPE.id);
+    if(error) throw error;
+    PIPE.nome = novo.trim();
+    document.getElementById('pipeSel').innerHTML = PIPES.map(p=>`<option value="${p.id}">${esc(p.nome)}</option>`).join('');
+    document.getElementById('pipeSel').value = PIPE.id;
+    render();
+  }catch(e){ alert('Erro: ' + e.message); }
+}
+
+/* ===== Adicionar lead ===== */
+function abrirAdicionar(){
+  if(!PIPE) return alert('Crie um funil primeiro.');
+  document.getElementById('mdAdd').classList.remove('hidden');
+  document.getElementById('addBusca').value = '';
+  renderAdicionar();
+  document.getElementById('addBusca').focus();
+}
+function fecharAdicionar(){ document.getElementById('mdAdd').classList.add('hidden'); }
+function renderAdicionar(){
+  const termo = semAcento(document.getElementById('addBusca').value.trim());
+  const jaTem = new Set(CARDS.map(x => x.cliente_id));
+  const achados = CLIENTES
+    .filter(cl => !jaTem.has(cl.id))
+    .filter(cl => !termo || semAcento([cl.nome, cl.telefone, cl.email].join(' ')).includes(termo))
+    .slice(0, 60);
+  document.getElementById('addLista').innerHTML = achados.length
+    ? achados.map(cl => `<button onclick="addLead('${cl.id}')" class="w-full text-left px-2.5 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 flex items-center gap-2">
+        <div class="ava" style="background:${corDoTexto(cl.nome||'?').tx}">${cl.foto_url?`<img src="${esc(cl.foto_url)}" alt="">`:esc((cl.nome||'?').charAt(0).toUpperCase())}</div>
+        <div class="min-w-0"><div class="text-[13px] font-semibold truncate">${esc(cl.nome||'Cliente')}</div>
+        <div class="text-[11px] text-slate-400 truncate">${esc(cl.telefone||'')}${cl.email?(' · '+esc(cl.email)):''}</div></div>
+      </button>`).join('')
+    : '<div class="text-[12px] text-slate-400 px-2 py-3">'+(termo?'Ninguém com esse nome fora do funil.':'Todo mundo já está no funil.')+'</div>';
+}
+async function addLead(cliId){
+  const fase = fasesDo()[0]; if(!fase) return;
+  const ordem = Math.max(0, ...CARDS.filter(x => x.fase===fase).map(x => x.ordem||0)) + 1;
+  try{
+    const c = await getSb();
+    const { error } = await c.from('at_pipeline_cards').insert({ pipeline_id:PIPE.id, cliente_id:cliId, fase, ordem });
+    if(error) throw error;
+    await recarregarCards();
+    renderAdicionar();
+  }catch(e){
+    // o índice único do banco é quem garante de verdade — duas abas abertas furavam a
+    // checagem que existia só no navegador
+    alert(/duplicate|unico|unique/i.test(e.message) ? 'Esse lead já está no funil.' : ('Erro: ' + e.message));
+  }
+}
+
+/* ===== Card ===== */
+function abrirCard(id){
+  CARD = CARDS.find(x => String(x.id) === String(id)); if(!CARD) return;
+  const cli = CARD.cliente || {};
+  const cor = corDoTexto(cli.nome || '?');
+  document.getElementById('mdCardTopo').innerHTML =
+    `<div class="ava" style="background:${cor.tx};width:40px;height:40px;font-size:15px">${cli.foto_url?`<img src="${esc(cli.foto_url)}" alt="">`:esc((cli.nome||'?').charAt(0).toUpperCase())}</div>
+     <div class="min-w-0 flex-1">
+       <div class="text-sm font-semibold truncate">${esc(cli.nome||'Lead')}</div>
+       <div class="text-[11.5px] text-slate-400 truncate">${esc(cli.email||'')}</div>
+       <div class="text-[11.5px] text-slate-400">${esc(cli.telefone||'')}</div>
+     </div>
+     <span class="tag"><i style="background:${corDaFase(CARD.fase).bg};color:${corDaFase(CARD.fase).tx}">${esc(CARD.fase)}</i></span>`;
+  document.getElementById('mdObs').value = CARD.obs || '';
+  document.getElementById('mdConversa').href = '/atendimento.html' + (cli.whatsapp_id ? ('#'+encodeURIComponent(cli.whatsapp_id)) : '');
+  const grupos = [...new Set(CARDS.flatMap(x => tagsDo(x).map(t => t.grupo).filter(Boolean)))];
+  document.getElementById('gruposUsados').innerHTML = grupos.map(g => `<option value="${esc(g)}">`).join('');
+  renderTags();
+  document.getElementById('mdCard').classList.remove('hidden');
+}
+function fecharCard(){ document.getElementById('mdCard').classList.add('hidden'); CARD = null; }
+function renderTags(){
+  const t = tagsDo(CARD);
+  document.getElementById('mdTags').innerHTML = t.length
+    ? t.map((x,i) => {
+        const c = corDoTexto(String(x.valor||''));
+        return `<span class="tag">${x.grupo?`<b>${esc(x.grupo)}</b>`:''}<i style="background:${c.bg};color:${c.tx}">${esc(x.valor)}
+          <button onclick="tirarTag(${i})" style="margin-left:4px;color:inherit;opacity:.6;background:none;border:none;cursor:pointer;padding:0">✕</button></i></span>`;
+      }).join('')
+    : '<div class="text-[11px] text-slate-400">Nenhuma etiqueta.</div>';
+}
+function addTag(){
+  const g = document.getElementById('tagGrupo').value.trim();
+  const v = document.getElementById('tagValor').value.trim();
+  if(!v) return;
+  CARD.tags = tagsDo(CARD).concat([{ grupo:g||null, valor:v }]);
+  document.getElementById('tagValor').value = '';
+  renderTags();
+}
+function tirarTag(i){ CARD.tags = tagsDo(CARD).filter((_,k) => k !== i); renderTags(); }
+async function salvarCard(btn){
+  if(!CARD) return;
+  const antes = btn.textContent; btn.textContent = 'Salvando…'; btn.disabled = true;
+  CARD.obs = document.getElementById('mdObs').value || null;
+  try{
+    const c = await getSb();
+    const { error } = await c.from('at_pipeline_cards').update({ tags:tagsDo(CARD), obs:CARD.obs }).eq('id', CARD.id);
+    if(error) throw error;
+    fecharCard(); render();
+  }catch(e){
+    btn.disabled = false; btn.textContent = antes;
+    alert(/tags|obs|column/i.test(e.message) ? 'Falta rodar o SQL db/add-pipelines-completo.sql no Supabase.' : ('Erro: ' + e.message));
+  }
+}
+async function removerCard(){
+  if(!CARD || !confirm('Tirar este lead do funil?')) return;
+  const id = CARD.id;
+  CARDS = CARDS.filter(x => x.id !== id);
+  fecharCard(); render();
+  try{ await (await getSb()).from('at_pipeline_cards').delete().eq('id', id); }catch(e){}
+}
+
+document.addEventListener('keydown', e => { if(e.key === 'Escape'){ fecharCard(); fecharAdicionar(); } });
 bootstrap();
 </script>
 <script src="/nav.js"></script>
