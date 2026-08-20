@@ -17,6 +17,7 @@
 // Retorno: { reply, handoff:boolean }
 
 import { getAnthropicKey } from '../lib/licfg.js';
+import { buscarPedidoLI, pedidoEmTexto } from '../lib/li-pedido.js';
 
 async function callerEmail(token) {
   if (!token) return null;
@@ -118,6 +119,20 @@ function montarSystem(cfg, cliente, faq, intencoes) {
   return s;
 }
 
+/* O bloco do pedido vai SEPARADO do system grande, e sem cache_control de propósito:
+   o system grande (persona + FAQ + intenções, ~5 mil tokens) é idêntico em toda conversa
+   e por isso fica em cache. Se os dados do pedido — que mudam a cada cliente — entrassem
+   nele, o cache seria invalidado toda mensagem e a conta subiria uns 70%. */
+function blocoPedido(pedido) {
+  if (!pedido) return null;
+  return 'PEDIDO DESTA CLIENTE (consultado agora na Loja Integrada, é a verdade):\n'
+    + pedidoEmTexto(pedido)
+    + '\n\nUse isto pra responder "já saiu?", "já bordou?", "cadê meu pedido?", "qual a situação?". '
+    + 'Diga a situação em português simples, sem jargão de sistema. NÃO invente etapa, data nem prazo '
+    + 'que não esteja aqui. Se ela perguntar algo do pedido que não está nestes dados, não chute: '
+    + 'diga que vai confirmar com o time e ' + MARCA_TRANSFERIR + '.';
+}
+
 /* O modelo escreve em Markdown — negrito com DOIS asteriscos. O WhatsApp usa UM.
    Resultado: a cliente lia literalmente "**gratuita**", "**Motoboy**", "**(85) 98701-5980**".
    Toda resposta chegava suja de asterisco, e isso sozinho já faz parecer robô.
@@ -181,7 +196,7 @@ function limparLinks(texto, cfg){
     .replace(/ +([.,;:!?])/g, '$1');
 }
 
-async function viaOpenAI(cfg, mensagens, cliente, faq, intencoes) {
+async function viaOpenAI(cfg, mensagens, cliente, faq, intencoes, pedido) {
   const r = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + process.env.OPENAI_API_KEY, 'Content-Type': 'application/json' },
@@ -189,7 +204,11 @@ async function viaOpenAI(cfg, mensagens, cliente, faq, intencoes) {
       // Na OpenAI o cache é automático acima de 1.024 tokens, desde que o trecho fixo venha
       // primeiro — e vem: o system é a primeira mensagem e não muda entre as chamadas.
       model: cfg.modelo || 'gpt-4o-mini',
-      messages: [{ role: 'system', content: montarSystem(cfg, cliente, faq, intencoes) }, ...mensagens],
+      messages: [
+        { role: 'system', content: montarSystem(cfg, cliente, faq, intencoes) },
+        ...(blocoPedido(pedido) ? [{ role: 'system', content: blocoPedido(pedido) }] : []),
+        ...mensagens
+      ],
       temperature: 0.5, max_tokens: 400
     })
   });
@@ -205,7 +224,7 @@ async function viaOpenAI(cfg, mensagens, cliente, faq, intencoes) {
     }
   };
 }
-async function viaAnthropic(cfg, mensagens, cliente, faq, intencoes, chave) {
+async function viaAnthropic(cfg, mensagens, cliente, faq, intencoes, chave, pedido) {
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'x-api-key': chave || process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
@@ -214,7 +233,10 @@ async function viaAnthropic(cfg, mensagens, cliente, faq, intencoes, chave) {
       // CACHE DE PROMPT: o system é idêntico em toda mensagem (persona + FAQ + intenções,
       // ~5 mil tokens). Sem cache, ele é cobrado inteiro a cada resposta. Marcado assim,
       // a releitura custa 10% — no volume de ~25 mil mensagens/mês isso corta ~70% da conta.
-      system: [{ type: 'text', text: montarSystem(cfg, cliente, faq, intencoes), cache_control: { type: 'ephemeral' } }],
+      system: [
+        { type: 'text', text: montarSystem(cfg, cliente, faq, intencoes), cache_control: { type: 'ephemeral' } },
+        ...(blocoPedido(pedido) ? [{ type: 'text', text: blocoPedido(pedido) }] : [])
+      ],
       max_tokens: 400,
       messages: mensagens.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }))
     })
@@ -245,6 +267,40 @@ async function registrarUso(linha) {
   } catch (e) { /* medir o gasto nunca pode derrubar a resposta ao cliente */ }
 }
 
+/* ===== O PEDIDO DESTA CLIENTE =====
+   Sem isto o robô não tem como saber nada do pedido, e improvisa: a Kauany perguntou
+   "já personalizou?" e ele respondeu "Nunca personalizei" — leu como pergunta pessoal.
+
+   O número vem de duas fontes: o que a cliente escreveu agora (as automações da loja
+   mandam "pedido 249640", então ela costuma repetir) e o pedido_numero já gravado na
+   conversa. O que ela escreveu ganha, porque pode estar perguntando de outro pedido. */
+function numeroNaConversa(mensagens) {
+  const daCliente = (mensagens || []).filter(m => m.role !== 'assistant').slice(-4).reverse();
+  for (const m of daCliente) {
+    const achados = String(m.content || '').match(/\b\d{6}\b/g);
+    if (achados && achados.length) return achados[achados.length - 1];
+  }
+  return null;
+}
+
+async function pedidoDaConversa(conversaId, mensagens) {
+  let numero = numeroNaConversa(mensagens);
+  if (!numero && conversaId) {
+    try {
+      const r = await fetch(process.env.SUPABASE_URL + '/rest/v1/at_conversas?select=pedido_numero&id=eq.'
+        + encodeURIComponent(conversaId), { headers: SB() });
+      const j = await r.json();
+      const n = Array.isArray(j) && j[0] && j[0].pedido_numero;
+      if (n) numero = String(n).replace(/\D/g, '');
+    } catch (e) { /* sem número é só ficar sem os dados */ }
+  }
+  if (!numero) return null;
+  try {
+    const r = await buscarPedidoLI(numero);
+    return r.ok ? r.pedido : null;
+  } catch (e) { return null; }   // consulta nunca derruba a resposta
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'authorization, content-type, x-internal');
@@ -271,6 +327,10 @@ export default async function handler(req, res) {
   const mensagens = Array.isArray(body.mensagens) ? body.mensagens.slice(-contexto) : [];
   if (!mensagens.length) return res.status(400).json({ error: 'Envie "mensagens".' });
 
+  // Busca o pedido ANTES de chamar o modelo. É uma ida a mais na rede (~300ms), mas é a
+  // diferença entre responder "está em produção" e inventar.
+  const pedido = await pedidoDaConversa(conversaId, mensagens);
+
   const usaClaude = (cfg.modelo || '').startsWith('claude');
   const chaveAnthropic = await getAnthropicKey();
   const temOpenAI = !!process.env.OPENAI_API_KEY;
@@ -279,9 +339,9 @@ export default async function handler(req, res) {
 
   try {
     let saida;
-    if (usaClaude && temAnthropic) saida = await viaAnthropic(cfg, mensagens, cliente, faq, intencoes, chaveAnthropic);
-    else if (temOpenAI) saida = await viaOpenAI(cfg, mensagens, cliente, faq, intencoes);
-    else if (temAnthropic) saida = await viaAnthropic(cfg, mensagens, cliente, faq, intencoes, chaveAnthropic);
+    if (usaClaude && temAnthropic) saida = await viaAnthropic(cfg, mensagens, cliente, faq, intencoes, chaveAnthropic, pedido);
+    else if (temOpenAI) saida = await viaOpenAI(cfg, mensagens, cliente, faq, intencoes, pedido);
+    else if (temAnthropic) saida = await viaAnthropic(cfg, mensagens, cliente, faq, intencoes, chaveAnthropic, pedido);
     else return res.status(503).json({ error: 'Chatbot não configurado: falta OPENAI_API_KEY ou ANTHROPIC_API_KEY no Vercel.' });
     let reply = saida.texto;
 
