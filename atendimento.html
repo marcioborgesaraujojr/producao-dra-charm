@@ -269,7 +269,17 @@ const QUICK_REPLIES = [
   {atalho:'/troca', txt:'Claro! Para iniciar a troca, me confirma o número do pedido, por favor?'},
   {atalho:'/obrigada', txt:'Obrigada pelo contato! Qualquer coisa, estamos por aqui. 💗'},
 ];
-const CORES = ['#ff3c6f','#f59e0b','#3b82f6','#14b8a6','#a855f7','#22c55e','#ef4444','#0ea5e9'];
+/* ===== Duas paletas que NÃO podem se confundir =====
+   Cliente e atendente aparecem lado a lado na mesma linha da lista. As duas paletas
+   compartilhavam 4 das 8 cores (#f59e0b, #0ea5e9, #ef4444, #14b8a6) — dava pra ver
+   uma bolinha e não saber se era a cliente ou a colega.
+
+   Agora é por TEMPERATURA, não por tom individual: CLIENTE é sempre quente (âmbar,
+   laranja, terracota) e ATENDENTE é sempre frio (azul, roxo, verde). ~190° de
+   distância no círculo de cor, então dá pra distinguir de relance, sem comparar.
+
+   Todas as cores passam 4,5:1 com a inicial branca por cima. */
+const CORES = ['#b45309','#92400e','#a16207','#854d0e','#c2410c','#9a3412','#8a5a12','#7c2d12'];
 // Cor do avatar SEMPRE a mesma pra mesma pessoa. Antes era CORES[i], o índice na lista —
 // e como a lista se reordena a cada mensagem nova, a cor de todo mundo trocava sozinha.
 function corFixa(chave){
@@ -436,7 +446,10 @@ let PRESENCA = {};            // { conversaId: [ {nome, inicial, cor, digitando}
 let _canalPres = null, _digitando = false, _tDigit = null;
 
 function corDoNome(nome){
-  const paleta = ['#f59e0b','#8b5cf6','#0ea5e9','#10b981','#ef4444','#ec4899','#14b8a6','#6366f1'];
+  // Fria de propósito — a da cliente é quente. Ver o comentário na const CORES.
+  // Os tons antigos eram claros demais: a inicial branca em cima do #14b8a6 dava
+  // 2,49:1, praticamente ilegível. Estes passam todos de 4,5:1.
+  const paleta = ['#6d28d9','#0369a1','#047857','#4338ca','#0f766e','#1d4ed8','#7c3aed','#155e75'];
   // FNV-1a: espalha melhor que soma simples, senão dois nomes caem na mesma cor.
   let h = 0x811c9dc5; const t = String(nome||'?').toLowerCase();
   for (let i=0;i<t.length;i++){ h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
