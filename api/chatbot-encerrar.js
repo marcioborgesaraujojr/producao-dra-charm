@@ -75,9 +75,17 @@ export default async function handler(req, res) {
         } catch (e) { console.error('encerrar/aviso', cv.id, e.message); }
       }
 
+      /* Marca como RESOLVIDA junto. Antes a conversa ficava num limbo: o robô já tinha
+         soltado, ninguém tinha assumido, e ela seguia "não resolvida" e lida — ou seja,
+         invisível pra equipe e aberta pra sempre. Com 1.700 conversas, ninguém ia fechar
+         na mão.
+         Só chega aqui quem o robô estava atendendo (modo=bot) e ninguém assumiu — ou seja,
+         ele nunca achou que precisava de gente. Se a cliente voltar a escrever, a
+         conversa reabre sozinha (ver getOrCreateConversa no webhook), então fechar aqui
+         não perde ninguém. */
       await sbFetch('at_conversas?id=eq.' + cv.id, {
         method: 'PATCH',
-        body: JSON.stringify({ modo: null, bot_encerrada_em: new Date().toISOString() })
+        body: JSON.stringify({ modo: null, bot_encerrada_em: new Date().toISOString(), status: 'encerrada' })
       });
       await sbFetch('at_mensagens', {
         method: 'POST',
