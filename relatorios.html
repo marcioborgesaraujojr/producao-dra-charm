@@ -93,8 +93,9 @@ async function bootstrap(){
 // movimento por dia e desempenho por operador. Os números são CONTADOS no servidor
 // (/api/atendimento-relatorio) — a versão antiga lia 2000 conversas no navegador e
 // chamava aquilo de total.
-function hojeStr(){ return new Date().toISOString().slice(0,10); }
-function diasAtrasStr(n){ return new Date(Date.now()-n*86400000).toISOString().slice(0,10); }
+// Dia de Fortaleza (UTC-3), não dia em UTC — senão "hoje" começa às 21h de ontem.
+function hojeStr(){ return new Date(Date.now()-3*3600*1000).toISOString().slice(0,10); }
+function diasAtrasStr(n){ return new Date(Date.now()-3*3600*1000-n*86400000).toISOString().slice(0,10); }
 let R_DE = diasAtrasStr(6), R_ATE = hojeStr();
 
 window.mudarPeriodo = () => {
