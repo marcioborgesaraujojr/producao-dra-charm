@@ -326,7 +326,11 @@ async function loadBotTeste(){
     if(data) BOT_TESTE = { ligado: !!data.modo_teste, lote: Number(data.teste_lote)||0 };
   }catch(e){ /* SQL do modo teste ainda não rodou: segue sem selo */ }
 }
-const emTeste = cv => !!(BOT_TESTE.ligado && cv && cv.botTesteLote != null && cv.botTesteLote === BOT_TESTE.lote);
+// Só vale enquanto o ROBÔ é quem está atendendo. Sem o modo:'bot' o selo aparecia
+// colado no avatar da atendente, como se ELA estivesse em teste — e ela não está:
+// se a conversa passou pra humano, o teste ali acabou.
+const emTeste = cv => !!(BOT_TESTE.ligado && cv && cv.modo === 'bot'
+  && cv.botTesteLote != null && cv.botTesteLote === BOT_TESTE.lote);
 function seloTeste(cv){
   if(!emTeste(cv)) return '';
   return '<span class="pres-pill" title="O robô está atendendo esta conversa em modo teste — evite entrar por cima sem precisar" '
@@ -750,7 +754,7 @@ function renderList(){
              indicador justo quando ele era mais útil. -->
         <div class="mt-1 flex items-center gap-1 text-[11px] text-slate-400">
           <svg class="w-3.5 h-3.5 text-green-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15l-1.4 5 5.1-1.3A10 10 0 1 0 12 2z"/></svg>${esc(cv.canal)}
-          <span class="ml-auto flex items-center gap-1">${seloTeste(cv)}${botHtml(cv)}${presencaHtml(cv.id)}${cv.naoLida?'<span class="w-2 h-2 rounded-full bg-pink-500"></span>':''}</span>
+          <span class="ml-auto flex items-center gap-1">${botHtml(cv)}${seloTeste(cv)}${presencaHtml(cv.id)}${cv.naoLida?'<span class="w-2 h-2 rounded-full bg-pink-500"></span>':''}</span>
         </div>
       </div>
     </div>`).join('');
