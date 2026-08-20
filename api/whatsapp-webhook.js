@@ -478,7 +478,12 @@ async function maybeBotReply(conversaId, clienteNome, inboundText, waid, host, u
 
       if (!jaNoLote) {
         let dentro = [];
-        try { dentro = await sbFetch('at_conversas?select=id&bot_teste_lote=eq.' + lote + '&limit=' + (vagas + 1)); } catch (e) { dentro = []; }
+        /* status=neq.encerrada: conversa encerrada NÃO segura vaga. O encerrador já devolve
+           a vaga, mas as que foram encerradas antes desse conserto ficaram marcadas, e sem
+           este filtro elas continuariam entupindo o lote pra sempre. */
+        try { dentro = await sbFetch('at_conversas?select=id&bot_teste_lote=eq.' + lote + '&status=neq.encerrada&limit=' + (vagas + 1)); } catch (e) { /* se a consulta falhar, trata como LOTE CHEIO: em modo teste, robô solto em
+                            todo mundo é pior que conversa esperando gente. */
+          dentro = new Array(vagas).fill({}); }
         if ((Array.isArray(dentro) ? dentro.length : 0) >= vagas) {
           await sbFetch('at_conversas?id=eq.' + conversaId, { method: 'PATCH', body: JSON.stringify({ nao_lida: true }) });
           return;                                                    // lote cheio -> fila humana, sem gastar IA
@@ -492,7 +497,7 @@ async function maybeBotReply(conversaId, clienteNome, inboundText, waid, host, u
         // duas entrarem — viravam 6 num lote de 5. Aqui a gente relê as primeiras pela
         // ordem de entrada: quem não coube devolve a vaga e vai pra fila humana.
         try {
-          const cabem = await sbFetch('at_conversas?select=id&bot_teste_lote=eq.' + lote + '&order=bot_teste_em.asc&limit=' + vagas);
+          const cabem = await sbFetch('at_conversas?select=id&bot_teste_lote=eq.' + lote + '&status=neq.encerrada&order=bot_teste_em.asc&limit=' + vagas);
           const coube = (Array.isArray(cabem) ? cabem : []).some(x => String(x.id) === String(conversaId));
           if (!coube) {
             await sbFetch('at_conversas?id=eq.' + conversaId, { method: 'PATCH',

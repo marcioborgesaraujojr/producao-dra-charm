@@ -85,7 +85,12 @@ export default async function handler(req, res) {
          não perde ninguém. */
       await sbFetch('at_conversas?id=eq.' + cv.id, {
         method: 'PATCH',
-        body: JSON.stringify({ modo: null, bot_encerrada_em: new Date().toISOString(), status: 'encerrada' })
+        /* bot_teste_lote volta a null: a vaga do modo teste é DEVOLVIDA ao encerrar.
+           Sem isto, o lote de 50 encheu de conversa morta e o robô ficou 4h sem atender
+           ninguém — as 50 vagas estavam ocupadas por conversas encerradas por inatividade,
+           e conversa nova nenhuma conseguia entrar. Foi assim que a coisa apareceu:
+           "tava setado em 50, tentei colocar 100 e não consegui". */
+        body: JSON.stringify({ modo: null, bot_encerrada_em: new Date().toISOString(), status: 'encerrada', bot_teste_lote: null })
       });
       await sbFetch('at_mensagens', {
         method: 'POST',
