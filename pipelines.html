@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Funil de Leads — Sistema Grupo Aragão</title>
+<title>Pipelines — Sistema Grupo Aragão</title>
 <link rel="icon" type="image/svg+xml" href="/logo_500x500.svg">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="/theme.js"></script>
@@ -54,6 +54,9 @@
   .ava{width:26px;height:26px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;
        font-size:11px;font-weight:700;color:#fff;overflow:hidden}
   .ava img{width:100%;height:100%;object-fit:cover}
+  /* hidden sozinho não basta: classe de display do Tailwind tem a mesma
+     especificidade e carrega depois. Mesma armadilha do chatbot.html. */
+  [data-painel][hidden]{display:none !important}
   [data-fade]{animation:fade .18s ease}@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 </style>
 
@@ -87,7 +90,7 @@
 <div id="authGate" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-50 dark:bg-ink-900">
   <div class="text-center">
     <div class="w-14 h-14 mx-auto rounded-2xl overflow-hidden mb-4"><img src="/icone-app.png" alt="Aragão" class="w-full h-full object-cover"></div>
-    <div class="font-semibold mb-1">Funil de Leads</div><div class="text-sm text-slate-500 mb-4">Faça login na Suíte para acessar.</div>
+    <div class="font-semibold mb-1">Pipelines</div><div class="text-sm text-slate-500 mb-4">Faça login na Suíte para acessar.</div>
     <a href="/" class="inline-block text-sm font-semibold text-white bg-pink-500 hover:bg-pink-600 px-4 py-2 rounded-lg">Ir para o login</a>
   </div>
 </div>
@@ -96,7 +99,7 @@
 <header class="h-14 flex items-center justify-between px-4 bg-white/95 dark:bg-ink-800/95 border-b border-slate-200 dark:border-ink-600 sticky top-0 z-30 backdrop-blur">
   <div class="flex items-center gap-3">
     <button onclick="location.href='/'" title="Voltar à Suíte" class="w-9 h-9 rounded-xl shadow hover:scale-105 hover:shadow-md transition flex items-center justify-center text-white bg-gradient-to-br from-indigo-500 to-blue-600"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="4" height="16" rx="1"/><rect x="10" y="4" width="4" height="10" rx="1"/><rect x="17" y="4" width="4" height="6" rx="1"/></svg></button>
-    <div class="leading-tight"><div class="text-sm font-semibold">Funil de Leads</div><div class="text-[11px] text-slate-500 dark:text-slate-400">Pipeline / CRM · Grupo Aragão</div></div>
+    <div class="leading-tight"><div class="text-sm font-semibold">Pipelines</div><div class="text-[11px] text-slate-500 dark:text-slate-400">Quadros por etiqueta · Grupo Aragão</div></div>
   </div>
   <div class="flex items-center gap-1">
     <button onclick="location.href='/'" class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 hover:text-pink-500 flex items-center justify-center text-slate-500" title="Voltar"><img src="/icone-app.png" alt="Suíte" class="w-6 h-6 rounded-md object-cover"></button>
@@ -104,7 +107,15 @@
   </div>
 </header>
 
-<div class="px-4 pt-4 max-w-full">
+<!-- abas: padrão .dc-tab do theme.js -->
+<div class="px-4 pt-4">
+  <div class="dc-tabs" id="abas" style="min-height:41px">
+    <div class="dc-tab" data-aba="quadros"   onclick="irAba('quadros')">Quadros</div>
+    <div class="dc-tab" data-aba="etiquetas" onclick="irAba('etiquetas')">Etiquetas</div>
+  </div>
+</div>
+
+<div class="px-4 pt-4 max-w-full" data-painel="quadros">
   <!-- escolha do funil + busca -->
   <div class="flex flex-wrap items-center gap-2 mb-3">
     <select id="pipeSel" onchange="abrir(this.value)" class="fld text-sm font-semibold"></select>
@@ -122,6 +133,57 @@
 
   <div id="board" class="scrollx flex gap-3 pb-4 items-start" style="min-height:60vh"></div>
 </div>
+
+<!-- ============ ETIQUETAS ============ -->
+<div class="p-4 space-y-4 max-w-5xl mx-auto" data-painel="etiquetas" hidden>
+  <div class="bin rounded-xl p-4 space-y-3">
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="mr-auto">
+        <div class="text-sm font-semibold flex items-center gap-2">Etiquetas
+          <span id="tagCont" class="text-[11px] font-semibold text-slate-500 bg-slate-100 dark:bg-ink-700 rounded-full px-2 py-0.5">—</span>
+        </div>
+        <div class="text-[11px] text-slate-400">
+          Etiqueta no formato <b>Grupo::Valor</b> vira coluna de quadro. Sem <b>::</b> é etiqueta solta, só pra marcar.
+        </div>
+      </div>
+      <input id="tagBusca" oninput="renderTags()" class="fld text-sm" style="width:200px" placeholder="Buscar etiqueta…">
+      <button onclick="novaTag()" class="text-sm font-semibold px-3 py-2 rounded-lg bg-pink-500 hover:bg-pink-600 text-white">Criar etiqueta</button>
+    </div>
+    <div id="tagLista"><div class="text-xs text-slate-400">carregando…</div></div>
+  </div>
+</div>
+</div>
+
+<!-- ===== Janela: etiqueta ===== -->
+<div id="mdTag" class="hidden fixed inset-0 z-50 bg-slate-900/40 flex items-start justify-center p-4" onclick="if(event.target===this)fecharTag()">
+  <div class="bin rounded-2xl w-full max-w-md mt-20 p-4 space-y-3" style="box-shadow:0 20px 60px rgba(15,23,42,.25)">
+    <div id="mdTagTitulo" class="text-sm font-semibold">Nova etiqueta</div>
+    <div class="grid grid-cols-2 gap-2">
+      <div>
+        <label class="text-[12px] font-semibold text-slate-500">Grupo <span class="font-normal text-slate-400">(opcional)</span></label>
+        <input id="tgGrupo" class="fld text-sm w-full mt-1" list="tgGrupos" placeholder="Ex.: Problema">
+        <datalist id="tgGrupos"></datalist>
+      </div>
+      <div>
+        <label class="text-[12px] font-semibold text-slate-500">Valor</label>
+        <input id="tgValor" class="fld text-sm w-full mt-1" placeholder="Ex.: Acareação">
+      </div>
+    </div>
+    <div>
+      <label class="text-[12px] font-semibold text-slate-500">Descrição <span class="font-normal text-slate-400">(só pra vocês)</span></label>
+      <input id="tgDesc" class="fld text-sm w-full mt-1" placeholder="Pra que serve esta etiqueta">
+    </div>
+    <div>
+      <label class="text-[12px] font-semibold text-slate-500">Cor</label>
+      <div id="tgCores" class="flex flex-wrap gap-2 mt-1"></div>
+    </div>
+    <div id="tgAviso" class="text-[11px]"></div>
+    <div class="flex items-center gap-2 pt-1">
+      <button id="tgApagar" onclick="apagarTag()" class="dc-chip" style="color:#e11d48">Apagar</button>
+      <button onclick="fecharTag()" class="dc-chip ml-auto">Cancelar</button>
+      <button onclick="salvarTag(this)" class="text-sm font-semibold px-3 py-2 rounded-lg bg-pink-500 hover:bg-pink-600 text-white">Salvar</button>
+    </div>
+  </div>
 </div>
 
 <!-- ===== Janela: card ===== -->
@@ -192,6 +254,171 @@ function corDaFase(f){
   return (e && CORES[e]) ? CORES[e] : fixa(f);
 }
 
+/* ===== Abas ===== */
+const ABAS = ['quadros','etiquetas'];
+let ABA = 'quadros';
+function irAba(nome, semHash){
+  if(ABAS.indexOf(nome) < 0) nome = 'quadros';
+  ABA = nome;
+  document.querySelectorAll('[data-aba]').forEach(t => {
+    if(t.dataset.aba === nome) t.setAttribute('data-on','1'); else t.removeAttribute('data-on');
+  });
+  document.querySelectorAll('[data-painel]').forEach(x => { x.hidden = (x.dataset.painel !== nome); });
+  if(!semHash && location.hash.slice(1) !== nome) location.hash = nome;
+  if(nome === 'etiquetas') carregarTags();
+}
+window.addEventListener('hashchange', () => irAba(location.hash.slice(1), true));
+
+/* ===================================================================
+   ETIQUETAS
+   Etiqueta "Grupo::Valor" vira coluna de quadro; sem "::" é etiqueta
+   solta, só pra marcar a conversa. A tela mostra as duas e deixa claro
+   qual é qual — senão ninguém entende por que uma aparece no quadro e
+   a outra não.
+   =================================================================== */
+let TAGS_TODAS = [], USO = {}, TAG_EDIT = null;
+const CORES_TAG = ['#ff3c6f','#f59e0b','#3b82f6','#14b8a6','#8b5cf6','#22c55e','#ef4444','#0ea5e9','#64748b','#ec4899'];
+
+async function carregarTags(){
+  const el = document.getElementById('tagLista');
+  const c = await getSb();
+  const { data, error } = await c.from('at_tags').select('*');
+  if(error){ el.innerHTML = '<div class="text-xs text-amber-600">Não consegui ler as etiquetas: '+esc(error.message)+'</div>'; return; }
+  TAGS_TODAS = data || [];
+
+  // Quantas conversas usam cada etiqueta. Sem isso, apagar é no escuro.
+  USO = {};
+  try{
+    const v = await c.from('at_conversa_tags').select('tag_id').limit(20000);
+    (v.data||[]).forEach(x => { USO[x.tag_id] = (USO[x.tag_id]||0) + 1; });
+  }catch(e){}
+  renderTags();
+}
+
+function renderTags(){
+  const el = document.getElementById('tagLista');
+  const termo = semAcento((document.getElementById('tagBusca')||{}).value || '');
+  const temDesc = TAGS_TODAS.some(t => 'descricao' in t);
+
+  const lista = TAGS_TODAS
+    .filter(t => !termo || semAcento(t.nome + ' ' + (t.descricao||'')).includes(termo))
+    .sort((a,b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+
+  document.getElementById('tagCont').textContent = TAGS_TODAS.length + (TAGS_TODAS.length===1?' etiqueta':' etiquetas');
+
+  // grupos conhecidos, pro datalist da janela
+  const grupos = [...new Set(TAGS_TODAS.map(t => grupoDo(t.nome)).filter(Boolean))].sort();
+  document.getElementById('tgGrupos').innerHTML = grupos.map(g => '<option value="'+esc(g)+'">').join('');
+
+  if(!lista.length){
+    el.innerHTML = '<div class="text-xs text-slate-400 py-3">'
+      + (termo ? 'Nenhuma etiqueta com “'+esc(termo)+'”.' : 'Nenhuma etiqueta ainda. Clique em "Criar etiqueta".')
+      + '</div>';
+    return;
+  }
+
+  el.innerHTML = '<div class="tb">'
+    + '<div class="tb-h" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr) 90px 30px"><div>Etiqueta</div><div>Descrição</div><div>Conversas</div><div></div></div>'
+    + lista.map(t => {
+        const g = grupoDo(t.nome), v = valorDo(t.nome);
+        const cor = t.cor || fixa(v).tx;
+        const n = USO[t.id] || 0;
+        return '<div class="tb-l" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr) 90px 30px;cursor:pointer" onclick="abrirTag(' + JSON.stringify(String(t.id)) + ')">'
+          + '<div style="padding:6px 8px">'
+          +   '<span class="tag" style="margin:0">' + (g?('<b>'+esc(g)+'</b>'):'')
+          +     '<i style="background:' + esc(cor) + ';color:#fff">' + esc(v) + '</i></span>'
+          +   (g ? '' : '<div class="text-[10px] text-slate-400 mt-1">solta — não vira coluna</div>')
+          + '</div>'
+          + '<div style="padding:6px 8px;font-size:12px" class="' + ((t.descricao)?'text-slate-600 dark:text-slate-300':'text-slate-300') + '">'
+          +   esc(t.descricao || (temDesc ? 'sem descrição' : '—')) + '</div>'
+          + '<div style="padding:6px 8px;font-size:12px" class="' + (n?'':'text-slate-300') + '">' + n + '</div>'
+          + '<div style="padding:6px 8px" class="text-slate-300">'
+          +   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:13px;height:13px"><path d="M9 6l6 6-6 6"/></svg></div>'
+        + '</div>';
+      }).join('')
+    + '</div>'
+    + (temDesc ? '' : '<div class="text-[11px] text-amber-600 mt-2">Rode <b>db/add-tags-gestao.sql</b> no Supabase pra poder guardar descrição e data das etiquetas.</div>');
+}
+
+function novaTag(){ abrirTag(null); }
+function abrirTag(id){
+  TAG_EDIT = id ? TAGS_TODAS.find(t => String(t.id) === String(id)) : null;
+  const t = TAG_EDIT || {};
+  document.getElementById('mdTagTitulo').textContent = TAG_EDIT ? 'Editar etiqueta' : 'Nova etiqueta';
+  document.getElementById('tgGrupo').value = TAG_EDIT ? (grupoDo(t.nome) || '') : '';
+  document.getElementById('tgValor').value = TAG_EDIT ? valorDo(t.nome) : '';
+  document.getElementById('tgDesc').value  = t.descricao || '';
+  document.getElementById('tgApagar').style.display = TAG_EDIT ? '' : 'none';
+
+  const corAtual = t.cor || CORES_TAG[0];
+  document.getElementById('tgCores').innerHTML = CORES_TAG.map(cor =>
+    '<button onclick="escolherCor(this,' + JSON.stringify(cor) + ')" data-cor="' + cor + '" '
+    + 'class="w-7 h-7 rounded-full" style="background:' + cor + ';outline:' + (cor===corAtual?'2px solid #0f172a;outline-offset:2px':'none') + '"></button>').join('');
+  document.getElementById('mdTag').dataset.cor = corAtual;
+
+  const n = TAG_EDIT ? (USO[t.id] || 0) : 0;
+  document.getElementById('tgAviso').innerHTML = TAG_EDIT
+    ? '<span class="text-slate-400">Usada em <b>' + n + '</b> conversa(s). Renomear mantém todas — a etiqueta é a mesma, só muda o nome.</span>'
+    : '<span class="text-slate-400">Com <b>Grupo</b> preenchido ela pode virar coluna de quadro. Sem grupo, é só uma marcação.</span>';
+  document.getElementById('mdTag').classList.remove('hidden');
+  document.getElementById(TAG_EDIT ? 'tgValor' : 'tgGrupo').focus();
+}
+function fecharTag(){ document.getElementById('mdTag').classList.add('hidden'); TAG_EDIT = null; }
+function escolherCor(btn, cor){
+  document.getElementById('mdTag').dataset.cor = cor;
+  [...btn.parentElement.children].forEach(b => b.style.outline = 'none');
+  btn.style.outline = '2px solid #0f172a'; btn.style.outlineOffset = '2px';
+}
+async function salvarTag(btn){
+  const g = document.getElementById('tgGrupo').value.trim();
+  const v = document.getElementById('tgValor').value.trim();
+  if(!v) return alert('Falta o valor da etiqueta.');
+  if(g.includes('::') || v.includes('::')) return alert('Não use "::" dentro do grupo ou do valor — ele já separa os dois.');
+  const nome = g ? (g + SEP + v) : v;
+
+  const repetida = TAGS_TODAS.find(t => semAcento(t.nome) === semAcento(nome) && (!TAG_EDIT || String(t.id) !== String(TAG_EDIT.id)));
+  if(repetida) return alert('Já existe uma etiqueta com esse nome. Nome repetido só confunde na hora de marcar.');
+
+  const antes = btn.textContent; btn.textContent = 'Salvando…'; btn.disabled = true;
+  const patch = { nome, cor: document.getElementById('mdTag').dataset.cor };
+  const desc = document.getElementById('tgDesc').value.trim();
+  try{
+    const c = await getSb();
+    let erro = null;
+    // descricao pode não existir ainda: tenta com, e sem se o banco recusar
+    let r = await (TAG_EDIT
+      ? c.from('at_tags').update({ ...patch, descricao: desc || null }).eq('id', TAG_EDIT.id)
+      : c.from('at_tags').insert({ ...patch, descricao: desc || null }));
+    if(r.error && /descricao|column/i.test(r.error.message)){
+      r = await (TAG_EDIT
+        ? c.from('at_tags').update(patch).eq('id', TAG_EDIT.id)
+        : c.from('at_tags').insert(patch));
+      if(!r.error) erro = 'salvo, mas a descrição não: falta rodar db/add-tags-gestao.sql';
+    }
+    if(r.error) throw r.error;
+    fecharTag(); await carregarTags();
+    if(erro) alert(erro);
+  }catch(e){
+    btn.disabled = false; btn.textContent = antes;
+    alert('Erro: ' + e.message);
+  }
+}
+async function apagarTag(){
+  if(!TAG_EDIT) return;
+  const n = USO[TAG_EDIT.id] || 0;
+  // Apagar a etiqueta tira ela de TODAS as conversas — é trabalho da equipe indo embora.
+  if(!confirm(n
+    ? 'Apagar "' + TAG_EDIT.nome + '"?\n\nEla sai de ' + n + ' conversa(s), e isso não tem como desfazer.'
+    : 'Apagar "' + TAG_EDIT.nome + '"?')) return;
+  try{
+    const c = await getSb();
+    await c.from('at_conversa_tags').delete().eq('tag_id', TAG_EDIT.id);
+    const { error } = await c.from('at_tags').delete().eq('id', TAG_EDIT.id);
+    if(error) throw error;
+    fecharTag(); await carregarTags();
+  }catch(e){ alert('Erro: ' + e.message); }
+}
+
 async function bootstrap(){
   const c=await getSb(); const { data:{ session } }=await c.auth.getSession();
   if(!session){ document.getElementById('authGate').classList.remove('hidden'); return; }
@@ -211,8 +438,10 @@ async function bootstrap(){
 
   // etiqueta mexida na conversa tem que refletir aqui na hora — é o ponto do quadro
   c.channel('pipe-tags')
-   .on('postgres_changes',{event:'*',schema:'public',table:'at_conversa_tags'},()=>{ if(PIPE && !CARD) recarregar(); })
+   .on('postgres_changes',{event:'*',schema:'public',table:'at_conversa_tags'},()=>{ if(PIPE && !CARD && ABA==='quadros') recarregar(); })
    .subscribe();
+
+  irAba(location.hash.slice(1) || 'quadros', true);
 }
 
 async function abrir(id){
@@ -544,7 +773,7 @@ async function tirarDoQuadro(){
   try{ await c.from('at_conversa_tags').delete().eq('conversa_id', id).in('tag_id', TAGS.map(t=>t.id)); }catch(e){}
 }
 
-document.addEventListener('keydown', e => { if(e.key === 'Escape') fecharCard(); });
+document.addEventListener('keydown', e => { if(e.key === 'Escape'){ fecharCard(); fecharTag(); } });
 bootstrap();
 </script>
 <script src="/nav.js"></script>
