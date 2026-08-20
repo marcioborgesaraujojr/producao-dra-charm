@@ -53,7 +53,7 @@ async function conversasComEntrada(deISO, ateISO){
       + '&order=enviada_em.asc&limit=1000&offset=' + desloc);
     pagina.forEach(m => {
       if(!m.conversa_id) return;
-      const dia = String(m.enviada_em).slice(0,10);
+      const dia = new Date(new Date(m.enviada_em).getTime() - 3*3600*1000).toISOString().slice(0,10);
       if(!porConversa.has(m.conversa_id)) porConversa.set(m.conversa_id, dia);
     });
     if(pagina.length < 1000) break;
@@ -68,8 +68,13 @@ const dias = (de, ate) => {
   while(d <= fim && out.length < 92){ out.push(d.toISOString().slice(0,10)); d.setUTCDate(d.getUTCDate() + 1); }
   return out;
 };
-const ini = (dia) => dia + 'T00:00:00.000Z';
-const fim = (dia) => dia + 'T23:59:59.999Z';
+// O dia é o dia DE FORTALEZA (UTC-3, sem horário de verão desde 2019), não o dia em UTC.
+// Sem isso, "hoje" começava às 21h do dia anterior aqui — o relatório mostrava 1 hora de
+// movimento e chamava aquilo de dia inteiro.
+const FUSO = '-03:00';
+const ini = (dia) => dia + 'T00:00:00.000' + FUSO;
+const fim = (dia) => dia + 'T23:59:59.999' + FUSO;
+const hojeLocal = () => new Date(Date.now() - 3*3600*1000).toISOString().slice(0,10);
 
 export default async function handler(req, res){
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -81,9 +86,9 @@ export default async function handler(req, res){
   const quem = await callerEmail((req.headers.authorization || '').replace('Bearer ', '').trim());
   if(!quem) return res.status(403).json({ error: 'Sessão inválida. Faça login na suíte.' });
 
-  const hoje = new Date().toISOString().slice(0,10);
+  const hoje = hojeLocal();
   const ate = String(req.query.ate || hoje).slice(0,10);
-  const de  = String(req.query.de  || new Date(Date.now() - 6*86400000).toISOString().slice(0,10)).slice(0,10);
+  const de  = String(req.query.de  || new Date(Date.now() - 3*3600*1000 - 6*86400000).toISOString().slice(0,10)).slice(0,10);
 
   const lista = dias(de, ate);
   if(!lista.length) return res.status(400).json({ error: 'Período inválido.' });
