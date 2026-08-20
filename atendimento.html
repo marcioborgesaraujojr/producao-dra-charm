@@ -304,6 +304,22 @@ function corFixaTexto(chave){ return PARES[_idxCor(chave)][1]; }   // letra escu
 let sb=null, CONVERSAS=[], TAB='minhas', SEL=null, NOTA=false, PROFILES=[], SORT='recentes', IS_ADMIN=false, AT_CONFIG={identificacao:false,formato:'primeiro_nome'};
 async function loadAtConfig(){ try{ const r=await fetch('https://wwytzoyeibekhstinott.supabase.co/storage/v1/object/public/system-assets/at-config.json?t='+Date.now()); if(r.ok){ const j=JSON.parse(await r.text()); if(j&&typeof j==='object') AT_CONFIG=Object.assign(AT_CONFIG,j); } }catch(e){} }
 function nomeAtendente(){ const n=(AGENTE||'').trim(); if(!n) return ''; return AT_CONFIG.formato==='completo'? n : n.split(' ')[0]; }
+
+/* O campo "autor" da mensagem foi gravado de jeitos diferentes ao longo do tempo:
+   em umas ficou o e-mail inteiro, em outras o nome. A atendente não quer ver e-mail
+   na bolha. Aqui a gente resolve na HORA DE MOSTRAR — assim o histórico velho
+   também aparece com nome, sem precisar mexer no banco. */
+function _capitaliza(s){ return String(s||'').split(/[\s._-]+/).filter(Boolean)
+  .map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' '); }
+function nomeDoAutor(autor){
+  const a = String(autor||'').trim();
+  if(!a) return '';
+  if(a.indexOf('@') === -1) return a;                    // já é nome, deixa como está
+  const email = a.toLowerCase();
+  const p = PROFILES.find(x => String(x.email||'').toLowerCase() === email);
+  if(p && p.full_name && p.full_name.trim()) return p.full_name.trim();
+  return _capitaliza(email.split('@')[0]);               // sem perfil: usa o começo do e-mail
+}
 async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2'); sb=createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true}}); } return sb; }
 const cur=()=>CONVERSAS.find(x=>x.id===SEL);
 
@@ -427,7 +443,8 @@ async function bootstrap(){
     loadConversas(),
   ]);
   const prof = profR && profR.data;
-  AGENTE = (prof&&prof.full_name) ? prof.full_name : (email.split('@')[0]||'Atendente');
+  // nunca deixa e-mail virar nome: sem full_name, arruma o começo do e-mail (ana.paula -> Ana Paula)
+  AGENTE = (prof&&prof.full_name&&prof.full_name.trim()) ? prof.full_name.trim() : (_capitaliza(String(email||'').split('@')[0])||'Atendente');
   document.getElementById('userAvatar').textContent = AGENTE[0].toUpperCase();
   PROFILES = (profsR && profsR.data)||[];
   CONVERSAS = convs;
@@ -739,7 +756,7 @@ function renderChat(cv){
   chat.innerHTML=`<div class="flex justify-center"><span class="text-[11px] text-slate-400 bg-slate-100 dark:bg-ink-700 px-3 py-1 rounded-full">Conversa</span></div>`
    + cv.msgs.map(m=>{
       if(m.t==='sys'){ const s={reabriu:'bg-orange-100 text-orange-700',resolvida:'bg-green-100 text-green-700'}; return `<div class="flex justify-center"><span class="sys-chip ${s[m.k]||'bg-slate-100 text-slate-600'}">${esc(m.txt)}</span></div>`; }
-      if(m.t==='nota') return `<div class="flex justify-end"><div class="max-w-[70%] bubble-note rounded-2xl px-4 py-2 shadow-sm" data-fade><div class="text-[10px] font-semibold text-amber-600 mb-0.5">Nota interna</div><div class="text-sm whitespace-pre-wrap">${esc(m.txt)}</div><div class="text-[10px] text-amber-500/70 text-right mt-1">${m.hora}</div></div></div>`;
+      if(m.t==='nota') return `<div class="flex justify-end"><div class="max-w-[70%] bubble-note rounded-2xl px-4 py-2 shadow-sm" data-fade><div class="text-[10px] font-semibold text-amber-600 mb-0.5">Nota interna${(m.autor && m.autor!=='sistema') ? ' · '+esc(nomeDoAutor(m.autor)) : ''}</div><div class="text-sm whitespace-pre-wrap">${esc(m.txt)}</div><div class="text-[10px] text-amber-500/70 text-right mt-1">${m.hora}</div></div></div>`;
       const out=m.t==='out';
       // Mídia baixada: renderiza o player certo conforme o tipo (imagem/áudio/vídeo/documento)
       let _media='';
@@ -759,7 +776,7 @@ function renderChat(cv){
       if(!_media && _rot[_txt]){ _txt=_rot[_txt]; _cls='text-sm text-slate-500 dark:text-slate-400'; }  // mídia sem arquivo -> rótulo
       const _showTxt=!!_txt;
       const _vazio=(!_media && !_showTxt)?`<div class="text-sm italic text-slate-400">[mensagem sem conteúdo]</div>`:'';
-      return `<div class="flex ${out?'justify-end':'justify-start'}"><div class="max-w-[70%] ${out?'bubble-out':'bubble-in'} rounded-2xl px-4 py-2 shadow-sm">${(out && m.autor && m.autor!=='sistema') ? `<div class="text-[11px] font-bold opacity-70 mb-0.5">${esc(m.autor)}</div>` : ''}${_media}${_showTxt?`<div class="${_cls}">${esc(_txt)}</div>`:''}${_vazio}<div class="text-[10px] text-slate-400 text-right mt-1">${m.hora}${out?' <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:inline-block;vertical-align:-0.15em;flex:none"><path d="m1 13 4 4 8-8"/><path d="m10 13 4 4 9-9"/></svg>':''}</div></div></div>`;
+      return `<div class="flex ${out?'justify-end':'justify-start'}"><div class="max-w-[70%] ${out?'bubble-out':'bubble-in'} rounded-2xl px-4 py-2 shadow-sm">${(out && m.autor && m.autor!=='sistema') ? `<div class="text-[11px] font-bold opacity-70 mb-0.5">${esc(nomeDoAutor(m.autor))}</div>` : ''}${_media}${_showTxt?`<div class="${_cls}">${esc(_txt)}</div>`:''}${_vazio}<div class="text-[10px] text-slate-400 text-right mt-1">${m.hora}${out?' <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:inline-block;vertical-align:-0.15em;flex:none"><path d="m1 13 4 4 8-8"/><path d="m10 13 4 4 9-9"/></svg>':''}</div></div></div>`;
     }).join('');
   // Só desce sozinho se a pessoa já estava no fim. Se ela subiu pra ler algo antigo,
   // uma mensagem nova não arranca mais a tela do lugar.
@@ -784,7 +801,6 @@ function renderProfile(cv){
     <div class="mt-4 pt-4 border-t border-slate-200 dark:border-ink-600">
       <div class="flex items-center justify-between mb-2"><span class="text-sm font-semibold">Tags</span><button onclick="addTag()" class="text-pink-600 text-xs hover:underline">+ Adicionar</button></div>
       <div class="flex flex-wrap gap-1.5">${(cv.tags||[]).map(tagPill).join('')||'<span class="text-xs text-slate-400">Sem tags</span>'}</div>
-      <div id="quadrosBox" class="mt-3"></div>
     </div>
     <div class="mt-4 pt-4 border-t border-slate-200 dark:border-ink-600">
       <div class="flex items-center gap-2 mb-2"><span class="text-sm font-semibold">Pedido do cliente</span><span id="pedBadge"></span></div>
@@ -795,7 +811,6 @@ function renderProfile(cv){
       ${cv.pedidoNumero?`<button onclick="rastrear()" class="mt-2 w-full text-xs font-medium text-pink-600 hover:text-pink-700 border border-pink-200 dark:border-pink-900/40 rounded-lg py-2 inline-flex items-center justify-center gap-1"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Rastrear pedido</button>`:''}
     </div></div>`;
 
-  try{ renderQuadros(); }catch(e){}
 }
 function renderPedRows(ped){
   return lp('Status',`<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold ${spc(ped.status)}">${esc(ped.status)}</span>`)
@@ -830,7 +845,54 @@ function opColor(p){ if(p&&p.color) return p.color; const s=(p&&(p.id||p.full_na
 function opBadge(id){ if(!id) return ''; const p=PROFILES.find(x=>x.id===id); if(!p) return ''; const nm=p.full_name||p.email||'Operador'; return `<div class="flex items-center gap-2 mb-2"><span class="w-7 h-7 rounded-full text-white text-[12px] font-bold flex items-center justify-center shrink-0" style="background:${opColor(p)}">${esc(_initial(nm))}</span><span class="text-sm font-medium truncate">${esc(nm)}</span></div>`; }
 function copiar(t){ try{ navigator.clipboard.writeText(String(t||'')); if(typeof dcToast==='function') dcToast('Copiado','ok'); }catch(e){} }
 function campoContato(l,v,tipo){ const val=esc(v); const digits=String(v).replace(/\D/g,''); const wa=(tipo==='tel'&&digits)?`<a href="https://wa.me/${digits}" target="_blank" title="Abrir no WhatsApp" class="text-emerald-500 hover:text-emerald-600 shrink-0"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15L2 22l5.1-1.3A10 10 0 1 0 12 2zm0 18a8 8 0 0 1-4.1-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8 8 0 1 1 12 20zm4.4-5.6c-.2-.1-1.4-.7-1.6-.8-.2-.1-.4-.1-.5.1-.2.2-.6.8-.8 1-.1.1-.3.2-.5.1-.7-.3-1.4-.5-2.3-1.4-.3-.3-.6-.7-.9-1.2-.1-.2 0-.3.1-.4l.3-.4.2-.3c.1-.1.1-.2 0-.4 0-.1-.5-1.3-.7-1.7-.2-.4-.4-.4-.5-.4h-.5c-.2 0-.4.1-.6.3-.7.7-.9 1.7-.6 2.7.3 1 .9 1.9 1.1 2.1.1.2 1.7 2.7 4.2 3.7 2.1.8 2.5.7 2.9.6.5-.1 1.4-.6 1.6-1.1.2-.5.2-1 .1-1.1-.1-.1-.2-.1-.4-.2z"/></svg></a>`:''; return `<div class="mb-2"><div class="text-[11px] text-slate-400 mb-0.5">${l}</div><div class="flex items-center gap-1.5"><div class="acv text-sm truncate flex-1">${val}</div><button onclick="copiar(this.parentElement.querySelector('.acv').textContent)" title="Copiar" class="text-slate-400 hover:text-pink-500 shrink-0"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>${wa}</div></div>`; }
-function tagPill(t){ const nome=String(t.nome||''); const del=`<button onclick="delTag('${t.id}')" class="opacity-0 group-hover:opacity-100 ml-0.5 hover:opacity-80">×</button>`; if(nome.includes('::')){ const i=nome.indexOf('::'); const cat=esc(nome.slice(0,i).trim()); const val=esc(nome.slice(i+2).trim()); return `<span class="group text-[11px] rounded-full overflow-hidden inline-flex items-center font-medium border border-slate-200 dark:border-ink-600"><span class="px-2 py-1 bg-slate-100 text-slate-600 dark:bg-ink-700 dark:text-slate-300">${cat}</span><span class="px-2 py-1 bg-white dark:bg-ink-800 text-slate-700 dark:text-slate-200 inline-flex items-center gap-1">${val}${del}</span></span>`; } return `<span class="group text-[11px] px-2 py-1 rounded-full bg-pink-50 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300 font-medium inline-flex items-center gap-1">${esc(nome)}${del}</span>`; }
+/* ===== Cor da etiqueta — a mesma paleta do Pipelines, pra não ter dois visuais =====
+   Se a tag tem cor escolhida no cadastro, ela manda. Senão a cor sai do próprio nome:
+   assim "Problema::PROCON" é sempre do mesmo tom, aqui e no quadro. */
+const CORES_TAG = {
+  rosa:{bg:'#ffe1e8',tx:'#c81a4e'}, azul:{bg:'#dbeafe',tx:'#1d4ed8'}, verde:{bg:'#d1fae5',tx:'#047857'},
+  ambar:{bg:'#fef3c7',tx:'#b45309'}, roxo:{bg:'#ede9fe',tx:'#6d28d9'}, ciano:{bg:'#cffafe',tx:'#0e7490'},
+  cinza:{bg:'#e2e8f0',tx:'#475569'}
+};
+const _NOMES_COR_TAG = Object.keys(CORES_TAG);
+function _corFixaTag(txt){ let h=2166136261; const s=String(txt||''); for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); } return CORES_TAG[_NOMES_COR_TAG[Math.abs(h)%_NOMES_COR_TAG.length]]; }
+// cor gravada como hex (#ff3c6f): usa como letra e clareia pro fundo
+function _mistura(hex, p){ const m=/^#?([0-9a-f]{6})$/i.exec(String(hex||'')); if(!m) return null;
+  const n=parseInt(m[1],16), r=(n>>16)&255, g=(n>>8)&255, b=n&255;
+  const f=x=>Math.round(x+(255-x)*p);
+  return '#'+[f(r),f(g),f(b)].map(x=>x.toString(16).padStart(2,'0')).join(''); }
+// Já tomamos essa mordida uma vez: âmbar (#f59e0b) com letra branca dá 2,1:1 e some na tela.
+// Se a cor escolhida for clara demais pra servir de fundo com texto branco, escurece.
+function _luz(hex){ const m=/^#?([0-9a-f]{6})$/i.exec(String(hex||'')); if(!m) return null;
+  const n=parseInt(m[1],16); const f=x=>{ x/=255; return x<=.03928 ? x/12.92 : Math.pow((x+.055)/1.055,2.4); };
+  return .2126*f((n>>16)&255) + .7152*f((n>>8)&255) + .0722*f(n&255); }
+function _escurecer(hex, p){ const m=/^#?([0-9a-f]{6})$/i.exec(String(hex||'')); if(!m) return hex;
+  const n=parseInt(m[1],16), f=x=>Math.round(x*(1-p));
+  return '#'+[f((n>>16)&255),f((n>>8)&255),f(n&255)].map(x=>x.toString(16).padStart(2,'0')).join(''); }
+
+function corDeTag(t){
+  const nome = typeof t==='string' ? t : String((t&&t.nome)||'');
+  let hex    = typeof t==='string' ? null : (t&&t.cor);
+  if(CORES_TAG[hex]) return CORES_TAG[hex];
+  const l = _luz(hex);
+  if(l === null) return _corFixaTag(nome);
+  // contraste com branco < 4.5:1 -> escurece até dar
+  let seguro = hex, guarda = 0;
+  while(_luz(seguro) > 0.183 && guarda++ < 8) seguro = _escurecer(seguro, .18);
+  return { bg: _mistura(seguro, .90), tx: seguro };
+}
+
+function tagPill(t){
+  const nome=String(t.nome||''); const c=corDeTag(t);
+  const del=`<button onclick="delTag('${t.id}')" title="Tirar esta etiqueta" class="opacity-0 group-hover:opacity-100 ml-0.5 hover:opacity-70 leading-none">×</button>`;
+  if(nome.includes('::')){
+    const i=nome.indexOf('::');
+    const cat=esc(nome.slice(0,i).trim()), val=esc(nome.slice(i+2).trim());
+    return `<span class="group text-[11px] rounded-full overflow-hidden inline-flex items-center font-semibold" style="background:${c.bg};color:${c.tx}">`
+         + `<span class="px-2 py-1 opacity-70">${cat}</span>`
+         + `<span class="px-2 py-1 inline-flex items-center gap-1" style="background:${c.tx};color:#fff">${val}${del}</span></span>`;
+  }
+  return `<span class="group text-[11px] px-2 py-1 rounded-full font-semibold inline-flex items-center gap-1" style="background:${c.bg};color:${c.tx}">${esc(nome)}${del}</span>`;
+}
 async function autoAtribuir(cv){ if(!cv || cv.atendenteId || !ATEND_ID) return; cv.atendenteId=ATEND_ID; cv.atendenteNome=(PROFILES.find(p=>p.id===ATEND_ID)||{}).full_name||''; try{ await (await getSb()).from('at_conversas').update({atendente_id:ATEND_ID}).eq('id',cv.id); }catch(e){} const c=cur(); if(c&&c.id===cv.id) renderProfile(cv); renderList(); }
 function spc(s){ if(/entreg/i.test(s))return'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'; if(/envi|andamento/i.test(s))return'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'; if(/cancel/i.test(s))return'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'; return'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'; }
 
@@ -938,8 +1000,105 @@ async function transferir(pid){ const cv=cur(); if(!cv) return; cv.atendenteId=p
   try{ await (await getSb()).from('at_conversas').update({atendente_id:pid||null}).eq('id',cv.id); }catch(e){ console.warn(e.message); } }
 async function setSetor(v){ const cv=cur(); if(!cv) return; cv.setor=v.trim();
   try{ await (await getSb()).from('at_conversas').update({setor:v.trim()||null}).eq('id',cv.id); }catch(e){ console.warn(e.message); } }
-async function addTag(){ const cv=cur(); if(!cv) return; const nome=(await dcPrompt({titulo:'Nova tag',placeholder:'Categoria::Valor (ex.: Status pedido::Em produção)'})||'').trim(); if(!nome) return;
-  aplicarTagNaConversa(nome); }
+/* ===== Escolher etiqueta =====
+   Antes a barra lateral despejava TODAS as opções de todos os quadros na tela — virava
+   um paredão de botõezinhos e a atendente perdia o que interessa (as tags da conversa).
+   Agora a lateral mostra só o que a conversa TEM; as opções ficam nesta lista, que abre
+   no "+ Adicionar", com busca e a cor de cada etiqueta. */
+let TAGS_TODAS = null;
+async function carregarTodasTags(forcar){
+  if(TAGS_TODAS && !forcar) return TAGS_TODAS;
+  const mapa = new Map();   // nome -> {nome, cor}
+  try{
+    const c = await getSb();
+    const { data } = await c.from('at_tags').select('id,nome,cor').order('nome');
+    (data||[]).forEach(t => { if(t && t.nome) mapa.set(t.nome, t); });
+  }catch(e){}
+  // as fases dos quadros entram mesmo que ninguém ainda tenha usado a etiqueta
+  const ordem = new Map();   // nome -> posição da fase no quadro
+  try{
+    (await carregarQuadros()).forEach((q, qi) => q.fases.forEach((f, fi) => {
+      const nome = q.grupo_tag + '::' + f;
+      ordem.set(nome, qi * 1000 + fi);
+      if(!mapa.has(nome)) mapa.set(nome, { nome, cor:null });
+    }));
+  }catch(e){}
+  // dentro do quadro vale a ORDEM DO QUADRO (Novo, Em contato, Negociando…), não o alfabeto:
+  // a atendente lê a lista como lê o funil. O que não é de quadro fica no fim, em ordem alfabética.
+  const peso = t => ordem.has(t.nome) ? ordem.get(t.nome) : 900000;
+  TAGS_TODAS = [...mapa.values()].sort((a,b) => (peso(a) - peso(b)) || a.nome.localeCompare(b.nome,'pt-BR'));
+  return TAGS_TODAS;
+}
+
+async function addTag(){
+  const cv = cur(); if(!cv) return;
+  const todas = await carregarTodasTags();
+  const jaTem = new Set((cv.tags||[]).map(t => t.nome));
+
+  const w = document.createElement('div');
+  w.className = 'fixed inset-0 z-[95] flex items-center justify-center p-4';
+  w.innerHTML = '<div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"></div>'
+    + '<div class="relative bg-white dark:bg-ink-800 rounded-2xl shadow-xl w-full max-w-sm flex flex-col" style="max-height:80vh" data-fade>'
+    +   '<div class="p-4 pb-2"><div class="text-base font-semibold mb-3">Adicionar etiqueta</div>'
+    +     '<input data-busca placeholder="Buscar ou escrever uma nova…" class="w-full p-2 text-sm rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-pink-500 outline-none"></div>'
+    +   '<div data-lista class="overflow-y-auto px-2 pb-2" style="min-height:120px"></div>'
+    +   '<div class="p-3 pt-2 border-t border-slate-100 dark:border-ink-700 flex justify-end">'
+    +     '<button data-fechar class="px-4 py-2 rounded-lg text-sm font-semibold bg-slate-100 dark:bg-ink-700 hover:bg-slate-200 dark:hover:bg-ink-600 text-slate-600 dark:text-slate-300">Fechar</button></div>'
+    + '</div>';
+  document.body.appendChild(w);
+
+  const inp   = w.querySelector('[data-busca]');
+  const lista = w.querySelector('[data-lista]');
+  const fechar = () => w.remove();
+  w.querySelector('[data-fechar]').onclick = fechar;
+  w.querySelector('.absolute').onclick = fechar;
+
+  const semAcento = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+
+  function pintar(){
+    const q = semAcento(inp.value.trim());
+    const achou = todas.filter(t => !q || semAcento(t.nome).includes(q));
+    let html = '';
+    let grupoAnterior = null;
+    achou.forEach(t => {
+      const g = grupoDaTag(t.nome);
+      const rotulo = g ? t.nome.slice(t.nome.indexOf('::')+2) : t.nome;
+      if(g !== grupoAnterior){
+        grupoAnterior = g;
+        html += '<div class="px-2 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">' + esc(g || 'Avulsas') + '</div>';
+      }
+      const c = corDeTag(t), tem = jaTem.has(t.nome);
+      html += '<button data-nome="' + escAttr(t.nome) + '" class="w-full text-left px-2 py-2 rounded-lg flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-ink-700 ' + (tem ? 'opacity-50' : '') + '">'
+           +   '<span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:' + c.tx + '"></span>'
+           +   '<span class="text-sm flex-1 truncate">' + esc(rotulo) + '</span>'
+           +   (tem ? '<span class="text-[11px] text-slate-400 shrink-0">já tem</span>' : '')
+           + '</button>';
+    });
+    // "Criar" só quando a busca não achou nada, ou quando ela já veio no formato Grupo::Valor.
+    // Sem isso, digitar "procon" oferecia criar uma tag solta "procon" ao lado da
+    // "Problema::PROCON" que já existe — daria duas etiquetas pra mesma coisa.
+    const cru = inp.value.trim();
+    const podeCriar = cru && !todas.some(t => t.nome.toLowerCase() === cru.toLowerCase())
+                      && (achou.length === 0 || cru.includes('::'));
+    if(podeCriar){
+      html += '<button data-nome="' + escAttr(cru) + '" data-nova="1" class="w-full text-left px-2 py-2 mt-1 rounded-lg flex items-center gap-2 text-pink-600 hover:bg-pink-50 dark:hover:bg-pink-900/20">'
+           +   '<span class="text-base leading-none">+</span><span class="text-sm truncate">Criar “' + esc(cru) + '”</span></button>';
+    }
+    if(!html) html = '<div class="px-2 py-6 text-center text-sm text-slate-400">Nenhuma etiqueta encontrada.</div>';
+    lista.innerHTML = html;
+    lista.querySelectorAll('[data-nome]').forEach(b => b.onclick = async () => {
+      const nome = b.dataset.nome;
+      if(jaTem.has(nome)) return;
+      fechar();
+      await aplicarTagNaConversa(nome);
+      if(b.dataset.nova) TAGS_TODAS = null;   // recarrega pra nova aparecer na próxima
+    });
+  }
+  pintar();
+  inp.addEventListener('input', pintar);
+  inp.addEventListener('keydown', e => { if(e.key==='Escape') fechar(); });
+  setTimeout(() => inp.focus(), 30);
+}
 
 /* ===== Etiqueta = coluna do quadro =====
    Marcar "Problema::Acareação" aqui faz o card aparecer na coluna Acareação do Funil.
@@ -983,28 +1142,6 @@ async function carregarQuadros(){
     QUADROS = (data||[]).filter(p => p.grupo_tag && Array.isArray(p.fases) && p.fases.length);
   }catch(e){ QUADROS = []; }
   return QUADROS;
-}
-async function renderQuadros(){
-  const box = document.getElementById('quadrosBox'); if(!box) return;
-  const cv = cur(); if(!cv) return;
-  const quadros = await carregarQuadros();
-  if(!quadros.length){ box.innerHTML=''; return; }
-  box.innerHTML = quadros.map(q => {
-    const atual = (cv.tags||[]).map(t=>t.nome).find(n => grupoDaTag(n) === q.grupo_tag);
-    const valorAtual = atual ? atual.slice(atual.indexOf('::')+2) : null;
-    return '<div class="mt-2">'
-      + '<div class="text-[11px] text-slate-400 mb-1">' + esc(q.grupo_tag)
-      +   (valorAtual ? '' : ' <span class="text-slate-300">— sem etiqueta, não está no quadro</span>') + '</div>'
-      + '<div class="flex flex-wrap gap-1">'
-      // o valor vai em data-tag, NAO dentro do onclick: nome com aspas (ou apostrofo)
-      // quebrava o atributo e o botao virava HTML invalido
-      + q.fases.map(f => '<button onclick="aplicarTagNaConversa(this.dataset.tag)" '
-          + 'data-tag="' + escAttr(q.grupo_tag+'::'+f) + '" '
-          + 'class="text-[11px] font-semibold px-2 py-1 rounded-lg border '
-          + (f===valorAtual ? 'bg-pink-500 text-white border-pink-500' : 'border-slate-200 dark:border-ink-600 text-slate-500 hover:text-pink-600 hover:border-pink-200')
-          + '">' + esc(f) + '</button>').join('')
-      + '</div></div>';
-  }).join('');
 }
 async function delTag(tagId){ const cv=cur(); if(!cv) return; cv.tags=cv.tags.filter(t=>t.id!==tagId); renderProfile(cv);
   try{ await (await getSb()).from('at_conversa_tags').delete().eq('conversa_id',cv.id).eq('tag_id',tagId); }catch(e){ console.warn(e.message); } }
