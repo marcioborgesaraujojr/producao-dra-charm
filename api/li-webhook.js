@@ -459,11 +459,20 @@ export default async function handler(req, res) {
           conteudo: nota, autor: 'Automação · Loja Integrada',
           meta: { gatilho: g.evento_code, situacao: p.codigo, pedido: p.numero } }) });
         const patch = {
-          ultima_msg_preview: nota.slice(0, 120), ultima_msg_em: new Date().toISOString(),
+          ultima_msg_em: new Date().toISOString(),
           janela_expira_em: new Date(Date.now() + 24 * 3600 * 1000).toISOString() };
         // amarra o pedido na conversa pra aparecer no painel do atendimento
         if (p.numero) patch.pedido_numero = String(p.numero);
         await sb('at_conversas?id=eq.' + conversaId, { method: 'PATCH', body: JSON.stringify(patch) });
+
+        // A PRÉVIA só é sobrescrita se a conversa estiver LIDA. Numa conversa com
+        // cliente esperando, o aviso automático apagava a pergunta dela da lista: a
+        // atendente via bolinha de não lida com o texto "Olá Fulana, seu pedido 249490
+        // entrou em producao" — mensagem NOSSA — e não fazia ideia do que a cliente
+        // tinha perguntado. Com 175 não lidas na fila isso enlouquece qualquer um.
+        // O filtro nao_lida=is.false resolve no banco, sem precisar ler antes.
+        await sb('at_conversas?id=eq.' + conversaId + '&nao_lida=is.false', {
+          method: 'PATCH', body: JSON.stringify({ ultima_msg_preview: nota.slice(0, 120) }) });
       }
     } catch (e) { /* nota é bônus, não pode derrubar o disparo */ }
 

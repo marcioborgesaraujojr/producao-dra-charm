@@ -158,8 +158,13 @@ async function fireEvento(dados) {
       });
       await sb('at_conversas?id=eq.' + conversaId, {
         method: 'PATCH',
-        body: JSON.stringify({ ultima_msg_preview: nota.slice(0, 120), ultima_msg_em: new Date().toISOString(),
+        body: JSON.stringify({ ultima_msg_em: new Date().toISOString(),
           janela_expira_em: new Date(Date.now() + 24 * 3600 * 1000).toISOString() })
+      });
+      // prévia só se a conversa estiver LIDA — ver o comentário no li-webhook.js:
+      // aviso automático não pode apagar da lista a pergunta de quem está esperando
+      await sb('at_conversas?id=eq.' + conversaId + '&nao_lida=is.false', {
+        method: 'PATCH', body: JSON.stringify({ ultima_msg_preview: nota.slice(0, 120) })
       });
     }
   } catch (e) { /* nota é best-effort */ }

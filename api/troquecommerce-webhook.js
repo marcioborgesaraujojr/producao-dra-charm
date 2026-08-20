@@ -467,11 +467,14 @@ export default async function handler(req, res) {
           conteudo: nota, autor: 'Automação · TroqueCommerce',
           meta: { gatilho: g.evento_code, pedido: p.pedido } }) });
         const patch = {
-          ultima_msg_preview: nota.slice(0, 120), ultima_msg_em: new Date().toISOString(),
+          ultima_msg_em: new Date().toISOString(),
           janela_expira_em: new Date(Date.now() + 24 * 3600 * 1000).toISOString() };
         // amarra o pedido na conversa pra aparecer no painel do atendimento
         if (p.pedido) patch.pedido_numero = String(p.pedido);
         await sb('at_conversas?id=eq.' + conversaId, { method: 'PATCH', body: JSON.stringify(patch) });
+        // prévia só se a conversa estiver LIDA — ver o comentário no li-webhook.js
+        await sb('at_conversas?id=eq.' + conversaId + '&nao_lida=is.false', {
+          method: 'PATCH', body: JSON.stringify({ ultima_msg_preview: nota.slice(0, 120) }) });
       }
     } catch (e) { /* nota é bônus */ }
 
