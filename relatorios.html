@@ -177,7 +177,7 @@ async function carregar(){
 
     + '<div class="grid grid-cols-2 md:grid-cols-4 gap-3" data-fade>'
     +   cartaoNum('Total de mensagens', j.mensagens.total, variacao(j.mensagens.total, j.mensagens.anterior), j.mensagens.recebidas+' recebidas · '+j.mensagens.enviadas+' enviadas')
-    +   cartaoNum('Total de atendimentos', j.atendimentos.total, variacao(j.atendimentos.total, j.atendimentos.anterior), j.atendimentos.resolvidas+' resolvidos no período')
+    +   cartaoNum('Atendimentos', j.atendimentos.total, variacao(j.atendimentos.total, j.atendimentos.anterior), j.atendimentos.resolvidas+' resolvidos · só conversas em que o cliente falou')
     +   cartaoNum('Clientes novos', j.clientes.total, variacao(j.clientes.total, j.clientes.anterior), '')
     +   '<div class="kpi"><div class="text-[12px] text-slate-500 dark:text-slate-400">Tempo médio de atendimento</div>'
     +     '<div class="text-2xl font-bold mt-1">'+duracaoTexto(j.duracaoMediaMin)+'</div>'
