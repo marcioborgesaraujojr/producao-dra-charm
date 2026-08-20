@@ -167,7 +167,7 @@
           <input id="search" oninput="renderList()" placeholder="Busque por nome, telefone ou pedido"
                  class="w-full pl-9 pr-3 py-2 text-sm rounded-lg bg-slate-50 dark:bg-ink-700 border border-slate-200 dark:border-ink-600 focus:border-pink-500 outline-none">
         </div>
-        <button id="btnSort" onclick="toggleSort()" title="Ordenar" class="icon-btn shrink-0 border border-slate-200 dark:border-ink-600"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5h10M11 9h7M11 13h4M3 17l3 3 3-3M6 4v16"/></svg></button>
+        <button id="btnSort" onclick="toggleSort()" class="icon-btn shrink-0 border border-slate-200 dark:border-ink-600"><span id="btnSortIco"></span></button>
         <button onclick="abrirNovaConversa()" title="Nova conversa" class="shrink-0 w-9 h-9 rounded-lg bg-pink-500 hover:bg-pink-600 text-white flex items-center justify-center"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
       </div>
     </div>
@@ -294,10 +294,35 @@ function _mapMsgs(rawMsgs){
 // carregam sob demanda quando ela é aberta (ver carregarMsgs), o que também deixa o realtime mais leve.
 async function loadConversas(){
   const c = await getSb();
-  const { data, error } = await c.from('at_conversas')
-    .select('*, cliente:at_clientes(*), atendente:profiles(full_name), tags:at_conversa_tags(tag:at_tags(*))')
-    .order('ultima_msg_em',{ascending:false});
-  if(error){ console.error(error); return []; }
+  const COLUNAS = '*, cliente:at_clientes(*), atendente:profiles(full_name), tags:at_conversa_tags(tag:at_tags(*))';
+
+  /* ===== Por que DUAS buscas =====
+     O PostgREST corta em 1000 linhas e não avisa. A busca única trazia exatamente 1000
+     conversas e a aba "Todas" mostrava 1000 como se fosse o total — e, pior, uma NÃO
+     LIDA antiga podia ficar de fora do corte e sumir da fila sem ninguém saber. É o
+     mesmo problema que o sino de notificações já teve.
+
+     Então: as não lidas vêm TODAS, sempre (é quem está esperando resposta — não pode
+     sumir de jeito nenhum), e por cima disso as mais recentes. O merge é por id. */
+  const [naoLidas, recentes] = await Promise.all([
+    c.from('at_conversas').select(COLUNAS).eq('nao_lida', true).order('ultima_msg_em',{ascending:false}).limit(1000),
+    c.from('at_conversas').select(COLUNAS).order('ultima_msg_em',{ascending:false}).limit(600)
+  ]);
+  if(naoLidas.error && recentes.error){ console.error(naoLidas.error || recentes.error); return []; }
+
+  const vistos = new Set();
+  const data = [];
+  [...(naoLidas.data||[]), ...(recentes.data||[])].forEach(cv => {
+    if(vistos.has(cv.id)) return;
+    vistos.add(cv.id); data.push(cv);
+  });
+
+  // total de verdade, pra tela poder dizer que está mostrando um pedaço
+  try{
+    const t = await c.from('at_conversas').select('id', { count:'exact', head:true });
+    window.__totalConversas = t.count || null;
+  }catch(e){ window.__totalConversas = null; }
+
   return (data||[]).map((cv,i)=>{
     const cli=cv.cliente||{};
     const j=cv.janela_expira_em?new Date(cv.janela_expira_em)-Date.now():0;
@@ -568,12 +593,19 @@ function renderList(){
      lista de conversa. O botão só decide se as não lidas sobem pro topo, e mesmo lá
      em cima elas continuam em ordem de tempo. */
   const quando = cv => new Date(cv.ultimaMsgEm || 0).getTime() || 0;
-  arr.sort((a,b) => quando(b) - quando(a));
-  if(SORT==='naolidas') arr.sort((a,b)=>(b.naoLida?1:0)-(a.naoLida?1:0));   // sort estável: mantém o tempo dentro do grupo
+  arr.sort((a,b) => SORT === 'antigas' ? quando(a) - quando(b) : quando(b) - quando(a));
   document.getElementById('badgeMinhas').textContent=CONVERSAS.filter(cv=>cv.status!=='encerrada').length;
   document.getElementById('badgeNaoLidas').textContent=CONVERSAS.filter(cv=>cv.naoLida).length;
   document.getElementById('badgePendentes').textContent=CONVERSAS.filter(cv=>cv.status==='pendente').length;
-  document.getElementById('badgeTodas').textContent=CONVERSAS.length;
+  // O selo de "Todas" mostra o TOTAL do banco, não quantas foram carregadas. Antes
+  // mostrava 1000 fixo — o corte do PostgREST — e parecia que a empresa tinha
+  // exatamente mil conversas desde sempre.
+  const total = window.__totalConversas;
+  const bt = document.getElementById('badgeTodas');
+  bt.textContent = total || CONVERSAS.length;
+  bt.title = (total && total > CONVERSAS.length)
+    ? ('Carregadas ' + CONVERSAS.length + ' das ' + total + ': todas as não lidas + as mais recentes. Use a busca para achar as antigas.')
+    : '';
   const el=document.getElementById('convList');
   if(!arr.length){ el.innerHTML='<div class="p-8 text-center text-sm text-slate-400" data-fade>Nenhuma conversa aqui.</div>'; return; }
   el.innerHTML=arr.map(cv=>`
@@ -916,20 +948,39 @@ function setNotaUI(){ const on=NOTA; document.getElementById('notaBanner').class
   document.getElementById('msgInput').placeholder = on?'Escreva uma nota interna…':(cur()?`Mande uma mensagem para ${cur().nome.split(' ')[0]}…`:'Mande uma mensagem…'); }
 function fmt(ch){ const inp=document.getElementById('msgInput'); const s=inp.selectionStart,e=inp.selectionEnd,v=inp.value; if(s===e)return; inp.value=v.slice(0,s)+ch+v.slice(s,e)+ch+v.slice(e); updCount(); inp.focus(); }
 function updCount(){ document.getElementById('charCount').textContent=`${document.getElementById('msgInput').value.length} / 2.000`; }
-function setTab(t){ TAB=t; document.querySelectorAll('.conv-tab').forEach(el=>el.dataset.active=el.dataset.tab===t?'1':'0'); renderList(); }
+function setTab(t){ TAB=t; document.querySelectorAll('.conv-tab').forEach(el=>el.dataset.active=el.dataset.tab===t?'1':'0'); aplicarSort(); renderList(); }
+/* ===== Ordem da lista =====
+   DUAS posições, igual ao Notificações: mais recentes <-> mais antigas. Só isso.
+
+   A versão anterior tinha um modo "não lidas primeiro" — e era ele a reclamação das
+   atendentes: na aba Não lidas, onde elas passam o dia, tudo já é não lida, então
+   clicar não mudava nada e o botão parecia quebrado.
+
+   Trocar por tempo SEMPRE muda a lista, em qualquer aba. E "mais antigas" é a ordem
+   que resolve o problema real de quem tem 171 na fila: quem está esperando desde
+   ontem aparece primeiro.
+
+   A dica do botão diz o que o CLIQUE vai fazer, não o estado atual — foi o que o
+   Marcio mostrou do Notificações. */
+const SETA_BAIXO = '<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h11M4 12h8M4 18h5"/><path d="M19 4v14M19 18l-3-3M19 18l3-3"/></svg>';
+const SETA_CIMA  = '<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h5M4 12h8M4 18h11"/><path d="M19 20V6M19 6l-3 3M19 6l3 3"/></svg>';
+
 function toggleSort(){
-  SORT = SORT==='recentes'?'naolidas':'recentes';
+  SORT = SORT === 'antigas' ? 'recentes' : 'antigas';
   localStorage.at_sort = SORT;                       // a escolha da atendente não some ao recarregar
   aplicarSort(); renderList();
 }
 function aplicarSort(){
-  const b=document.getElementById('btnSort'); if(!b) return;
-  b.title = SORT==='naolidas'
-    ? 'Não lidas no topo (dentro do grupo, sempre da mais recente pra mais antiga). Clique para voltar.'
-    : 'Da mais recente para a mais antiga. Clique para subir as não lidas.';
-  b.classList.toggle('text-pink-600', SORT==='naolidas');
+  const b = document.getElementById('btnSort'); if(!b) return;
+  if(SORT !== 'antigas') SORT = 'recentes';
+  const antigas = SORT === 'antigas';
+  const ico = document.getElementById('btnSortIco');
+  if(ico) ico.innerHTML = antigas ? SETA_CIMA : SETA_BAIXO;
+  b.title = antigas ? 'Ordenar por conversas mais recentes' : 'Ordenar por conversas mais antigas';
+  b.classList.toggle('text-pink-600', antigas);
+  b.classList.toggle('border-pink-200', antigas);
 }
-try{ if(localStorage.at_sort==='naolidas' || localStorage.at_sort==='recentes') SORT = localStorage.at_sort; }catch(e){}
+try{ if(localStorage.at_sort==='antigas' || localStorage.at_sort==='recentes') SORT = localStorage.at_sort; }catch(e){}
 document.addEventListener('DOMContentLoaded', aplicarSort);
 function rastrear(){ const cv=cur(); if(!cv||!cv.pedidoNumero) return; const url='/rastreio.html?pedido='+encodeURIComponent(cv.pedidoNumero)+'&doc='+encodeURIComponent(cv.email||'')+'&preview=1'; window.open(url,'_blank'); }
 function toggleDark(){ document.documentElement.classList.toggle('dark'); }
