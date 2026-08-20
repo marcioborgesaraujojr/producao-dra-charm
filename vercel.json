@@ -8,6 +8,7 @@
     { "path": "/api/chatbot-encerrar", "schedule": "*/10 * * * *" }
   ],
   "functions": {
-    "api/estoque-sync.js": { "maxDuration": 60 }
+    "api/estoque-sync.js": { "maxDuration": 60 },
+    "api/whatsapp-webhook.js": { "maxDuration": 60 }
   }
 }
