@@ -665,7 +665,13 @@ async function salvarNovaConversa(){
   try{ const c=await getSb();
     const { data: cli, error: e1 } = await c.from('at_clientes').insert({ nome, telefone:tel||null, email:email||null }).select().single();
     if(e1) throw e1;
-    const { data: conv, error: e2 } = await c.from('at_conversas').insert({ cliente_id:cli.id, status:'aberta', nao_lida:false, atendente_id:ATEND_ID, janela_expira_em:new Date(Date.now()+24*3600*1000).toISOString(), ultima_msg_preview:'(conversa criada manualmente)', pedido_numero:pedido||null }).select().single();
+    /* janela_expira_em fica NULL de propósito. Antes a gente carimbava 24h aqui, como se a
+       cliente tivesse escrito — e ela não escreveu. Isso destravava o campo de texto livre,
+       a atendente digitava, a Meta aceitava e devolvia um id, e a mensagem era DESCARTADA
+       depois por estar fora da janela. Na tela ficava visto duplo numa mensagem que nunca
+       chegou. Com null, a tela mostra o caminho certo: só modelo aprovado até a cliente
+       responder. A janela de verdade é aberta pelo webhook quando ela escreve. */
+    const { data: conv, error: e2 } = await c.from('at_conversas').insert({ cliente_id:cli.id, status:'aberta', nao_lida:false, atendente_id:ATEND_ID, janela_expira_em:null, ultima_msg_preview:'(conversa criada manualmente)', pedido_numero:pedido||null }).select().single();
     if(e2) throw e2;
     fecharNovaConversa();
     CONVERSAS=await loadConversas(); renderList(); selecionar(conv.id);
