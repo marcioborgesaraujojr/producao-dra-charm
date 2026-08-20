@@ -41,6 +41,27 @@ async function buscar(tabela, query){
   try{ return await r.json(); }catch(e){ return []; }
 }
 
+// "Atendimento" = conversa em que o CLIENTE falou. Conversa aberta só por automação
+// (aviso de pedido pago, enviado…) não conta — foi o que inflou o dia 19/08 com 1.192
+// "atendimentos" quando o normal são ~20/dia.
+async function conversasComEntrada(deISO, ateISO){
+  const porConversa = new Map();     // conversa_id -> dia da primeira entrada
+  let desloc = 0;
+  while(desloc < 40000){
+    const pagina = await buscar('at_mensagens',
+      'select=conversa_id,enviada_em&direcao=eq.in&enviada_em=gte.' + deISO + '&enviada_em=lte.' + ateISO
+      + '&order=enviada_em.asc&limit=1000&offset=' + desloc);
+    pagina.forEach(m => {
+      if(!m.conversa_id) return;
+      const dia = String(m.enviada_em).slice(0,10);
+      if(!porConversa.has(m.conversa_id)) porConversa.set(m.conversa_id, dia);
+    });
+    if(pagina.length < 1000) break;
+    desloc += 1000;
+  }
+  return porConversa;
+}
+
 const dias = (de, ate) => {
   const out = [];
   const d = new Date(de + 'T00:00:00Z'), fim = new Date(ate + 'T00:00:00Z');
@@ -78,38 +99,39 @@ export default async function handler(req, res){
     // ---- totais do período e do anterior ----
     const [
       msgsTotal, msgsIn, msgsOut, msgsAnterior,
-      atendTotal, atendAnterior, resolvidas,
       clientesTotal, clientesAnterior
     ] = await Promise.all([
       contar('at_mensagens',  janela('enviada_em', de, ate)),
       contar('at_mensagens',  janela('enviada_em', de, ate) + '&direcao=eq.in'),
       contar('at_mensagens',  janela('enviada_em', de, ate) + '&direcao=eq.out'),
       contar('at_mensagens',  janela('enviada_em', anteriorDe, anteriorAte)),
-      contar('at_conversas',  janela('created_at', de, ate)),
-      contar('at_conversas',  janela('created_at', anteriorDe, anteriorAte)),
-      contar('at_conversas',  janela('created_at', de, ate) + '&status=eq.encerrada'),
       contar('at_clientes',   janela('created_at', de, ate)),
       contar('at_clientes',   janela('created_at', anteriorDe, anteriorAte))
     ]);
 
-    // ---- por dia (uma contagem por dia; exato e barato) ----
+    // ---- quem realmente foi atendido (o cliente falou) ----
+    const atendMapa   = await conversasComEntrada(ini(de), fim(ate));
+    const atendAntMap = await conversasComEntrada(ini(anteriorDe), fim(anteriorAte));
+    const atendIds    = [...atendMapa.keys()];
+    const porDiaAtend = {};
+    atendMapa.forEach(dia => { porDiaAtend[dia] = (porDiaAtend[dia] || 0) + 1; });
+
+    // ---- por dia ----
     const porDia = await Promise.all(lista.map(async d => ({
       dia: d,
       recebidas: await contar('at_mensagens', janela('enviada_em', d, d) + '&direcao=eq.in'),
       enviadas:  await contar('at_mensagens', janela('enviada_em', d, d) + '&direcao=eq.out'),
-      atendimentos: await contar('at_conversas', janela('created_at', d, d))
+      atendimentos: porDiaAtend[d] || 0
     })));
 
     // ---- conversas do período, para tempo médio e desempenho por operador ----
     // Paginado porque o PostgREST devolve no máximo 1000 por vez.
-    let conversas = [], desloc = 0;
-    while(desloc < 5000){
+    let conversas = [];
+    for(let i = 0; i < atendIds.length && i < 6000; i += 100){
+      const bloco = atendIds.slice(i, i + 100);
       const pagina = await buscar('at_conversas',
-        'select=id,status,atendente_id,created_at,ultima_msg_em' + janela('created_at', de, ate)
-        + '&order=created_at.asc&limit=1000&offset=' + desloc);
+        'select=id,status,atendente_id,created_at,ultima_msg_em&id=in.(' + bloco.join(',') + ')&limit=200');
       conversas = conversas.concat(pagina);
-      if(pagina.length < 1000) break;
-      desloc += 1000;
     }
 
     const duracoes = conversas
@@ -136,10 +158,15 @@ export default async function handler(req, res){
       periodo: { de, ate, dias: passo },
       anterior: { de: anteriorDe, ate: anteriorAte },
       mensagens: { total: msgsTotal, recebidas: msgsIn, enviadas: msgsOut, anterior: msgsAnterior },
-      atendimentos: { total: atendTotal, anterior: atendAnterior, resolvidas },
+      atendimentos: {
+        total: atendMapa.size,
+        anterior: atendAntMap.size,
+        resolvidas: conversas.filter(c => c.status === 'encerrada').length
+      },
       clientes: { total: clientesTotal, anterior: clientesAnterior },
       duracaoMediaMin,
       amostraConversas: conversas.length,
+      criterio: 'atendimento = conversa em que o cliente enviou pelo menos uma mensagem no período',
       porDia,
       operadores
     });
