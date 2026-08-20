@@ -7,9 +7,16 @@
 //   ANTHROPIC_API_KEY    -> usa Claude (ex.: claude-haiku)
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY  (já existem)
 //
+// A chave da Anthropic vem do MESMO lugar que o Assistente IA usa (lib/licfg.js:
+// Edge Config e, se não houver, process.env). Antes este arquivo lia só process.env, então
+// se a chave estivesse no Edge Config o chatbot dizia "não configurado" mesmo com o
+// Assistente funcionando.
+//
 // Auth: Bearer da suíte (painel de teste) OU header x-internal = SERVICE_ROLE_KEY (chamada do webhook).
 // Body: { mensagens: [{role:'user'|'assistant', content:'...'}], cliente?: {nome}, conversa_id? }
 // Retorno: { reply, handoff:boolean }
+
+import { getAnthropicKey } from '../lib/licfg.js';
 
 async function callerEmail(token) {
   if (!token) return null;
@@ -103,10 +110,10 @@ async function viaOpenAI(cfg, mensagens, cliente, faq, intencoes) {
   if (!r.ok) throw new Error((j.error && j.error.message) || 'Erro OpenAI');
   return j.choices?.[0]?.message?.content || '';
 }
-async function viaAnthropic(cfg, mensagens, cliente, faq, intencoes) {
+async function viaAnthropic(cfg, mensagens, cliente, faq, intencoes, chave) {
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
+    headers: { 'x-api-key': chave || process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: cfg.modelo && cfg.modelo.startsWith('claude') ? cfg.modelo : 'claude-haiku-4-5-20251001',
       // CACHE DE PROMPT: o system é idêntico em toda mensagem (persona + FAQ + intenções,
@@ -144,14 +151,15 @@ export default async function handler(req, res) {
 
   const [cfg, faq, intencoes] = await Promise.all([getConfig(), getFaq(), getIntencoes()]);
   const usaClaude = (cfg.modelo || '').startsWith('claude');
+  const chaveAnthropic = await getAnthropicKey();
   const temOpenAI = !!process.env.OPENAI_API_KEY;
-  const temAnthropic = !!process.env.ANTHROPIC_API_KEY;
+  const temAnthropic = !!chaveAnthropic;
 
   try {
     let reply;
-    if (usaClaude && temAnthropic) reply = await viaAnthropic(cfg, mensagens, cliente, faq, intencoes);
+    if (usaClaude && temAnthropic) reply = await viaAnthropic(cfg, mensagens, cliente, faq, intencoes, chaveAnthropic);
     else if (temOpenAI) reply = await viaOpenAI(cfg, mensagens, cliente, faq, intencoes);
-    else if (temAnthropic) reply = await viaAnthropic(cfg, mensagens, cliente, faq, intencoes);
+    else if (temAnthropic) reply = await viaAnthropic(cfg, mensagens, cliente, faq, intencoes, chaveAnthropic);
     else return res.status(503).json({ error: 'Chatbot não configurado: falta OPENAI_API_KEY ou ANTHROPIC_API_KEY no Vercel.' });
 
     // Transferência: por palavra-chave (barata, antes da IA) OU porque o modelo reconheceu
