@@ -82,7 +82,7 @@
 
   <!-- Gatilhos -->
   <div id="viewGatilhos">
-    <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">Ative os eventos que devem avisar o cliente.</p>
+    <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">Ative os eventos que devem avisar o cliente. <span id="gatResumo" class="font-semibold text-slate-600 dark:text-slate-300"></span></p>
     <div id="webhookBox" class="hidden mb-4"></div>
     <div id="gatilhosList" class="space-y-6 pb-10"></div>
   </div>
@@ -288,15 +288,18 @@ function renderLojas(){
       + marcaLoja(l, 40)
       + '<div><div class="text-sm font-semibold '+(sel?'':'text-slate-500 dark:text-slate-400')+'">'+esc(l.nome)+'</div>'
       + '<div class="text-[11px] text-slate-400">'+esc(l.desc)+'</div></div>'
-      + (meus.length ? ('<span class="ml-2 text-[11px] font-semibold px-2 py-0.5 rounded-full '
-          + (sel ? 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-200' : 'bg-slate-100 text-slate-500 dark:bg-ink-700 dark:text-slate-300')
-          + '">'+on+'/'+meus.length+'</span>') : '')
       + '</button>';
   }).join('');
 }
 function trocarLoja(k){ LOJA=k; try{ localStorage.setItem('autom_loja',k); }catch(e){} renderLojas(); renderGatilhos(); renderWebhook(); carregarFila(); }
 
+function resumoGatilhosTexto(){
+  const meus = GATILHOS.filter(g => (g.loja||'loja_integrada') === LOJA);
+  if(!meus.length) return '';
+  return meus.filter(g => g.ativo).length + ' de ' + meus.length + ' eventos ligados';
+}
 function renderGatilhos(){
+  { const _r = document.getElementById('gatResumo'); if(_r) _r.textContent = resumoGatilhosTexto(); }
   const cats={pedido:'Eventos do pedido', nota:'Eventos de nota fiscal', troca:'Eventos de troca', fidelizar:'Fidelidade', rastreio:'Rastreio da entrega', vale:'Vales e cupons', nps:'Pesquisa de satisfação'};
   const grupos={};
   GATILHOS.filter(g=>(g.loja||'loja_integrada')===LOJA).forEach(g=>{ (grupos[g.categoria]=grupos[g.categoria]||[]).push(g); });
