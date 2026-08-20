@@ -167,7 +167,7 @@
     <div class="px-4 pt-3 pb-2 border-b border-slate-200 dark:border-ink-600">
       <div class="flex items-center gap-2.5 gap-y-1 mb-3 flex-wrap">
         <span class="conv-tab" data-tab="minhas" data-active="1" onclick="setTab('minhas')">Minhas <span id="badgeMinhas" class="ml-0.5 text-[10px] bg-slate-200 text-slate-600 dark:bg-ink-600 dark:text-slate-300 rounded-full px-1 py-0.5 align-middle">0</span></span>
-        <span class="conv-tab" data-tab="pendentes" onclick="setTab('pendentes')">Pendentes <span id="badgePendentes" class="ml-0.5 text-[10px] bg-slate-200 text-slate-600 dark:bg-ink-600 dark:text-slate-300 rounded-full px-1 py-0.5 align-middle">0</span></span>
+        <span class="conv-tab" data-tab="pendentes" onclick="setTab('pendentes')" title="Conversas sem dono — qualquer uma pode pegar">Na fila <span id="badgePendentes" class="ml-0.5 text-[10px] bg-slate-200 text-slate-600 dark:bg-ink-600 dark:text-slate-300 rounded-full px-1 py-0.5 align-middle">0</span></span>
         <span class="conv-tab" data-tab="naolidas" onclick="setTab('naolidas')">Não lidas <span id="badgeNaoLidas" class="ml-0.5 text-[10px] bg-pink-500 text-white rounded-full px-1 py-0.5 align-middle">0</span></span>
         <span class="conv-tab" data-tab="todas" onclick="setTab('todas')">Todas <span id="badgeTodas" class="ml-0.5 text-[10px] bg-slate-200 text-slate-600 dark:bg-ink-600 dark:text-slate-300 rounded-full px-1 py-0.5 align-middle">0</span></span>
       </div>
@@ -408,7 +408,7 @@ function mapConversas(data){
     const j=cv.janela_expira_em?new Date(cv.janela_expira_em)-Date.now():0;
     return { id:cv.id, nome:cli.nome||'Cliente', inicial:(cli.nome||'C')[0].toUpperCase(), cor:corFixa(cli.id||cv.id), corTexto:corFixaTexto(cli.id||cv.id),
       clienteId:cli.id||null, foto:cli.foto_url||'',
-      canal:cv.canal==='whatsapp_oficial'?'API Oficial':(cv.canal||'—'), status:cv.status, naoLida:cv.nao_lida, minha:true, modo:cv.modo||null, botDigitandoEm:cv.bot_digitando_em||null,
+      canal:cv.canal==='whatsapp_oficial'?'API Oficial':(cv.canal||'—'), status:cv.status, naoLida:cv.nao_lida, minha:(cv.atendente_id||null)===ATEND_ID, modo:cv.modo||null, botDigitandoEm:cv.bot_digitando_em||null,
       janela:cv.status==='encerrada'?'—':(j<=0?'fechada':`${Math.floor(j/3600000)}h${String(Math.floor(j%3600000/60000)).padStart(2,'0')}min`),
       janelaMs:j,
       tel:cli.telefone||'', email:cli.email||'', waid:cli.whatsapp_id||'',
@@ -680,7 +680,21 @@ async function salvarNovaConversa(){
 }
 
 /* ===== Lista ===== */
-function filtroTab(cv){ if(TAB==='minhas')return cv.status!=='encerrada'; if(TAB==='pendentes')return cv.status==='pendente'; if(TAB==='naolidas')return cv.naoLida; return true; }
+/* Quem pega, assume — foi assim que ele descreveu, e o sistema já atribuía sozinho
+   quando alguém abre a conversa. O que faltava era a LISTA respeitar isso.
+
+   Antes "Minhas" mostrava TUDO: no mapa toda conversa nascia com minha:true, e a aba só
+   escondia as resolvidas. Ele viu 275 em "Minhas" com exatamente 1 conversa atribuída a
+   ele de verdade.
+
+   E "Pendentes" filtrava por status='pendente', que nunca acontece — a aba vivia zerada.
+   Virou "Na fila": as que ainda não têm dono, que é a lista de onde as meninas puxam. */
+function filtroTab(cv){
+  if(TAB==='minhas')    return cv.minha && cv.status!=='encerrada';
+  if(TAB==='pendentes') return !cv.atendenteId && cv.status!=='encerrada';
+  if(TAB==='naolidas')  return cv.naoLida;
+  return true;
+}
 const statusDot=cv=>({aberta:'#22c55e',pendente:'#f59e0b',encerrada:'#94a3b8'}[cv.status]||'#94a3b8');
 function relTime(iso){ if(!iso) return ''; const d=Date.now()-new Date(iso).getTime(); if(d<0) return 'agora'; const m=Math.floor(d/60000); if(m<1) return 'agora'; if(m<60) return m+'m'; const h=Math.floor(m/60); if(h<24) return h+'h'; const dias=Math.floor(h/24); if(dias<7) return dias+'d'; return Math.floor(dias/7)+'sem'; }
 function statusBadge(cv){ const base='absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-white dark:border-ink-800 flex items-center justify-center'; if(cv.status==='encerrada') return '<span class="'+base+' bg-emerald-500" title="Resolvida"><svg class="w-2.5 h-2.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="M5 13l4 4L19 7"/></svg></span>'; return '<span class="'+base+' bg-rose-500" title="Nao resolvida"><svg class="w-2.5 h-2.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="M6 6l12 12M18 6L6 18"/></svg></span>'; }
@@ -732,9 +746,9 @@ function renderList(){
      em cima elas continuam em ordem de tempo. */
   const quando = cv => new Date(cv.ultimaMsgEm || 0).getTime() || 0;
   arr.sort((a,b) => SORT === 'antigas' ? quando(a) - quando(b) : quando(b) - quando(a));
-  document.getElementById('badgeMinhas').textContent=CONVERSAS.filter(cv=>cv.status!=='encerrada').length;
+  document.getElementById('badgeMinhas').textContent=CONVERSAS.filter(cv=>cv.minha && cv.status!=='encerrada').length;
   document.getElementById('badgeNaoLidas').textContent=CONVERSAS.filter(cv=>cv.naoLida).length;
-  document.getElementById('badgePendentes').textContent=CONVERSAS.filter(cv=>cv.status==='pendente').length;
+  document.getElementById('badgePendentes').textContent=CONVERSAS.filter(cv=>!cv.atendenteId && cv.status!=='encerrada').length;
   // O selo de "Todas" mostra o TOTAL do banco, não quantas foram carregadas. Antes
   // mostrava 1000 fixo — o corte do PostgREST — e parecia que a empresa tinha
   // exatamente mil conversas desde sempre.
@@ -1013,7 +1027,7 @@ function tagPill(t){
   }
   return `<span class="group text-[11px] px-2 py-1 rounded-full font-semibold inline-flex items-center gap-1" style="background:${c.bg};color:${c.tx}">${esc(nome)}${del}</span>`;
 }
-async function autoAtribuir(cv){ if(!cv || cv.atendenteId || !ATEND_ID) return; cv.atendenteId=ATEND_ID; cv.atendenteNome=(PROFILES.find(p=>p.id===ATEND_ID)||{}).full_name||''; try{ await (await getSb()).from('at_conversas').update({atendente_id:ATEND_ID}).eq('id',cv.id); }catch(e){} const c=cur(); if(c&&c.id===cv.id) renderProfile(cv); renderList(); }
+async function autoAtribuir(cv){ if(!cv || cv.atendenteId || !ATEND_ID) return; cv.atendenteId=ATEND_ID; cv.minha=true; cv.atendenteNome=(PROFILES.find(p=>p.id===ATEND_ID)||{}).full_name||''; try{ await (await getSb()).from('at_conversas').update({atendente_id:ATEND_ID}).eq('id',cv.id); }catch(e){} const c=cur(); if(c&&c.id===cv.id) renderProfile(cv); renderList(); }
 function spc(s){ if(/entreg/i.test(s))return'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'; if(/envi|andamento/i.test(s))return'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'; if(/cancel/i.test(s))return'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'; return'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'; }
 
 /* ===== Interações (persistem no Supabase, com fallback local) ===== */
@@ -1114,7 +1128,7 @@ async function toggleResolver(){
     await c.from('at_mensagens').insert({ conversa_id:cv.id, direcao:'sys', tipo:'evento', conteudo:evt.txt, meta:{evento:evt.k}, autor:'sistema' });
   }catch(e){ console.warn('persist status falhou:',e.message); }
 }
-async function transferir(pid){ const cv=cur(); if(!cv) return; cv.atendenteId=pid||null;
+async function transferir(pid){ const cv=cur(); if(!cv) return; cv.atendenteId=pid||null; cv.minha=((pid||null)===ATEND_ID);
   cv.atendenteNome = (PROFILES.find(p=>p.id===pid)||{}).full_name||'';
   renderProfile(cv); renderList();
   try{ await (await getSb()).from('at_conversas').update({atendente_id:pid||null}).eq('id',cv.id); }catch(e){ console.warn(e.message); } }
