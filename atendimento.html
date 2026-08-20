@@ -461,13 +461,20 @@ async function bootstrap(){
   renderLoading();          // esqueleto na lista e no chat já de cara (nada de tela vazia com zeros)
   // Antes as 4 consultas rodavam em FILA (uma esperando a outra) — a tela ficava vazia esse tempo todo.
   // Agora vão todas juntas: o tempo passa a ser o da mais lenta, não a soma.
-  const [profR, profsR, , convs] = await Promise.all([
+  // Cada resultado sai pelo PRÓPRIO nome, não pela posição na lista.
+  // Com [a, b, , convs] bastava alguém acrescentar uma carga no meio pra `convs` virar
+  // undefined e a tela inteira morrer em CONVERSAS.length — foi exatamente o que
+  // aconteceu quando entrou o loadBotTeste(). Nomear custa nada e não tem como errar.
+  const carregado = await Promise.all([
     c.from('profiles').select('full_name').eq('id',ATEND_ID).maybeSingle(),
     c.from('profiles').select('id, full_name, email, color'),
-    loadAtConfig(),
-    loadBotTeste(),
     loadConversas(),
+    loadAtConfig(),      // sem retorno: só preenche a config
+    loadBotTeste(),      // sem retorno: só preenche BOT_TESTE
   ]);
+  const profR  = carregado[0];
+  const profsR = carregado[1];
+  const convs  = carregado[2] || [];
   const prof = profR && profR.data;
   // nunca deixa e-mail virar nome: sem full_name, arruma o começo do e-mail (ana.paula -> Ana Paula)
   AGENTE = (prof&&prof.full_name&&prof.full_name.trim()) ? prof.full_name.trim() : (_capitaliza(String(email||'').split('@')[0])||'Atendente');
