@@ -68,6 +68,10 @@ tailwind.config = {
       /* Fonte única em TODO o sistema: campos/botões herdam a Poppins do body
          (input/textarea/select/button não herdam font-family sozinhos → sem isso, cada campo virava uma fonte diferente). */
       + 'input,textarea,select,button{font-family:inherit}'
+      /* Barra de rolagem SEMPRE reservada. Sem isso, ir de uma tela curta (Visão geral)
+         pra uma comprida (Gatilhos, Fila) fazia a página inteira pular ~15px pro lado —
+         a "tremidazinha" que aparecia só ao trocar de página. */
+      + 'html{overflow-y:scroll}'
       /* card clicável: leve 3D no hover (mesmo efeito em todo lugar) */
       + '.dc-lift{transition:transform .16s ease, box-shadow .16s ease}'
       + '.dc-lift:hover{box-shadow:var(--dc-lift)}'
