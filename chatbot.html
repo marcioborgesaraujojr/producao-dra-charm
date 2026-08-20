@@ -96,7 +96,34 @@
       <div><label>Saudação</label><input id="saudacao" class="fld mt-1"></div>
     </div>
     <div><label>Palavras que transferem pra humano (separadas por vírgula)</label><input id="handoff" class="fld mt-1"></div>
+    <div><label>Sites em que o robô pode confiar ao mandar link</label><textarea id="sites" rows="2" class="fld mt-1" placeholder="www.dracharm.com.br, dracharm.troque.app.br"></textarea>
+      <div class="text-[11px] text-slate-400 mt-1">Um por linha ou separados por vírgula. Link de endereço fora desta lista é apagado da resposta antes de sair.</div>
+    </div>
     <button id="btnSalvar" onclick="salvar()" class="w-full text-sm font-semibold px-4 py-2.5 rounded-lg bg-pink-500 hover:bg-pink-600 text-white">Salvar configuração</button>
+  </div>
+
+  <!-- Perguntas e respostas -->
+  <div class="bin rounded-xl p-4 space-y-3 md:col-span-2">
+    <div class="flex items-center justify-between">
+      <div>
+        <div class="text-sm font-semibold">Perguntas e respostas</div>
+        <div class="text-[11px] text-slate-400">O robô responde com estas, do jeito que você escreveu. Sem limite de quantidade.</div>
+      </div>
+      <button onclick="novaFaq()" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-ink-700 hover:bg-slate-200">Nova pergunta</button>
+    </div>
+    <div id="faqLista" class="space-y-2"><div class="text-xs text-slate-400">carregando…</div></div>
+  </div>
+
+  <!-- Intenções -->
+  <div class="bin rounded-xl p-4 space-y-3 md:col-span-2">
+    <div class="flex items-center justify-between">
+      <div>
+        <div class="text-sm font-semibold">Situações que o robô não resolve</div>
+        <div class="text-[11px] text-slate-400">Quando a mensagem se encaixa numa destas, ele não tenta resolver: passa direto pra um atendente.</div>
+      </div>
+      <button onclick="novaIntencao()" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-ink-700 hover:bg-slate-200">Nova situação</button>
+    </div>
+    <div id="intLista" class="space-y-2"><div class="text-xs text-slate-400">carregando…</div></div>
   </div>
 
   <!-- Teste -->
@@ -125,8 +152,10 @@ async function bootstrap(){
   if(!session){ document.getElementById('authGate').classList.remove('hidden'); return; }
   window._token=session.access_token;
   document.getElementById('appWrap').classList.remove('hidden');
+  try{ carregarTreinamento(); }catch(e){ console.warn('treinamento:', e && e.message); }
   const { data }=await c.from('at_chatbot').select('*').eq('id',1).maybeSingle();
   CFG=data||{};
+  { const _s=document.getElementById('sites'); if(_s) _s.value = CFG.sites_permitidos||''; }
   document.getElementById('swAtivo').dataset.on=CFG.ativo?1:0;
   document.getElementById('nome').value=CFG.nome||'';
   document.getElementById('cargo').value=CFG.cargo||'';
@@ -140,7 +169,7 @@ async function bootstrap(){
 function toggleAtivo(){ const s=document.getElementById('swAtivo'); s.dataset.on=s.dataset.on==='1'?'0':'1'; }
 async function salvar(){
   const btn=document.getElementById('btnSalvar'); btn.textContent='Salvando…'; btn.disabled=true;
-  const patch={ ativo:document.getElementById('swAtivo').dataset.on==='1', nome:document.getElementById('nome').value,
+  const patch={ sites_permitidos:(document.getElementById('sites')||{}).value||null, ativo:document.getElementById('swAtivo').dataset.on==='1', nome:document.getElementById('nome').value,
     cargo:document.getElementById('cargo').value,
     persona:document.getElementById('persona').value, base_conhecimento:document.getElementById('base').value,
     modelo:document.getElementById('modelo').value, saudacao:document.getElementById('saudacao').value,
@@ -169,6 +198,105 @@ async function testar(){
   }catch(e){ document.getElementById('typing')?.remove(); addMsg('bot','Erro: '+e.message); }
 }
 function limparTeste(){ TESTE=[]; document.getElementById('chat').innerHTML=''; if(CFG.saudacao) addMsg('bot',CFG.saudacao); }
+
+/* ===== Perguntas e respostas + Situações (intenções) =====
+   Ficam em tabela (at_chatbot_faq / at_chatbot_intencoes), igual ao Notificações. O
+   chatbot-reply lê as duas e monta o prompt. Se as tabelas ainda não existirem no banco,
+   a tela avisa em vez de quebrar. */
+let FAQ=[], INTS=[];
+
+async function carregarTreinamento(){
+  const c = await getSb();
+  const [f, i] = await Promise.all([
+    c.from('at_chatbot_faq').select('*').order('ordem').order('id'),
+    c.from('at_chatbot_intencoes').select('*').order('ordem').order('id')
+  ]);
+  if(f.error || i.error){
+    const aviso = '<div class="text-xs text-amber-600">Falta rodar o SQL <b>db/add-chatbot-treinamento.sql</b> no Supabase para usar esta parte.</div>';
+    document.getElementById('faqLista').innerHTML = aviso;
+    document.getElementById('intLista').innerHTML = aviso;
+    return;
+  }
+  FAQ = f.data||[]; INTS = i.data||[];
+  renderFaq(); renderInts();
+}
+
+function campo(valor, ph, oninput, linhas){
+  return '<textarea rows="'+(linhas||1)+'" placeholder="'+ph+'" oninput="'+oninput+'" '
+    + 'class="fld" style="resize:vertical">'+esc(valor||'')+'</textarea>';
+}
+
+function renderFaq(){
+  const el = document.getElementById('faqLista');
+  if(!FAQ.length){ el.innerHTML = '<div class="text-xs text-slate-400">Nenhuma pergunta ainda. Clique em "Nova pergunta".</div>'; return; }
+  el.innerHTML = FAQ.map((f,i) => '<div class="rounded-lg border border-slate-200 dark:border-ink-600 p-3 space-y-2">'
+    + '<div class="flex items-start gap-2">'
+    +   '<span class="text-[11px] text-slate-400 pt-2 w-5 shrink-0">'+(i+1)+'</span>'
+    +   '<div class="flex-1 space-y-2">'
+    +     campo(f.pergunta, 'Pergunta do cliente', "FAQ["+i+"].pergunta=this.value;FAQ["+i+"]._sujo=1")
+    +     campo(f.resposta, 'Resposta que o robô deve dar', "FAQ["+i+"].resposta=this.value;FAQ["+i+"]._sujo=1", 2)
+    +   '</div>'
+    +   '<button onclick="apagarFaq('+f.id+')" title="Apagar" class="text-slate-300 hover:text-rose-500 pt-1.5 shrink-0">'
+    +     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:15px;height:15px"><path d="M18 6 6 18M6 6l12 12"/></svg></button>'
+    + '</div></div>').join('')
+    + '<button onclick="salvarFaq(this)" class="text-xs font-semibold px-3 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-900">Salvar perguntas</button>';
+}
+
+function renderInts(){
+  const el = document.getElementById('intLista');
+  if(!INTS.length){ el.innerHTML = '<div class="text-xs text-slate-400">Nenhuma situação ainda. Clique em "Nova situação".</div>'; return; }
+  el.innerHTML = INTS.map((t,i) => '<div class="rounded-lg border border-slate-200 dark:border-ink-600 p-3 space-y-2">'
+    + '<div class="flex items-start gap-2">'
+    +   '<span class="text-[11px] text-slate-400 pt-2 w-5 shrink-0">'+(i+1)+'</span>'
+    +   '<div class="flex-1 space-y-2">'
+    +     campo(t.nome, 'Nome da situação (ex.: Pedido não recebido)', "INTS["+i+"].nome=this.value;INTS["+i+"]._sujo=1")
+    +     campo(t.comportamento, 'Quando usar — descreva com as palavras que o cliente costuma usar', "INTS["+i+"].comportamento=this.value;INTS["+i+"]._sujo=1", 2)
+    +   '</div>'
+    +   '<button onclick="apagarInt('+t.id+')" title="Apagar" class="text-slate-300 hover:text-rose-500 pt-1.5 shrink-0">'
+    +     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:15px;height:15px"><path d="M18 6 6 18M6 6l12 12"/></svg></button>'
+    + '</div></div>').join('')
+    + '<button onclick="salvarInts(this)" class="text-xs font-semibold px-3 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-900">Salvar situações</button>';
+}
+
+async function novaFaq(){
+  const c = await getSb();
+  const { data, error } = await c.from('at_chatbot_faq').insert({ pergunta:'', resposta:'', ordem:FAQ.length }).select().single();
+  if(error) return alert('Não deu: '+error.message);
+  FAQ.push(data); renderFaq();
+}
+async function novaIntencao(){
+  const c = await getSb();
+  const { data, error } = await c.from('at_chatbot_intencoes').insert({ nome:'', comportamento:'', ordem:INTS.length }).select().single();
+  if(error) return alert('Não deu: '+error.message);
+  INTS.push(data); renderInts();
+}
+async function apagarFaq(id){
+  if(!confirm('Apagar esta pergunta?')) return;
+  const c = await getSb(); await c.from('at_chatbot_faq').delete().eq('id', id);
+  FAQ = FAQ.filter(x => x.id !== id); renderFaq();
+}
+async function apagarInt(id){
+  if(!confirm('Apagar esta situação?')) return;
+  const c = await getSb(); await c.from('at_chatbot_intencoes').delete().eq('id', id);
+  INTS = INTS.filter(x => x.id !== id); renderInts();
+}
+async function salvarFaq(btn){
+  const c = await getSb(); const antes = btn.textContent; btn.textContent='Salvando...';
+  for(const f of FAQ.filter(x => x._sujo)){
+    await c.from('at_chatbot_faq').update({ pergunta:f.pergunta, resposta:f.resposta }).eq('id', f.id);
+    delete f._sujo;
+  }
+  btn.textContent='Salvo'; setTimeout(()=>btn.textContent=antes, 1500);
+}
+async function salvarInts(btn){
+  const c = await getSb(); const antes = btn.textContent; btn.textContent='Salvando...';
+  for(const t of INTS.filter(x => x._sujo)){
+    await c.from('at_chatbot_intencoes').update({ nome:t.nome, comportamento:t.comportamento }).eq('id', t.id);
+    delete t._sujo;
+  }
+  btn.textContent='Salvo'; setTimeout(()=>btn.textContent=antes, 1500);
+}
+
 bootstrap();
 </script>
 <script src="/nav.js"></script>
