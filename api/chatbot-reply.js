@@ -82,16 +82,44 @@ function montarSystem(cfg, cliente, faq, intencoes) {
   return s;
 }
 
-// Tira links de domínios que não estão liberados, em vez de mandar o cliente pra qualquer
-// lugar que o modelo inventar. É a "verificação de links" do Notificações.
+/* Tira links de domínios que não estão liberados, em vez de mandar o cliente pra qualquer
+   lugar que o modelo inventar. É a "verificação de links" do Notificações.
+
+   ATENÇÃO — aqui morava um bug que fazia o robô parecer burro.
+   O recorte pegava tudo que não fosse espaço, então a pontuação e a marcação coladas no
+   FIM do endereço entravam junto:
+
+     "**https://dracharm.troque.app.br**"  -> domínio virava "dracharm.troque.app.br**"
+     "https://dracharm.troque.app.br."     -> domínio virava "dracharm.troque.app.br."
+
+   Domínio corrompido não batia com a lista, e o link CERTO era apagado. A cliente
+   recebeu "Acesse ** informe os dados do seu pedido" — frase quebrada, sem endereço.
+   E como o modelo põe o link em negrito ou termina a frase com ponto quase sempre, o
+   robô praticamente NUNCA conseguia entregar o link da troca ou do provador. Ele sabia
+   a resposta certa e ela chegava mutilada.
+
+   Agora a pontuação/marcação do fim é separada antes de conferir o domínio, e volta pro
+   texto depois. Só o endereço proibido some. */
 function limparLinks(texto, cfg){
   const permitidos = String(cfg.sites_permitidos || '').split(/[\n,;]+/).map(x => x.trim().toLowerCase()
     .replace(/^https?:\/\//,'').replace(/^www\./,'').replace(/\/.*$/,'')).filter(Boolean);
   if(!permitidos.length) return texto;
-  return String(texto).replace(/https?:\/\/[^\s)]+/gi, (url) => {
-    const host = url.replace(/^https?:\/\//i,'').replace(/^www\./i,'').split('/')[0].toLowerCase();
-    return permitidos.some(d => host === d || host.endsWith('.' + d)) ? url : '';
-  }).replace(/[ \t]{2,}/g, ' ');
+
+  return String(texto)
+    .replace(/https?:\/\/[^\s<>]+/gi, (bruto) => {
+      const m = bruto.match(/[)\]}>.,;:!?'"*_]+$/);      // rabo colado no fim
+      const rabo = m ? m[0] : '';
+      const url  = rabo ? bruto.slice(0, -rabo.length) : bruto;
+      const host = url.replace(/^https?:\/\//i,'').replace(/^www\./i,'').split(/[\/?#]/)[0].toLowerCase();
+      const liberado = permitidos.some(d => host === d || host.endsWith('.' + d));
+      return liberado ? (url + rabo) : '';               // proibido: some o link E o rabo dele
+    })
+    // sobra de negrito de um link que foi removido — sem isso fica "Acesse ** informe"
+    .replace(/\*\*\s*\*\*/g, '')
+    .replace(/(^|[\s(])\*\*(?=[\s.,;:!?)]|$)/g, '$1')
+    .replace(/\[\s*\]\(\s*\)/g, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/ +([.,;:!?])/g, '$1');
 }
 
 async function viaOpenAI(cfg, mensagens, cliente, faq, intencoes) {
