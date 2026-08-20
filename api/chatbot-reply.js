@@ -92,6 +92,8 @@ async function viaOpenAI(cfg, mensagens, cliente, faq, intencoes) {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + process.env.OPENAI_API_KEY, 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      // Na OpenAI o cache é automático acima de 1.024 tokens, desde que o trecho fixo venha
+      // primeiro — e vem: o system é a primeira mensagem e não muda entre as chamadas.
       model: cfg.modelo || 'gpt-4o-mini',
       messages: [{ role: 'system', content: montarSystem(cfg, cliente, faq, intencoes) }, ...mensagens],
       temperature: 0.5, max_tokens: 400
@@ -107,7 +109,11 @@ async function viaAnthropic(cfg, mensagens, cliente, faq, intencoes) {
     headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: cfg.modelo && cfg.modelo.startsWith('claude') ? cfg.modelo : 'claude-haiku-4-5-20251001',
-      system: montarSystem(cfg, cliente, faq, intencoes), max_tokens: 400,
+      // CACHE DE PROMPT: o system é idêntico em toda mensagem (persona + FAQ + intenções,
+      // ~5 mil tokens). Sem cache, ele é cobrado inteiro a cada resposta. Marcado assim,
+      // a releitura custa 10% — no volume de ~25 mil mensagens/mês isso corta ~70% da conta.
+      system: [{ type: 'text', text: montarSystem(cfg, cliente, faq, intencoes), cache_control: { type: 'ephemeral' } }],
+      max_tokens: 400,
       messages: mensagens.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }))
     })
   });
