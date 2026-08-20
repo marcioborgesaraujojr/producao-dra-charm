@@ -78,6 +78,15 @@ tailwind.config = {
          pra uma comprida (Gatilhos, Fila) fazia a página inteira pular ~15px pro lado —
          a "tremidazinha" que aparecia só ao trocar de página. */
       + 'html{overflow-y:scroll}'
+      /* ====== CARREGANDO (dc-load) ======
+         O "A" da Aragão respirando enquanto carrega. Estava escrito à mão no index.html,
+         e o atendimento usava um animate-pulse do Tailwind — que só acende e apaga, sem
+         movimento. Duas telas, dois comportamentos. Agora a medida mora aqui e vale
+         pra todo mundo: quem quiser o carregando usa .dc-load + .dc-logo-img. */
+      + '.dc-load{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:32px 16px}'
+      + '.dc-logo-img{width:72px;height:72px;object-fit:contain;animation:dc-breathe 1.5s ease-in-out infinite}'
+      + '@keyframes dc-breathe{0%,100%{opacity:.5;transform:scale(.9)}50%{opacity:1;transform:scale(1)}}'
+      + '.dc-logo-img.dc-mini{width:56px;height:56px}'
       /* card clicável: leve 3D no hover (mesmo efeito em todo lugar) */
       + '.dc-lift{transition:transform .16s ease, box-shadow .16s ease}'
       + '.dc-lift:hover{box-shadow:var(--dc-lift)}'

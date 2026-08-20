@@ -40,15 +40,22 @@
   .dark .sk-bloco{background:linear-gradient(90deg,#1e293b 25%,#273449 37%,#1e293b 63%);background-size:400% 100%}
   @keyframes skGlow{0%{background-position:100% 50%}100%{background-position:0 50%}}
   /* Quem está com a conversa aberta (e digitando) — mostrado na lista de conversas */
-  .pres-pill{display:inline-flex;align-items:center;gap:3px;background:#f1f5f9;border-radius:999px;padding:2px 3px 2px 7px}
+  .pres-pill{display:inline-flex;align-items:center;gap:4px;background:#f1f5f9;border-radius:999px;padding:2px 4px 2px 8px}
   .dark .pres-pill{background:#1f2937}
-  .pres-ini{width:18px;height:18px;border-radius:999px;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none}
+  /* Tamanho das bolinhas de quem esta na conversa. Ele achou tudo pequeno demais, e
+     pediu o robo do MESMO tamanho das meninas — por isso os dois leem a mesma medida. */
+  .pres-ini{width:22px;height:22px;border-radius:999px;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none}
+  /* O robo na conversa: MESMA bolinha das meninas (22px, redonda, simbolo branco
+     dentro), so que no roxo da suite - foi o que ele pediu, mostrando o icone do app. */
+  .pres-bot-ico{width:22px;height:22px;border-radius:999px;flex:none;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,#8b5cf6,#9333ea);box-shadow:0 1px 2px rgba(147,51,234,.35)}
+  .pres-bot-ico svg{width:14px;height:14px;display:block}
   .pres-dots{display:inline-flex;gap:2px;align-items:center}
-  .pres-dots i{width:4px;height:4px;border-radius:999px;background:var(--pt,#94a3b8);display:block;animation:presDot 1.2s infinite ease-in-out}
+  .pres-dots i{width:5px;height:5px;border-radius:999px;background:var(--pt,#94a3b8);display:block;animation:presDot 1.2s infinite ease-in-out}
   .pres-dots i:nth-child(2){animation-delay:.18s}
   .pres-dots i:nth-child(3){animation-delay:.36s}
   @keyframes presDot{0%,60%,100%{opacity:.25;transform:translateY(0)}30%{opacity:1;transform:translateY(-2px)}}
-  .pres-bot-dot{width:6px;height:6px;border-radius:999px;background:#10b981;display:block;animation:botPulse 1.6s infinite ease-in-out}
+  .pres-bot-dot{width:7px;height:7px;border-radius:999px;background:#10b981;display:block;animation:botPulse 1.6s infinite ease-in-out}
   @keyframes botPulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(16,185,129,.5)}50%{opacity:.55;box-shadow:0 0 0 4px rgba(16,185,129,0)}}
 </style>
 <script id="dc-fav-std">(function(){try{document.querySelectorAll('link[rel="icon"],link[rel="shortcut icon"]').forEach(function(l){l.remove();});var l=document.createElement('link');l.rel='icon';l.type='image/png';l.href='https://wwytzoyeibekhstinott.supabase.co/storage/v1/object/public/system-assets/favicon.png';document.head.appendChild(l);}catch(e){}})();</script>
@@ -567,10 +574,12 @@ function botHtml(cv){
   // 40s de validade porque a chamada leva segundos — se estourar, é porque falhou.
   const pensando = cv.botDigitandoEm && (Date.now() - new Date(cv.botDigitandoEm).getTime()) < 40000;
   return '<span title="' + (pensando ? 'O robô está escrevendo' : 'O robô está cuidando desta conversa')
-       + '" class="inline-flex items-center gap-1 pres-pill" style="background:#ecfdf5">'
-       + (pensando ? '<span class="pres-dots" style="--pt:#047857"><i></i><i></i><i></i></span>' : '<span class="pres-bot-dot"></span>')
-       + '<svg viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px">'
-       + '<rect x="3" y="8" width="18" height="12" rx="2"/><path d="M12 8V4M8 2h8"/><circle cx="9" cy="14" r="1"/><circle cx="15" cy="14" r="1"/></svg></span>';
+       + '" class="pres-pill" style="background:#f5f3ff">'
+       + (pensando ? '<span class="pres-dots" style="--pt:#7c3aed"><i></i><i></i><i></i></span>' : '')
+       + '<span class="pres-bot-ico">'
+       +   '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+       +   '<rect x="3" y="8" width="18" height="12" rx="2"/><path d="M12 8V4M8 2h8"/><circle cx="9" cy="14" r="1"/><circle cx="15" cy="14" r="1"/></svg>'
+       + '</span></span>';
 }
 
 function presencaHtml(convId){
@@ -690,7 +699,9 @@ function renderLoading(){
     const d=document.createElement('div');
     d.setAttribute('data-chat-skel','1');
     d.className='absolute inset-0 flex items-center justify-center pointer-events-none';
-    d.innerHTML='<img src="/aragao-loading.png" class="w-14 h-14 animate-pulse" alt="">';
+    // .dc-logo-img vem do theme.js: o mesmo "A" respirando dos outros apps.
+    // Antes era animate-pulse do Tailwind — só acendia e apagava, sem movimento.
+    d.innerHTML='<img src="/aragao-loading.png" class="dc-logo-img dc-mini" alt="">';
     if(getComputedStyle(ch).position==='static') ch.style.position='relative';
     ch.appendChild(d);
   }

@@ -351,6 +351,12 @@
     <span id="avisoTeste" class="text-[11px] font-semibold rounded-full px-2.5 py-1"></span>
   </div>
 
+  <!-- Os dois botões moram em abas diferentes e já se confundiram duas vezes, nos dois
+       sentidos: ele desligou o teste achando que desligava o robô (e o robô ficou solto
+       em cima de todas as conversas), e depois ligou o teste achando que ligava o robô
+       (e nada aconteceu). Agora cada aba avisa o estado da outra. -->
+  <div id="notaMotor" class="rounded-xl p-3 text-[12px]" hidden></div>
+
   <div class="bin rounded-xl p-4 space-y-3">
     <div>
       <div class="text-sm font-semibold">Tamanho do lote</div>
@@ -394,6 +400,8 @@ const SUPA = { url:'https://wwytzoyeibekhstinott.supabase.co', key:'sb_publishab
 let sb=null, CFG={}, TESTE=[];
 async function getSb(){ if(!sb){ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2'); sb=createClient(SUPA.url,SUPA.key,{auth:{persistSession:true,autoRefreshToken:true}}); } return sb; }
 function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[x])); }
+// esc() nao escapa aspas; dentro de ATRIBUTO isso quebra a marcacao. Use escAttr la.
+function escAttr(s){ return String(s==null?'':s).replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x])); }
 
 async function bootstrap(){
   const c=await getSb(); const { data:{ session } }=await c.auth.getSession();
@@ -476,7 +484,7 @@ function salvarAtendimento(btn){
 }
 function toggleSw(id){ const s=document.getElementById(id); s.dataset.on = s.dataset.on==='1' ? '0' : '1'; }
 function ligado(id){ return document.getElementById(id).dataset.on === '1'; }
-function toggleAtivo(){ toggleSw('swAtivo'); pintarAviso(); }
+function toggleAtivo(){ toggleSw('swAtivo'); pintarAviso(); pintarTeste(); }   // o aviso da aba Modo teste fala do estado deste botão
 function num(id, padrao){ const v = parseInt(document.getElementById(id).value, 10); return Number.isFinite(v) ? v : padrao; }
 
 /* ===== MODO TESTE =====
@@ -514,6 +522,18 @@ function pintarTeste(){
   el.textContent = on ? 'em teste' : 'desligado';
   el.className = 'text-[11px] font-semibold rounded-full px-2.5 py-1 '
     + (on ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500 dark:bg-ink-700 dark:text-slate-400');
+
+  // O modo teste é a coleira. Sem o "Chatbot ativo" ligado não tem motor, e ligar a
+  // coleira sozinha não faz nada — foi exatamente o que aconteceu.
+  const nota = document.getElementById('notaMotor'); if(!nota) return;
+  const motor = !!(document.getElementById('swAtivo') && ligado('swAtivo'));
+  nota.hidden = motor;
+  if(!motor){
+    nota.className = 'rounded-xl p-3 text-[12px] bg-amber-50 text-amber-800';
+    nota.innerHTML = 'O <b>Chatbot ativo</b> está desligado, então o robô não vai atender ninguém — '
+      + 'nem com o modo teste ligado. Ligue em '
+      + '<a href="#configuracoes" onclick="irAba(\'configuracoes\')" class="underline font-semibold">Configurações</a>.';
+  }
 }
 
 // Sobe o número do lote. As conversas do lote velho ficam com o carimbo antigo: saem
@@ -594,7 +614,7 @@ async function carregarTeste(){
                   : (x.atendente_id || x.modo==='humano') ? ['passou pra humano','text-amber-600']
                   : ['com o robô','text-emerald-600'];
         return '<div class="tb-l" style="grid-template-columns:minmax(0,1fr) 110px 150px 90px;cursor:pointer" '
-          +   'onclick="verConversaTeste(' + JSON.stringify(String(x.id)) + ')">'
+          +   'data-conversa="' + escAttr(x.id) + '">'
           + '<div class="cel">' + esc(nome) + '</div>'
           + '<div class="cel">' + (atual ? '<b>' + lote + ' (agora)</b>' : x.bot_teste_lote) + '</div>'
           + '<div class="cel">' + esc(quando) + '</div>'
@@ -602,6 +622,14 @@ async function carregarTeste(){
           + '</div>';
       }).join('')
     + '</div>';
+
+  /* O id ia DENTRO do onclick, entre aspas duplas, dentro de um atributo que tambem usa
+     aspas duplas: o atributo morria na primeira aspa e a linha inteira virava HTML
+     quebrado — clicar nao fazia nada. Mesmo erro que ja tinha acontecido nas etiquetas
+     do atendimento. Por isso o id vai num data- e o clique e ligado aqui, no JavaScript. */
+  box.querySelectorAll('[data-conversa]').forEach(el => {
+    el.addEventListener('click', () => verConversaTeste(el.dataset.conversa));
+  });
 }
 
 // Abre a conversa inteira aqui mesmo. Ler o que ele respondeu é o ponto do modo teste —
