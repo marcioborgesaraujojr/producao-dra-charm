@@ -187,8 +187,30 @@ function blocoPedido(pedido) {
 
    Pedir no prompt pra não usar Markdown ajuda, mas o modelo esquece. Aqui a gente
    converte na saída, que é garantia — não esperança. */
-function paraWhatsApp(texto){
+/* UM emoji por mensagem, no máximo.
+   Medição do primeiro dia no ar: 64% das respostas do robô tinham emoji, várias com dois ou
+   três. No histórico real da equipe são 8%. Emoji demais é, junto com resposta comprida, o
+   que mais denuncia robô. Pedir no prompt não adiantou (a instrução "1 a cada 10" está lá
+   desde o começo), então aqui a gente garante o teto: o PRIMEIRO fica, o resto sai.
+   A frequência (quantas respostas TÊM emoji) continua sendo trabalho do prompt — isto aqui
+   só corta o exagero dentro de uma mesma mensagem. */
+const EMOJI = /(?:\p{Extended_Pictographic}(?:️|\p{Emoji_Modifier})?(?:‍\p{Extended_Pictographic}(?:️|\p{Emoji_Modifier})?)*)/gu;
+function umEmojiSo(texto){
+  let visto = false;
   return String(texto || '')
+    .replace(EMOJI, (e) => {
+      // dígitos e sinais comuns entram em Extended_Pictographic em algumas engines; não são emoji aqui
+      if (/^[\d#*©®™]+$/.test(e)) return e;
+      if (visto) return '';
+      visto = true; return e;
+    })
+    .replace(/[ \t]{2,}/g, ' ')          // buraco deixado pelo emoji removido
+    .replace(/[ \t]+([,.!?;:])/g, '$1')
+    .replace(/[ \t]+\n/g, '\n');
+}
+
+function paraWhatsApp(texto){
+  return umEmojiSo(String(texto || ''))
     .replace(/\*\*\*(.+?)\*\*\*/gs, '*$1*')      // ***forte*** -> *forte*
     .replace(/\*\*(.+?)\*\*/gs,     '*$1*')      // **negrito**  -> *negrito*
     .replace(/__(.+?)__/gs,         '*$1*')      // __negrito__  -> *negrito*

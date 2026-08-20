@@ -430,7 +430,7 @@ async function maybeBotReply(conversaId, clienteNome, inboundText, waid, host, u
 
     // histórico — quantas mensagens ele lê é ajustável na aba Configurações
     const contexto = Math.min(Math.max(parseInt(cfg.contexto_msgs, 10) || 12, 2), 40);
-    let rows = []; try { rows = await sbFetch('at_mensagens?conversa_id=eq.' + conversaId + '&select=direcao,conteudo,tipo,meta&order=enviada_em.desc&limit=' + (contexto + 20)); } catch (e) {}
+    let rows = []; try { rows = await sbFetch('at_mensagens?conversa_id=eq.' + conversaId + '&select=direcao,conteudo,tipo,meta,enviada_em&order=enviada_em.desc&limit=' + (contexto + 20)); } catch (e) {}
     const todas = (Array.isArray(rows) ? rows : []).reverse();
     const msgs = todas
       .filter(m => (m.tipo === 'texto' || !m.tipo) && (m.direcao === 'in' || m.direcao === 'out'))
@@ -501,6 +501,37 @@ async function maybeBotReply(conversaId, clienteNome, inboundText, waid, host, u
           }
         } catch (e) { /* na dúvida deixa entrar: uma a mais no lote não faz mal */ }
       }
+    }
+
+    /* ESPERA PRA AGRUPAR — o robô parecia robô respondendo rápido demais.
+       Na conversa da Emanuely (20/08 17:21) a cliente mandou três mensagens seguidas e
+       levou TRÊS respostas em um minuto. Pessoa nenhuma faz isso: a gente lê o bloco todo
+       e responde uma vez.
+
+       Como funciona: espera alguns segundos e depois confere se chegou mensagem NOVA da
+       cliente nesse meio tempo. Se chegou, esta execução cala a boca — quem responde é a
+       execução da mensagem mais nova, que já leu o histórico inteiro. Comparação é
+       timestamp do banco contra timestamp do banco, nunca relógio da função contra o
+       do Postgres, senão qualquer segundo de diferença entre as duas máquinas decide quem
+       fala. */
+    // `|| 12` aqui seria bug: quem configurasse 0 pra desligar a espera receberia 12,
+    // porque 0 é falsy. O teste 4 pegou exatamente isso.
+    const bruto = parseInt(cfg.agrupar_segundos, 10);
+    const esperaS = Math.min(Math.max(Number.isFinite(bruto) ? bruto : 12, 0), 25);
+    if (esperaS > 0) {
+      const marca = (mm) => {
+        const ins = (Array.isArray(mm) ? mm : []).filter(x => x.direcao === 'in');
+        return ins.length ? String(ins[ins.length - 1].enviada_em || '') : '';
+      };
+      const antes = marca(todas);
+      await new Promise(r => setTimeout(r, esperaS * 1000));
+      let agora = antes;
+      try {
+        const nov = await sbFetch('at_mensagens?conversa_id=eq.' + conversaId
+          + '&direcao=eq.in&select=enviada_em&order=enviada_em.desc&limit=1');
+        if (Array.isArray(nov) && nov[0]) agora = String(nov[0].enviada_em || '');
+      } catch (e) { /* não deu pra conferir: melhor responder do que ficar mudo */ }
+      if (antes && agora && agora !== antes) return;   // chegou mais coisa: a outra execução responde
     }
 
     // ---- Marcar como lida no WhatsApp do cliente (aba Configurações) ----
@@ -614,6 +645,16 @@ export default async function handler(req, res) {
           if (m.type === 'reaction') {
             await aplicarReacao({ conversaId, m, quem: contatoNome || waid });
             continue;
+          }
+
+          /* A Meta REENVIA o webhook quando não recebe 200 rápido. Sem esta trava, o mesmo
+             wamid virava duas linhas na conversa e o robô respondia duas vezes. Passou a
+             importar de verdade agora que a resposta espera alguns segundos pra agrupar
+             as mensagens da cliente — a chance de a Meta reenviar antes do nosso 200 subiu. */
+          if (m.id) {
+            let jaTem = null;
+            try { jaTem = await sbFetch('at_mensagens?select=id&limit=1&meta->>wamid=eq.' + encodeURIComponent(m.id)); } catch (e) { jaTem = null; }
+            if (Array.isArray(jaTem) && jaTem.length) continue;      // reenvio da Meta: já está gravada
           }
 
           const { tipo, conteudo } = parseMsg(m);
