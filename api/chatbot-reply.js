@@ -78,8 +78,39 @@ function montarSystem(cfg, cliente, faq, intencoes) {
   }
 
   if (cliente && cliente.nome) s += '\n\nO cliente se chama ' + cliente.nome + ' (use o primeiro nome quando fizer sentido).';
-  s += '\n\nSeja breve. Responda em UMA mensagem.';
+
+  // Isto aqui é WhatsApp, não é chat de site. Escrever como gente é parte da resposta certa.
+  s += '\n\nCOMO ESCREVER:\n'
+     + '- Você está no WhatsApp. Negrito é com UM asterisco (*assim*), nunca dois. Nada de Markdown, título ou tabela.\n'
+     + '- Responda curto: 2 a 4 linhas. Se precisar de mais, é porque o caso é de gente, não seu.\n'
+     + '- No máximo UM emoji na mensagem, e só quando couber. Sem emoji também está ótimo.\n'
+     + '- Não termine toda mensagem com "Posso te ajudar com mais alguma coisa?". Só pergunte se fizer sentido.\n'
+     + '- Escreva como uma pessoa do atendimento escreveria, não como propaganda. Sem CAPS pra dar ênfase.\n'
+     + '\nO QUE VOCÊ NÃO PODE FAZER — isto é mais importante que parecer prestativa:\n'
+     + '- NUNCA invente regra, prazo, política, preço ou endereço de página. Se a resposta exata não estiver '
+     + 'no seu treinamento, diga com naturalidade que vai confirmar com o time e ' + MARCA_TRANSFERIR + '.\n'
+     + '- Só escreva links que existam no seu treinamento. Não monte caminho novo (nada de inventar /buscar?q=...).\n'
+     + '- Não diga que algo "não é possível" se ninguém te disse isso. Não saber e não poder são coisas diferentes.\n'
+     + '- Nunca se contradiga na mesma mensagem: se vai passar pra uma pessoa, não afirme antes que não tem jeito.';
   return s;
+}
+
+/* O modelo escreve em Markdown — negrito com DOIS asteriscos. O WhatsApp usa UM.
+   Resultado: a cliente lia literalmente "**gratuita**", "**Motoboy**", "**(85) 98701-5980**".
+   Toda resposta chegava suja de asterisco, e isso sozinho já faz parecer robô.
+
+   Pedir no prompt pra não usar Markdown ajuda, mas o modelo esquece. Aqui a gente
+   converte na saída, que é garantia — não esperança. */
+function paraWhatsApp(texto){
+  return String(texto || '')
+    .replace(/\*\*\*(.+?)\*\*\*/gs, '*$1*')      // ***forte*** -> *forte*
+    .replace(/\*\*(.+?)\*\*/gs,     '*$1*')      // **negrito**  -> *negrito*
+    .replace(/__(.+?)__/gs,         '*$1*')      // __negrito__  -> *negrito*
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/gi, '$1: $2')  // [texto](link) -> texto: link
+    .replace(/^\s{0,3}#{1,6}\s+/gm, '')          // títulos de Markdown não existem no WhatsApp
+    .replace(/^\s{0,3}[-*]\s+/gm,   '• ')        // lista vira bolinha de verdade
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 /* Tira links de domínios que não estão liberados, em vez de mandar o cliente pra qualquer
@@ -232,7 +263,7 @@ export default async function handler(req, res) {
     const ultima = (mensagens[mensagens.length - 1].content || '').toLowerCase();
     const porTermo = termos.some(t => t && ultima.includes(t));
     const porIntencao = String(reply).includes(MARCA_TRANSFERIR);
-    reply = limparLinks(String(reply).split(MARCA_TRANSFERIR).join('').trim(), cfg);
+    reply = paraWhatsApp(limparLinks(String(reply).split(MARCA_TRANSFERIR).join('').trim(), cfg));
     const handoff = porTermo || porIntencao;
 
     await registrarUso({ conversa_id: conversaId, modelo: modeloUsado, handoff, ...saida.uso });
