@@ -340,7 +340,7 @@ async function maybeBotReply(conversaId, clienteNome, inboundText, waid, host, u
     const cfg = Array.isArray(cfgRows) ? cfgRows[0] : cfgRows;
     if (!cfg || !cfg.ativo) return;                                   // chatbot desligado -> nada
 
-    let convRows = null; try { convRows = await sbFetch('at_conversas?id=eq.' + conversaId + '&select=modo,atendente_id,bot_encerrada_em'); } catch (e) {}
+    let convRows = null; try { convRows = await sbFetch('at_conversas?id=eq.' + conversaId + '&select=modo,atendente_id,bot_encerrada_em,bot_teste_lote'); } catch (e) {}
     const cv = Array.isArray(convRows) ? convRows[0] : convRows;
     if (cv && (cv.modo === 'humano' || cv.atendente_id)) return;      // humano assumiu -> robô quieto
 
@@ -415,6 +415,46 @@ async function maybeBotReply(conversaId, clienteNome, inboundText, waid, host, u
         await sbFetch('at_mensagens', { method: 'POST', body: JSON.stringify({ conversa_id: conversaId, direcao: 'in', tipo: 'nota',
           conteudo: 'Cliente repetiu a mesma mensagem 3x — o robô não estava resolvendo. Passou pra humano.', autor: 'Sistema' }) });
         return;
+      }
+    }
+
+    /* ---- MODO TESTE (aba Modo teste) ----
+       Soltar o robô em cima de 1.700 conversas de uma vez é susto. No modo teste ele
+       pega um LOTE pequeno (5 por padrão), atende só essas e para; nada de novo entra
+       até liberarem um lote novo lá na tela.
+
+       A vaga é gasta AQUI, no fim da fila de checagens, de propósito: se a conversa nem
+       ia ser do robô (não bateu gatilho, pediu humano, estourou o limite), não faz
+       sentido queimar uma das cinco com ela. */
+    if (cfg.modo_teste) {
+      const lote      = parseInt(cfg.teste_lote, 10) || 1;
+      const vagas     = Math.max(parseInt(cfg.teste_limite, 10) || 5, 1);
+      const jaNoLote  = cv && Number(cv.bot_teste_lote) === lote;
+
+      if (!jaNoLote) {
+        let dentro = [];
+        try { dentro = await sbFetch('at_conversas?select=id&bot_teste_lote=eq.' + lote + '&limit=' + (vagas + 1)); } catch (e) { dentro = []; }
+        if ((Array.isArray(dentro) ? dentro.length : 0) >= vagas) {
+          await sbFetch('at_conversas?id=eq.' + conversaId, { method: 'PATCH', body: JSON.stringify({ nao_lida: true }) });
+          return;                                                    // lote cheio -> fila humana, sem gastar IA
+        }
+        try {
+          await sbFetch('at_conversas?id=eq.' + conversaId, { method: 'PATCH',
+            body: JSON.stringify({ bot_teste_lote: lote, bot_teste_em: new Date().toISOString() }) });
+        } catch (e) { console.error('entrar no lote de teste:', e.message); return; }
+
+        // Duas mensagens chegando no mesmo instante podiam ver a MESMA vaga livre e as
+        // duas entrarem — viravam 6 num lote de 5. Aqui a gente relê as primeiras pela
+        // ordem de entrada: quem não coube devolve a vaga e vai pra fila humana.
+        try {
+          const cabem = await sbFetch('at_conversas?select=id&bot_teste_lote=eq.' + lote + '&order=bot_teste_em.asc&limit=' + vagas);
+          const coube = (Array.isArray(cabem) ? cabem : []).some(x => String(x.id) === String(conversaId));
+          if (!coube) {
+            await sbFetch('at_conversas?id=eq.' + conversaId, { method: 'PATCH',
+              body: JSON.stringify({ bot_teste_lote: null, bot_teste_em: null, nao_lida: true }) });
+            return;
+          }
+        } catch (e) { /* na dúvida deixa entrar: uma a mais no lote não faz mal */ }
       }
     }
 
