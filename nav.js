@@ -26,8 +26,16 @@
         { href: '/lojas.html#leads', label: 'Lista de leads' }
       ] },
 
-    { key: 'chatbot', href: '/chatbot.html', label: 'Chatbot IA', admin: true,
-      icon: '<rect x="3" y="8" width="18" height="12" rx="2"/><path d="M12 8V4M8 2h8"/><circle cx="9" cy="14" r="1"/><circle cx="15" cy="14" r="1"/>' },
+    { key: 'chatbot', label: 'Chatbot IA', admin: true,
+      icon: '<rect x="3" y="8" width="18" height="12" rx="2"/><path d="M12 8V4M8 2h8"/><circle cx="9" cy="14" r="1"/><circle cx="15" cy="14" r="1"/>',
+      sub: [
+        { href: '/chatbot.html#treinamento',   label: 'Treinamento' },
+        { href: '/chatbot.html#configuracoes', label: 'Configurações' },
+        { href: '/chatbot.html#atendimento',   label: 'Atendimento' },
+        { href: '/chatbot.html#gatilhos',      label: 'Gatilhos' },
+        { href: '/chatbot.html#metricas',      label: 'Métricas' },
+        { href: '/chatbot.html#custos',        label: 'Custos' }
+      ] },
 
     { key: 'relatorios', href: '/relatorios.html', label: 'Relatórios', admin: true,
       icon: '<path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="7"/><rect x="12" y="6" width="3" height="11"/><rect x="17" y="13" width="3" height="4"/>' },

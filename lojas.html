@@ -49,7 +49,7 @@
   <div id="chips" class="flex gap-3 flex-wrap" style="min-height:74px"></div>
 
   <!-- seções da loja escolhida -->
-  <div id="abas" class="flex gap-1 flex-wrap border-b border-slate-200 dark:border-ink-600 pb-px" style="min-height:41px"></div>
+  <div id="abas" class="dc-tabs" style="min-height:41px"></div>
 
   <div id="conteudo" class="space-y-4"><div class="text-center text-sm text-slate-400 py-10">carregando…</div></div>
 </div>
@@ -121,13 +121,13 @@ function renderChips(){
   }).join('');
 }
 
+// Usa a classe .dc-tab do theme.js — o MESMO desenho de aba da suíte inteira.
+// Antes esta página desenhava a aba dela na mão e por isso ficou diferente das outras.
 function renderAbas(){
   document.getElementById('abas').innerHTML = ABAS.map(a=>{
     const on = a.key===ABA && !a.vaiPara;
-    return '<button onclick=\'irPara('+JSON.stringify(a)+')\' class="px-3 py-2 text-[13px] font-semibold rounded-t-lg border-b-2 transition '
-      + (on ? 'border-pink-500 text-pink-600 dark:text-pink-300'
-            : 'border-transparent text-slate-500 hover:text-pink-600 dark:text-slate-400') + '">'
-      + esc(a.nome) + '</button>';
+    return '<button onclick=\'irPara('+JSON.stringify(a)+')\' class="dc-tab"'
+      + (on ? ' data-on="1"' : '') + '>' + esc(a.nome) + '</button>';
   }).join('');
 }
 

@@ -106,7 +106,7 @@
 
 <!-- Barra de abas — padrão .dc-tab da suíte (theme.js). O robô virou várias telas:
      Treinamento é a que já existia; as outras espelham as páginas do Notificações. -->
-<div class="max-w-5xl mx-auto px-4 pt-4">
+<div class="max-w-6xl mx-auto px-4 pt-4">
   <div class="dc-tabs" id="abas" style="min-height:41px">
     <div class="dc-tab" data-aba="treinamento" onclick="irAba('treinamento')">Treinamento</div>
     <div class="dc-tab" data-aba="configuracoes" onclick="irAba('configuracoes')">Configurações</div>
@@ -118,7 +118,7 @@
 </div>
 
 <!-- ============ TREINAMENTO ============ -->
-<div class="p-4 grid md:grid-cols-2 gap-4 max-w-5xl mx-auto" data-painel="treinamento">
+<div class="p-4 grid md:grid-cols-2 gap-4 max-w-6xl mx-auto" data-painel="treinamento">
   <!-- Config -->
   <div class="space-y-3">
     <div class="grid grid-cols-2 gap-3">
@@ -190,7 +190,7 @@
 </div>
 
 <!-- ============ CONFIGURAÇÕES ============ -->
-<div class="p-4 space-y-4 max-w-5xl mx-auto" data-painel="configuracoes" hidden>
+<div class="p-4 space-y-4 max-w-6xl mx-auto" data-painel="configuracoes" hidden>
 
   <div class="bin rounded-xl p-4 flex items-center gap-3">
     <div id="swAtivo" class="switch" data-on="0" onclick="toggleAtivo()"></div>
@@ -251,7 +251,7 @@
 </div>
 
 <!-- ============ ATENDIMENTO (timeout) ============ -->
-<div class="p-4 space-y-4 max-w-5xl mx-auto" data-painel="atendimento" hidden>
+<div class="p-4 space-y-4 max-w-6xl mx-auto" data-painel="atendimento" hidden>
   <div class="bin rounded-xl p-4 space-y-4">
     <div>
       <div class="text-sm font-semibold">Encerrar por inatividade</div>
@@ -289,7 +289,7 @@
 </div>
 
 <!-- ============ GATILHOS ============ -->
-<div class="p-4 space-y-4 max-w-5xl mx-auto" data-painel="gatilhos" hidden>
+<div class="p-4 space-y-4 max-w-6xl mx-auto" data-painel="gatilhos" hidden>
   <div id="gatAviso" class="rounded-xl p-3 text-[12px]"></div>
 
   <div class="bin rounded-xl p-4 space-y-3">
@@ -316,7 +316,7 @@
 </div>
 
 <!-- ============ MÉTRICAS ============ -->
-<div class="p-4 space-y-4 max-w-5xl mx-auto" data-painel="metricas" hidden>
+<div class="p-4 space-y-4 max-w-6xl mx-auto" data-painel="metricas" hidden>
   <div class="flex flex-wrap items-center gap-2">
     <div class="text-sm font-semibold mr-auto">Como o robô se saiu</div>
     <select id="metPeriodo" onchange="carregarMetricas()" class="fld" style="width:auto">
@@ -334,7 +334,7 @@
 </div>
 
 <!-- ============ CUSTOS ============ -->
-<div class="p-4 space-y-4 max-w-5xl mx-auto" data-painel="custos" hidden>
+<div class="p-4 space-y-4 max-w-6xl mx-auto" data-painel="custos" hidden>
   <div class="flex flex-wrap items-center gap-2">
     <div class="mr-auto">
       <div class="text-sm font-semibold">Quanto o robô está custando</div>
