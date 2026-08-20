@@ -23,6 +23,32 @@
   .bin{background:#fff;border:1px solid #eef2f7}.dark .bin{background:#1f2937;border-color:#334155}
   .bout{background:#fce7f3;border:1px solid #fbcfe8}.dark .bout{background:#3f1d2b;border-color:#6d2647;color:#fbe4ee}
   [data-fade]{animation:fade .2s ease}@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+  /* ===== Tabela de perguntas / situações =====
+     Antes cada pergunta era um cartão empilhado com dois campos grandes: com 30 perguntas
+     a tela virava um rolo sem fim. Agora é linha de tabela, duas colunas, igual ao
+     Notificações — dá pra bater o olho e achar o que procura. */
+  .tb{border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#fff}
+  .dark .tb{border-color:#334155;background:#111827}
+  .tb-h,.tb-l{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr) 30px;gap:10px;align-items:start}
+  .tb-h{padding:8px 12px;background:#f8fafc;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.03em}
+  .dark .tb-h{background:#0f172a;color:#94a3b8}
+  .tb-l{padding:8px 12px;border-top:1px solid #eef2f7}
+  .dark .tb-l{border-top-color:#1f2937}
+  .tb-l:hover{background:#fafbfc}.dark .tb-l:hover{background:#0f172a}
+  /* campo dentro da linha: parece texto, vira campo quando clica */
+  .cel{width:100%;font-size:13px;line-height:1.45;padding:6px 8px;border-radius:8px;border:1px solid transparent;
+       background:transparent;color:inherit;resize:none;overflow:hidden;font-family:inherit;display:block}
+  .cel:hover{border-color:#e2e8f0}.dark .cel:hover{border-color:#334155}
+  .cel:focus{outline:none;border-color:#ff3c6f;background:#fff}.dark .cel:focus{background:#1f2937}
+  .cel::placeholder{color:#cbd5e1}
+  .tb-x{background:none;border:none;color:#cbd5e1;cursor:pointer;padding:8px 0 0 0;line-height:0}
+  .tb-x:hover{color:#f43f5e}
+  @media (max-width:700px){
+    .tb-h{display:none}
+    .tb-l{grid-template-columns:minmax(0,1fr) 30px;gap:4px}
+    .tb-l .cel:first-child{font-weight:600}
+  }
 </style>
 
 <!-- ===== Tema Dra. Charm: Poppins + cards foscos flutuando (mantém o fundo existente) ===== -->
@@ -102,30 +128,6 @@
     <button id="btnSalvar" onclick="salvar()" class="w-full text-sm font-semibold px-4 py-2.5 rounded-lg bg-pink-500 hover:bg-pink-600 text-white">Salvar configuração</button>
   </div>
 
-  <!-- Perguntas e respostas -->
-  <div class="bin rounded-xl p-4 space-y-3 md:col-span-2">
-    <div class="flex items-center justify-between">
-      <div>
-        <div class="text-sm font-semibold">Perguntas e respostas</div>
-        <div class="text-[11px] text-slate-400">O robô responde com estas, do jeito que você escreveu. Sem limite de quantidade.</div>
-      </div>
-      <button onclick="novaFaq()" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-ink-700 hover:bg-slate-200">Nova pergunta</button>
-    </div>
-    <div id="faqLista" class="space-y-2"><div class="text-xs text-slate-400">carregando…</div></div>
-  </div>
-
-  <!-- Intenções -->
-  <div class="bin rounded-xl p-4 space-y-3 md:col-span-2">
-    <div class="flex items-center justify-between">
-      <div>
-        <div class="text-sm font-semibold">Situações que o robô não resolve</div>
-        <div class="text-[11px] text-slate-400">Quando a mensagem se encaixa numa destas, ele não tenta resolver: passa direto pra um atendente.</div>
-      </div>
-      <button onclick="novaIntencao()" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-ink-700 hover:bg-slate-200">Nova situação</button>
-    </div>
-    <div id="intLista" class="space-y-2"><div class="text-xs text-slate-400">carregando…</div></div>
-  </div>
-
   <!-- Teste -->
   <div class="bin rounded-xl flex flex-col" style="height:70vh">
     <div class="p-3 border-b border-slate-200 dark:border-ink-600 flex items-center justify-between">
@@ -137,6 +139,37 @@
       <input id="tin" onkeydown="if(event.key==='Enter')testar()" class="fld flex-1" placeholder="Escreva como se fosse o cliente…">
       <button onclick="testar()" class="w-9 h-9 rounded-full bg-pink-500 text-white flex items-center justify-center hover:bg-pink-600 shrink-0"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
     </div>
+  </div>
+
+  <!-- Perguntas e respostas — tabela, no formato do Notificações -->
+  <div class="bin rounded-xl p-4 space-y-3 md:col-span-2">
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="mr-auto">
+        <div class="text-sm font-semibold flex items-center gap-2">Perguntas e respostas
+          <span id="faqCont" class="text-[11px] font-semibold text-slate-500 bg-slate-100 dark:bg-ink-700 rounded-full px-2 py-0.5">—</span>
+        </div>
+        <div class="text-[11px] text-slate-400">O robô responde com estas, do jeito que você escreveu. Sem limite de quantidade.</div>
+      </div>
+      <input id="faqBusca" oninput="renderFaq()" class="fld" style="width:190px" placeholder="Buscar…">
+      <button onclick="novaFaq()" class="text-xs font-semibold px-3 py-2 rounded-lg bg-slate-100 dark:bg-ink-700 hover:bg-slate-200">Nova pergunta</button>
+      <button id="btnFaq" onclick="salvarFaq(this)" class="text-xs font-semibold px-3 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-900">Salvar perguntas</button>
+    </div>
+    <div id="faqLista"><div class="text-xs text-slate-400">carregando…</div></div>
+  </div>
+
+  <!-- Intenções -->
+  <div class="bin rounded-xl p-4 space-y-3 md:col-span-2">
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="mr-auto">
+        <div class="text-sm font-semibold flex items-center gap-2">Situações que o robô não resolve
+          <span id="intCont" class="text-[11px] font-semibold text-slate-500 bg-slate-100 dark:bg-ink-700 rounded-full px-2 py-0.5">—</span>
+        </div>
+        <div class="text-[11px] text-slate-400">Quando a mensagem se encaixa numa destas, ele não tenta resolver: passa direto pra um atendente.</div>
+      </div>
+      <button onclick="novaIntencao()" class="text-xs font-semibold px-3 py-2 rounded-lg bg-slate-100 dark:bg-ink-700 hover:bg-slate-200">Nova situação</button>
+      <button id="btnInt" onclick="salvarInts(this)" class="text-xs font-semibold px-3 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-900">Salvar situações</button>
+    </div>
+    <div id="intLista"><div class="text-xs text-slate-400">carregando…</div></div>
   </div>
 </div>
 </div>
@@ -221,48 +254,80 @@ async function carregarTreinamento(){
   renderFaq(); renderInts();
 }
 
-function campo(valor, ph, oninput, linhas){
-  return '<textarea rows="'+(linhas||1)+'" placeholder="'+ph+'" oninput="'+oninput+'" '
-    + 'class="fld" style="resize:vertical">'+esc(valor||'')+'</textarea>';
+/* Campo que parece texto e vira campo ao clicar. Cresce sozinho com o conteúdo — sem
+   isso, com resposta comprida, ou o campo fica minúsculo com barra de rolagem, ou fica
+   gigante e vazio nas curtas. */
+function cresce(el){ el.style.height='auto'; el.style.height=(el.scrollHeight+2)+'px'; }
+function cel(valor, ph, oninput){
+  return '<textarea rows="1" placeholder="'+ph+'" class="cel" oninput="cresce(this);'+oninput+'">'+esc(valor||'')+'</textarea>';
 }
+function xis(onclick){
+  return '<button onclick="'+onclick+'" title="Apagar" class="tb-x">'
+    + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:14px;height:14px"><path d="M18 6 6 18M6 6l12 12"/></svg></button>';
+}
+function semAcento(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+// Depois de trocar o innerHTML os campos nascem com 1 linha: acerta a altura de todos.
+function ajustar(el){ el.querySelectorAll('.cel').forEach(cresce); }
 
 function renderFaq(){
   const el = document.getElementById('faqLista');
+  const busca = semAcento((document.getElementById('faqBusca')||{}).value);
+  document.getElementById('faqCont').textContent = FAQ.length + (FAQ.length === 1 ? ' pergunta' : ' perguntas');
   if(!FAQ.length){ el.innerHTML = '<div class="text-xs text-slate-400">Nenhuma pergunta ainda. Clique em "Nova pergunta".</div>'; return; }
-  el.innerHTML = FAQ.map((f,i) => '<div class="rounded-lg border border-slate-200 dark:border-ink-600 p-3 space-y-2">'
-    + '<div class="flex items-start gap-2">'
-    +   '<span class="text-[11px] text-slate-400 pt-2 w-5 shrink-0">'+(i+1)+'</span>'
-    +   '<div class="flex-1 space-y-2">'
-    +     campo(f.pergunta, 'Pergunta do cliente', "FAQ["+i+"].pergunta=this.value;FAQ["+i+"]._sujo=1")
-    +     campo(f.resposta, 'Resposta que o robô deve dar', "FAQ["+i+"].resposta=this.value;FAQ["+i+"]._sujo=1", 2)
-    +   '</div>'
-    +   '<button onclick="apagarFaq('+f.id+')" title="Apagar" class="text-slate-300 hover:text-rose-500 pt-1.5 shrink-0">'
-    +     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:15px;height:15px"><path d="M18 6 6 18M6 6l12 12"/></svg></button>'
-    + '</div></div>').join('')
-    + '<button onclick="salvarFaq(this)" class="text-xs font-semibold px-3 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-900">Salvar perguntas</button>';
+
+  const linhas = FAQ.map((f,i) => ({ f, i }))
+    .filter(({f}) => !busca || semAcento(f.pergunta + ' ' + f.resposta).includes(busca));
+
+  if(!linhas.length){ el.innerHTML = '<div class="text-xs text-slate-400">Nenhuma pergunta com “'+esc(busca)+'”.</div>'; return; }
+
+  el.innerHTML = '<div class="tb">'
+    + '<div class="tb-h"><div>Pergunta</div><div>Resposta</div><div></div></div>'
+    + linhas.map(({f,i}) => '<div class="tb-l">'
+        + cel(f.pergunta, 'Pergunta do cliente', "FAQ["+i+"].pergunta=this.value;FAQ["+i+"]._sujo=1;sujo('btnFaq')")
+        + cel(f.resposta, 'Resposta que o robô deve dar', "FAQ["+i+"].resposta=this.value;FAQ["+i+"]._sujo=1;sujo('btnFaq')")
+        + xis('apagarFaq('+f.id+')')
+      + '</div>').join('')
+    + '</div>';
+  ajustar(el);
 }
 
 function renderInts(){
   const el = document.getElementById('intLista');
+  document.getElementById('intCont').textContent = INTS.length + (INTS.length === 1 ? ' situação' : ' situações');
   if(!INTS.length){ el.innerHTML = '<div class="text-xs text-slate-400">Nenhuma situação ainda. Clique em "Nova situação".</div>'; return; }
-  el.innerHTML = INTS.map((t,i) => '<div class="rounded-lg border border-slate-200 dark:border-ink-600 p-3 space-y-2">'
-    + '<div class="flex items-start gap-2">'
-    +   '<span class="text-[11px] text-slate-400 pt-2 w-5 shrink-0">'+(i+1)+'</span>'
-    +   '<div class="flex-1 space-y-2">'
-    +     campo(t.nome, 'Nome da situação (ex.: Pedido não recebido)', "INTS["+i+"].nome=this.value;INTS["+i+"]._sujo=1")
-    +     campo(t.comportamento, 'Quando usar — descreva com as palavras que o cliente costuma usar', "INTS["+i+"].comportamento=this.value;INTS["+i+"]._sujo=1", 2)
-    +   '</div>'
-    +   '<button onclick="apagarInt('+t.id+')" title="Apagar" class="text-slate-300 hover:text-rose-500 pt-1.5 shrink-0">'
-    +     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:15px;height:15px"><path d="M18 6 6 18M6 6l12 12"/></svg></button>'
-    + '</div></div>').join('')
-    + '<button onclick="salvarInts(this)" class="text-xs font-semibold px-3 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-900">Salvar situações</button>';
+  el.innerHTML = '<div class="tb">'
+    + '<div class="tb-h"><div>Situação</div><div>Quando usar</div><div></div></div>'
+    + INTS.map((t,i) => '<div class="tb-l">'
+        + cel(t.nome, 'Ex.: Pedido não recebido', "INTS["+i+"].nome=this.value;INTS["+i+"]._sujo=1;sujo('btnInt')")
+        + cel(t.comportamento, 'Com as palavras que o cliente costuma usar', "INTS["+i+"].comportamento=this.value;INTS["+i+"]._sujo=1;sujo('btnInt')")
+        + xis('apagarInt('+t.id+')')
+      + '</div>').join('')
+    + '</div>';
+  ajustar(el);
+}
+
+// Marca o botão de salvar quando tem coisa não salva — pra ninguém sair da tela sem salvar.
+function sujo(id){
+  const b = document.getElementById(id); if(!b) return;
+  b.classList.remove('bg-slate-800','hover:bg-slate-900');
+  b.classList.add('bg-pink-500','hover:bg-pink-600');
+}
+function limpo(id){
+  const b = document.getElementById(id); if(!b) return;
+  b.classList.remove('bg-pink-500','hover:bg-pink-600');
+  b.classList.add('bg-slate-800','hover:bg-slate-900');
 }
 
 async function novaFaq(){
   const c = await getSb();
   const { data, error } = await c.from('at_chatbot_faq').insert({ pergunta:'', resposta:'', ordem:FAQ.length }).select().single();
   if(error) return alert('Não deu: '+error.message);
-  FAQ.push(data); renderFaq();
+  FAQ.push(data);
+  // limpa a busca, senão a linha nova nasce escondida pelo filtro e parece que não funcionou
+  const b = document.getElementById('faqBusca'); if(b) b.value = '';
+  renderFaq();
+  const campos = document.querySelectorAll('#faqLista .tb-l .cel');
+  if(campos.length) campos[campos.length - 2].focus();
 }
 async function novaIntencao(){
   const c = await getSb();
@@ -281,20 +346,30 @@ async function apagarInt(id){
   INTS = INTS.filter(x => x.id !== id); renderInts();
 }
 async function salvarFaq(btn){
-  const c = await getSb(); const antes = btn.textContent; btn.textContent='Salvando...';
-  for(const f of FAQ.filter(x => x._sujo)){
+  const c = await getSb(); const antes = 'Salvar perguntas';
+  const mexidas = FAQ.filter(x => x._sujo);
+  if(!mexidas.length){ btn.textContent='Nada mudou'; setTimeout(()=>btn.textContent=antes, 1200); return; }
+  btn.textContent='Salvando…';
+  for(const f of mexidas){
     await c.from('at_chatbot_faq').update({ pergunta:f.pergunta, resposta:f.resposta }).eq('id', f.id);
     delete f._sujo;
   }
-  btn.textContent='Salvo'; setTimeout(()=>btn.textContent=antes, 1500);
+  limpo('btnFaq');
+  btn.textContent = mexidas.length === 1 ? '1 salva' : mexidas.length + ' salvas';
+  setTimeout(()=>btn.textContent=antes, 1500);
 }
 async function salvarInts(btn){
-  const c = await getSb(); const antes = btn.textContent; btn.textContent='Salvando...';
-  for(const t of INTS.filter(x => x._sujo)){
+  const c = await getSb(); const antes = 'Salvar situações';
+  const mexidas = INTS.filter(x => x._sujo);
+  if(!mexidas.length){ btn.textContent='Nada mudou'; setTimeout(()=>btn.textContent=antes, 1200); return; }
+  btn.textContent='Salvando…';
+  for(const t of mexidas){
     await c.from('at_chatbot_intencoes').update({ nome:t.nome, comportamento:t.comportamento }).eq('id', t.id);
     delete t._sujo;
   }
-  btn.textContent='Salvo'; setTimeout(()=>btn.textContent=antes, 1500);
+  limpo('btnInt');
+  btn.textContent = mexidas.length === 1 ? '1 salva' : mexidas.length + ' salvas';
+  setTimeout(()=>btn.textContent=antes, 1500);
 }
 
 bootstrap();
