@@ -683,6 +683,7 @@ function renderProfile(cv){
     <div class="mt-4 pt-4 border-t border-slate-200 dark:border-ink-600">
       <div class="flex items-center justify-between mb-2"><span class="text-sm font-semibold">Tags</span><button onclick="addTag()" class="text-pink-600 text-xs hover:underline">+ Adicionar</button></div>
       <div class="flex flex-wrap gap-1.5">${(cv.tags||[]).map(tagPill).join('')||'<span class="text-xs text-slate-400">Sem tags</span>'}</div>
+      <div id="quadrosBox" class="mt-3"></div>
     </div>
     <div class="mt-4 pt-4 border-t border-slate-200 dark:border-ink-600">
       <div class="flex items-center gap-2 mb-2"><span class="text-sm font-semibold">Pedido do cliente</span><span id="pedBadge"></span></div>
@@ -692,6 +693,8 @@ function renderProfile(cv){
       </div>
       ${cv.pedidoNumero?`<button onclick="rastrear()" class="mt-2 w-full text-xs font-medium text-pink-600 hover:text-pink-700 border border-pink-200 dark:border-pink-900/40 rounded-lg py-2 inline-flex items-center justify-center gap-1"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Rastrear pedido</button>`:''}
     </div></div>`;
+
+  try{ renderQuadros(); }catch(e){}
 }
 function renderPedRows(ped){
   return lp('Status',`<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold ${spc(ped.status)}">${esc(ped.status)}</span>`)
@@ -835,13 +838,73 @@ async function transferir(pid){ const cv=cur(); if(!cv) return; cv.atendenteId=p
 async function setSetor(v){ const cv=cur(); if(!cv) return; cv.setor=v.trim();
   try{ await (await getSb()).from('at_conversas').update({setor:v.trim()||null}).eq('id',cv.id); }catch(e){ console.warn(e.message); } }
 async function addTag(){ const cv=cur(); if(!cv) return; const nome=(await dcPrompt({titulo:'Nova tag',placeholder:'Categoria::Valor (ex.: Status pedido::Em produção)'})||'').trim(); if(!nome) return;
-  try{ const c=await getSb();
+  aplicarTagNaConversa(nome); }
+
+/* ===== Etiqueta = coluna do quadro =====
+   Marcar "Problema::Acareação" aqui faz o card aparecer na coluna Acareação do Funil.
+   Por isso a regra do GRUPO vale também na mão, não só nos webhooks das lojas: ao pôr
+   um valor, as irmãs do mesmo grupo saem. Sem isso a conversa apareceria em duas
+   colunas ao mesmo tempo e ninguém saberia qual é a verdadeira. */
+const grupoDaTag = n => String(n).includes('::') ? String(n).split('::')[0] : null;
+// esc() da pagina nao escapa aspas; dentro de atributo isso quebra a marcacao.
+const escAttr = s => String(s==null?'':s).replace(/[&<>"']/g, x => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
+
+async function aplicarTagNaConversa(nome){
+  const cv=cur(); if(!cv) return;
+  try{
+    const c=await getSb();
     let { data: tag } = await c.from('at_tags').select('*').eq('nome',nome).maybeSingle();
-    if(!tag){ const r=await c.from('at_tags').insert({nome}).select().single(); tag=r.data; }
+    if(!tag){ const r=await c.from('at_tags').insert({nome, cor:'#ff3c6f'}).select().single(); tag=r.data; }
+    if(!tag) return;
     if(cv.tags.some(t=>t.id===tag.id)) return;
+
+    const g = grupoDaTag(nome);
+    if(g){
+      const irmas = (cv.tags||[]).filter(t => grupoDaTag(t.nome) === g && t.id !== tag.id);
+      if(irmas.length){
+        await c.from('at_conversa_tags').delete().eq('conversa_id',cv.id).in('tag_id', irmas.map(t=>t.id));
+        cv.tags = cv.tags.filter(t => !irmas.some(x => x.id === t.id));
+      }
+    }
     await c.from('at_conversa_tags').insert({conversa_id:cv.id, tag_id:tag.id});
     cv.tags.push(tag); renderProfile(cv);
+    dcToast('Etiqueta aplicada' + (g ? ' — a conversa já aparece no quadro.' : ''), 'ok');
   }catch(e){ dcToast('Erro ao adicionar tag: '+e.message,'err'); } }
+
+/* Atalhos das colunas dos quadros: em vez de digitar "Problema::Acareação" e errar o
+   acento, a atendente clica no valor. Os quadros vêm de at_pipelines. */
+let QUADROS = null;
+async function carregarQuadros(){
+  if(QUADROS) return QUADROS;
+  try{
+    const c = await getSb();
+    const { data } = await c.from('at_pipelines').select('nome,grupo_tag,fases').order('created_at');
+    QUADROS = (data||[]).filter(p => p.grupo_tag && Array.isArray(p.fases) && p.fases.length);
+  }catch(e){ QUADROS = []; }
+  return QUADROS;
+}
+async function renderQuadros(){
+  const box = document.getElementById('quadrosBox'); if(!box) return;
+  const cv = cur(); if(!cv) return;
+  const quadros = await carregarQuadros();
+  if(!quadros.length){ box.innerHTML=''; return; }
+  box.innerHTML = quadros.map(q => {
+    const atual = (cv.tags||[]).map(t=>t.nome).find(n => grupoDaTag(n) === q.grupo_tag);
+    const valorAtual = atual ? atual.slice(atual.indexOf('::')+2) : null;
+    return '<div class="mt-2">'
+      + '<div class="text-[11px] text-slate-400 mb-1">' + esc(q.grupo_tag)
+      +   (valorAtual ? '' : ' <span class="text-slate-300">— sem etiqueta, não está no quadro</span>') + '</div>'
+      + '<div class="flex flex-wrap gap-1">'
+      // o valor vai em data-tag, NAO dentro do onclick: nome com aspas (ou apostrofo)
+      // quebrava o atributo e o botao virava HTML invalido
+      + q.fases.map(f => '<button onclick="aplicarTagNaConversa(this.dataset.tag)" '
+          + 'data-tag="' + escAttr(q.grupo_tag+'::'+f) + '" '
+          + 'class="text-[11px] font-semibold px-2 py-1 rounded-lg border '
+          + (f===valorAtual ? 'bg-pink-500 text-white border-pink-500' : 'border-slate-200 dark:border-ink-600 text-slate-500 hover:text-pink-600 hover:border-pink-200')
+          + '">' + esc(f) + '</button>').join('')
+      + '</div></div>';
+  }).join('');
+}
 async function delTag(tagId){ const cv=cur(); if(!cv) return; cv.tags=cv.tags.filter(t=>t.id!==tagId); renderProfile(cv);
   try{ await (await getSb()).from('at_conversa_tags').delete().eq('conversa_id',cv.id).eq('tag_id',tagId); }catch(e){ console.warn(e.message); } }
 function toggleQR(){ const b=document.getElementById('qrBox'); const l=document.getElementById('qrList');
