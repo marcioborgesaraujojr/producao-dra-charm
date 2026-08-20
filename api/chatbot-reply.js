@@ -129,6 +129,11 @@ function paraWhatsApp(texto){
     .replace(/^\s{0,3}#{1,6}\s+/gm, '')          // títulos de Markdown não existem no WhatsApp
     .replace(/^\s{0,3}[-*]\s+/gm,   '• ')        // lista vira bolinha de verdade
     .replace(/\n{3,}/g, '\n\n')
+    // O bordão. Mandar no prompt não resolveu: o modelo continua colando isto no fim de
+    // quase toda resposta, e é a marca registrada de robô. Aqui cai fora na certa.
+    // Só ESTA frase feita — pergunta de verdade no fim é normal (metade das respostas da
+    // equipe termina perguntando algo), então nada de cortar interrogação por atacado.
+    .replace(/\s*(posso (te )?ajudar (em|com) (mais )?(alguma|algo) (coisa|mais)?|precisa de mais (alguma coisa|algo)|fico (a )?disposi[çc][ãa]o)\s*[?!.]*\s*[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\s]*$/iu, '')
     .trim();
 }
 
