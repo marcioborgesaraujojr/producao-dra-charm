@@ -306,6 +306,25 @@ function corFixaTexto(chave){ return PARES[_idxCor(chave)][1]; }   // letra escu
 
 let sb=null, CONVERSAS=[], TAB='minhas', SEL=null, NOTA=false, PROFILES=[], SORT='recentes', IS_ADMIN=false, AT_CONFIG={identificacao:false,formato:'primeiro_nome'};
 async function loadAtConfig(){ try{ const r=await fetch('https://wwytzoyeibekhstinott.supabase.co/storage/v1/object/public/system-assets/at-config.json?t='+Date.now()); if(r.ok){ const j=JSON.parse(await r.text()); if(j&&typeof j==='object') AT_CONFIG=Object.assign(AT_CONFIG,j); } }catch(e){} }
+
+/* Modo teste do robô: enquanto ele está atendendo um lote pequeno, a conversa que está
+   no lote ganha um selo aqui. Sem isso a atendente entra por cima sem saber e corta no
+   meio justamente o atendimento que o Marcio queria ler pra ajustar o prompt.
+   Ela CONTINUA podendo assumir — o selo avisa, não tranca. */
+let BOT_TESTE = { ligado:false, lote:0 };
+async function loadBotTeste(){
+  try{
+    const c = await getSb();
+    const { data } = await c.from('at_chatbot').select('modo_teste,teste_lote').eq('id',1).maybeSingle();
+    if(data) BOT_TESTE = { ligado: !!data.modo_teste, lote: Number(data.teste_lote)||0 };
+  }catch(e){ /* SQL do modo teste ainda não rodou: segue sem selo */ }
+}
+const emTeste = cv => !!(BOT_TESTE.ligado && cv && cv.botTesteLote != null && cv.botTesteLote === BOT_TESTE.lote);
+function seloTeste(cv){
+  if(!emTeste(cv)) return '';
+  return '<span class="pres-pill" title="O robô está atendendo esta conversa em modo teste — evite entrar por cima sem precisar" '
+       + 'style="background:#fffbeb;color:#b45309;font-weight:700">teste</span>';
+}
 function nomeAtendente(){ const n=(AGENTE||'').trim(); if(!n) return ''; return AT_CONFIG.formato==='completo'? n : n.split(' ')[0]; }
 
 /* O campo "autor" da mensagem foi gravado de jeitos diferentes ao longo do tempo:
@@ -385,7 +404,8 @@ function mapConversas(data){
       ultimaAtividade:new Date(cv.ultima_msg_em).toLocaleString('pt-BR'), ultimaMsgEm:cv.ultima_msg_em,
       tags:(cv.tags||[]).map(x=>x.tag).filter(Boolean),
       atendenteNome:(cv.atendente&&cv.atendente.full_name)||'', atendenteId:cv.atendente_id||null, setor:cv.setor||'',
-      pedidoNumero:cv.pedido_numero||'', pedido:null, preview:cv.ultima_msg_preview||'', msgs:[], _msgsLoaded:false };
+      pedidoNumero:cv.pedido_numero||'', pedido:null, preview:cv.ultima_msg_preview||'', msgs:[], _msgsLoaded:false,
+      botTesteLote:(cv.bot_teste_lote!=null?Number(cv.bot_teste_lote):null) };
   });
 }
 // Carrega as mensagens de UMA conversa (sob demanda, ao abrir).
@@ -445,6 +465,7 @@ async function bootstrap(){
     c.from('profiles').select('full_name').eq('id',ATEND_ID).maybeSingle(),
     c.from('profiles').select('id, full_name, email, color'),
     loadAtConfig(),
+    loadBotTeste(),
     loadConversas(),
   ]);
   const prof = profR && profR.data;
@@ -711,7 +732,7 @@ function renderList(){
              indicador justo quando ele era mais útil. -->
         <div class="mt-1 flex items-center gap-1 text-[11px] text-slate-400">
           <svg class="w-3.5 h-3.5 text-green-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15l-1.4 5 5.1-1.3A10 10 0 1 0 12 2z"/></svg>${esc(cv.canal)}
-          <span class="ml-auto flex items-center gap-1">${botHtml(cv)}${presencaHtml(cv.id)}${cv.naoLida?'<span class="w-2 h-2 rounded-full bg-pink-500"></span>':''}</span>
+          <span class="ml-auto flex items-center gap-1">${seloTeste(cv)}${botHtml(cv)}${presencaHtml(cv.id)}${cv.naoLida?'<span class="w-2 h-2 rounded-full bg-pink-500"></span>':''}</span>
         </div>
       </div>
     </div>`).join('');
@@ -736,7 +757,7 @@ async function selecionar(id){
   document.getElementById('emptyState').classList.add('hidden');
   document.getElementById('chatArea').classList.remove('hidden');
   document.getElementById('chName').textContent=cv.nome;
-  document.getElementById('chChannel').innerHTML=`<svg class="w-3.5 h-3.5 text-green-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15l-1.4 5 5.1-1.3A10 10 0 1 0 12 2z"/></svg>${esc(cv.canal)}`;
+  document.getElementById('chChannel').innerHTML=`<svg class="w-3.5 h-3.5 text-green-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15l-1.4 5 5.1-1.3A10 10 0 1 0 12 2z"/></svg>${esc(cv.canal)}` + seloTeste(cv);
   document.getElementById('chWindow').innerHTML = cv.status==='encerrada' ? '' : `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Janela: ${cv.janela}`;
   const br=document.getElementById('btnResolver');
   if(cv.status==='encerrada'){ br.textContent='Reabrir'; br.className='text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-ink-700 dark:text-slate-300'; }

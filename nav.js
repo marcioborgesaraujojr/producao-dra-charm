@@ -152,6 +152,49 @@
     // o conteúdo continua deslocado só pelos 56px da barra fechada
     const wrap = document.getElementById('appWrap');
     if (wrap) wrap.style.paddingLeft = '3.5rem';
+
+    barraDeAbas();
+  }
+
+  /* ===== Barra de abas no topo =====
+     Regra da casa: área com mais de uma opção mostra as opções em cima, não só dentro do
+     menu da esquerda — abrir o menu pra trocar de tela é lento, e ele usa isso o dia todo.
+     Lojas, Chatbot e Pipelines já tinham a barra escrita à mão em cada página; WhatsApp
+     Oficial não tinha. Em vez de escrever a quarta cópia, a barra agora nasce do PRÓPRIO
+     submenu daqui: quem ganhar submenu novo ganha a barra de graça, e as duas nunca mais
+     ficam contando histórias diferentes.
+     Onde a página já tem a sua .dc-tabs, a gente não mexe. */
+  function barraDeAbas() {
+    if (!itemAtual || !itemAtual.sub || itemAtual.sub.length < 2) return;
+    if (document.querySelector('.dc-tabs')) return;          // a página já tem a dela
+
+    const wrap = document.getElementById('appWrap') || document.body;
+    const cabecalho = wrap.querySelector('header');
+
+    const caixa = document.createElement('div');
+    caixa.className = 'max-w-6xl mx-auto px-4 pt-4';
+    caixa.innerHTML = '<div class="dc-tabs" data-abas-nav>'
+      + itemAtual.sub.map(s => '<a class="dc-tab" href="' + s.href + '" data-href="' + esc(s.href) + '">'
+          + esc(s.label) + '</a>').join('')
+      + '</div>';
+
+    if (cabecalho && cabecalho.parentNode === wrap) cabecalho.insertAdjacentElement('afterend', caixa);
+    else wrap.insertBefore(caixa, wrap.firstChild);
+
+    // .dc-tab é <div> no padrão; como <a> ele herdaria o sublinhado do link
+    caixa.querySelectorAll('.dc-tab').forEach(a => { a.style.textDecoration = 'none'; });
+
+    const marcar = () => {
+      const atual = subAtual(itemAtual);
+      caixa.querySelectorAll('[data-href]').forEach(a => {
+        if (atual && a.dataset.href === atual.href) a.setAttribute('data-on', '1');
+        else a.removeAttribute('data-on');
+      });
+    };
+    marcar();
+    // clicar numa aba da MESMA página só troca o hash: quem redesenha é a própria
+    // página (o hashchange dela). Aqui a gente só reacende a aba certa.
+    window.addEventListener('hashchange', marcar);
   }
 
   async function init() {

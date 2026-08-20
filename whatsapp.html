@@ -48,10 +48,9 @@
 </header>
 
 <div class="flex max-w-5xl mx-auto p-4 gap-4">
-  <!-- a navegacao entre Visao geral / Templates / Escudo / Conexao virou submenu do menu lateral da suite -->
-  <select onchange="tab(this.value)" class="fld sm:hidden mb-2" id="mobileTab">
-    <option value="visao">Visão geral</option><option value="templates">Templates</option><option value="escudo">Escudo antibanimentos</option><option value="conexao">Conexão</option>
-  </select>
+  <!-- A navegacao entre Visao geral / Templates / Escudo / Conexao agora e a barra de abas
+       do topo, que o nav.js monta a partir do submenu desta area. O <select> de celular
+       que morava aqui saiu: a barra quebra em duas linhas no telefone e ja resolve. -->
 
   <main class="flex-1 min-w-0 space-y-4">
 

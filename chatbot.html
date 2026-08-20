@@ -85,6 +85,7 @@
     <div class="dc-tab" data-aba="gatilhos" onclick="irAba('gatilhos')">Gatilhos</div>
     <div class="dc-tab" data-aba="metricas" onclick="irAba('metricas')">Métricas</div>
     <div class="dc-tab" data-aba="custos" onclick="irAba('custos')">Custos</div>
+    <div class="dc-tab" data-aba="teste" onclick="irAba('teste')">Modo teste</div>
   </div>
 </div>
 
@@ -171,6 +172,8 @@
     </div>
     <span id="avisoAtivo" class="text-[11px] font-semibold rounded-full px-2.5 py-1"></span>
   </div>
+
+  <div id="notaTeste" class="rounded-xl p-3 text-[12px] bg-amber-50 text-amber-800" hidden></div>
 
   <div class="bin rounded-xl p-4 space-y-3">
     <div>
@@ -335,6 +338,55 @@
     </div>
   </div>
 </div>
+
+<!-- ============ MODO TESTE ============ -->
+<div class="p-4 space-y-4 max-w-6xl mx-auto" data-painel="teste" hidden>
+
+  <div class="bin rounded-xl p-4 flex items-center gap-3">
+    <div id="swTeste" class="switch" data-on="0" onclick="toggleTeste()"></div>
+    <div class="mr-auto">
+      <div class="text-sm font-semibold">Modo teste</div>
+      <div class="text-[11px] text-slate-400">O robô atende só um punhado de conversas por vez, e para. Serve pra você ler com calma como ele respondeu antes de soltar geral.</div>
+    </div>
+    <span id="avisoTeste" class="text-[11px] font-semibold rounded-full px-2.5 py-1"></span>
+  </div>
+
+  <div class="bin rounded-xl p-4 space-y-3">
+    <div>
+      <div class="text-sm font-semibold">Tamanho do lote</div>
+      <div class="text-[11px] text-slate-400">Quantas conversas ele pode pegar antes de parar. Enquanto o lote está cheio, o resto vai direto pra fila humana — ninguém fica sem resposta.</div>
+    </div>
+    <div class="flex items-end gap-3">
+      <div style="width:120px"><label>Conversas</label><input id="testeLimite" type="number" min="1" max="50" class="fld mt-1" value="5"></div>
+      <button id="btnTeste" class="dc-btn" onclick="salvarTeste(this)">Salvar</button>
+    </div>
+  </div>
+
+  <div class="bin rounded-xl p-4">
+    <div class="flex flex-wrap items-center gap-3">
+      <div class="mr-auto">
+        <div class="text-sm font-semibold">Lote <span id="loteNum">1</span></div>
+        <div id="loteVagas" class="text-[11px] text-slate-400">—</div>
+      </div>
+      <button class="dc-btn" onclick="liberarLote(this)">Liberar novo lote</button>
+    </div>
+    <div class="text-[11px] text-slate-500 mt-3 leading-relaxed">
+      Liberar um lote novo <b>zera as vagas</b>: as conversas de agora vão pro histórico aqui embaixo
+      e o robô pode pegar outras. O que ele já respondeu continua lá na conversa, nada é apagado.
+    </div>
+  </div>
+
+  <div class="bin rounded-xl p-4 space-y-3">
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="mr-auto">
+        <div class="text-sm font-semibold">Últimos atendimentos do robô</div>
+        <div class="text-[11px] text-slate-400">Clique numa conversa pra abrir o que ele respondeu, palavra por palavra.</div>
+      </div>
+      <button class="dc-btn" onclick="carregarTeste()">Atualizar</button>
+    </div>
+    <div id="testeLista" class="text-[12px]"></div>
+  </div>
+</div>
 </div>
 
 <script>
@@ -373,6 +425,10 @@ async function bootstrap(){
   document.getElementById('msgEncerramento').value = CFG.msg_encerramento || '';
   document.getElementById('swLoop').dataset.on = (CFG.detectar_loop === false) ? 0 : 1;
   document.getElementById('swLida').dataset.on = (CFG.marcar_lida   === false) ? 0 : 1;
+  // modo teste — se o SQL ainda não rodou, cai no padrão desligado em vez de quebrar
+  document.getElementById('swTeste').dataset.on = CFG.modo_teste ? 1 : 0;
+  document.getElementById('testeLimite').value  = CFG.teste_limite != null ? CFG.teste_limite : 5;
+  pintarTeste();
   pintarAviso();
 
   irAba(location.hash.slice(1) || 'treinamento', true);
@@ -423,18 +479,204 @@ function ligado(id){ return document.getElementById(id).dataset.on === '1'; }
 function toggleAtivo(){ toggleSw('swAtivo'); pintarAviso(); }
 function num(id, padrao){ const v = parseInt(document.getElementById(id).value, 10); return Number.isFinite(v) ? v : padrao; }
 
+/* ===== MODO TESTE =====
+   Ligar o robô em cima de 1.700 conversas de uma vez é susto. Aqui ele pega um lote
+   pequeno, atende só essas e para, pra dar tempo de ler como ele respondeu e mexer no
+   prompt antes da próxima leva. A trava de verdade é no webhook (maybeBotReply);
+   esta tela só liga, dimensiona e mostra o resultado. */
+async function toggleTeste(){
+  toggleSw('swTeste');
+  const on = ligado('swTeste');
+  pintarTeste();
+  pintarAviso();                                  // o pill de Configurações fala do teste também
+  try{
+    const { error } = await (await getSb()).from('at_chatbot').update({ modo_teste:on }).eq('id',1);
+    if(error) throw error;
+    CFG.modo_teste = on;
+  }catch(e){
+    document.getElementById('swTeste').dataset.on = on ? '0' : '1';   // desfaz o botão
+    pintarTeste(); pintarAviso();
+    alert(/column .* does not exist|schema cache/i.test(e.message||'')
+      ? 'Falta rodar o SQL db/add-chatbot-modo-teste.sql no Supabase — sem ele a coluna do modo teste não existe ainda.'
+      : ('Não consegui salvar: ' + e.message));
+  }
+}
+
+function salvarTeste(btn){
+  return salvarParcial(btn, { teste_limite: Math.min(Math.max(num('testeLimite', 5), 1), 50),
+                              updated_at: new Date().toISOString() }, 'teste')
+    .then(() => carregarTeste());
+}
+
+function pintarTeste(){
+  const el = document.getElementById('avisoTeste'); if(!el) return;
+  const on = ligado('swTeste');
+  el.textContent = on ? 'em teste' : 'desligado';
+  el.className = 'text-[11px] font-semibold rounded-full px-2.5 py-1 '
+    + (on ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500 dark:bg-ink-700 dark:text-slate-400');
+}
+
+// Sobe o número do lote. As conversas do lote velho ficam com o carimbo antigo: saem
+// das vagas sozinhas, sem precisar apagar nada — e continuam no histórico aqui embaixo.
+async function liberarLote(btn){
+  const antes = btn.textContent;
+  const usadas = (TESTE_LISTA||[]).filter(c => Number(c.bot_teste_lote) === Number(CFG.teste_lote||1)).length;
+  if(usadas && !confirm('Liberar um lote novo? As ' + usadas + (usadas===1?' conversa que está':' conversas que estão')
+      + ' no lote de agora saem das vagas e o robô poderá pegar outras. Nada é apagado.')) return;
+  btn.textContent='Liberando…'; btn.disabled=true;
+  try{
+    const novo = (parseInt(CFG.teste_lote,10)||1) + 1;
+    const { error } = await (await getSb()).from('at_chatbot').update({ teste_lote:novo }).eq('id',1);
+    if(error) throw error;
+    CFG.teste_lote = novo;
+    await carregarTeste();
+    btn.textContent='Lote '+novo+' aberto';
+  }catch(e){
+    btn.textContent='Erro';
+    if(/column .* does not exist|schema cache/i.test(e.message||''))
+      alert('Falta rodar o SQL db/add-chatbot-modo-teste.sql no Supabase.');
+    else console.warn('liberarLote', e);
+  }finally{ btn.disabled=false; setTimeout(()=>btn.textContent=antes, 2200); }
+}
+
+let TESTE_LISTA = [];
+async function carregarTeste(){
+  const box = document.getElementById('testeLista'); if(!box) return;
+  document.getElementById('swTeste').dataset.on = CFG.modo_teste ? 1 : 0;
+  document.getElementById('testeLimite').value  = CFG.teste_limite != null ? CFG.teste_limite : 5;
+  pintarTeste();
+
+  const lote  = parseInt(CFG.teste_lote,10) || 1;
+  const vagas = Math.max(parseInt(CFG.teste_limite,10) || 5, 1);
+  document.getElementById('loteNum').textContent = lote;
+
+  box.innerHTML = '<div class="text-slate-400 py-3">Carregando…</div>';
+  let convs = [];
+  try{
+    const c = await getSb();
+    const { data, error } = await c.from('at_conversas')
+      .select('id,bot_teste_lote,bot_teste_em,modo,nao_lida,status,atendente_id,cliente:at_clientes(nome)')
+      .not('bot_teste_lote','is',null)
+      .order('bot_teste_em',{ascending:false}).limit(60);
+    if(error) throw error;
+    convs = data||[];
+  }catch(e){
+    const falta = /column .* does not exist|schema cache/i.test(e.message||'');
+    box.innerHTML = '<div class="rounded-xl p-3 text-[12px] bg-amber-50 text-amber-800">'
+      + (falta ? 'Falta rodar o SQL <span class="font-mono">db/add-chatbot-modo-teste.sql</span> no Supabase — sem ele o modo teste não tem onde guardar nada.'
+               : ('Não consegui carregar: ' + esc(e.message))) + '</div>';
+    document.getElementById('loteVagas').textContent = '—';
+    return;
+  }
+  TESTE_LISTA = convs;
+
+  const noLote = convs.filter(x => Number(x.bot_teste_lote) === lote);
+  document.getElementById('loteVagas').textContent =
+    noLote.length + ' de ' + vagas + (noLote.length >= vagas
+      ? ' — lote cheio, o resto vai pra fila humana'
+      : ' vagas usadas');
+
+  if(!convs.length){
+    box.innerHTML = '<div class="text-slate-400 py-3">' + (CFG.modo_teste
+      ? 'Nenhuma conversa ainda. Assim que uma cliente escrever, o robô pega a primeira vaga e ela aparece aqui.'
+      : 'O modo teste está desligado. Ligue no botão lá em cima pra ele começar a pegar as conversas do lote.') + '</div>';
+    return;
+  }
+
+  box.innerHTML = '<div class="tb">'
+    + '<div class="tb-h" style="grid-template-columns:minmax(0,1fr) 110px 150px 90px"><div>Cliente</div><div>Lote</div><div>Entrou</div><div>Situação</div></div>'
+    + convs.map(x => {
+        const nome  = (x.cliente && x.cliente.nome) || 'Cliente';
+        const atual = Number(x.bot_teste_lote) === lote;
+        const quando = x.bot_teste_em ? new Date(x.bot_teste_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+        // Situação é o que interessa pra analisar: o robô segurou, ou largou no colo de alguém?
+        const sit = x.status==='encerrada' ? ['resolvida','text-slate-500']
+                  : (x.atendente_id || x.modo==='humano') ? ['passou pra humano','text-amber-600']
+                  : ['com o robô','text-emerald-600'];
+        return '<div class="tb-l" style="grid-template-columns:minmax(0,1fr) 110px 150px 90px;cursor:pointer" '
+          +   'onclick="verConversaTeste(' + JSON.stringify(String(x.id)) + ')">'
+          + '<div class="cel">' + esc(nome) + '</div>'
+          + '<div class="cel">' + (atual ? '<b>' + lote + ' (agora)</b>' : x.bot_teste_lote) + '</div>'
+          + '<div class="cel">' + esc(quando) + '</div>'
+          + '<div class="cel ' + sit[1] + '">' + sit[0] + '</div>'
+          + '</div>';
+      }).join('')
+    + '</div>';
+}
+
+// Abre a conversa inteira aqui mesmo. Ler o que ele respondeu é o ponto do modo teste —
+// mandar pra outra página quebrava o ritmo de analisar cinco seguidas.
+async function verConversaTeste(id){
+  const w = document.createElement('div');
+  w.className = 'fixed inset-0 z-[95] flex items-center justify-center p-4';
+  w.innerHTML = '<div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"></div>'
+    + '<div class="relative bin rounded-2xl shadow-xl w-full max-w-2xl flex flex-col" style="max-height:85vh">'
+    +   '<div class="p-4 pb-2 flex items-center gap-2"><div class="text-base font-semibold mr-auto" data-tit>Conversa</div>'
+    +     '<a data-abrir target="_blank" rel="noopener" class="text-[12px] text-pink-600 hover:underline">Abrir em Conversas</a></div>'
+    +   '<div data-corpo class="overflow-y-auto px-4 pb-2 space-y-2" style="min-height:160px"></div>'
+    +   '<div class="p-3 pt-2 flex justify-end"><button data-fechar class="dc-btn">Fechar</button></div></div>';
+  document.body.appendChild(w);
+  const fechar = () => w.remove();
+  w.querySelector('[data-fechar]').onclick = fechar;
+  w.querySelector('.absolute').onclick = fechar;
+  w.querySelector('[data-abrir]').href = '/atendimento.html#c=' + encodeURIComponent(id);
+
+  const corpo = w.querySelector('[data-corpo]');
+  corpo.innerHTML = '<div class="text-slate-400 text-[12px]">Carregando…</div>';
+  try{
+    const c = await getSb();
+    const { data, error } = await c.from('at_mensagens')
+      .select('direcao,tipo,conteudo,autor,enviada_em,meta')
+      .eq('conversa_id', id).order('enviada_em',{ascending:true}).limit(200);
+    if(error) throw error;
+    const cv = (TESTE_LISTA||[]).find(x => String(x.id) === String(id));
+    if(cv && cv.cliente && cv.cliente.nome) w.querySelector('[data-tit]').textContent = cv.cliente.nome;
+    corpo.innerHTML = (data||[]).map(m => {
+      const hora = new Date(m.enviada_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+      if(m.direcao === 'sys' || m.tipo === 'nota')
+        return '<div class="text-center text-[11px] text-slate-400 py-1">' + esc(m.conteudo||'') + '</div>';
+      const out = m.direcao === 'out';
+      const doBot = !!(m.meta && m.meta.bot);
+      return '<div class="flex ' + (out?'justify-end':'justify-start') + '">'
+        + '<div class="max-w-[75%] rounded-2xl px-3 py-2 ' + (out?'bout':'bin') + '">'
+        +   (out ? '<div class="text-[10px] font-bold opacity-60 mb-0.5">' + esc(m.autor||'') + (doBot?' · robô':'') + '</div>' : '')
+        +   '<div class="text-[13px]" style="white-space:pre-wrap">' + esc(m.conteudo||'') + '</div>'
+        +   '<div class="text-[10px] text-slate-400 text-right mt-1">' + hora + '</div>'
+        + '</div></div>';
+    }).join('') || '<div class="text-slate-400 text-[12px]">Sem mensagens.</div>';
+  }catch(e){
+    corpo.innerHTML = '<div class="text-[12px] text-rose-600">Não consegui carregar: ' + esc(e.message) + '</div>';
+  }
+}
+
+/* O pill de Configurações fala pelos DOIS botões. Antes ele só sabia dizer
+   "respondendo clientes" ou "desligado" — com o modo teste ligado isso mentiria:
+   ele está ligado, mas só pra cinco. Quem olha essa tela precisa ver isso aqui,
+   não descobrir depois de achar que soltou o robô geral. */
 function pintarAviso(){
   const el = document.getElementById('avisoAtivo'); if(!el) return;
-  const on = ligado('swAtivo');
-  el.textContent = on ? 'respondendo clientes' : 'desligado';
-  el.className = 'text-[11px] font-semibold rounded-full px-2.5 py-1 '
-    + (on ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500 dark:bg-ink-700 dark:text-slate-400');
+  const on    = ligado('swAtivo');
+  const teste = !!(document.getElementById('swTeste') && ligado('swTeste'));
+  const cor = c => el.className = 'text-[11px] font-semibold rounded-full px-2.5 py-1 ' + c;
+
+  if(on && teste){ el.textContent = 'em modo teste'; cor('bg-amber-50 text-amber-700'); }
+  else if(on)    { el.textContent = 'respondendo clientes'; cor('bg-emerald-50 text-emerald-700'); }
+  else           { el.textContent = 'desligado'; cor('bg-slate-100 text-slate-500 dark:bg-ink-700 dark:text-slate-400'); }
+
+  const nota = document.getElementById('notaTeste');
+  if(nota){
+    nota.hidden = !(on && teste);
+    const vagas = CFG.teste_limite != null ? CFG.teste_limite : 5;
+    nota.innerHTML = 'Ele está ligado, mas <b>só pra ' + vagas + (vagas===1?' conversa':' conversas') + ' por vez</b> — '
+      + 'o resto vai direto pra fila humana. Pra soltar geral, desligue o modo teste na aba '
+      + '<a href="#teste" onclick="irAba(\'teste\')" class="underline font-semibold">Modo teste</a>.';
+  }
 }
 
 /* ===== Abas =====
-   Uma página só, seis telas, endereço no #. Igual a automacoes.html — quem manda o
+   Uma página só, sete telas, endereço no #. Igual a automacoes.html — quem manda o
    link chatbot.html#custos cai direto na tela certa. */
-const ABAS = ['treinamento','configuracoes','atendimento','gatilhos','metricas','custos'];
+const ABAS = ['treinamento','configuracoes','atendimento','gatilhos','metricas','custos','teste'];
 let ABA = 'treinamento';
 
 function irAba(nome, semHash){
@@ -448,6 +690,7 @@ function irAba(nome, semHash){
   if(nome === 'gatilhos')  carregarGatilhos();
   if(nome === 'metricas')  carregarMetricas();
   if(nome === 'custos')    carregarCustos();
+  if(nome === 'teste')     carregarTeste();
 }
 window.addEventListener('hashchange', () => irAba(location.hash.slice(1), true));
 async function salvar(){
