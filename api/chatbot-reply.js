@@ -110,7 +110,11 @@ function montarSystem(cfg, cliente, faq, intencoes) {
      + 'no seu treinamento, diga com naturalidade que vai confirmar com o time e ' + MARCA_TRANSFERIR + '.\n'
      + '- Só escreva links que existam no seu treinamento. Não monte caminho novo (nada de inventar /buscar?q=...).\n'
      + '- Não diga que algo "não é possível" se ninguém te disse isso. Não saber e não poder são coisas diferentes.\n'
-     + '- Nunca se contradiga na mesma mensagem: se vai passar pra uma pessoa, não afirme antes que não tem jeito.';
+     + '- Nunca se contradiga na mesma mensagem: se vai passar pra uma pessoa, não afirme antes que não tem jeito.\n'
+     + '- PRAZO: quando o treinamento tiver um LIMITE ("máximo 5 dias úteis") e um COSTUME '
+     + '("geralmente sai no dia seguinte"), o que você promete é o LIMITE. O costume só entra depois, '
+     + 'e sempre como costume — "geralmente", "normalmente". Nunca prometa o caso bom como se fosse regra: '
+     + 'quando atrasa, quem cobra a promessa é a cliente, e quem paga é a equipe.';
   return s;
 }
 
