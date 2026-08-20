@@ -346,6 +346,14 @@ async function maybeBotReply(conversaId, clienteNome, inboundText, waid, host, u
       } catch (e) { /* tique azul não vale derrubar a resposta */ }
     }
 
+    // Marca "o robô está escrevendo" ANTES de chamar a IA. A lista do atendimento lê
+    // isso e troca o ícone parado pelas bolinhas — quem está olhando entende que tem
+    // resposta a caminho em vez de achar que a conversa travou.
+    await sbFetch('at_conversas?id=eq.' + conversaId, {
+      method: 'PATCH',
+      body: JSON.stringify({ modo: 'bot', bot_digitando_em: new Date().toISOString() })
+    });
+
     // chama o cérebro (auth interna via service role)
     const r = await fetch('https://' + host + '/api/chatbot-reply', {
       method: 'POST',
@@ -363,7 +371,7 @@ async function maybeBotReply(conversaId, clienteNome, inboundText, waid, host, u
       console.error('bot sem resposta:', r.status, (j && j.error) || '');
       await sbFetch('at_conversas?id=eq.' + conversaId, {
         method: 'PATCH',
-        body: JSON.stringify({ modo: 'humano', nao_lida: true })
+        body: JSON.stringify({ modo: 'humano', nao_lida: true, bot_digitando_em: null })
       });
       return;
     }
@@ -378,7 +386,7 @@ async function maybeBotReply(conversaId, clienteNome, inboundText, waid, host, u
     // grava a resposta do robô e mantém o modo bot
     await sbFetch('at_mensagens', { method: 'POST', body: JSON.stringify({ conversa_id: conversaId, direcao: 'out', tipo: 'texto', conteudo: j.reply, autor: (cfg.nome || 'Assistente'), meta: { bot: true } }) });
     // bot_ultima_em é o relógio do encerramento por inatividade (api/chatbot-encerrar.js).
-    await sbFetch('at_conversas?id=eq.' + conversaId, { method: 'PATCH', body: JSON.stringify({ modo: 'bot', ultima_msg_preview: String(j.reply).slice(0, 120), ultima_msg_em: new Date().toISOString(), bot_ultima_em: new Date().toISOString(), bot_encerrada_em: null, nao_lida: false }) });
+    await sbFetch('at_conversas?id=eq.' + conversaId, { method: 'PATCH', body: JSON.stringify({ modo: 'bot', ultima_msg_preview: String(j.reply).slice(0, 120), ultima_msg_em: new Date().toISOString(), bot_ultima_em: new Date().toISOString(), bot_digitando_em: null, bot_encerrada_em: null, nao_lida: false }) });
     if (j.handoff) { await sbFetch('at_conversas?id=eq.' + conversaId, { method: 'PATCH', body: JSON.stringify({ modo: 'humano', nao_lida: true }) }); }
   } catch (e) { console.error('bot reply erro:', e.message); }
 }
