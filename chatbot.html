@@ -24,38 +24,9 @@
   .bout{background:#fce7f3;border:1px solid #fbcfe8}.dark .bout{background:#3f1d2b;border-color:#6d2647;color:#fbe4ee}
   [data-fade]{animation:fade .2s ease}@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 
-  /* ===== Tabela de perguntas / situações =====
-     Antes cada pergunta era um cartão empilhado com dois campos grandes: com 30 perguntas
-     a tela virava um rolo sem fim. Agora é linha de tabela, duas colunas, igual ao
-     Notificações — dá pra bater o olho e achar o que procura. */
-  .tb{border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#fff}
-  .dark .tb{border-color:#334155;background:#111827}
-  .tb-h,.tb-l{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr) 30px;gap:10px;align-items:start}
-  .tb-h{padding:8px 12px;background:#f8fafc;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.03em}
-  .dark .tb-h{background:#0f172a;color:#94a3b8}
-  .tb-l{padding:8px 12px;border-top:1px solid #eef2f7}
-  .dark .tb-l{border-top-color:#1f2937}
-  .tb-l:hover{background:#fafbfc}.dark .tb-l:hover{background:#0f172a}
-  /* ===== Esconder painel de aba =====
-     Não dá pra confiar só no atributo hidden: o painel do Treinamento tem a classe
-     `grid` do Tailwind, e `.grid{display:grid}` tem a MESMA especificidade que o
-     `[hidden]{display:none}` do navegador — como o Tailwind carrega depois, ele ganha,
-     e a aba trocava mas o Treinamento continuava na tela por baixo. */
-  [data-painel][hidden]{display:none !important}
-
-  /* campo dentro da linha: parece texto, vira campo quando clica */
-  .cel{width:100%;font-size:13px;line-height:1.45;padding:6px 8px;border-radius:8px;border:1px solid transparent;
-       background:transparent;color:inherit;resize:none;overflow:hidden;font-family:inherit;display:block}
-  .cel:hover{border-color:#e2e8f0}.dark .cel:hover{border-color:#334155}
-  .cel:focus{outline:none;border-color:#ff3c6f;background:#fff}.dark .cel:focus{background:#1f2937}
-  .cel::placeholder{color:#cbd5e1}
-  .tb-x{background:none;border:none;color:#cbd5e1;cursor:pointer;padding:8px 0 0 0;line-height:0}
-  .tb-x:hover{color:#f43f5e}
-  @media (max-width:700px){
-    .tb-h{display:none}
-    .tb-l{grid-template-columns:minmax(0,1fr) 30px;gap:4px}
-    .tb-l .cel:first-child{font-weight:600}
-  }
+  /* A tabela (.tb / .tb-h / .tb-l / .cel) agora vem do theme.js — é a mesma do
+     Pipelines. Não recriar aqui: já aconteceu de a tela de Etiquetas nascer
+     sem grid nenhum porque o CSS morava só neste arquivo. */
 </style>
 
 <!-- ===== Tema Dra. Charm: Poppins + cards foscos flutuando (mantém o fundo existente) ===== -->

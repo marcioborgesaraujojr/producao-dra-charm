@@ -117,7 +117,44 @@ tailwind.config = {
       + '.dark .dc-chip{background:#1f2937;border-color:#374151;color:#94a3b8}'
       + '.dc-chip:hover{color:var(--dc-pink-600);border-color:var(--dc-pink-200);background:var(--dc-pink-50)}'
       + '.dark .dc-chip:hover{background:rgba(255,60,111,.16);color:#ff9db4;border-color:transparent}'
-      + '.dc-chip[data-on="1"]{background:var(--dc-pink);border-color:var(--dc-pink);color:#fff}';
+      + '.dc-chip[data-on="1"]{background:var(--dc-pink);border-color:var(--dc-pink);color:#fff}'
+      /* ====== TABELA (dc: .tb / .tb-h / .tb-l / .cel) ======
+         Lista com colunas, do jeito do Notificações: cabeçalho cinza, linhas separadas,
+         e campos que parecem texto até você clicar. Usada nas perguntas e situações do
+         Chatbot e nas Etiquetas do Pipelines.
+
+         Mora AQUI porque já nasceu duas vezes: o CSS ficou dentro do chatbot.html e,
+         quando a tela de Etiquetas usou as mesmas classes, ela apareceu sem grid
+         nenhum — tudo empilhado numa coluna só.
+
+         A linha aceita `style="grid-template-columns:…"` pra ajustar as colunas. */
+      + '.tb{border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#fff}'
+      + '.dark .tb{border-color:#334155;background:#111827}'
+      + '.tb-h,.tb-l{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr) 30px;gap:10px;align-items:start}'
+      + '.tb-h{padding:8px 12px;background:#f8fafc;font-size:11px;font-weight:700;color:#64748b;'
+      +   'text-transform:uppercase;letter-spacing:.03em}'
+      + '.dark .tb-h{background:#0f172a;color:#94a3b8}'
+      + '.tb-l{padding:8px 12px;border-top:1px solid #eef2f7}'
+      + '.dark .tb-l{border-top-color:#1f2937}'
+      + '.tb-l:hover{background:#fafbfc}.dark .tb-l:hover{background:#0f172a}'
+      /* campo dentro da linha: parece texto, vira campo quando clica */
+      + '.cel{width:100%;font-size:13px;line-height:1.45;padding:6px 8px;border-radius:8px;'
+      +   'border:1px solid transparent;background:transparent;color:inherit;resize:none;'
+      +   'overflow:hidden;font-family:inherit;display:block}'
+      + '.cel:hover{border-color:#e2e8f0}.dark .cel:hover{border-color:#334155}'
+      + '.cel:focus{outline:none;border-color:var(--dc-pink);background:#fff}.dark .cel:focus{background:#1f2937}'
+      + '.cel::placeholder{color:#cbd5e1}'
+      + '.tb-x{background:none;border:none;color:#cbd5e1;cursor:pointer;padding:8px 0 0 0;line-height:0}'
+      + '.tb-x:hover{color:#f43f5e}'
+      + '@media (max-width:700px){'
+      +   '.tb-h{display:none}'
+      +   '.tb-l{grid-template-columns:minmax(0,1fr) 30px!important;gap:4px}'
+      +   '.tb-l .cel:first-child{font-weight:600}'
+      + '}'
+      /* Esconder painel de aba. `hidden` sozinho não basta: uma classe de display do
+         Tailwind (.grid, .flex) tem a MESMA especificidade e carrega depois, então
+         ganha — a aba trocava e o painel antigo continuava na tela por baixo. */
+      + '[data-painel][hidden]{display:none!important}';
     var s = document.createElement('style');
     s.id = 'dc-ui';
     s.textContent = css;
