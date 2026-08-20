@@ -14,6 +14,12 @@ const GRAPH = 'https://graph.facebook.com/v20.0';
 const SB  = () => process.env.SUPABASE_URL;
 const KEY = () => process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+// Comparação de texto do cliente: sem acento e sem maiúscula. Gente escreve "troca",
+// "TROCA" e "tróca" pra dizer a mesma coisa.
+function semAcentoWh(s) {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 // Brasil / 9º dígito (mesma regra do whatsapp-send.js)
 function normalizeWa(raw) {
   let n = String(raw || '').replace(/\D/g, '');
@@ -244,16 +250,47 @@ async function maybeAusencia(conversaId, waid, nomeBruto) {
 }
 
 // ===== CHATBOT IA: responde sozinho quando ATIVO e ninguém humano assumiu =====
-async function maybeBotReply(conversaId, clienteNome, inboundText, waid, host) {
+async function maybeBotReply(conversaId, clienteNome, inboundText, waid, host, ultimaMsgId) {
   try {
     if (!process.env.WA_ACCESS_TOKEN || !process.env.WA_PHONE_NUMBER_ID) return;
-    let cfgRows = null; try { cfgRows = await sbFetch('at_chatbot?id=eq.1&select=ativo,nome,handoff_termos'); } catch (e) { return; }
+    let cfgRows = null; try { cfgRows = await sbFetch('at_chatbot?id=eq.1&select=*'); } catch (e) { return; }
     const cfg = Array.isArray(cfgRows) ? cfgRows[0] : cfgRows;
     if (!cfg || !cfg.ativo) return;                                   // chatbot desligado -> nada
 
-    let convRows = null; try { convRows = await sbFetch('at_conversas?id=eq.' + conversaId + '&select=modo,atendente_id'); } catch (e) {}
+    let convRows = null; try { convRows = await sbFetch('at_conversas?id=eq.' + conversaId + '&select=modo,atendente_id,bot_encerrada_em'); } catch (e) {}
     const cv = Array.isArray(convRows) ? convRows[0] : convRows;
     if (cv && (cv.modo === 'humano' || cv.atendente_id)) return;      // humano assumiu -> robô quieto
+
+    // ---- Espera pra reentrar (aba Atendimento) ----
+    // Cliente que acabou de ser encerrado não cai de novo no robô na mesma hora.
+    const esperaH = parseInt(cfg.reentrada_horas, 10) || 0;
+    if (esperaH > 0 && cv && cv.bot_encerrada_em) {
+      const desde = Date.now() - new Date(cv.bot_encerrada_em).getTime();
+      if (desde < esperaH * 3600 * 1000) {
+        await sbFetch('at_conversas?id=eq.' + conversaId, { method: 'PATCH', body: JSON.stringify({ nao_lida: true }) });
+        return;
+      }
+    }
+
+    // ---- GATILHOS (aba Gatilhos) ----
+    // Frase que faz o robô ENTRAR. Nenhum gatilho ativo = ele responde tudo.
+    // Esta regra é a mesma da função baterGatilho() no chatbot.html — se mudar uma,
+    // mudar a outra, senão o testador da tela mente.
+    let gats = []; try { gats = await sbFetch('at_chatbot_gatilhos?select=texto,tipo,ativo&ativo=eq.true'); } catch (e) {}
+    const ativos = (Array.isArray(gats) ? gats : []).filter(g => String(g.texto || '').trim());
+    if (ativos.length) {
+      const t = semAcentoWh(inboundText);
+      const bateu = ativos.some(g => {
+        const f = semAcentoWh(g.texto).trim();
+        if (g.tipo === 'igual')  return t.trim() === f;
+        if (g.tipo === 'comeca') return t.trim().startsWith(f);
+        return t.includes(f);
+      });
+      if (!bateu) {                                                   // não é caso do robô -> fila humana
+        await sbFetch('at_conversas?id=eq.' + conversaId, { method: 'PATCH', body: JSON.stringify({ nao_lida: true }) });
+        return;
+      }
+    }
 
     // handoff por palavra-chave (antes de gastar IA)
     const termos = String(cfg.handoff_termos || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
@@ -263,18 +300,57 @@ async function maybeBotReply(conversaId, clienteNome, inboundText, waid, host) {
       return;
     }
 
-    // histórico (últimas 12 mensagens de texto)
-    let rows = []; try { rows = await sbFetch('at_mensagens?conversa_id=eq.' + conversaId + '&select=direcao,conteudo,tipo&order=enviada_em.desc&limit=12'); } catch (e) {}
-    const msgs = (Array.isArray(rows) ? rows : []).reverse()
+    // histórico — quantas mensagens ele lê é ajustável na aba Configurações
+    const contexto = Math.min(Math.max(parseInt(cfg.contexto_msgs, 10) || 12, 2), 40);
+    let rows = []; try { rows = await sbFetch('at_mensagens?conversa_id=eq.' + conversaId + '&select=direcao,conteudo,tipo,meta&order=enviada_em.desc&limit=' + (contexto + 20)); } catch (e) {}
+    const todas = (Array.isArray(rows) ? rows : []).reverse();
+    const msgs = todas
       .filter(m => (m.tipo === 'texto' || !m.tipo) && (m.direcao === 'in' || m.direcao === 'out'))
-      .map(m => ({ role: m.direcao === 'out' ? 'assistant' : 'user', content: m.conteudo || '' }));
+      .map(m => ({ role: m.direcao === 'out' ? 'assistant' : 'user', content: m.conteudo || '' }))
+      .slice(-contexto);
     if (!msgs.length) return;
+
+    // ---- Limite de respostas por conversa (aba Configurações) ----
+    const limite = parseInt(cfg.limite_msgs, 10) || 0;
+    if (limite > 0) {
+      const jaRespondeu = todas.filter(m => m.direcao === 'out' && m.meta && m.meta.bot).length;
+      if (jaRespondeu >= limite) {
+        await sbFetch('at_conversas?id=eq.' + conversaId, { method: 'PATCH', body: JSON.stringify({ modo: 'humano', nao_lida: true }) });
+        await sbFetch('at_mensagens', { method: 'POST', body: JSON.stringify({ conversa_id: conversaId, direcao: 'in', tipo: 'nota',
+          conteudo: 'Robô chegou ao limite de ' + limite + ' respostas nesta conversa. Passou pra atendimento humano.', autor: 'Sistema' }) });
+        return;
+      }
+    }
+
+    // ---- Conversa travada (aba Configurações) ----
+    // Cliente mandando a MESMA coisa três vezes não está sendo entendido — ou tem outro
+    // robô do outro lado. Insistir só queima token e irrita.
+    if (cfg.detectar_loop !== false) {
+      const entradas = todas.filter(m => m.direcao === 'in').slice(-3).map(m => semAcentoWh(m.conteudo).trim());
+      if (entradas.length === 3 && entradas[0] && entradas.every(x => x === entradas[0])) {
+        await sbFetch('at_conversas?id=eq.' + conversaId, { method: 'PATCH', body: JSON.stringify({ modo: 'humano', nao_lida: true }) });
+        await sbFetch('at_mensagens', { method: 'POST', body: JSON.stringify({ conversa_id: conversaId, direcao: 'in', tipo: 'nota',
+          conteudo: 'Cliente repetiu a mesma mensagem 3x — o robô não estava resolvendo. Passou pra humano.', autor: 'Sistema' }) });
+        return;
+      }
+    }
+
+    // ---- Marcar como lida no WhatsApp do cliente (aba Configurações) ----
+    if (cfg.marcar_lida !== false && ultimaMsgId) {
+      try {
+        await fetch(GRAPH + '/' + process.env.WA_PHONE_NUMBER_ID + '/messages', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + process.env.WA_ACCESS_TOKEN, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messaging_product: 'whatsapp', status: 'read', message_id: ultimaMsgId })
+        });
+      } catch (e) { /* tique azul não vale derrubar a resposta */ }
+    }
 
     // chama o cérebro (auth interna via service role)
     const r = await fetch('https://' + host + '/api/chatbot-reply', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-internal': KEY() },
-      body: JSON.stringify({ mensagens: msgs, cliente: { nome: clienteNome } })
+      body: JSON.stringify({ mensagens: msgs, cliente: { nome: clienteNome }, conversa_id: conversaId })
     });
     let j = {}; try { j = await r.json(); } catch (e) {}
 
@@ -301,7 +377,8 @@ async function maybeBotReply(conversaId, clienteNome, inboundText, waid, host) {
     });
     // grava a resposta do robô e mantém o modo bot
     await sbFetch('at_mensagens', { method: 'POST', body: JSON.stringify({ conversa_id: conversaId, direcao: 'out', tipo: 'texto', conteudo: j.reply, autor: (cfg.nome || 'Assistente'), meta: { bot: true } }) });
-    await sbFetch('at_conversas?id=eq.' + conversaId, { method: 'PATCH', body: JSON.stringify({ modo: 'bot', ultima_msg_preview: String(j.reply).slice(0, 120), ultima_msg_em: new Date().toISOString(), nao_lida: false }) });
+    // bot_ultima_em é o relógio do encerramento por inatividade (api/chatbot-encerrar.js).
+    await sbFetch('at_conversas?id=eq.' + conversaId, { method: 'PATCH', body: JSON.stringify({ modo: 'bot', ultima_msg_preview: String(j.reply).slice(0, 120), ultima_msg_em: new Date().toISOString(), bot_ultima_em: new Date().toISOString(), bot_encerrada_em: null, nao_lida: false }) });
     if (j.handoff) { await sbFetch('at_conversas?id=eq.' + conversaId, { method: 'PATCH', body: JSON.stringify({ modo: 'humano', nao_lida: true }) }); }
   } catch (e) { console.error('bot reply erro:', e.message); }
 }
@@ -398,7 +475,7 @@ export default async function handler(req, res) {
 
           // Chatbot IA: só reage a mensagem de TEXTO do cliente (não figurinha/áudio/etc)
           if (m.type === 'text') {
-            await maybeBotReply(conversaId, contatoNome || 'Cliente', conteudo, waid, host);
+            await maybeBotReply(conversaId, contatoNome || 'Cliente', conteudo, waid, host, m.id);
             await maybeAusencia(conversaId, waid, contatoNome);
           }
         }

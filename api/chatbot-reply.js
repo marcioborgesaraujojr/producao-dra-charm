@@ -108,7 +108,15 @@ async function viaOpenAI(cfg, mensagens, cliente, faq, intencoes) {
   });
   const j = await r.json();
   if (!r.ok) throw new Error((j.error && j.error.message) || 'Erro OpenAI');
-  return j.choices?.[0]?.message?.content || '';
+  return {
+    texto: j.choices?.[0]?.message?.content || '',
+    uso: {
+      tokens_in:      (j.usage?.prompt_tokens || 0) - (j.usage?.prompt_tokens_details?.cached_tokens || 0),
+      tokens_out:     j.usage?.completion_tokens || 0,
+      tokens_cache_w: 0,
+      tokens_cache_r: j.usage?.prompt_tokens_details?.cached_tokens || 0
+    }
+  };
 }
 async function viaAnthropic(cfg, mensagens, cliente, faq, intencoes, chave) {
   const r = await fetch('https://api.anthropic.com/v1/messages', {
@@ -126,7 +134,28 @@ async function viaAnthropic(cfg, mensagens, cliente, faq, intencoes, chave) {
   });
   const j = await r.json();
   if (!r.ok) throw new Error((j.error && j.error.message) || 'Erro Anthropic');
-  return (j.content && j.content[0] && j.content[0].text) || '';
+  return {
+    texto: (j.content && j.content[0] && j.content[0].text) || '',
+    uso: {
+      tokens_in:      j.usage?.input_tokens || 0,
+      tokens_out:     j.usage?.output_tokens || 0,
+      tokens_cache_w: j.usage?.cache_creation_input_tokens || 0,
+      tokens_cache_r: j.usage?.cache_read_input_tokens || 0
+    }
+  };
+}
+
+// Registra o consumo de cada resposta. É o que alimenta a aba Custos — sem isso o painel
+// só saberia CHUTAR o gasto em cima do número de mensagens, e o cache faria a conta real
+// e o chute divergirem muito.
+async function registrarUso(linha) {
+  try {
+    await fetch(process.env.SUPABASE_URL + '/rest/v1/at_chatbot_uso', {
+      method: 'POST',
+      headers: { ...SB(), 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify(linha)
+    });
+  } catch (e) { /* medir o gasto nunca pode derrubar a resposta ao cliente */ }
 }
 
 export default async function handler(req, res) {
@@ -145,22 +174,29 @@ export default async function handler(req, res) {
   }
 
   let body = req.body; if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = {}; } }
-  const mensagens = Array.isArray(body.mensagens) ? body.mensagens.slice(-12) : [];
   const cliente = body.cliente || null;
-  if (!mensagens.length) return res.status(400).json({ error: 'Envie "mensagens".' });
+  const conversaId = body.conversa_id || null;
 
   const [cfg, faq, intencoes] = await Promise.all([getConfig(), getFaq(), getIntencoes()]);
+
+  // Quantas mensagens anteriores ele lê — ajustável na aba Configurações. Era 12 fixo.
+  const contexto = Math.min(Math.max(parseInt(cfg.contexto_msgs, 10) || 12, 2), 40);
+  const mensagens = Array.isArray(body.mensagens) ? body.mensagens.slice(-contexto) : [];
+  if (!mensagens.length) return res.status(400).json({ error: 'Envie "mensagens".' });
+
   const usaClaude = (cfg.modelo || '').startsWith('claude');
   const chaveAnthropic = await getAnthropicKey();
   const temOpenAI = !!process.env.OPENAI_API_KEY;
   const temAnthropic = !!chaveAnthropic;
+  const modeloUsado = cfg.modelo || (temOpenAI ? 'gpt-4o-mini' : 'claude-haiku-4-5-20251001');
 
   try {
-    let reply;
-    if (usaClaude && temAnthropic) reply = await viaAnthropic(cfg, mensagens, cliente, faq, intencoes, chaveAnthropic);
-    else if (temOpenAI) reply = await viaOpenAI(cfg, mensagens, cliente, faq, intencoes);
-    else if (temAnthropic) reply = await viaAnthropic(cfg, mensagens, cliente, faq, intencoes, chaveAnthropic);
+    let saida;
+    if (usaClaude && temAnthropic) saida = await viaAnthropic(cfg, mensagens, cliente, faq, intencoes, chaveAnthropic);
+    else if (temOpenAI) saida = await viaOpenAI(cfg, mensagens, cliente, faq, intencoes);
+    else if (temAnthropic) saida = await viaAnthropic(cfg, mensagens, cliente, faq, intencoes, chaveAnthropic);
     else return res.status(503).json({ error: 'Chatbot não configurado: falta OPENAI_API_KEY ou ANTHROPIC_API_KEY no Vercel.' });
+    let reply = saida.texto;
 
     // Transferência: por palavra-chave (barata, antes da IA) OU porque o modelo reconheceu
     // uma das intenções e marcou a resposta. A marca some do texto que vai pro cliente.
@@ -169,9 +205,14 @@ export default async function handler(req, res) {
     const porTermo = termos.some(t => t && ultima.includes(t));
     const porIntencao = String(reply).includes(MARCA_TRANSFERIR);
     reply = limparLinks(String(reply).split(MARCA_TRANSFERIR).join('').trim(), cfg);
+    const handoff = porTermo || porIntencao;
 
-    return res.status(200).json({ reply, handoff: porTermo || porIntencao, motivo: porIntencao ? 'intencao' : (porTermo ? 'palavra-chave' : null) });
+    await registrarUso({ conversa_id: conversaId, modelo: modeloUsado, handoff, ...saida.uso });
+
+    return res.status(200).json({ reply, handoff, motivo: porIntencao ? 'intencao' : (porTermo ? 'palavra-chave' : null) });
   } catch (err) {
+    // A falha também vira linha: é assim que se descobre que o crédito acabou olhando o painel.
+    await registrarUso({ conversa_id: conversaId, modelo: modeloUsado, erro: String(err.message).slice(0, 300) });
     return res.status(400).json({ error: err.message });
   }
 }
