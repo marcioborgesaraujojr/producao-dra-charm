@@ -210,7 +210,7 @@
         <span id="charCount" class="ml-auto text-[11px] tabular-nums">0 / 2.000</span>
       </div>
       <div class="flex items-center gap-2">
-        <input id="msgInput" maxlength="2000" oninput="updCount();marcarDigitando()" onkeydown="if(event.key==='Enter'){enviar();}" placeholder="Mande uma mensagem…" class="flex-1 py-2 px-2 text-sm bg-transparent outline-none">
+        <input id="msgInput" maxlength="2000" oninput="updCount();marcarDigitando();salvarRascunho()" onkeydown="if(event.key==='Enter'){enviar();}" placeholder="Mande uma mensagem…" class="flex-1 py-2 px-2 text-sm bg-transparent outline-none">
         <button id="btnEnviar" onclick="enviar()" class="w-9 h-9 rounded-full bg-pink-500 text-white flex items-center justify-center shrink-0 hover:bg-pink-600 transition"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
       </div>
       <div id="qrBox" class="hidden absolute bottom-full left-4 mb-2 w-80 bg-white dark:bg-ink-700 border border-slate-200 dark:border-ink-600 rounded-xl shadow-xl p-1.5" data-fade>
@@ -269,24 +269,37 @@ const QUICK_REPLIES = [
   {atalho:'/troca', txt:'Claro! Para iniciar a troca, me confirma o número do pedido, por favor?'},
   {atalho:'/obrigada', txt:'Obrigada pelo contato! Qualquer coisa, estamos por aqui. 💗'},
 ];
-/* ===== Duas paletas que NÃO podem se confundir =====
-   Cliente e atendente aparecem lado a lado na mesma linha da lista. As duas paletas
-   compartilhavam 4 das 8 cores (#f59e0b, #0ea5e9, #ef4444, #14b8a6) — dava pra ver
-   uma bolinha e não saber se era a cliente ou a colega.
+/* ===== Cliente e atendente lado a lado =====
+   As duas paletas compartilhavam 4 das 8 cores, então dava pra ver a bolinha e não
+   saber de quem era. (A primeira tentativa foi separar por temperatura — cliente em
+   tons quentes — mas ficou tudo marrom, virou uma cor só. Não repetir.)
 
-   Agora é por TEMPERATURA, não por tom individual: CLIENTE é sempre quente (âmbar,
-   laranja, terracota) e ATENDENTE é sempre frio (azul, roxo, verde). ~190° de
-   distância no círculo de cor, então dá pra distinguir de relance, sem comparar.
+   O que funciona: MESMAS cores vivas nas duas, separadas pelo CLARO/ESCURO.
+     cliente   -> círculo CLARO com a letra escura da mesma cor
+     atendente -> pílula CHEIA com a letra branca
+   Continua colorido e a diferença se vê de relance, sem comparar tom por tom.
 
-   Todas as cores passam 4,5:1 com a inicial branca por cima. */
-const CORES = ['#b45309','#92400e','#a16207','#854d0e','#c2410c','#9a3412','#8a5a12','#7c2d12'];
+   Cada cor é um par claro/escuro. Os 16 passam 4,5:1 de contraste com a letra. */
+const PARES = [
+  ['#ffe1e8','#be123c'],   // rosa
+  ['#fef3c7','#b45309'],   // âmbar
+  ['#dbeafe','#1d4ed8'],   // azul
+  ['#ccfbf1','#0f766e'],   // verde-água
+  ['#ede9fe','#6d28d9'],   // roxo
+  ['#dcfce7','#15803d'],   // verde
+  ['#ffedd5','#c2410c'],   // laranja
+  ['#e0f2fe','#0369a1']    // céu
+];
+const CORES = PARES.map(p => p[0]);        // o claro é o fundo do avatar da cliente
 // Cor do avatar SEMPRE a mesma pra mesma pessoa. Antes era CORES[i], o índice na lista —
 // e como a lista se reordena a cada mensagem nova, a cor de todo mundo trocava sozinha.
-function corFixa(chave){
+function _idxCor(chave){
   let h = 0x811c9dc5; const t = String(chave||'?');
   for (let i=0;i<t.length;i++){ h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
-  return CORES[h % CORES.length];
+  return h % PARES.length;
 }
+function corFixa(chave){      return PARES[_idxCor(chave)][0]; }   // fundo claro
+function corFixaTexto(chave){ return PARES[_idxCor(chave)][1]; }   // letra escura, mesma cor
 
 let sb=null, CONVERSAS=[], TAB='minhas', SEL=null, NOTA=false, PROFILES=[], SORT='recentes', IS_ADMIN=false, AT_CONFIG={identificacao:false,formato:'primeiro_nome'};
 async function loadAtConfig(){ try{ const r=await fetch('https://wwytzoyeibekhstinott.supabase.co/storage/v1/object/public/system-assets/at-config.json?t='+Date.now()); if(r.ok){ const j=JSON.parse(await r.text()); if(j&&typeof j==='object') AT_CONFIG=Object.assign(AT_CONFIG,j); } }catch(e){} }
@@ -333,10 +346,16 @@ async function loadConversas(){
     window.__totalConversas = t.count || null;
   }catch(e){ window.__totalConversas = null; }
 
+  return mapConversas(data);
+}
+
+// O mesmo mapeamento serve pra lista inteira e pra uma conversa avulsa
+// (garantirConversa). Estava embutido no loadConversas e não dava pra reaproveitar.
+function mapConversas(data){
   return (data||[]).map((cv,i)=>{
     const cli=cv.cliente||{};
     const j=cv.janela_expira_em?new Date(cv.janela_expira_em)-Date.now():0;
-    return { id:cv.id, nome:cli.nome||'Cliente', inicial:(cli.nome||'C')[0].toUpperCase(), cor:corFixa(cli.id||cv.id),
+    return { id:cv.id, nome:cli.nome||'Cliente', inicial:(cli.nome||'C')[0].toUpperCase(), cor:corFixa(cli.id||cv.id), corTexto:corFixaTexto(cli.id||cv.id),
       clienteId:cli.id||null, foto:cli.foto_url||'',
       canal:cv.canal==='whatsapp_oficial'?'API Oficial':(cv.canal||'—'), status:cv.status, naoLida:cv.nao_lida, minha:true, modo:cv.modo||null, botDigitandoEm:cv.bot_digitando_em||null,
       janela:cv.status==='encerrada'?'—':(j<=0?'fechada':`${Math.floor(j/3600000)}h${String(Math.floor(j%3600000/60000)).padStart(2,'0')}min`),
@@ -419,13 +438,45 @@ async function bootstrap(){
     // Volta pra MESMA conversa que estava aberta antes de recarregar (deploy novo, F5, queda).
     // Antes caía sempre na primeira da lista e a atendente perdia o cliente que estava atendendo.
     let _alvo = null;
-    try{ const _s = localStorage.getItem('at_sel'); if(_s && CONVERSAS.some(c => c.id === _s)) _alvo = _s; }catch(e){}
+    try{
+      const _s = localStorage.getItem('at_sel');
+      if(_s){
+        if(CONVERSAS.some(c => c.id === _s)) _alvo = _s;
+        else {
+          // A conversa aberta pode não estar entre as carregadas (é antiga e já lida,
+          // então ficou fora da janela). ANTES caía no CONVERSAS[0] e a atendente
+          // aparecia atendendo OUTRA cliente depois do deploy — a reclamação real da
+          // equipe. Busca essa conversa em específico e põe na lista.
+          _alvo = await garantirConversa(_s);
+        }
+      }
+    }catch(e){}
     selecionar(_alvo || CONVERSAS[0].id);
     setView('lista');
   }
   else { document.getElementById('emptyState').classList.remove('hidden'); }
   subscribeRealtime();
   try{ subscribePresenca(); }catch(e){ console.warn('presença:', e && e.message); }
+}
+
+/* Traz UMA conversa específica pra lista, mesmo que ela esteja fora da janela que a
+   tela carrega. Serve pra não perder a conversa aberta num refresh/deploy. Devolve o
+   id se conseguiu, senão null. */
+async function garantirConversa(id){
+  if(!id) return null;
+  if(CONVERSAS.some(c => c.id === id)) return id;
+  try{
+    const c = await getSb();
+    const { data } = await c.from('at_conversas')
+      .select('*, cliente:at_clientes(*), atendente:profiles(full_name), tags:at_conversa_tags(tag:at_tags(*))')
+      .eq('id', id).maybeSingle();
+    if(!data) return null;
+    const mapeadas = mapConversas([data]);
+    if(!mapeadas.length) return null;
+    CONVERSAS.unshift(mapeadas[0]);
+    renderList();
+    return id;
+  }catch(e){ return null; }
 }
 
 /* ===== Tempo real (Supabase Realtime) ===== */
@@ -446,10 +497,10 @@ let PRESENCA = {};            // { conversaId: [ {nome, inicial, cor, digitando}
 let _canalPres = null, _digitando = false, _tDigit = null;
 
 function corDoNome(nome){
-  // Fria de propósito — a da cliente é quente. Ver o comentário na const CORES.
-  // Os tons antigos eram claros demais: a inicial branca em cima do #14b8a6 dava
-  // 2,49:1, praticamente ilegível. Estes passam todos de 4,5:1.
-  const paleta = ['#6d28d9','#0369a1','#047857','#4338ca','#0f766e','#1d4ed8','#7c3aed','#155e75'];
+  // O tom CHEIO dos mesmos pares da cliente — ver o comentário na const PARES.
+  // Os tons antigos eram claros demais pra letra branca: o #14b8a6 dava 2,49:1,
+  // praticamente ilegível. Estes passam todos de 4,5:1.
+  const paleta = PARES.map(p => p[1]);
   // FNV-1a: espalha melhor que soma simples, senão dois nomes caem na mesma cor.
   let h = 0x811c9dc5; const t = String(nome||'?').toLowerCase();
   for (let i=0;i<t.length;i++){ h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
@@ -523,6 +574,9 @@ function marcarDigitando(){
 
 function softReload(){ clearTimeout(_rtTimer); _rtTimer=setTimeout(async()=>{
   const keep=SEL; CONVERSAS=await loadConversas(); renderList();
+  // se a conversa aberta saiu da janela no recarregamento, traz ela de volta em vez de
+  // deixar a atendente com a tela apontando pra uma conversa que sumiu da lista
+  if(keep && !CONVERSAS.some(x=>x.id===keep)) await garantirConversa(keep);
   const cv=CONVERSAS.find(x=>x.id===keep); if(cv){ await carregarMsgs(cv); renderChat(cv); renderProfile(cv); enrichPedido(cv); }
 },350); }
 
@@ -648,8 +702,10 @@ function voltarLista(){ fecharPerfilMobile(); setView('lista'); }
 function abrirPerfilMobile(){ const p=document.getElementById('profile'); const b=document.getElementById('perfilBackdrop'); if(p){ p.classList.remove('hidden'); p.classList.add('perfil-aberto'); } if(b) b.classList.add('on'); }
 function fecharPerfilMobile(){ const p=document.getElementById('profile'); const b=document.getElementById('perfilBackdrop'); if(p) p.classList.remove('perfil-aberto'); if(b) b.classList.remove('on'); }
 async function selecionar(id){
+  salvarRascunho();                       // guarda o que estava escrito na conversa que está saindo
   SEL=id; NOTA=false; const cv=cur(); if(!cv) return;
   try{ localStorage.setItem('at_sel', id); }catch(e){}   // pra reabrir aqui mesmo depois de um refresh
+  carregarRascunho(id);                   // e devolve o que estava escrito nesta aqui
   _digitando=false; enviarPresenca();   // avisa os outros que estou nesta conversa
   setView('chat');
   if(!cv._msgsLoaded) await carregarMsgs(cv);
@@ -766,11 +822,11 @@ const _initial=n=>((String(n||'?').trim()[0])||'?').toUpperCase();
 /* ===== Avatar do cliente (foto do WhatsApp via serviço externo, ou iniciais coloridas) ===== */
 function avatarLista(cv){ return cv.foto
   ? `<img src="${esc(cv.foto)}" width="44" height="44" loading="lazy" decoding="async" class="w-11 h-11 rounded-full object-cover" alt="" onerror="this.style.display='none'">`
-  : `<div class="w-11 h-11 rounded-full text-white flex items-center justify-center font-semibold" style="background:${cv.cor}">${cv.inicial}</div>`; }
+  : `<div class="w-11 h-11 rounded-full flex items-center justify-center font-bold" style="background:${cv.cor};color:${cv.corTexto||'#fff'}">${cv.inicial}</div>`; }
 function avatarPerfil(cv){ return cv.foto
   ? `<img src="${esc(cv.foto)}" class="w-14 h-14 rounded-full object-cover mb-3" alt="" onerror="this.style.display='none'">`
-  : `<div class="w-14 h-14 rounded-full text-white flex items-center justify-center font-bold text-xl mb-3" style="background:${cv.cor}">${cv.inicial}</div>`; }
-function opColor(p){ if(p&&p.color) return p.color; const s=(p&&(p.id||p.full_name||p.email))||''; let h=0; for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0; const C=['#ef4444','#f97316','#f59e0b','#16a34a','#14b8a6','#0ea5e9','#3b82f6','#6366f1','#a855f7','#ff3c6f','#84cc16','#f43f5e']; return C[h%C.length]; }
+  : `<div class="w-14 h-14 rounded-full flex items-center justify-center font-bold text-xl mb-3" style="background:${cv.cor};color:${cv.corTexto||'#fff'}">${cv.inicial}</div>`; }
+function opColor(p){ if(p&&p.color) return p.color; const s=(p&&(p.id||p.full_name||p.email))||''; let h=0; for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0; const C = PARES.map(p => p[1]); /* mesma paleta cheia do atendente */ return C[h%C.length]; }
 function opBadge(id){ if(!id) return ''; const p=PROFILES.find(x=>x.id===id); if(!p) return ''; const nm=p.full_name||p.email||'Operador'; return `<div class="flex items-center gap-2 mb-2"><span class="w-7 h-7 rounded-full text-white text-[12px] font-bold flex items-center justify-center shrink-0" style="background:${opColor(p)}">${esc(_initial(nm))}</span><span class="text-sm font-medium truncate">${esc(nm)}</span></div>`; }
 function copiar(t){ try{ navigator.clipboard.writeText(String(t||'')); if(typeof dcToast==='function') dcToast('Copiado','ok'); }catch(e){} }
 function campoContato(l,v,tipo){ const val=esc(v); const digits=String(v).replace(/\D/g,''); const wa=(tipo==='tel'&&digits)?`<a href="https://wa.me/${digits}" target="_blank" title="Abrir no WhatsApp" class="text-emerald-500 hover:text-emerald-600 shrink-0"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15L2 22l5.1-1.3A10 10 0 1 0 12 2zm0 18a8 8 0 0 1-4.1-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8 8 0 1 1 12 20zm4.4-5.6c-.2-.1-1.4-.7-1.6-.8-.2-.1-.4-.1-.5.1-.2.2-.6.8-.8 1-.1.1-.3.2-.5.1-.7-.3-1.4-.5-2.3-1.4-.3-.3-.6-.7-.9-1.2-.1-.2 0-.3.1-.4l.3-.4.2-.3c.1-.1.1-.2 0-.4 0-.1-.5-1.3-.7-1.7-.2-.4-.4-.4-.5-.4h-.5c-.2 0-.4.1-.6.3-.7.7-.9 1.7-.6 2.7.3 1 .9 1.9 1.1 2.1.1.2 1.7 2.7 4.2 3.7 2.1.8 2.5.7 2.9.6.5-.1 1.4-.6 1.6-1.1.2-.5.2-1 .1-1.1-.1-.1-.2-.1-.4-.2z"/></svg></a>`:''; return `<div class="mb-2"><div class="text-[11px] text-slate-400 mb-0.5">${l}</div><div class="flex items-center gap-1.5"><div class="acv text-sm truncate flex-1">${val}</div><button onclick="copiar(this.parentElement.querySelector('.acv').textContent)" title="Copiar" class="text-slate-400 hover:text-pink-500 shrink-0"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>${wa}</div></div>`; }
@@ -840,7 +896,7 @@ async function enviar(){
   if(!isNota && AT_CONFIG && AT_CONFIG.identificacao){ const _n=nomeAtendente(); if(_n) txt=_n+':\n'+txt; }
   cv.msgs.push(isNota?{t:'nota',txt,hora,autor:AGENTE}:{t:'out',txt,hora,autor:AGENTE});
   if(!isNota){ cv.preview=txt; cv.ultimaAtividade=new Date().toLocaleString('pt-BR'); }
-  inp.value=''; updCount(); renderChat(cv); if(isNota){NOTA=false;setNotaUI();} renderList();
+  inp.value=''; limparRascunho(cv.id); updCount(); renderChat(cv); if(isNota){NOTA=false;setNotaUI();} renderList();
   const destino = cv.waid || (cv.tel||'').replace(/\D/g,'');   // número do cliente (formato internacional, ex: 5585...)
   try{ const c=await getSb();
     if(isNota){
@@ -961,6 +1017,24 @@ function setNotaUI(){ const on=NOTA; document.getElementById('notaBanner').class
   document.getElementById('msgInput').placeholder = on?'Escreva uma nota interna…':(cur()?`Mande uma mensagem para ${cur().nome.split(' ')[0]}…`:'Mande uma mensagem…'); }
 function fmt(ch){ const inp=document.getElementById('msgInput'); const s=inp.selectionStart,e=inp.selectionEnd,v=inp.value; if(s===e)return; inp.value=v.slice(0,s)+ch+v.slice(s,e)+ch+v.slice(e); updCount(); inp.focus(); }
 function updCount(){ document.getElementById('charCount').textContent=`${document.getElementById('msgInput').value.length} / 2.000`; }
+
+/* ===== Rascunho =====
+   Perder a conversa aberta num deploy já era ruim; perder o que estava DIGITADO é pior,
+   porque a atendente muitas vezes nem lembra o que tinha escrito. O texto fica guardado
+   por conversa e volta sozinho ao reabrir. Sai da memória quando a mensagem é enviada. */
+const _kRascunho = id => 'at_rascunho_' + id;
+function salvarRascunho(){
+  if(!SEL) return;
+  const v = (document.getElementById('msgInput')||{}).value || '';
+  try{ if(v.trim()) localStorage.setItem(_kRascunho(SEL), v); else localStorage.removeItem(_kRascunho(SEL)); }catch(e){}
+}
+function carregarRascunho(id){
+  const inp = document.getElementById('msgInput'); if(!inp) return;
+  let v = ''; try{ v = localStorage.getItem(_kRascunho(id)) || ''; }catch(e){}
+  inp.value = v; updCount();
+  if(v) dcToast('Recuperei o que você estava escrevendo aqui', 'ok');
+}
+function limparRascunho(id){ try{ localStorage.removeItem(_kRascunho(id)); }catch(e){} }
 function setTab(t){ TAB=t; document.querySelectorAll('.conv-tab').forEach(el=>el.dataset.active=el.dataset.tab===t?'1':'0'); aplicarSort(); renderList(); }
 /* ===== Ordem da lista =====
    DUAS posições, igual ao Notificações: mais recentes <-> mais antigas. Só isso.
