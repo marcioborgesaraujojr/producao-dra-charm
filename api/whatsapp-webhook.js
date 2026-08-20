@@ -277,7 +277,20 @@ async function maybeBotReply(conversaId, clienteNome, inboundText, waid, host) {
       body: JSON.stringify({ mensagens: msgs, cliente: { nome: clienteNome } })
     });
     let j = {}; try { j = await r.json(); } catch (e) {}
-    if (!r.ok || !j.reply) return;                                    // sem resposta -> deixa pro humano (fica não lida)
+
+    // O robô não conseguiu responder — crédito da Anthropic acabou, API fora do ar,
+    // chave errada. ANTES isto era um `return` mudo: o cliente ficava falando sozinho e
+    // a conversa continuava marcada como "bot", então nem entrava na fila de quem atende.
+    // Agora a conversa CAI PRA HUMANO na hora. Falha do robô nunca pode virar cliente
+    // sem resposta.
+    if (!r.ok || !j.reply) {
+      console.error('bot sem resposta:', r.status, (j && j.error) || '');
+      await sbFetch('at_conversas?id=eq.' + conversaId, {
+        method: 'PATCH',
+        body: JSON.stringify({ modo: 'humano', nao_lida: true })
+      });
+      return;
+    }
 
     // envia a resposta pelo WhatsApp
     const to = normalizeWa(waid);
