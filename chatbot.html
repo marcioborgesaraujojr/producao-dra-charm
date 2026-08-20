@@ -36,6 +36,13 @@
   .tb-l{padding:8px 12px;border-top:1px solid #eef2f7}
   .dark .tb-l{border-top-color:#1f2937}
   .tb-l:hover{background:#fafbfc}.dark .tb-l:hover{background:#0f172a}
+  /* ===== Esconder painel de aba =====
+     Não dá pra confiar só no atributo hidden: o painel do Treinamento tem a classe
+     `grid` do Tailwind, e `.grid{display:grid}` tem a MESMA especificidade que o
+     `[hidden]{display:none}` do navegador — como o Tailwind carrega depois, ele ganha,
+     e a aba trocava mas o Treinamento continuava na tela por baixo. */
+  [data-painel][hidden]{display:none !important}
+
   /* campo dentro da linha: parece texto, vira campo quando clica */
   .cel{width:100%;font-size:13px;line-height:1.45;padding:6px 8px;border-radius:8px;border:1px solid transparent;
        background:transparent;color:inherit;resize:none;overflow:hidden;font-family:inherit;display:block}
