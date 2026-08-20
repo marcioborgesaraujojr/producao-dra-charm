@@ -26,7 +26,9 @@ function normalizeWa(raw) {
   return n;
 }
 
-async function sbInsertMsg(conversaId, texto, autor) {
+// wamid = o id que a Meta devolve pro que a gente enviou. Guardar isso é o que permite
+// pendurar a reação do cliente no balão certo depois (ver aplicarReacao no webhook).
+async function sbInsertMsg(conversaId, texto, autor, wamid) {
   await fetch(process.env.SUPABASE_URL + '/rest/v1/at_mensagens', {
     method: 'POST',
     headers: {
@@ -34,7 +36,7 @@ async function sbInsertMsg(conversaId, texto, autor) {
       Authorization: 'Bearer ' + process.env.SUPABASE_SERVICE_ROLE_KEY,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ conversa_id: conversaId, direcao: 'out', tipo: 'texto', conteudo: texto, autor: autor || 'atendente' })
+    body: JSON.stringify({ conversa_id: conversaId, direcao: 'out', tipo: 'texto', conteudo: texto, autor: autor || 'atendente', meta: wamid ? { wamid } : {} })
   });
   await fetch(process.env.SUPABASE_URL + '/rest/v1/at_conversas?id=eq.' + conversaId, {
     method: 'PATCH',
@@ -143,7 +145,7 @@ export default async function handler(req, res) {
   if (!r.ok) {
     return res.status(400).json({ error: (j && j.error && j.error.message) || 'Falha ao enviar', detalhe: j });
   }
-  if (conversaId) { try { await sbInsertMsg(conversaId, text, await nomeDoAtendente(email)); } catch (e) {} }
+  if (conversaId) { try { await sbInsertMsg(conversaId, text, await nomeDoAtendente(email), j && j.messages && j.messages[0] && j.messages[0].id); } catch (e) {} }
   // "para" = número normalizado usado no envio; "contatos" = wa_id que a Meta resolveu (útil pra depurar entrega).
   return res.status(200).json({ ok: true, id: j?.messages?.[0]?.id || null, para: toNorm, contatos: j?.contacts || null });
 }

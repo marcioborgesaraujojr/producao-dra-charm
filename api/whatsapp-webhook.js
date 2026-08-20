@@ -124,11 +124,59 @@ function motivoErro(m) {
   return String(det || '').replace(/\.$/, '').trim();
 }
 
+/* ===== REAÇÃO (o joinha, o ✅) =====
+   Reação NÃO é mensagem. Ela pertence ao balão que recebeu o emoji.
+   Antes o webhook transformava cada reação numa mensagem nova "reagiu ✅": marcava a
+   conversa como não lida, virava prévia na lista e empurrava a conversa de verdade pra
+   baixo. Três reações seguidas = três "mensagens" e nenhuma reação no balão certo.
+
+   Agora a reação vai pro meta.reacoes DA MENSAGEM ALVO, achada pelo wamid.
+   Emoji vazio = a pessoa tirou a reação.
+   A conversa não é tocada: nada de não lida, nada de prévia, nada de reordenar a fila. */
+async function aplicarReacao({ conversaId, m, quem }) {
+  const alvo  = m.reaction && m.reaction.message_id;
+  const emoji = (m.reaction && m.reaction.emoji) || '';
+  if (!alvo) return;
+
+  let achou = null;
+  try {
+    const r = await sbFetch('at_mensagens?select=id,meta&conversa_id=eq.' + conversaId
+      + '&meta->>wamid=eq.' + encodeURIComponent(alvo) + '&limit=1');
+    achou = Array.isArray(r) ? r[0] : null;
+  } catch (e) { console.error('achar msg da reacao:', e.message); }
+
+  if (achou) {
+    const meta  = Object.assign({}, achou.meta || {});
+    const lista = Array.isArray(meta.reacoes) ? meta.reacoes.slice() : [];
+    const i = lista.findIndex(x => x && x.de === quem);
+    // uma reação por pessoa: reagir de novo TROCA o emoji, não empilha
+    if (!emoji)        { if (i >= 0) lista.splice(i, 1); }
+    else if (i >= 0)   { lista[i] = { de: quem, emoji, em: new Date().toISOString() }; }
+    else               { lista.push({ de: quem, emoji, em: new Date().toISOString() }); }
+    meta.reacoes = lista;
+    try {
+      await sbFetch('at_mensagens?id=eq.' + achou.id, { method: 'PATCH', body: JSON.stringify({ meta }) });
+    } catch (e) { console.error('gravar reacao:', e.message); }
+    return;
+  }
+
+  // Alvo não encontrado — mensagem antiga, de antes de guardarmos o wamid do que a gente
+  // envia. Não dá pra pendurar o emoji em balão nenhum, então registra como eventinho
+  // discreto no meio da conversa: não marca não lida, não vira prévia.
+  if (emoji) {
+    try {
+      await sbFetch('at_mensagens', { method: 'POST', body: JSON.stringify({
+        conversa_id: conversaId, direcao: 'sys', tipo: 'evento',
+        conteudo: (quem || 'Cliente') + ' reagiu ' + emoji,
+        meta: { evento: 'reacao', wamid_alvo: alvo }, autor: 'sistema' }) });
+    } catch (e) { console.error('evento de reacao:', e.message); }
+  }
+}
+
 // extrai texto/tipo de uma mensagem do WhatsApp
 function parseMsg(m) {
   switch (m.type) {
     case 'text':     return { tipo: 'texto',      conteudo: m.text?.body || '' };
-    case 'reaction': return { tipo: 'texto',      conteudo: m.reaction?.emoji ? ('reagiu ' + m.reaction.emoji) : '[reação removida]' };
     case 'sticker':  return { tipo: 'imagem',     conteudo: '[figurinha]' };
     case 'image':    return { tipo: 'imagem',     conteudo: m.image?.caption || '[imagem]' };
     case 'audio':    return { tipo: 'audio',      conteudo: '[áudio]' };
@@ -468,9 +516,16 @@ export default async function handler(req, res) {
         const contatoNome = value.contacts?.[0]?.profile?.name || null;
         for (const m of messages) {
           const waid = m.from;                       // wa_id (telefone do cliente)
-          const { tipo, conteudo } = parseMsg(m);
           const cliente = await upsertCliente({ waid, nome: contatoNome, telefone: waid });
           const conversaId = await getOrCreateConversa(cliente.id);
+
+          // reação sai por aqui: ela pertence a um balão que já existe, não é mensagem nova
+          if (m.type === 'reaction') {
+            await aplicarReacao({ conversaId, m, quem: contatoNome || waid });
+            continue;
+          }
+
+          const { tipo, conteudo } = parseMsg(m);
 
           // 1) GRAVA A MENSAGEM JÁ — garante o recebimento mesmo se o download da mídia demorar/falhar
           let msgId = null;

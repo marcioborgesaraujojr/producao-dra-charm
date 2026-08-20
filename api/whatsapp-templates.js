@@ -54,12 +54,13 @@ async function nomeDoAtendente(email) {
   return _capitalizaNome(e.split('@')[0]) || null;
 }
 
-async function sbInsertMsg(conversaId, texto, autor) {
+// wamid: ver o comentario em whatsapp-send.js — é o que liga a reação ao balão certo.
+async function sbInsertMsg(conversaId, texto, autor, wamid) {
   if (!conversaId) return;
   const H = { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY, Authorization: 'Bearer ' + process.env.SUPABASE_SERVICE_ROLE_KEY, 'Content-Type': 'application/json' };
   await fetch(process.env.SUPABASE_URL + '/rest/v1/at_mensagens', {
     method: 'POST', headers: H,
-    body: JSON.stringify({ conversa_id: conversaId, direcao: 'out', tipo: 'template', conteudo: texto, autor: autor || 'atendente' })
+    body: JSON.stringify({ conversa_id: conversaId, direcao: 'out', tipo: 'template', conteudo: texto, autor: autor || 'atendente', meta: wamid ? { wamid } : {} })
   });
   await fetch(process.env.SUPABASE_URL + '/rest/v1/at_conversas?id=eq.' + conversaId, {
     method: 'PATCH', headers: H,
@@ -169,7 +170,7 @@ export default async function handler(req, res) {
     });
     const j = await r.json();
     if (!r.ok) return res.status(r.status).json({ error: (j.error && j.error.message) || 'Erro ao enviar template', data: j });
-    await sbInsertMsg(conversaId, previewTxt || ('[modelo: ' + name + ']'), await nomeDoAtendente(email));
+    await sbInsertMsg(conversaId, previewTxt || ('[modelo: ' + name + ']'), await nomeDoAtendente(email), j && j.messages && j.messages[0] && j.messages[0].id);
     return res.status(200).json({ ok: true, data: j });
   } catch (e) { return res.status(500).json({ error: e.message }); }
 }

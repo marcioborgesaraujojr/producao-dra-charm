@@ -46,7 +46,8 @@ async function nomeDoAtendente(email) {
   return _capitalizaNome(e.split('@')[0]) || null;
 }
 
-async function sbInsertMsg(conversaId, midiaUrl, caption, autor) {
+// wamid: ver o comentario em whatsapp-send.js — é o que liga a reação ao balão certo.
+async function sbInsertMsg(conversaId, midiaUrl, caption, autor, wamid) {
   await fetch(process.env.SUPABASE_URL + '/rest/v1/at_mensagens', {
     method: 'POST',
     headers: {
@@ -54,7 +55,7 @@ async function sbInsertMsg(conversaId, midiaUrl, caption, autor) {
       Authorization: 'Bearer ' + process.env.SUPABASE_SERVICE_ROLE_KEY,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ conversa_id: conversaId, direcao: 'out', tipo: 'imagem', conteudo: caption || '[imagem]', midia_url: midiaUrl, midia_tipo: 'imagem', autor: autor || 'atendente' })
+    body: JSON.stringify({ conversa_id: conversaId, direcao: 'out', tipo: 'imagem', conteudo: caption || '[imagem]', midia_url: midiaUrl, midia_tipo: 'imagem', autor: autor || 'atendente', meta: wamid ? { wamid } : {} })
   });
   await fetch(process.env.SUPABASE_URL + '/rest/v1/at_conversas?id=eq.' + conversaId, {
     method: 'PATCH',
@@ -101,6 +102,6 @@ export default async function handler(req, res) {
   if (!r.ok) {
     return res.status(400).json({ error: (j && j.error && j.error.message) || 'Falha ao enviar a foto', detalhe: j });
   }
-  if (conversaId) { try { await sbInsertMsg(conversaId, midiaUrl, caption, await nomeDoAtendente(email)); } catch (e) {} }
+  if (conversaId) { try { await sbInsertMsg(conversaId, midiaUrl, caption, await nomeDoAtendente(email), j && j.messages && j.messages[0] && j.messages[0].id); } catch (e) {} }
   return res.status(200).json({ ok: true, id: j && j.messages && j.messages[0] && j.messages[0].id || null });
 }
