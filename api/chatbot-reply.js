@@ -53,8 +53,8 @@ async function getConfig() {
 }
 const MARCA_TRANSFERIR = '[TRANSFERIR]';
 
-function montarSystem(cfg, cliente, faq, intencoes) {
-  let s = cfg.persona || 'Você é uma atendente virtual simpática e objetiva. Responda em português do Brasil.';
+function montarSystem(cfg, faq, intencoes) {
+  let s = cfg.persona || 'Você é do atendimento da Dra. Charm. Fala com a cliente pelo WhatsApp, em português do Brasil, de forma simpática e direta.';
   if (cfg.nome) s = 'Seu nome é ' + cfg.nome + (cfg.cargo ? (', ' + cfg.cargo) : '') + '.\n' + s;
 
   if (cfg.base_conhecimento && cfg.base_conhecimento.trim())
@@ -78,7 +78,11 @@ function montarSystem(cfg, cliente, faq, intencoes) {
        + 'Se não tiver um link válido dessa lista, explique sem link.';
   }
 
-  if (cliente && cliente.nome) s += '\n\nO cliente se chama ' + cliente.nome + ' (use o primeiro nome quando fizer sentido).';
+  /* O nome da cliente NÃO entra aqui — ele mudava a cada conversa e derrubava o cache.
+     Medido em produção no dia 20/08: 153.734 tokens GRAVADOS em cache contra 44.034 lidos,
+     ou seja, quase toda resposta reescrevia os ~5,7 mil tokens do system em vez de reusar.
+     Gravar custa 1,25x e ler custa 0,1x — uma linha de nome estava custando ~12x o que
+     devia. Agora ele vai no bloco da conversa, logo abaixo, que é de propósito sem cache. */
 
   /* COMO ESCREVER — medido, não opinado.
      Levantamos 503 pares reais (pergunta da cliente -> resposta da atendente humana) nas
@@ -106,6 +110,14 @@ function montarSystem(cfg, cliente, faq, intencoes) {
      + '  Atendente: "https://www.dracharm.com.br/buscar?q=jalecos+branco"\n'
      + '  Cliente: "Pode ser na quinta então?"\n'
      + '  Atendente: "Combinado"\n'
+     + '\nQUEM VOCÊ É — esta regra fica no código de propósito, pra não se perder numa edição da persona:\n'
+     + '- Você é o atendimento da Dra. Charm. Não se anuncie como robô, IA, bot nem "assistente virtual": '
+     + 'ninguém da equipe começa uma conversa dizendo o próprio cargo, e isso só afasta a cliente.\n'
+     + '- Também NUNCA afirme ser uma pessoa. Se a cliente perguntar direto se é robô, automático, IA ou gente, '
+     + 'responda a verdade numa linha ("sou o atendimento automático da Dra. Charm") e siga ajudando no mesmo fôlego. '
+     + 'Não é vergonha nenhuma; mentir sobre isso é o que quebra a confiança.\n'
+     + '- Se ela pedir pra falar com uma pessoa, não insista nem se justifique: passe na hora com ' + MARCA_TRANSFERIR + '.\n'
+     + '- Não fale de você mesma, não comente que "estou aqui pra ajudar", não elogie a pergunta.\n'
      + '\nO QUE VOCÊ NÃO PODE FAZER — isto é mais importante que parecer prestativa:\n'
      + '- NUNCA invente regra, prazo, política, preço ou endereço de página. Se a resposta exata não estiver '
      + 'no seu treinamento, diga com naturalidade que vai confirmar com o time e ' + MARCA_TRANSFERIR + '.\n'
@@ -123,6 +135,18 @@ function montarSystem(cfg, cliente, faq, intencoes) {
    o system grande (persona + FAQ + intenções, ~5 mil tokens) é idêntico em toda conversa
    e por isso fica em cache. Se os dados do pedido — que mudam a cada cliente — entrassem
    nele, o cache seria invalidado toda mensagem e a conta subiria uns 70%. */
+/* Tudo que muda de uma conversa pra outra mora aqui — nome da cliente e pedido — e este
+   bloco NUNCA leva cache_control. Se qualquer uma dessas linhas subir pro system grande,
+   o prefixo deixa de ser igual entre conversas e o cache morre. */
+function blocoConversa(cliente, pedido) {
+  const partes = [];
+  if (cliente && cliente.nome)
+    partes.push('A cliente desta conversa se chama ' + cliente.nome + ' (use o primeiro nome quando fizer sentido, sem repetir toda mensagem).');
+  const ped = blocoPedido(pedido);
+  if (ped) partes.push(ped);
+  return partes.length ? partes.join('\n\n') : null;
+}
+
 function blocoPedido(pedido) {
   if (!pedido) return null;
   return 'PEDIDO DESTA CLIENTE (consultado agora na Loja Integrada, é a verdade):\n'
@@ -205,8 +229,8 @@ async function viaOpenAI(cfg, mensagens, cliente, faq, intencoes, pedido) {
       // primeiro — e vem: o system é a primeira mensagem e não muda entre as chamadas.
       model: cfg.modelo || 'gpt-4o-mini',
       messages: [
-        { role: 'system', content: montarSystem(cfg, cliente, faq, intencoes) },
-        ...(blocoPedido(pedido) ? [{ role: 'system', content: blocoPedido(pedido) }] : []),
+        { role: 'system', content: montarSystem(cfg, faq, intencoes) },
+        ...(blocoConversa(cliente, pedido) ? [{ role: 'system', content: blocoConversa(cliente, pedido) }] : []),
         ...mensagens
       ],
       temperature: 0.5, max_tokens: 400
@@ -234,8 +258,8 @@ async function viaAnthropic(cfg, mensagens, cliente, faq, intencoes, chave, pedi
       // ~5 mil tokens). Sem cache, ele é cobrado inteiro a cada resposta. Marcado assim,
       // a releitura custa 10% — no volume de ~25 mil mensagens/mês isso corta ~70% da conta.
       system: [
-        { type: 'text', text: montarSystem(cfg, cliente, faq, intencoes), cache_control: { type: 'ephemeral' } },
-        ...(blocoPedido(pedido) ? [{ type: 'text', text: blocoPedido(pedido) }] : [])
+        { type: 'text', text: montarSystem(cfg, faq, intencoes), cache_control: { type: 'ephemeral' } },
+        ...(blocoConversa(cliente, pedido) ? [{ type: 'text', text: blocoConversa(cliente, pedido) }] : [])
       ],
       max_tokens: 400,
       messages: mensagens.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }))
