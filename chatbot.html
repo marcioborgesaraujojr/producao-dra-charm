@@ -758,7 +758,13 @@ async function salvarInts(btn){
    Os dois números vêm da /api/chatbot-metricas (service role + contagem exata).
    Ver o comentário lá em cima do arquivo: ler daqui do navegador devolveria vazio. */
 const BRL = 5.4;                       // dólar aproximado só pra dar noção; o preço da API é em USD
-const dinheiro = (usd) => 'US$ ' + usd.toFixed(2) + ' (~R$ ' + (usd * BRL).toFixed(2) + ')';
+// Duas casas escondem o número que mais interessa: o custo POR RESPOSTA é centavo de
+// centavo, e "US$ 0,00" não diz nada. Abaixo de 1 centavo, mostra 4 casas.
+function dinheiro(usd){
+  const v = Number(usd) || 0;
+  const casas = v > 0 && v < 0.01 ? 4 : 2;
+  return 'US$ ' + v.toFixed(casas) + ' (~R$ ' + (v * BRL).toFixed(casas) + ')';
+}
 const pct = (x) => (x * 100).toFixed(0) + '%';
 const milhar = (n) => (n || 0).toLocaleString('pt-BR');
 
