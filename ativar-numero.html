@@ -294,8 +294,13 @@
     const msg=document.getElementById('idcMsg'); msg.textContent='Salvando…'; msg.className='text-sm text-slate-500';
     try{ const cfg={ identificacao: document.getElementById('idcAtiva').checked, formato: document.getElementById('idcFormato').value };
       const blob=new Blob([JSON.stringify(cfg)]);
-      let r=await sb.storage.from('system-assets').upload('at-config.json', blob, {upsert:true, contentType:'text/plain', cacheControl:'0'});
+      /* O bucket system-assets só aceita imagem. Com text/plain e image/jpeg os DOIS
+         uploads falhavam calados — o arquivo nunca existiu, o atendimento caía no padrão
+         (identificação desligada) e o nome da atendente nunca aparecia pra cliente.
+         image/png passa. Ordem: o que funciona primeiro. */
+      let r=await sb.storage.from('system-assets').upload('at-config.json', blob, {upsert:true, contentType:'image/png', cacheControl:'0'});
       if(r.error) r=await sb.storage.from('system-assets').upload('at-config.json', blob, {upsert:true, contentType:'image/jpeg', cacheControl:'0'});
+      if(r.error) r=await sb.storage.from('system-assets').upload('at-config.json', blob, {upsert:true, contentType:'text/plain', cacheControl:'0'});
       if(r.error) throw r.error; msg.textContent='Salvo!'; msg.className='text-sm font-semibold text-emerald-600';
     }catch(e){ msg.textContent='Erro ao salvar: '+(e.message||e); msg.className='text-sm text-rose-600'; }
   };
