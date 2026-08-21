@@ -26,6 +26,7 @@
 // POST ?token=... -> processa 1 evento
 
 import { createHash } from 'crypto';
+import { buscarPedidoLI } from '../lib/li-pedido.js';
 
 const GRAPH = 'https://graph.facebook.com/v20.0';
 const SB    = () => process.env.SUPABASE_URL;
@@ -405,6 +406,42 @@ export default async function handler(req, res) {
       return (v == null || v === '') ? '-' : v;
     });
 
+    /* ===== SEGURA O AVISO SEM CÓDIGO DE RASTREIO =====
+       A Loja Integrada dispara "pedido enviado" ANTES de gravar o objeto de rastreio.
+       Resultado medido em 20/08: 175 dos 552 avisos de despacho (32%, sendo 49 num dia só)
+       saíram com "Código de rastreio: -". A cliente recebia um traço, e quando perguntava,
+       o robô mandava ela conferir um e-mail que não tinha código nenhum.
+
+       O código não some: de 8 pedidos avisados com traço na véspera, 6 já tinham código na
+       LI no dia seguinte. Ele só chega DEPOIS do webhook. Então a gente não manda torto:
+       consulta a LI na hora (às vezes já está lá) e, se ainda não estiver, guarda o disparo
+       como 'aguardando_rastreio'. O api/disparo-pendentes.js reconsulta e manda assim que o
+       código aparecer. */
+    const idxRastreio = mapa.map((k, i) => ((k === 'rastreio' || k === 'envios.0.objeto') ? i : -1)).filter(i => i >= 0);
+    let rastreioAgora = p.rastreio;
+    if (idxRastreio.length && !rastreioAgora && p.numero) {
+      try {
+        const r = await buscarPedidoLI(p.numero);
+        if (r && r.ok && r.pedido && r.pedido.codigo_rastreio) rastreioAgora = String(r.pedido.codigo_rastreio);
+      } catch (e) { /* consulta é bônus: se falhar, segue pro caminho de segurar */ }
+    }
+    if (idxRastreio.length && rastreioAgora) idxRastreio.forEach(i => { params[i] = rastreioAgora; });
+
+    /* Em MODO SECO nada é segurado: o modo existe pra ele VER na tela o que sairia.
+       Segurar aqui esconderia o disparo do painel, e pior: o cron mandaria de verdade
+       depois, furando justamente o modo que existe pra não mandar nada. */
+    const secoAgora = await modoSeco();
+    if (idxRastreio.length && !rastreioAgora && g.template_name && !secoAgora) {
+      await sb('at_disparos_log', { method: 'POST', body: JSON.stringify({
+        evento_key: p.codigo, loja: 'loja_integrada', telefone: p.waid, pedido: p.numero || null,
+        template_name: g.template_name, status: 'aguardando_rastreio',
+        detalhe: 'a Loja Integrada ainda não gravou o código de rastreio deste pedido',
+        payload: { params, idxRastreio, template_language: g.template_language || 'pt_BR',
+                   nome: p.nome, evento_code: g.evento_code, evento_nome: g.evento_nome,
+                   aplica_tags: g.aplica_tags || null, mensagem: g.mensagem || null } }) });
+      return res.status(200).json({ received: true, resultado: 'segurado até o código de rastreio sair' });
+    }
+
     if (!g.template_name) {
       // não é falha: o gatilho está ligado mas ainda não escolheram o modelo.
       await sb('at_disparos_log', { method: 'POST', body: JSON.stringify({
@@ -416,7 +453,7 @@ export default async function handler(req, res) {
     }
 
     // 5) MODO SECO: registra o que enviaria, sem enviar
-    const seco = await modoSeco();
+    const seco = secoAgora;
     if (seco || !process.env.WA_ACCESS_TOKEN || !process.env.WA_PHONE_NUMBER_ID) {
       await sb('at_disparos_log', { method: 'POST', body: JSON.stringify({
         evento_key: p.codigo, loja: 'loja_integrada', telefone: p.waid, pedido: p.numero || null,
