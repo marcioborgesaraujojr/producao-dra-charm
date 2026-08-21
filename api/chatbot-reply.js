@@ -156,6 +156,13 @@ function montarSystem(cfg, faq, intencoes) {
      + MARCA_TRANSFERIR + ' na mesma mensagem. Prometer conferir e sumir é o pior dos três.\n'
      + '- Se você não sabe: diga que não sabe e passe. "Não tenho essa informação aqui, vou chamar alguém do '
      + 'time" é honesto. "Deixa eu verificar" é promessa que você não pode cumprir.\n'
+     + '\nQUANDO A CLIENTE MANDA FOTO:\n'
+     + '- Olhe a foto e diga o que dá pra ver. Se for uma peça nossa e você reconhecer o modelo, '
+     + 'fale o nome dele. Se for print de pedido, leia o número do pedido e trate como se ela tivesse digitado.\n'
+     + '- Não afirme modelo, cor ou preço só pela foto quando não tiver certeza — cor de tela engana. '
+     + 'Pergunte o nome do produto ou peça o link, que é mais rápido pra ela do que receber a resposta errada.\n'
+     + '- Se a foto for de defeito, mancha, peça rasgada ou pedido trocado, isso é caso de gente: '
+     + 'diga que vai passar pra alguém olhar e ' + MARCA_TRANSFERIR + '.\n'
      + '\nO QUE VOCÊ NÃO PODE FAZER — isto é mais importante que parecer prestativa:\n'
      + '- NUNCA invente regra, prazo, política, preço ou endereço de página. Se a resposta exata não estiver '
      + 'no seu treinamento, diga com naturalidade que vai confirmar com o time e ' + MARCA_TRANSFERIR + '.\n'
@@ -392,6 +399,40 @@ async function viaOpenAI(cfg, mensagens, cliente, faq, intencoes, pedido, estoqu
     }
   };
 }
+/* ===== A FOTO DA CLIENTE =====
+   Até 21/08 o robô era cego: quem mandava foto do produto ou print do pedido ficava sem
+   resposta nenhuma. A mídia já vinha guardada num bucket público, então o que faltava era
+   só passar a URL adiante.
+
+   Duas travas de propósito:
+   - no MÁXIMO as 2 fotos mais recentes. Cada imagem custa tokens, e a conversa inteira de
+     fotos de uma cliente indecisa multiplicaria a conta sem melhorar a resposta.
+   - só as fotos DELA (o webhook já filtra), e só se a URL for do nosso Storage. Mandar uma
+     URL qualquer que apareça no meio da conversa é abrir a porta pra buscar imagem de fora. */
+const MAX_FOTOS = 2;
+function paraAnthropic(mensagens) {
+  const nossoStorage = (u) => {
+    try {
+      const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+      return !!base && String(u).startsWith(base + '/storage/v1/object/public/');
+    } catch (e) { return false; }
+  };
+  const comFoto = mensagens.map((m, i) => ({ m, i })).filter(x => x.m.imagem && nossoStorage(x.m.imagem));
+  const permitidas = new Set(comFoto.slice(-MAX_FOTOS).map(x => x.i));
+
+  return mensagens.map((m, i) => {
+    const role = m.role === 'assistant' ? 'assistant' : 'user';
+    if (!permitidas.has(i)) {
+      // foto antiga (ou de fora): entra como menção, pra conversa não ficar com buraco
+      const txt = (m.content || '').trim() || (m.imagem ? '[a cliente mandou uma foto aqui]' : '');
+      return { role, content: txt };
+    }
+    const partes = [{ type: 'image', source: { type: 'url', url: m.imagem } }];
+    if ((m.content || '').trim()) partes.push({ type: 'text', text: m.content });
+    return { role, content: partes };
+  }).filter(m => (typeof m.content === 'string' ? m.content.length : m.content.length));
+}
+
 async function viaAnthropic(cfg, mensagens, cliente, faq, intencoes, chave, pedido, estoque) {
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -406,7 +447,7 @@ async function viaAnthropic(cfg, mensagens, cliente, faq, intencoes, chave, pedi
         ...(blocoConversa(cliente, pedido, estoque) ? [{ type: 'text', text: blocoConversa(cliente, pedido, estoque) }] : [])
       ],
       max_tokens: 400,
-      messages: mensagens.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }))
+      messages: paraAnthropic(mensagens)
     })
   });
   const j = await r.json();

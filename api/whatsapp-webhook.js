@@ -430,13 +430,28 @@ async function maybeBotReply(conversaId, clienteNome, inboundText, waid, host, u
 
     // histórico — quantas mensagens ele lê é ajustável na aba Configurações
     const contexto = Math.min(Math.max(parseInt(cfg.contexto_msgs, 10) || 12, 2), 40);
-    let rows = []; try { rows = await sbFetch('at_mensagens?conversa_id=eq.' + conversaId + '&select=direcao,conteudo,tipo,meta,enviada_em&order=enviada_em.desc&limit=' + (contexto + 20)); } catch (e) {}
+    let rows = []; try { rows = await sbFetch('at_mensagens?conversa_id=eq.' + conversaId + '&select=direcao,conteudo,tipo,meta,enviada_em,midia_url,midia_tipo&order=enviada_em.desc&limit=' + (contexto + 20)); } catch (e) {}
     const todas = (Array.isArray(rows) ? rows : []).reverse();
+    /* FOTO DA CLIENTE ENTRA NA CONVERSA.
+       Antes o robô só via texto: quem mandava foto do produto ou print do pedido ficava sem
+       resposta nenhuma (2 das 16 conversas paradas em 21/08 eram exatamente isso). A mídia já
+       é baixada e guardada num bucket público, então basta passar a URL adiante — o modelo
+       enxerga a imagem de verdade.
+       Só IMAGEM: áudio, vídeo e documento seguem fora, porque o modelo não lê e fingir que
+       leu seria pior. */
+    const ehImagem = (m) => m.tipo === 'imagem' && m.midia_url && /^image\//.test(m.midia_tipo || 'image/');
     const msgs = todas
-      .filter(m => (m.tipo === 'texto' || !m.tipo) && (m.direcao === 'in' || m.direcao === 'out'))
-      .map(m => ({ role: m.direcao === 'out' ? 'assistant' : 'user', content: m.conteudo || '' }))
+      .filter(m => (m.tipo === 'texto' || !m.tipo || ehImagem(m)) && (m.direcao === 'in' || m.direcao === 'out'))
+      .map(m => {
+        const base = { role: m.direcao === 'out' ? 'assistant' : 'user', content: m.conteudo || '' };
+        // imagem só da CLIENTE: mandar de volta a foto que nós enviamos é gasto sem uso
+        if (ehImagem(m) && m.direcao === 'in') { base.imagem = m.midia_url; base.content = m.conteudo || ''; }
+        return base;
+      })
       .slice(-contexto);
     if (!msgs.length) return;
+    // conversa que só tem foto e nenhuma palavra ainda assim merece resposta
+    if (!msgs.some(m => (m.content || '').trim() || m.imagem)) return;
 
     // ---- Limite de respostas por conversa (aba Configurações) ----
     const limite = parseInt(cfg.limite_msgs, 10) || 0;
@@ -717,8 +732,9 @@ export default async function handler(req, res) {
             }
           } catch (e) { /* foto é best-effort */ }
 
-          // Chatbot IA: só reage a mensagem de TEXTO do cliente (não figurinha/áudio/etc)
-          if (m.type === 'text') {
+          // Chatbot IA: texto e FOTO. Figurinha, áudio e documento continuam fora — o modelo
+          // não lê áudio, e responder como se tivesse lido seria inventar.
+          if (m.type === 'text' || m.type === 'image') {
             await maybeBotReply(conversaId, contatoNome || 'Cliente', conteudo, waid, host, m.id);
             await maybeAusencia(conversaId, waid, contatoNome);
           }
