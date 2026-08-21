@@ -17,6 +17,7 @@
 // Não escreve nada além do cache. Devolve só se está quente e quando vence.
 
 import { getBlingToken } from '../lib/bling-token.js';
+import { saldoAoVivo } from '../lib/bling.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -32,6 +33,24 @@ export default async function handler(req, res) {
   try {
     const t0 = Date.now();
     const token = await getBlingToken();
+
+    /* ?sku=00243-gg — prova que a consulta ao vivo está de pé de ponta a ponta.
+       Sem isto, um filtro que o Bling ignorasse faria o robô cair no retrato em silêncio:
+       nada quebra, nada avisa, e a gente acharia que está consultando ao vivo sem estar.
+       Só leitura, e não devolve o token. */
+    if (req.query.sku) {
+      const skus = String(req.query.sku).split(',').map(s => s.trim()).filter(Boolean).slice(0, 4);
+      const t1 = Date.now();
+      const mapa = await saldoAoVivo(skus);
+      return res.status(200).json({
+        ok: true, quente: !!token,
+        aoVivo: !!mapa,
+        saldos: mapa ? Object.fromEntries(mapa) : null,
+        naoAchou: skus.filter(s => !mapa || !mapa.has(s.toLowerCase())),
+        ms: Date.now() - t1
+      });
+    }
+
     /* Nunca devolver o token. Este endpoint diz SE tem, não QUAL é. */
     return res.status(200).json({ ok: true, quente: !!token, ms: Date.now() - t0 });
   } catch (e) {
