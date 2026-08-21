@@ -17,7 +17,7 @@
 // Retorno: { reply, handoff:boolean }
 
 import { getAnthropicKey } from '../lib/licfg.js';
-import { buscarPedidoLI, pedidoEmTexto } from '../lib/li-pedido.js';
+import { buscarPedidoLI, pedidoEmTexto, mesmoTelefone } from '../lib/li-pedido.js';
 import { procurarNoEstoque, estoqueEmTexto } from '../lib/estoque.js';
 
 async function callerEmail(token) {
@@ -216,8 +216,19 @@ function montarSystem(cfg, faq, intencoes) {
      + '- Pode lembrar do que existe de verdade: PIX com 5% e frete grátis acima de R$500.\n'
      /* Regra dele, textual: o cupom é ferramenta de recompra, não moeda de troca pra quem
         está pedindo desconto. Se o robô entregar, o cupom perde a função. */
-     + '- NUNCA cite cupom de desconto, com nenhum nome, nem se a cliente pedir, insistir ou disser que '
-     + 'viu em algum lugar. Cupom não é assunto seu.\n'
+     /* Primeira versão desta regra dizia "nunca cite cupom" e mesmo assim, pra "não tem
+        nenhum cupom pra mim?", ela respondeu "Tem o BEMVINDO10 se for primeira compra
+        (R$10 de desconto)". Fui procurar: BEMVINDO10 não existe em lugar nenhum — nem nas
+        32 perguntas do treinamento, nem nas 12 situações, nem na base. Ela INVENTOU o cupom
+        e o valor. Não é vazamento de informação, é promessa que a loja teria que honrar. */
+     /* De propósito sem exemplo de código aqui: escrever o nome do cupom inventado dentro
+        da própria regra é entregar ao modelo a palavra que ele não deve dizer. */
+     + '- CUPOM: você não tem nenhum cupom pra dar. NUNCA cite código de cupom, nem invente um, '
+     + 'nem "lembre" de um que ache que existe — se um código não está escrito no seu treinamento, '
+     + 'ele NÃO EXISTE, por mais que o nome pareça familiar ou óbvio.\n'
+     + '- Se ela pedir cupom: diga com simpatia que não tem cupom no momento, e ofereça o que existe '
+     + 'de verdade (PIX com 5%, frete grátis acima de R$500, Charm Club). Isso vale mesmo se ela '
+     + 'insistir, disser que viu num anúncio ou que uma atendente prometeu.\n'
      + '\nCOMO VOCÊ FECHA UMA CONVERSA:\n'
      /* Ela respondeu "obrigada" com um emoji sozinho. Não é errado, é vazio — e deixa a
         conversa aberta na fila, porque não soa como fim. */
@@ -310,9 +321,9 @@ function blocoConversa(cliente, pedido, estoque) {
   if (hr) partes.push(hr);
   if (cliente && cliente.nome)
     partes.push('A cliente desta conversa se chama ' + cliente.nome + ' (use o primeiro nome quando fizer sentido, sem repetir toda mensagem).');
-  const ped = (pedido && pedido.naoEncontrado)
-    ? blocoPedidoNaoEncontrado(pedido.naoEncontrado)
-    : blocoPedido(pedido);
+  const ped = (pedido && pedido.naoEncontrado) ? blocoPedidoNaoEncontrado(pedido.naoEncontrado)
+            : (pedido && pedido.naoConfere)    ? blocoPedidoNaoConfere(pedido.naoConfere)
+            : blocoPedido(pedido);
   if (ped) partes.push(ped);
   const est = blocoEstoque(estoque);
   if (est) partes.push(est);
@@ -415,6 +426,20 @@ function blocoPedidoNaoEncontrado(numero) {
     + 'Diga que não conseguiu localizar esse número, sem culpar ela e sem inventar situação de pedido. '
     + 'E mostre os dois jeitos de achar o número certo: na aba "Meus pedidos" do site, ou rastreando '
     + 'só pelo e-mail em https://dracharm.cademeupedido.com.br/ .';
+}
+
+/* Existe um pedido com esse número, mas não dá pra confirmar que é dela. Nunca conte nada
+   do pedido aqui: nem situação, nem itens, nem rastreio. Situação de pedido é dado de
+   cliente, e a pessoa do outro lado pode não ser a dona. */
+function blocoPedidoNaoConfere(numero) {
+  return 'ATENÇÃO: existe um pedido com o número ' + numero + ', mas ele NÃO está no cadastro desta '
+    + 'cliente e não deu pra confirmar que é dela.\n'
+    + 'NÃO diga nada sobre esse pedido — nem a situação, nem os itens, nem o rastreio. Não afirme que '
+    + 'o número está errado nem que é de outra pessoa: você não sabe.\n'
+    + 'Diga que por segurança não consegue abrir os dados desse pedido por aqui, que ela pode ver tudo '
+    + 'entrando em "Meus pedidos" no site ou rastreando pelo e-mail da compra em '
+    + 'https://dracharm.cademeupedido.com.br/ , e ofereça passar pra alguém do time se ela preferir '
+    + 'resolver por aqui — se ela aceitar, ' + MARCA_TRANSFERIR + '.';
 }
 
 /* O modelo escreve em Markdown — negrito com DOIS asteriscos. O WhatsApp usa UM.
@@ -677,24 +702,59 @@ function numeroNaConversa(mensagens) {
   return null;
 }
 
+/* Dados da conversa que servem pra decidir se o pedido citado é mesmo dela. */
+async function donoDaConversa(conversaId) {
+  if (!conversaId) return {};
+  try {
+    const r = await fetch(process.env.SUPABASE_URL
+      + '/rest/v1/at_conversas?select=pedido_numero,cliente:at_clientes(telefone,email)&id=eq.'
+      + encodeURIComponent(conversaId), { headers: SB() });
+    const j = await r.json();
+    const row = Array.isArray(j) && j[0];
+    if (!row) return {};
+    return {
+      pedidoDaLoja: row.pedido_numero ? String(row.pedido_numero).replace(/\D/g, '') : null,
+      telefone: row.cliente && row.cliente.telefone,
+      email: row.cliente && row.cliente.email
+    };
+  } catch (e) { return {}; }
+}
+
 async function pedidoDaConversa(conversaId, mensagens) {
-  let numero = numeroNaConversa(mensagens);
-  if (!numero && conversaId) {
-    try {
-      const r = await fetch(process.env.SUPABASE_URL + '/rest/v1/at_conversas?select=pedido_numero&id=eq.'
-        + encodeURIComponent(conversaId), { headers: SB() });
-      const j = await r.json();
-      const n = Array.isArray(j) && j[0] && j[0].pedido_numero;
-      if (n) numero = String(n).replace(/\D/g, '');
-    } catch (e) { /* sem número é só ficar sem os dados */ }
-  }
+  const dono = await donoDaConversa(conversaId);
+  const digitado = numeroNaConversa(mensagens);
+  const numero = digitado || dono.pedidoDaLoja;
   if (!numero) return null;
+
+  /* ===== DUAS PROCEDÊNCIAS, DUAS CONFIANÇAS =====
+     Quando o número veio do at_conversas.pedido_numero, quem o gravou foi a automação da
+     própria loja, PARA ESTA conversa. É dela, ponto.
+
+     Quando a cliente digitou, não é. Caso real: ela mandou "45890" e a LI devolveu um
+     pedido de verdade — de 17/12/2023, de outra pessoa, porque a numeração deles já passou
+     por aí. O robô respondeu "seu pedido já foi entregue". Contou a situação do pedido
+     alheio pra quem digitou um número qualquer.
+
+     Então número digitado tem que bater com a dona: o mesmo número que a loja já gravou
+     nesta conversa, ou o contato do pedido igual ao contato da cliente. */
+  const daLoja = !!dono.pedidoDaLoja && numero === dono.pedidoDaLoja;
+
   try {
     const r = await buscarPedidoLI(numero);
     /* Devolver só `null` quando não acha apaga a informação mais útil que existe: que ela
        DEU um número e ele não bateu. Era por isso que o robô mandava o link de rastreio pra
        quem tinha digitado um número inexistente. */
-    return r.ok ? r.pedido : { naoEncontrado: numero };
+    if (!r.ok || !r.pedido) return { naoEncontrado: numero };
+    if (daLoja) return r.pedido;
+
+    const ct = r.pedido.contato || {};
+    const bateTelefone = (ct.telefones || []).some(t => mesmoTelefone(t, dono.telefone));
+    const bateEmail = !!(ct.email && dono.email && ct.email === String(dono.email).trim().toLowerCase());
+    if (bateTelefone || bateEmail) return r.pedido;
+
+    /* Não deu pra confirmar. Pode ser pedido de outra pessoa, pode ser ela comprando com
+       outro telefone — e a diferença importa demais pra chutar. Quem desempata é gente. */
+    return { naoConfere: numero };
   } catch (e) { return null; }   // consulta nunca derruba a resposta
 }
 
