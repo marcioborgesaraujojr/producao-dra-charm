@@ -470,17 +470,19 @@ function umEmojiSo(texto){
     .replace(/[ \t]+\n/g, '\n');
 }
 
-/* ===== CUPOM INVENTADO: O PROMPT NÃO SEGUROU, DUAS VEZES =====
-   Pra "não tem nenhum cupom pra mim?" ela respondeu "Tem o BEMVINDO10 se for primeira
-   compra (R$10 de desconto)". Fui procurar: BEMVINDO10 não existe — nem nas 32 perguntas
-   do treinamento, nem nas 12 situações, nem na base. O modelo inventou o código E o valor.
+/* ===== CUPOM QUE NÃO ESTÁ ESCRITO EM LUGAR NENHUM =====
+   Pra "não tem nenhum cupom pra mim?" ela respondeu "Tem o BEMVINDO10, R$10 de desconto na
+   primeira compra". Procurei nas 32 perguntas do treinamento, nas 12 situações e na base:
+   não estava em nenhuma. Concluí que tinha inventado — e o Marcio corrigiu: o BEMVINDO10
+   EXISTE mesmo, R$10, só primeira compra.
 
-   Escrevi a regra proibindo. Ela repetiu o mesmo cupom. Reescrevi a regra mais forte, sem
-   citar o nome (pra não entregar a palavra). Ela repetiu de novo, agora pra uma cliente
-   dizendo que "viu num anúncio".
+   O que isso quer dizer é pior, não melhor: ela acertou por fora do treinamento. Do lado de
+   cá é indistinguível de invenção, e da próxima vez pode ser um código que não existe, ou o
+   valor errado do que existe — e aí é promoção que a loja tem que honrar.
 
-   É o mesmo caminho do emoji: pedir no prompt é esperança, cortar na saída é garantia. E
-   aqui o custo de errar é maior que estética — é uma promoção que a loja teria que honrar.
+   Por isso o filtro não pergunta se o cupom é real: pergunta se ele está ESCRITO. Código que
+   o Marcio cadastrar no treinamento passa; código que aparecer do nada, não. É o mesmo
+   caminho do emoji e do bordão: pedir no prompt é esperança, cortar na saída é garantia.
 
    O que é código de cupom, na prática: caixa alta, letra E número juntos, 5 a 20 caracteres
    (BEMVINDO10, PRIMEIRA15). Isso não pega "PIX", "SEDEX", "PP", "GG", "4x" nem "R$500". */
@@ -526,8 +528,24 @@ function cupomsPermitidos(cfg, faq){
   return new Set(fonte.match(CODIGO_CUPOM) || []);
 }
 
+/* Resposta que é SÓ emoji. Pra "obrigada" ela mandou "😊" e nada mais.
+   Não está errado, está vazio: não soa como fim, então a conversa fica aberta na fila e
+   alguém ainda vai abrir pra ver o que ficou pendente. Pedi no prompt ("nunca responda só
+   com emoji") e numa hora ela obedeceu, na outra não — então vale o mesmo tratamento do
+   cupom e do emoji: garantir aqui.
+   O emoji que ela escolheu fica; o que faltava era a frase. */
+const FECHO = 'Por nada! Qualquer coisa é só chamar aqui';
+function nuncaSoEmoji(texto){
+  const t = String(texto || '').trim();
+  if (!t) return t;
+  const semEmoji = t.replace(EMOJI, '').replace(/[\s!.…]/g, '');
+  if (semEmoji.length) return t;                      // tem palavra: deixa como está
+  /* "😊!" viraria "…chamar aqui 😊!" — a pontuação era o fim da mensagem dela, não da nossa. */
+  return (FECHO + ' ' + t.replace(/[\s!.…]+$/, '')).trim();
+}
+
 function paraWhatsApp(texto){
-  return umEmojiSo(String(texto || ''))
+  return nuncaSoEmoji(umEmojiSo(String(texto || '')))
     .replace(/\*\*\*(.+?)\*\*\*/gs, '*$1*')      // ***forte*** -> *forte*
     .replace(/\*\*(.+?)\*\*/gs,     '*$1*')      // **negrito**  -> *negrito*
     .replace(/__(.+?)__/gs,         '*$1*')      // __negrito__  -> *negrito*
