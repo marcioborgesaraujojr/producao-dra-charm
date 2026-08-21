@@ -18,6 +18,7 @@
 
 import { getAnthropicKey } from '../lib/licfg.js';
 import { buscarPedidoLI, pedidoEmTexto } from '../lib/li-pedido.js';
+import { procurarNoEstoque, estoqueEmTexto } from '../lib/estoque.js';
 
 async function callerEmail(token) {
   if (!token) return null;
@@ -162,13 +163,33 @@ function montarSystem(cfg, faq, intencoes) {
 /* Tudo que muda de uma conversa pra outra mora aqui — nome da cliente e pedido — e este
    bloco NUNCA leva cache_control. Se qualquer uma dessas linhas subir pro system grande,
    o prefixo deixa de ser igual entre conversas e o cache morre. */
-function blocoConversa(cliente, pedido) {
+function blocoConversa(cliente, pedido, estoque) {
   const partes = [];
   if (cliente && cliente.nome)
     partes.push('A cliente desta conversa se chama ' + cliente.nome + ' (use o primeiro nome quando fizer sentido, sem repetir toda mensagem).');
   const ped = blocoPedido(pedido);
   if (ped) partes.push(ped);
+  const est = blocoEstoque(estoque);
+  if (est) partes.push(est);
   return partes.length ? partes.join('\n\n') : null;
+}
+
+/* "Tem na cor lilás?" é 27% do motivo do contato — o maior de todos, medido em 586 conversas
+   de 19 e 20/08. Até aqui o robô respondia mandando o link de busca do site, porque não tinha
+   como saber. O retrato do catálogo (api/estoque-sync.js, todo dia 07:30) tem saldo por
+   tamanho e estava parado no Storage. */
+function blocoEstoque(estoque) {
+  const txt = estoqueEmTexto(estoque);
+  if (!txt) return null;
+  const quando = estoque.atualizado_em ? String(estoque.atualizado_em).slice(0, 10) : 'hoje';
+  return 'ESTOQUE DE HOJE (retrato do catálogo em ' + quando + ', é a verdade sobre o que tem):\n'
+    + txt
+    + '\n\nUse isto pra responder "tem?", "tem na cor X?", "tem no meu tamanho?", "quanto custa?".\n'
+    + '- Diga com naturalidade quais tamanhos têm. Não liste preço se ela não perguntou preço.\n'
+    + '- Se estiver esgotado, diga que está sem no momento e ofereça o "Avise-me" na página do produto.\n'
+    + '- NUNCA reserve, segure nem prometa peça: este é um retrato do dia, quem manda é o site na hora da compra.\n'
+    + '- Se o produto que ela quer não estiver nesta lista, não afirme que não existe: mande a busca do site.\n'
+    + '- Não fale em "estoque do sistema", "consultei aqui", "planilha". Fale como quem conhece a loja.';
 }
 
 function blocoPedido(pedido) {
@@ -266,7 +287,7 @@ function limparLinks(texto, cfg){
     .replace(/ +([.,;:!?])/g, '$1');
 }
 
-async function viaOpenAI(cfg, mensagens, cliente, faq, intencoes, pedido) {
+async function viaOpenAI(cfg, mensagens, cliente, faq, intencoes, pedido, estoque) {
   const r = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + process.env.OPENAI_API_KEY, 'Content-Type': 'application/json' },
@@ -276,7 +297,7 @@ async function viaOpenAI(cfg, mensagens, cliente, faq, intencoes, pedido) {
       model: cfg.modelo || 'gpt-4o-mini',
       messages: [
         { role: 'system', content: montarSystem(cfg, faq, intencoes) },
-        ...(blocoConversa(cliente, pedido) ? [{ role: 'system', content: blocoConversa(cliente, pedido) }] : []),
+        ...(blocoConversa(cliente, pedido, estoque) ? [{ role: 'system', content: blocoConversa(cliente, pedido, estoque) }] : []),
         ...mensagens
       ],
       temperature: 0.5, max_tokens: 400
@@ -294,7 +315,7 @@ async function viaOpenAI(cfg, mensagens, cliente, faq, intencoes, pedido) {
     }
   };
 }
-async function viaAnthropic(cfg, mensagens, cliente, faq, intencoes, chave, pedido) {
+async function viaAnthropic(cfg, mensagens, cliente, faq, intencoes, chave, pedido, estoque) {
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'x-api-key': chave || process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
@@ -305,7 +326,7 @@ async function viaAnthropic(cfg, mensagens, cliente, faq, intencoes, chave, pedi
       // a releitura custa 10% — no volume de ~25 mil mensagens/mês isso corta ~70% da conta.
       system: [
         { type: 'text', text: montarSystem(cfg, faq, intencoes), cache_control: { type: 'ephemeral' } },
-        ...(blocoConversa(cliente, pedido) ? [{ type: 'text', text: blocoConversa(cliente, pedido) }] : [])
+        ...(blocoConversa(cliente, pedido, estoque) ? [{ type: 'text', text: blocoConversa(cliente, pedido, estoque) }] : [])
       ],
       max_tokens: 400,
       messages: mensagens.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }))
@@ -401,6 +422,12 @@ export default async function handler(req, res) {
   // diferença entre responder "está em produção" e inventar.
   const pedido = await pedidoDaConversa(conversaId, mensagens);
 
+  /* Estoque: procura no catálogo com as palavras das ÚLTIMAS mensagens da cliente. Só as
+     dela — se entrasse o que o robô escreveu, ele acharia os produtos que ele mesmo acabou
+     de citar e ficaria girando em torno deles. */
+  const falaDela = mensagens.filter(m => m.role !== 'assistant').slice(-3).map(m => m.content || '').join(' ');
+  const estoque = await procurarNoEstoque(falaDela);
+
   const usaClaude = (cfg.modelo || '').startsWith('claude');
   const chaveAnthropic = await getAnthropicKey();
   const temOpenAI = !!process.env.OPENAI_API_KEY;
@@ -409,9 +436,9 @@ export default async function handler(req, res) {
 
   try {
     let saida;
-    if (usaClaude && temAnthropic) saida = await viaAnthropic(cfg, mensagens, cliente, faq, intencoes, chaveAnthropic, pedido);
-    else if (temOpenAI) saida = await viaOpenAI(cfg, mensagens, cliente, faq, intencoes, pedido);
-    else if (temAnthropic) saida = await viaAnthropic(cfg, mensagens, cliente, faq, intencoes, chaveAnthropic, pedido);
+    if (usaClaude && temAnthropic) saida = await viaAnthropic(cfg, mensagens, cliente, faq, intencoes, chaveAnthropic, pedido, estoque);
+    else if (temOpenAI) saida = await viaOpenAI(cfg, mensagens, cliente, faq, intencoes, pedido, estoque);
+    else if (temAnthropic) saida = await viaAnthropic(cfg, mensagens, cliente, faq, intencoes, chaveAnthropic, pedido, estoque);
     else return res.status(503).json({ error: 'Chatbot não configurado: falta OPENAI_API_KEY ou ANTHROPIC_API_KEY no Vercel.' });
     let reply = saida.texto;
 
