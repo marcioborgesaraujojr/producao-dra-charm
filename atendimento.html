@@ -116,8 +116,14 @@
 </style>
 <style id="dc-mobile">
 @media (max-width: 767px){
+  /* A barrinha de ícones da esquerda também no celular, mas SÓ na lista: dentro de uma
+     conversa a tela inteira é do chat (é por isso que o cabeçalho de cima some ali).
+     48px em vez de 56 — num celular de 390px cada pixel da lista conta. */
   #atRail{ display:none !important; }
   #appWrap{ padding-left:0 !important; }
+  body:has(#shell[data-view="lista"]) #atRail{ display:flex !important; width:48px; }
+  body:has(#shell[data-view="lista"]) #atRail.aberto{ width:220px; }
+  body:has(#shell[data-view="lista"]) #appWrap{ padding-left:3rem !important; }
   #paneLista{ width:100% !important; border-right:0 !important; }
   #shell[data-view="lista"] > main{ display:none !important; }
   #shell[data-view="chat"]  > #paneLista{ display:none !important; }
@@ -172,7 +178,9 @@
 </header>
 
 <div id="shell" data-view="lista" class="flex" style="height:calc(100vh - 3.5rem)">
-  <aside id="paneLista" class="w-[340px] shrink-0 flex flex-col bg-white dark:bg-ink-800 border-r border-slate-200 dark:border-ink-600">
+  <!-- 380px e não 340: as quatro abas somam ~323px e só cabiam 308, então "Todas" caía
+       sozinha numa segunda linha e comia altura da lista de conversas. -->
+  <aside id="paneLista" class="w-[380px] shrink-0 flex flex-col bg-white dark:bg-ink-800 border-r border-slate-200 dark:border-ink-600">
     <div class="px-4 pt-3 pb-2 border-b border-slate-200 dark:border-ink-600">
       <div class="flex items-center gap-2.5 gap-y-1 mb-3 flex-wrap">
         <span class="conv-tab" data-tab="minhas" data-active="1" onclick="setTab('minhas')">Minhas <span id="badgeMinhas" class="ml-0.5 text-[10px] bg-slate-200 text-slate-600 dark:bg-ink-600 dark:text-slate-300 rounded-full px-1 py-0.5 align-middle">0</span></span>
