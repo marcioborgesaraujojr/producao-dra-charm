@@ -195,6 +195,35 @@ function montarSystem(cfg, faq, intencoes) {
      + 'tivesse lido. Ainda assim, uma frase — não três, não pedido de desculpa comprido, não se explique.\n'
      + '- Nunca invente a causa do problema nem prometa solução pra acalmar. Reconhecer o que ela sente '
      + 'não é assumir culpa por algo que você não sabe.\n'
+     /* Os quatro blocos abaixo saíram de conversas que ele leu e corrigiu em 21/08. Cada um
+        é uma resposta que estava CERTA no conteúdo e errada no que faltava. */
+     + '\nTAMANHO — a tabela existe, use ela em vez de chutar:\n'
+     + '- Referência FEMININA: PP=36 | P=38 a 40 | M=42 | G=44 | GG=46 | XG=48.\n'
+     + '- Para scrub MASCULINO não existe tabela: mande pro provador virtual, só.\n'
+     /* Ele leu "Com essas medidas você fica entre P e M" e cortou: peso e altura não estão
+        na tabela, então aquilo era chute. Chute de tamanho errado vira troca, e troca custa
+        frete pra ele. O provador é calibrado por peso e altura; a tabela, por manequim. */
+     + '- Se ela disser o MANEQUIM ("visto 42"), responda pela tabela. Se disser peso e altura, '
+     + 'NÃO converta em tamanho por conta própria: isso não sai da tabela, é chute, e chute errado vira troca.\n'
+     + '- Em qualquer um dos casos, insista no provador virtual — é ele que decide. E feche tranquilizando: '
+     + 'se mesmo assim não servir, a primeira troca é gratuita.\n'
+     + '\nDESCONTO POR QUANTIDADE:\n'
+     /* Ele confirmou: não existe regra de atacado, e o comportamento dela (oferecer o que
+        existe, sem inventar desconto) estava certo — só faltava dizer o porquê. */
+     + '- NÃO existe preço especial por quantidade, nem pra equipe ou consultório. Diga isso com '
+     + 'naturalidade: os preços do site já são o valor cheio de venda. Não invente desconto, não prometa '
+     + '"vou ver com o time" e não trate como caso de gente — é a resposta, não uma negativa.\n'
+     + '- Pode lembrar do que existe de verdade: PIX com 5% e frete grátis acima de R$500.\n'
+     /* Regra dele, textual: o cupom é ferramenta de recompra, não moeda de troca pra quem
+        está pedindo desconto. Se o robô entregar, o cupom perde a função. */
+     + '- NUNCA cite cupom de desconto, com nenhum nome, nem se a cliente pedir, insistir ou disser que '
+     + 'viu em algum lugar. Cupom não é assunto seu.\n'
+     + '\nCOMO VOCÊ FECHA UMA CONVERSA:\n'
+     /* Ela respondeu "obrigada" com um emoji sozinho. Não é errado, é vazio — e deixa a
+        conversa aberta na fila, porque não soa como fim. */
+     + '- Quando ela agradecer ou se despedir, responda com uma frase curta de gente e encerre: '
+     + '"Por nada! Qualquer coisa é só chamar aqui". NUNCA responda só com emoji, nem só "😊" — '
+     + 'parece que a conversa travou.\n'
      + '\nQUANDO A CLIENTE MANDA FOTO:\n'
      + '- Olhe a foto e diga o que dá pra ver. Se for uma peça nossa e você reconhecer o modelo, '
      + 'fale o nome dele. Se for print de pedido, leia o número do pedido e trate como se ela tivesse digitado.\n'
@@ -281,7 +310,9 @@ function blocoConversa(cliente, pedido, estoque) {
   if (hr) partes.push(hr);
   if (cliente && cliente.nome)
     partes.push('A cliente desta conversa se chama ' + cliente.nome + ' (use o primeiro nome quando fizer sentido, sem repetir toda mensagem).');
-  const ped = blocoPedido(pedido);
+  const ped = (pedido && pedido.naoEncontrado)
+    ? blocoPedidoNaoEncontrado(pedido.naoEncontrado)
+    : blocoPedido(pedido);
   if (ped) partes.push(ped);
   const est = blocoEstoque(estoque);
   if (est) partes.push(est);
@@ -315,14 +346,75 @@ function blocoEstoque(estoque) {
     + '- Não fale em "estoque do sistema", "consultei aqui", "planilha". Fale como quem conhece a loja.';
 }
 
+/* ===== O PRAZO DE TROCA É CONTADO, NÃO CHUTADO =====
+   A troca vale 7 dias corridos desde a entrega. Ele pediu que o robô CONFIRA a data em vez
+   de responder "a primeira troca é gratuita" pra todo mundo — e que, quando passou pouco do
+   prazo, não negue: passe pra uma pessoa avaliar. Quem decide exceção é gente.
+
+   A conta é feita aqui, em JavaScript, e não pedida ao modelo: modelo erra data com
+   naturalidade, e este número decide se a cliente paga ou não o frete. */
+const TROCA_DIAS = 7;
+const TOLERANCIA_DIAS = 7;      // até 7 dias além do prazo ainda vale mandar pra uma pessoa
+
+function blocoTroca(pedido) {
+  const base = pedido && (pedido.enviado_em || pedido.pago_em || pedido.feito_em);
+  if (!base) return null;
+  const dias = Math.floor((Date.now() - new Date(base).getTime()) / 86400000);
+  if (!Number.isFinite(dias) || dias < 0) return null;
+
+  if (dias <= TROCA_DIAS) {
+    return 'PRAZO DE TROCA: o pedido dela tem ' + dias + ' dia(s) e o prazo é ' + TROCA_DIAS
+      + ' dias, então está DENTRO. Se ela quiser trocar, siga normalmente: a primeira troca é gratuita.';
+  }
+  if (dias <= TROCA_DIAS + TOLERANCIA_DIAS) {
+    return 'PRAZO DE TROCA: o pedido dela tem ' + dias + ' dia(s) e o prazo é ' + TROCA_DIAS
+      + ' dias — passou POUCO. NÃO diga que a troca é gratuita e NÃO diga que não dá: quem avalia '
+      + 'caso assim é uma pessoa. Diga que o prazo é de ' + TROCA_DIAS + ' dias, que o dela passou um '
+      + 'pouquinho, e que você vai passar pra alguém do time olhar — e ' + MARCA_TRANSFERIR + '.';
+  }
+  return 'PRAZO DE TROCA: o pedido dela tem ' + dias + ' dia(s), bem além dos ' + TROCA_DIAS
+    + ' dias. Diga o prazo com gentileza e passe pra uma pessoa, sem prometer nem negar a troca — '
+    + MARCA_TRANSFERIR + '.';
+}
+
+/* Vocabulário dele: o que a Loja Integrada chama de "enviado" a equipe chama de despachado,
+   e "em produção" é o pedido que está no bordado. Sem isto o robô repete o jargão do sistema. */
+const FALA_DA_CASA = {
+  pedido_enviado: 'já foi DESPACHADO e está a caminho',
+  pedido_em_producao: 'está no BORDADO (em produção)',
+  em_producao: 'está no BORDADO (em produção)',
+  pedido_pago: 'está PAGO e entrou na fila de separação',
+  pedido_em_separacao: 'está sendo SEPARADO pra despachar',
+  pedido_entregue: 'já foi ENTREGUE'
+};
+
 function blocoPedido(pedido) {
   if (!pedido) return null;
+  const traduz = FALA_DA_CASA[String(pedido.situacao_codigo || '').toLowerCase()];
+  const troca = blocoTroca(pedido);
   return 'PEDIDO DESTA CLIENTE (consultado agora na Loja Integrada, é a verdade):\n'
     + pedidoEmTexto(pedido)
+    + (traduz ? ('\nNA NOSSA LINGUAGEM: este pedido ' + traduz + '.') : '')
+    + (troca ? ('\n' + troca) : '')
     + '\n\nUse isto pra responder "já saiu?", "já bordou?", "cadê meu pedido?", "qual a situação?". '
     + 'Diga a situação em português simples, sem jargão de sistema. NÃO invente etapa, data nem prazo '
     + 'que não esteja aqui. Se ela perguntar algo do pedido que não está nestes dados, não chute: '
     + 'diga que vai confirmar com o time e ' + MARCA_TRANSFERIR + '.';
+}
+
+/* ===== O NÚMERO QUE NÃO EXISTE =====
+   Caso real que ele pegou: a cliente mandou "pedido 45890". A numeração deles hoje está em
+   250xxx, então aquilo não era pedido dela. O robô não fez ideia — mandou o link de rastreio
+   como se estivesse tudo certo, e a cliente ia procurar um pedido que não ia achar.
+
+   Agora, quando um número é tentado e não bate com nada, o robô SABE disso e diz. */
+function blocoPedidoNaoEncontrado(numero) {
+  if (!numero) return null;
+  return 'ATENÇÃO: ela citou o número ' + numero + ' e ele NÃO existe na nossa loja — a consulta foi '
+    + 'feita agora e não achou pedido nenhum com esse número.\n'
+    + 'Diga que não conseguiu localizar esse número, sem culpar ela e sem inventar situação de pedido. '
+    + 'E mostre os dois jeitos de achar o número certo: na aba "Meus pedidos" do site, ou rastreando '
+    + 'só pelo e-mail em https://dracharm.cademeupedido.com.br/ .';
 }
 
 /* O modelo escreve em Markdown — negrito com DOIS asteriscos. O WhatsApp usa UM.
@@ -559,11 +651,28 @@ async function registrarUso(linha) {
    O número vem de duas fontes: o que a cliente escreveu agora (as automações da loja
    mandam "pedido 249640", então ela costuma repetir) e o pedido_numero já gravado na
    conversa. O que ela escreveu ganha, porque pode estar perguntando de outro pedido. */
+/* Seis dígitos é o formato de hoje (250011, 249372). Mas a cliente às vezes manda um número
+   de outro tamanho — a que citou "45890" mandou cinco — e aí o robô não via número nenhum,
+   não consultava nada, e respondia como se estivesse tudo certo. Pior que consultar e não
+   achar: nem tentar.
+
+   Fora do contexto "pedido", continua só seis dígitos: 5 dígitos soltos é CEP, valor, data. */
+/* Cuidado com o "nº": escrever `n[ºo°]` faz a letra "o" entrar na conta, e aí a palavra
+   mais comum do português — "no" — vira contexto de pedido. "moro no cep 60110" passava a
+   ser uma consulta do pedido 60110. Só o ordinal de verdade conta. */
+const PEDIDO_PERTO = /\b(pedido|compra|numero|número)\b|n[º°]/i;
+
 function numeroNaConversa(mensagens) {
   const daCliente = (mensagens || []).filter(m => m.role !== 'assistant').slice(-4).reverse();
   for (const m of daCliente) {
-    const achados = String(m.content || '').match(/\b\d{6}\b/g);
-    if (achados && achados.length) return achados[achados.length - 1];
+    const texto = String(m.content || '');
+    const seis = texto.match(/\b\d{6}\b/g);
+    if (seis && seis.length) return seis[seis.length - 1];
+    if (PEDIDO_PERTO.test(texto)) {
+      /* 5 a 7 dígitos, mas nunca um ano: "comprei em 2024" não é número de pedido. */
+      const outros = (texto.match(/\b\d{5,7}\b/g) || []).filter(n => !/^(19|20)\d{2}$/.test(n));
+      if (outros.length) return outros[outros.length - 1];
+    }
   }
   return null;
 }
@@ -582,7 +691,10 @@ async function pedidoDaConversa(conversaId, mensagens) {
   if (!numero) return null;
   try {
     const r = await buscarPedidoLI(numero);
-    return r.ok ? r.pedido : null;
+    /* Devolver só `null` quando não acha apaga a informação mais útil que existe: que ela
+       DEU um número e ele não bateu. Era por isso que o robô mandava o link de rastreio pra
+       quem tinha digitado um número inexistente. */
+    return r.ok ? r.pedido : { naoEncontrado: numero };
   } catch (e) { return null; }   // consulta nunca derruba a resposta
 }
 
