@@ -22,6 +22,15 @@
   .conv-tab[data-active="1"]::after{content:'';position:absolute;left:0;right:0;bottom:-9px;height:2px;background:#ec2560;border-radius:2px}
   .dark .conv-tab{color:#94a3b8}
   .conv-item{cursor:pointer;border-left:3px solid transparent;transition:background .12s,border-color .12s}
+  /* Selo de espera: discreto no amarelo, insistente no vermelho. A pulsação é só no grave —
+     se tudo pulsasse, nada chamaria atenção. */
+  .espera-selo{font-weight:600;font-variant-numeric:tabular-nums;padding:1px 6px;border-radius:999px;
+               background:#fef3c7;color:#92400e;white-space:nowrap}
+  .espera-grave{background:#e11d48;color:#fff;animation:espera-bate 2s ease-in-out infinite}
+  @keyframes espera-bate{0%,100%{opacity:1}50%{opacity:.45}}
+  @media (prefers-reduced-motion: reduce){ .espera-grave{animation:none} }
+  .dark .espera-selo{background:#43320c;color:#fbbf24}
+  .dark .espera-grave{background:#e11d48;color:#fff}
   .conv-item:hover{background:var(--dc-pink-50)}.dark .conv-item:hover{background:#151d2b}
   .conv-item[data-active="1"]{background:var(--dc-pink-50);border-left-color:var(--dc-pink-600)}.dark .conv-item[data-active="1"]{background:#1e1520;border-left-color:var(--dc-pink-600)}
   .bubble-in{background:#fff;border:1px solid #eef2f7}.dark .bubble-in{background:#1f2937;border-color:#334155;color:#e5e7eb}
@@ -181,6 +190,7 @@
         <button onclick="abrirNovaConversa()" title="Nova conversa" class="shrink-0 w-9 h-9 rounded-lg bg-pink-500 hover:bg-pink-600 text-white flex items-center justify-center"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
       </div>
     </div>
+    <button id="faixaEspera" onclick="verEsperando()" class="hidden shrink-0 w-full text-left px-3 py-2 text-[12px] font-semibold text-white bg-rose-500 hover:bg-rose-600 transition-colors"></button>
     <div id="convList" class="flex-1 overflow-y-auto list-scroll"></div>
   </aside>
 
@@ -699,6 +709,76 @@ function filtroTab(cv){
   return true;
 }
 const statusDot=cv=>({aberta:'#22c55e',pendente:'#f59e0b',encerrada:'#94a3b8'}[cv.status]||'#94a3b8');
+/* ===== HÁ QUANTO TEMPO ESSA CLIENTE ESTÁ ESPERANDO =====
+   Medido em 21/08: 17 clientes ficaram esperando alguém depois que o robô prometeu passar.
+   Nove foram promessas feitas de madrugada — e essas o horário já resolveu. Mas SEIS eram
+   de quinta à tarde, em pleno expediente, esperando mais de 20 horas. Ninguém viu.
+
+   O tempo é contado só em HORA DE EXPEDIENTE. Contar hora corrida pintaria a lista inteira
+   de vermelho toda manhã: quem escreveu 22h "esperou" 9 horas, mas a equipe teve 1. Aviso
+   que grita todo dia vira paisagem, e aí não avisa mais nada. */
+const EXPEDIENTE_ATEND = [null, [7,17], [7,17], [7,17], [7,17], [7,16], null];  // dom..sáb
+const TZ_LOJA_AT = 'America/Fortaleza';
+
+/* Quanto o relógio da LOJA está adiantado/atrasado em relação ao UTC, naquele instante.
+   Sem isto o cálculo usava getHours(), que é o fuso do COMPUTADOR de quem está olhando:
+   a mesma conversa "esperava" 4h numa máquina e 1h em outra. O teste pegou isso. */
+function _offsetLoja(d){
+  const f = new Intl.DateTimeFormat('en-US', { timeZone: TZ_LOJA_AT, hour12: false,
+    year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit' }).formatToParts(d);
+  const g = t => Number((f.find(x => x.type === t) || {}).value);
+  return Date.UTC(g('year'), g('month')-1, g('day'), g('hour')%24, g('minute'), g('second')) - d.getTime();
+}
+// minutos desde a época, já no relógio da loja — daqui pra frente é só aritmética
+function _minLoja(d){ return Math.floor((d.getTime() + _offsetLoja(d)) / 60000); }
+
+function esperaEmExpediente(iso){
+  if(!iso) return 0;
+  const d0 = new Date(iso), d1 = new Date();
+  if(isNaN(d0) || d0 >= d1) return 0;
+  let a = _minLoja(d0); const b = _minLoja(d1);
+  let total = 0, guarda = 0;
+  while(a < b && guarda++ < 400){
+    const dia = Math.floor(a / 1440);
+    const semana = ((dia + 4) % 7 + 7) % 7;      // 01/01/1970 foi quinta-feira
+    const e = EXPEDIENTE_ATEND[semana];
+    const fimDoDia = (dia + 1) * 1440;
+    if(e){
+      const abre = dia*1440 + e[0]*60, fecha = dia*1440 + e[1]*60;
+      const de  = Math.max(a, abre);
+      const ate = Math.min(b, fecha);
+      if(ate > de) total += ate - de;
+    }
+    a = fimDoDia;
+  }
+  return total;
+}
+
+/* Os limiares NÃO são chute: saíram de 901 respostas reais da equipe entre 18 e 21/08,
+   medidas em tempo de expediente.
+     metade responde em até 1h (mediana 62min)
+     60% em até 2h
+     25% passam de 3h47 (p75)
+   Por isso 1h acende amarelo (saiu do normal) e 3h acende vermelho (entrou no quarto mais
+   lento do fluxo real). Marcar 30min de amarelo pintaria 2 de cada 3 conversas, e aviso que
+   acende sempre vira paisagem. */
+const ESPERA_ATENCAO = 60, ESPERA_GRAVE = 180;
+function selosEspera(cv){
+  if(!cv.naoLida || cv.status==='encerrada') return '';
+  const m = esperaEmExpediente(cv.ultimaMsgEm);
+  if(m < ESPERA_ATENCAO) return '';
+  const txt = m < 60 ? (m + 'min') : (Math.floor(m/60) + 'h' + (m%60 >= 30 ? '30' : ''));
+  const grave = m >= ESPERA_GRAVE;
+  return '<span class="espera-selo' + (grave ? ' espera-grave' : '') + '" title="Esperando resposta há '
+       + txt + ' de expediente">' + txt + '</span>';
+}
+/* Clicar na faixa leva pra quem está esperando: não lidas, mais antigas primeiro. */
+function verEsperando(){
+  SORT = 'antigas';
+  const b = document.getElementById('btnSort'); if(b) b.dataset.sort = SORT;
+  setTab('naolidas');
+  const l = document.getElementById('convList'); if(l) l.scrollTop = 0;
+}
 function relTime(iso){ if(!iso) return ''; const d=Date.now()-new Date(iso).getTime(); if(d<0) return 'agora'; const m=Math.floor(d/60000); if(m<1) return 'agora'; if(m<60) return m+'m'; const h=Math.floor(m/60); if(h<24) return h+'h'; const dias=Math.floor(h/24); if(dias<7) return dias+'d'; return Math.floor(dias/7)+'sem'; }
 function statusBadge(cv){ const base='absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-white dark:border-ink-800 flex items-center justify-center'; if(cv.status==='encerrada') return '<span class="'+base+' bg-emerald-500" title="Resolvida"><svg class="w-2.5 h-2.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="M5 13l4 4L19 7"/></svg></span>'; return '<span class="'+base+' bg-rose-500" title="Nao resolvida"><svg class="w-2.5 h-2.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="M6 6l12 12M18 6L6 18"/></svg></span>'; }
 // Esqueleto de carregamento: linhas no formato dos itens (lista) + logo pulsando no chat.
@@ -762,6 +842,19 @@ function renderList(){
   bt.title = (total && total > CONVERSAS.length)
     ? ('Carregadas ' + CONVERSAS.length + ' das ' + total + ': todas as não lidas + as mais recentes. Use a busca para achar as antigas.')
     : '';
+  /* A faixa existe porque o selo sozinho não resolve: se a conversa que espera há 3h estiver
+     na posição 40 da lista, ninguém rola até lá. A faixa fica no topo e leva direto pra elas. */
+  const esperando = CONVERSAS.filter(cv => cv.naoLida && cv.status!=='encerrada' && esperaEmExpediente(cv.ultimaMsgEm) >= ESPERA_GRAVE);
+  const faixa = document.getElementById('faixaEspera');
+  if(faixa){
+    if(esperando.length){
+      faixa.textContent = esperando.length === 1
+        ? '1 cliente esperando há mais de 3h — clique para ver'
+        : esperando.length + ' clientes esperando há mais de 3h — clique para ver';
+      faixa.classList.remove('hidden');
+    } else faixa.classList.add('hidden');
+  }
+
   const el=document.getElementById('convList');
   if(!arr.length){ el.innerHTML='<div class="p-8 text-center text-sm text-slate-400" data-fade>Nenhuma conversa aqui.</div>'; _listaHtml=''; return; }
   const _novo = arr.map(cv=>`
@@ -771,7 +864,7 @@ function renderList(){
         ${statusBadge(cv)}
       </div>
       <div class="min-w-0 flex-1">
-        <div class="flex items-center justify-between gap-2"><div class="truncate text-sm font-semibold">${esc(cv.nome)}${cv.atendenteNome?' <span class="text-slate-400 font-normal">· '+esc(cv.atendenteNome)+'</span>':''}</div><div class="flex items-center gap-1 shrink-0 text-[11px] text-slate-400"><span>${relTime(cv.ultimaMsgEm)}</span><button onclick="event.stopPropagation();convMenu(event,'${cv.id}')" class="conv-dots hover:text-slate-600 dark:hover:text-slate-200 leading-none text-base px-1 -mr-1" title="Opções">⋯</button></div></div>
+        <div class="flex items-center justify-between gap-2"><div class="truncate text-sm font-semibold">${esc(cv.nome)}${cv.atendenteNome?' <span class="text-slate-400 font-normal">· '+esc(cv.atendenteNome)+'</span>':''}</div><div class="flex items-center gap-1 shrink-0 text-[11px] text-slate-400">${selosEspera(cv)}<span>${relTime(cv.ultimaMsgEm)}</span><button onclick="event.stopPropagation();convMenu(event,'${cv.id}')" class="conv-dots hover:text-slate-600 dark:hover:text-slate-200 leading-none text-base px-1 -mr-1" title="Opções">⋯</button></div></div>
         <div class="truncate text-[13px] ${cv.naoLida?'font-semibold text-slate-700 dark:text-slate-200':'text-slate-500 dark:text-slate-400'}">${esc(cv.preview)}</div>
         <!-- Quem está na conversa (robô ou colega) fica AQUI EMBAIXO, alinhado com o ⋯.
              Em cima disputava espaço com o nome e a hora: nome comprido cortava o
