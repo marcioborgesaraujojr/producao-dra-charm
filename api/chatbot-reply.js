@@ -157,6 +157,17 @@ function montarSystem(cfg, faq, intencoes) {
      + MARCA_TRANSFERIR + ' na mesma mensagem. Prometer conferir e sumir é o pior dos três.\n'
      + '- Se você não sabe: diga que não sabe e passe. "Não tenho essa informação aqui, vou chamar alguém do '
      + 'time" é honesto. "Deixa eu verificar" é promessa que você não pode cumprir.\n'
+     /* Testado depois da primeira versão desta regra: pra uma cliente dizendo "meu pedido não
+        chegou e já faz 15 dias, tô bem chateada", ele respondeu "Vou chamar alguém do time
+        pra investigar. Só um momento!". Achou a brecha entre as frases proibidas. Por isso a
+        regra passou a ser sobre a IDEIA, não sobre a lista de frases. */
+     + '- Isso vale pra QUALQUER jeito de dizer a mesma coisa: "só um momento", "já volto", "aguarde", '
+     + '"me dá um minuto". Não é a frase que está proibida, é a promessa de voltar. Ao passar pra uma '
+     + 'pessoa, diga que a equipe vai continuar dali — e pare a mensagem aí.\n'
+     /* Cliente chateada é o momento em que o atendimento decide se ganha ou perde a pessoa. */
+     + '- Cliente chateada, atrasada ou que já reclamou: reconheça o que ela está sentindo em uma frase '
+     + 'de gente ("poxa, entendo, 15 dias é bastante mesmo") ANTES de passar pra alguém. Não peça '
+     + 'desculpa três vezes, não se explique — só mostre que você leu o que ela escreveu.\n'
      /* Ele leu uma resposta do robô — "Fica R$30,00 e acrescenta até 15 dias úteis no prazo" —
         e disse: "esse tom tá um pouco seco, tô achando muito ríspido". Tinha razão. Eu tinha
         empurrado tanto pro CURTO (medindo os 28 caracteres da equipe) que virou frio.
