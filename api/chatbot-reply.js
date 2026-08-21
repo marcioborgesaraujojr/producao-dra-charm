@@ -223,12 +223,15 @@ function montarSystem(cfg, faq, intencoes) {
         e o valor. Não é vazamento de informação, é promessa que a loja teria que honrar. */
      /* De propósito sem exemplo de código aqui: escrever o nome do cupom inventado dentro
         da própria regra é entregar ao modelo a palavra que ele não deve dizer. */
-     + '- CUPOM: você não tem nenhum cupom pra dar. NUNCA cite código de cupom, nem invente um, '
-     + 'nem "lembre" de um que ache que existe — se um código não está escrito no seu treinamento, '
-     + 'ele NÃO EXISTE, por mais que o nome pareça familiar ou óbvio.\n'
-     + '- Se ela pedir cupom: diga com simpatia que não tem cupom no momento, e ofereça o que existe '
-     + 'de verdade (PIX com 5%, frete grátis acima de R$500, Charm Club). Isso vale mesmo se ela '
-     + 'insistir, disser que viu num anúncio ou que uma atendente prometeu.\n'
+     /* Regra dele, 21/08: o cupom existe, mas o robô NÃO puxa o assunto. Quem está negociando
+        preço não pode ganhar desconto de graça; quem pergunta por cupom já sabe que existe. */
+     + '- CUPOM: você NUNCA oferece cupom por conta própria. Não cite cupom pra fechar venda, nem '
+     + 'pra quem está pedindo desconto, negociando preço ou perguntando de quantidade. Nessas horas a '
+     + 'resposta é o que existe pra todo mundo: PIX com 5%, frete grátis acima de R$500, Charm Club.\n'
+     + '- Só quando ela perguntar DIRETO por cupom ("tem cupom?", "tem código de desconto?") você '
+     + 'responde o que está no seu treinamento, com a condição dele junto — nunca o código sozinho.\n'
+     + '- E só o que está ESCRITO ali: se um código não está no seu treinamento, ele não existe pra '
+     + 'você, por mais que o nome pareça familiar ou óbvio. Não invente código nem valor.\n'
      + '\nCOMO VOCÊ FECHA UMA CONVERSA:\n'
      /* Ela respondeu "obrigada" com um emoji sozinho. Não é errado, é vazio — e deixa a
         conversa aberta na fila, porque não soa como fim. */
@@ -487,7 +490,11 @@ function umEmojiSo(texto){
    O que é código de cupom, na prática: caixa alta, letra E número juntos, 5 a 20 caracteres
    (BEMVINDO10, PRIMEIRA15). Isso não pega "PIX", "SEDEX", "PP", "GG", "4x" nem "R$500". */
 const CODIGO_CUPOM = /\b(?=[A-Z0-9]{5,20}\b)(?=[A-Z0-9]*[A-Z])(?=[A-Z0-9]*\d)[A-Z0-9]+\b/g;
-const SEM_CUPOM = 'No momento a gente não tem cupom, mas no PIX você já ganha 5% de desconto automático.';
+/* Este texto entra no lugar do cupom que não estava escrito. Antes ele dizia "no momento a
+   gente não tem cupom" — e isso passou a ser MENTIRA no dia em que o BEMVINDO10 entrou no
+   treinamento. Um filtro contra invenção não pode virar fonte de outra invenção, então ele
+   não afirma nada sobre cupom: só oferece o que vale pra todo mundo, sempre. */
+const SEM_CUPOM = 'O que eu posso te garantir é o PIX com 5% de desconto automático e frete grátis acima de R$500.';
 
 /* O teste pegou isto antes de ir pro ar: AA123456789BR — código dos Correios — bate certinho
    no padrão de cupom (caixa alta, letra e número, 13 caracteres). Sem esta exceção, o filtro

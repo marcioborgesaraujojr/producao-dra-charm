@@ -22,6 +22,37 @@ const LIMITE_HORAS = 12;     // depois disso, manda sem esperar mais
 const JANELA_HORAS = 48;     // não fica remoendo pendência antiga pra sempre
 const SEM_CODIGO   = 'consulte em dracharm.cademeupedido.com.br';
 
+/* ===== O PLANO B NÃO ACORDA A CLIENTE =====
+   Quando o código não aparece em 12h, o aviso sai assim mesmo, mandando ela consultar no
+   site. Só que este cron roda de 20 em 20 minutos, sem olhar hora: os avisos segurados às
+   13h de hoje cairiam por volta de 1h da madrugada. Mensagem de loja à 1h não é urgência,
+   é incômodo — e ninguém vai consultar rastreio dormindo.
+
+   O aviso COM código continua saindo na hora, a qualquer hora: aí é notícia que ela quer.
+   Quem espera o dia amanhecer é só o plano B.
+
+   Mesma aritmética do robô (api/chatbot-reply.js): fuso pelo Intl, nunca getHours(), que
+   devolve a hora de quem está rodando — na Vercel, UTC. */
+const TZ_LOJA = 'America/Fortaleza';
+const EXPEDIENTE = [null, [7, 17], [7, 17], [7, 17], [7, 17], [7, 16], null];   // dom..sáb
+
+function agoraNaLoja(quando) {
+  const d = quando || new Date();
+  const p = new Intl.DateTimeFormat('en-US', {
+    timeZone: TZ_LOJA, weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false
+  }).formatToParts(d).reduce((a, x) => (a[x.type] = x.value, a), {});
+  const dias = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return { dia: dias[p.weekday], hora: Number(p.hour) % 24, min: Number(p.minute) };
+}
+
+function lojaAberta(quando) {
+  const { dia, hora, min } = agoraNaLoja(quando);
+  const e = EXPEDIENTE[dia];
+  if (!e) return false;
+  const m = hora * 60 + min;
+  return m >= e[0] * 60 && m < e[1] * 60;
+}
+
 async function sb(path, opts = {}) {
   const r = await fetch(SB() + '/rest/v1/' + path, {
     ...opts,
@@ -92,6 +123,9 @@ export default async function handler(req, res) {
 
       const horas = (Date.now() - new Date(linha.created_at).getTime()) / 3600000;
       if (!codigo && horas < LIMITE_HORAS) { semCodigo++; continue; }   // espera mais um pouco
+      /* Passou das 12h e continua sem código: o aviso sai, mas não de madrugada.
+         Fica na fila e o próprio cron manda quando a loja abrir. */
+      if (!codigo && !lojaAberta()) { semCodigo++; continue; }
 
       const valor = codigo || SEM_CODIGO;
       idx.forEach(i => { params[i] = valor; });
