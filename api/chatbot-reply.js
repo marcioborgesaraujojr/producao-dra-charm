@@ -258,6 +258,14 @@ function blocoEstoque(estoque) {
     + '- NUNCA reserve, segure nem prometa peça: este é um retrato do dia, quem manda é o site na hora da compra.\n'
     + '- Se o produto que ela quer não estiver nesta lista, não afirme que não existe: mande a busca do site '
     + 'NA HORA. Não diga que vai verificar — esta lista é tudo que você vai ter, não vem mais nada depois.\n'
+    /* Ela pediu "Zoe cinza". Existe Zoe (em 4 cores) e existe cinza (em 4 modelos), mas Zoe
+       cinza não existe. Somar as duas listas e responder "temos sim" foi o que o modelo fez
+       em 21/08. Inventar com convicção é pior que dizer "não sei". */
+    + '- NUNCA junte dois produtos diferentes numa resposta só pra dizer que tem. Se ela pediu modelo X na '
+    + 'cor Y e a lista acima não traz X e Y no MESMO produto, então essa combinação não existe: diga isso '
+    + 'e mostre as cores que aquele modelo tem.\n'
+    + '- A Dra. Charm não faz sob encomenda. Só existe o que está no site — quando não tiver, é não ter, '
+    + 'e a saída honesta é mostrar o que tem.\n'
     + '- Não fale em "estoque do sistema", "consultei aqui", "planilha". Fale como quem conhece a loja.';
 }
 
