@@ -410,30 +410,67 @@ async function viaOpenAI(cfg, mensagens, cliente, faq, intencoes, pedido, estoqu
    - só as fotos DELA (o webhook já filtra), e só se a URL for do nosso Storage. Mandar uma
      URL qualquer que apareça no meio da conversa é abrir a porta pra buscar imagem de fora. */
 const MAX_FOTOS = 2;
-function paraAnthropic(mensagens) {
+const MAX_BYTES_FOTO = 4 * 1024 * 1024;   // acima disso a API recusa e não vale a pena tentar
+
+/* O bucket at-media é PRIVADO — a tela do atendimento usa URL assinada pra mostrar as fotos.
+   A primeira versão daqui mandava a URL "public" pra Anthropic e voltava
+   "Unable to download the file": ela não tem como abrir. Então a gente baixa aqui, com a
+   chave de serviço, e manda o conteúdo. Sai melhor de qualquer jeito: foto de cliente não
+   precisa ficar pública na internet pra o robô enxergar. */
+async function baixarFoto(url) {
+  try {
+    const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+    if (!base || !String(url).startsWith(base + '/storage/v1/object/')) return null;
+    const autenticada = String(url).replace('/storage/v1/object/public/', '/storage/v1/object/');
+    const c = new AbortController();
+    const t = setTimeout(() => c.abort(), 8000);
+    try {
+      const r = await fetch(autenticada, { signal: c.signal, headers: {
+        apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: 'Bearer ' + process.env.SUPABASE_SERVICE_ROLE_KEY } });
+      if (!r.ok) return null;
+      const buf = Buffer.from(await r.arrayBuffer());
+      if (!buf.length || buf.length > MAX_BYTES_FOTO) return null;
+      const ext = (String(url).split('.').pop() || '').toLowerCase();
+      const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp'
+                 : ext === 'gif' ? 'image/gif' : 'image/jpeg';
+      return { mime, base64: buf.toString('base64') };
+    } finally { clearTimeout(t); }
+  } catch (e) { return null; }
+}
+
+async function paraAnthropic(mensagens) {
   const nossoStorage = (u) => {
     try {
       const base = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
-      return !!base && String(u).startsWith(base + '/storage/v1/object/public/');
+      return !!base && String(u).startsWith(base + '/storage/v1/object/');
     } catch (e) { return false; }
   };
   const comFoto = mensagens.map((m, i) => ({ m, i })).filter(x => x.m.imagem && nossoStorage(x.m.imagem));
   const permitidas = new Set(comFoto.slice(-MAX_FOTOS).map(x => x.i));
 
+  const baixadas = new Map();
+  for (const x of comFoto.filter(y => permitidas.has(y.i))) {
+    const f = await baixarFoto(x.m.imagem);
+    if (f) baixadas.set(x.i, f);
+  }
+
   return mensagens.map((m, i) => {
     const role = m.role === 'assistant' ? 'assistant' : 'user';
-    if (!permitidas.has(i)) {
-      // foto antiga (ou de fora): entra como menção, pra conversa não ficar com buraco
+    const foto = baixadas.get(i);
+    if (!foto) {
+      // foto antiga, de fora, ou que não deu pra baixar: vira menção, pra não abrir buraco
       const txt = (m.content || '').trim() || (m.imagem ? '[a cliente mandou uma foto aqui]' : '');
       return { role, content: txt };
     }
-    const partes = [{ type: 'image', source: { type: 'url', url: m.imagem } }];
+    const partes = [{ type: 'image', source: { type: 'base64', media_type: foto.mime, data: foto.base64 } }];
     if ((m.content || '').trim()) partes.push({ type: 'text', text: m.content });
     return { role, content: partes };
   }).filter(m => (typeof m.content === 'string' ? m.content.length : m.content.length));
 }
 
 async function viaAnthropic(cfg, mensagens, cliente, faq, intencoes, chave, pedido, estoque) {
+  const mensagensPraApi = await paraAnthropic(mensagens);   // baixa as fotos antes de montar o corpo
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'x-api-key': chave || process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
@@ -447,7 +484,7 @@ async function viaAnthropic(cfg, mensagens, cliente, faq, intencoes, chave, pedi
         ...(blocoConversa(cliente, pedido, estoque) ? [{ type: 'text', text: blocoConversa(cliente, pedido, estoque) }] : [])
       ],
       max_tokens: 400,
-      messages: paraAnthropic(mensagens)
+      messages: mensagensPraApi
     })
   });
   const j = await r.json();
