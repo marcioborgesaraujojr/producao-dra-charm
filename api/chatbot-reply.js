@@ -470,6 +470,54 @@ function umEmojiSo(texto){
     .replace(/[ \t]+\n/g, '\n');
 }
 
+/* ===== CUPOM INVENTADO: O PROMPT NÃO SEGUROU, DUAS VEZES =====
+   Pra "não tem nenhum cupom pra mim?" ela respondeu "Tem o BEMVINDO10 se for primeira
+   compra (R$10 de desconto)". Fui procurar: BEMVINDO10 não existe — nem nas 32 perguntas
+   do treinamento, nem nas 12 situações, nem na base. O modelo inventou o código E o valor.
+
+   Escrevi a regra proibindo. Ela repetiu o mesmo cupom. Reescrevi a regra mais forte, sem
+   citar o nome (pra não entregar a palavra). Ela repetiu de novo, agora pra uma cliente
+   dizendo que "viu num anúncio".
+
+   É o mesmo caminho do emoji: pedir no prompt é esperança, cortar na saída é garantia. E
+   aqui o custo de errar é maior que estética — é uma promoção que a loja teria que honrar.
+
+   O que é código de cupom, na prática: caixa alta, letra E número juntos, 5 a 20 caracteres
+   (BEMVINDO10, PRIMEIRA15). Isso não pega "PIX", "SEDEX", "PP", "GG", "4x" nem "R$500". */
+const CODIGO_CUPOM = /\b(?=[A-Z0-9]{5,20}\b)(?=[A-Z0-9]*[A-Z])(?=[A-Z0-9]*\d)[A-Z0-9]+\b/g;
+const SEM_CUPOM = 'No momento a gente não tem cupom, mas no PIX você já ganha 5% de desconto automático.';
+
+/* O teste pegou isto antes de ir pro ar: AA123456789BR — código dos Correios — bate certinho
+   no padrão de cupom (caixa alta, letra e número, 13 caracteres). Sem esta exceção, o filtro
+   apagaria justamente a mensagem mais importante que o robô manda: o rastreio. */
+const RASTREIO_CORREIOS = /^[A-Z]{2}\d{9}[A-Z]{2}$/;
+const FALA_DE_RASTREIO = /rastrei|rastrear|objeto|etiqueta|c[óo]digo de envio/i;
+
+function semCupomInventado(texto, permitidos){
+  const t = String(texto || '');
+  const frasesTodas = t.split(/(?<=[.!?\n])\s*/);
+  const daRastreio = new Set();
+  frasesTodas.forEach(f => { if (FALA_DE_RASTREIO.test(f)) (f.match(CODIGO_CUPOM) || []).forEach(c => daRastreio.add(c)); });
+
+  const achados = (t.match(CODIGO_CUPOM) || [])
+    .filter(c => !permitidos.has(c) && !RASTREIO_CORREIOS.test(c) && !daRastreio.has(c));
+  if (!achados.length) return t;
+
+  /* Tira a FRASE inteira, não só o código: sobrando "Tem sim! Use o — R$10 de desconto",
+     a cliente continua achando que existe cupom e ainda vem perguntar qual é. */
+  const frases = t.split(/(?<=[.!?\n])\s*/);
+  const limpo = frases.filter(f => !achados.some(c => f.includes(c))).join(' ').replace(/\s{2,}/g, ' ').trim();
+  return limpo ? (limpo + '\n\n' + SEM_CUPOM) : SEM_CUPOM;
+}
+
+/* O que PODE ser dito: só o que está escrito no treinamento. Se ele cadastrar um cupom de
+   verdade amanhã, passa a valer sozinho, sem ninguém mexer no código. */
+function cupomsPermitidos(cfg, faq){
+  const fonte = String(cfg && cfg.base_conhecimento || '') + ' '
+    + (faq || []).map(f => f.pergunta + ' ' + f.resposta).join(' ');
+  return new Set(fonte.match(CODIGO_CUPOM) || []);
+}
+
 function paraWhatsApp(texto){
   return umEmojiSo(String(texto || ''))
     .replace(/\*\*\*(.+?)\*\*\*/gs, '*$1*')      // ***forte*** -> *forte*
@@ -814,7 +862,9 @@ export default async function handler(req, res) {
     const ultima = (mensagens[mensagens.length - 1].content || '').toLowerCase();
     const porTermo = termos.some(t => t && ultima.includes(t));
     const porIntencao = String(reply).includes(MARCA_TRANSFERIR);
-    reply = paraWhatsApp(limparLinks(String(reply).split(MARCA_TRANSFERIR).join('').trim(), cfg));
+    reply = semCupomInventado(
+      paraWhatsApp(limparLinks(String(reply).split(MARCA_TRANSFERIR).join('').trim(), cfg)),
+      cupomsPermitidos(cfg, faq));
     const handoff = porTermo || porIntencao;
 
     await registrarUso({ conversa_id: conversaId, modelo: modeloUsado, handoff, ...saida.uso });
