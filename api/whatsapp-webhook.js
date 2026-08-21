@@ -439,7 +439,11 @@ async function maybeBotReply(conversaId, clienteNome, inboundText, waid, host, u
        enxerga a imagem de verdade.
        Só IMAGEM: áudio, vídeo e documento seguem fora, porque o modelo não lê e fingir que
        leu seria pior. */
-    const ehImagem = (m) => m.tipo === 'imagem' && m.midia_url && /^image\//.test(m.midia_tipo || 'image/');
+    /* midia_tipo guarda o nosso rótulo ("imagem"), NÃO o mime do arquivo — descobri testando
+       com uma foto de verdade que uma cliente mandou às 11:17. Filtrar por /^image\// deixava
+       o recurso inteiro morto: nenhuma foto passava. Quem manda na decisão é a EXTENSÃO do
+       arquivo salvo, que também garante que só vai formato que o modelo lê. */
+    const ehImagem = (m) => m.tipo === 'imagem' && m.midia_url && /\.(jpe?g|png|webp|gif)$/i.test(m.midia_url);
     const msgs = todas
       .filter(m => (m.tipo === 'texto' || !m.tipo || ehImagem(m)) && (m.direcao === 'in' || m.direcao === 'out'))
       .map(m => {
