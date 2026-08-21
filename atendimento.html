@@ -734,6 +734,7 @@ function renderLoading(){
   }
 }
 function limparChatSkel(){ document.querySelectorAll('[data-chat-skel]').forEach(function(e){ e.remove(); }); }
+let _listaHtml = '';   // último HTML desenhado, pra não redesenhar igual (ver fim da função)
 function renderList(){
   atualizarTitulo();
   const q=(document.getElementById('search').value||'').toLowerCase();
@@ -762,8 +763,8 @@ function renderList(){
     ? ('Carregadas ' + CONVERSAS.length + ' das ' + total + ': todas as não lidas + as mais recentes. Use a busca para achar as antigas.')
     : '';
   const el=document.getElementById('convList');
-  if(!arr.length){ el.innerHTML='<div class="p-8 text-center text-sm text-slate-400" data-fade>Nenhuma conversa aqui.</div>'; return; }
-  el.innerHTML=arr.map(cv=>`
+  if(!arr.length){ el.innerHTML='<div class="p-8 text-center text-sm text-slate-400" data-fade>Nenhuma conversa aqui.</div>'; _listaHtml=''; return; }
+  const _novo = arr.map(cv=>`
     <div class="conv-item px-3 py-3 flex gap-3" data-active="${SEL===cv.id?1:0}" onclick="selecionar('${cv.id}')">
       <div class="relative shrink-0">
         ${avatarLista(cv)}
@@ -781,6 +782,15 @@ function renderList(){
         </div>
       </div>
     </div>`).join('');
+
+  /* Redesenhar a lista inteira a cada evento fazia ela PISCAR: o navegador jogava fora
+     todos os itens e montava tudo de novo, inclusive as fotos das clientes, várias vezes
+     por minuto — e o realtime dispara a cada mensagem que chega, nossa ou delas.
+     A conversa aberta já tinha esse problema e foi resolvido do mesmo jeito: se o HTML
+     gerado é idêntico ao que já está na tela, não escreve nada. */
+  if(_novo === _listaHtml) return;
+  _listaHtml = _novo;
+  el.innerHTML = _novo;
 }
 
 /* ===== Conversa ===== */
