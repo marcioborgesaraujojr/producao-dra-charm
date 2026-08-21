@@ -41,7 +41,9 @@ export default async function handler(req, res) {
     if (req.query.sku) {
       const skus = String(req.query.sku).split(',').map(s => s.trim()).filter(Boolean).slice(0, 4);
       const t1 = Date.now();
-      const mapa = await saldoAoVivo(skus);
+      /* max = quantos ele pediu: aqui é diagnóstico, quem chama quer testar o que digitou.
+         No robô o teto é 3, que é o que cabe no limite do Bling sem segurar a cliente. */
+      const mapa = await saldoAoVivo(skus, { max: skus.length, msTotal: 6000 });
       return res.status(200).json({
         ok: true, quente: !!token,
         aoVivo: !!mapa,
