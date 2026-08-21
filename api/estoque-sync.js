@@ -10,97 +10,12 @@
 
 import { getLIKeys } from '../lib/licfg.js';
 
-// ============ Bling (OAuth, mesmo esquema do api/pedidos.js) ============
-const PROJ = "prj_ErH4xc9FokreQHv0utp1xJ2eGvdO";
-const TEAM = "team_Hv0Wqku1l7HhDDiJZmR2u5Ze";
-function parseEC() {
-  try {
-    const u = new URL(process.env.EDGE_CONFIG || "");
-    const ecId = u.pathname.replace(/^\//, "");
-    const token = u.searchParams.get("token");
-    return ecId && token ? { ecId, token } : null;
-  } catch (_) { return null; }
-}
-async function lerRefreshToken() {
-  const ec = parseEC();
-  if (ec) {
-    try {
-      const r = await fetch("https://edge-config.vercel.com/" + ec.ecId + "/item/bling_refresh_token?token=" + ec.token);
-      if (r.ok) { const val = await r.json(); if (val) return val; }
-    } catch (_) {}
-  }
-  return process.env.BLING_REFRESH_TOKEN || null;
-}
-async function lerAccessTokenCache() {
-  const ec = parseEC();
-  if (!ec) return null;
-  try {
-    const r = await fetch("https://edge-config.vercel.com/" + ec.ecId + "/item/bling_access_cache?token=" + ec.token);
-    if (!r.ok) return null;
-    const raw = await r.json();
-    if (!raw) return null;
-    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    if (parsed && parsed.token && parsed.expires && Date.now() < parsed.expires) return parsed.token;
-  } catch (_) {}
-  return null;
-}
-async function salvarAccessTokenCache(accessToken) {
-  const ec = parseEC();
-  if (!ec || !process.env.VERCEL_TOKEN) return;
-  const cache = JSON.stringify({ token: accessToken, expires: Date.now() + 55 * 60 * 1000 });
-  try {
-    await fetch("https://api.vercel.com/v1/edge-config/" + ec.ecId + "/items", {
-      method: "PATCH",
-      headers: { Authorization: "Bearer " + process.env.VERCEL_TOKEN, "Content-Type": "application/json" },
-      body: JSON.stringify({ items: [{ operation: "upsert", key: "bling_access_cache", value: cache }] }),
-    });
-  } catch (_) {}
-}
-// IMPORTANTE: o Bling ROTACIONA o refresh token a cada refresh. Se não salvarmos o novo,
-// o próximo refresh (aqui ou em qualquer outra função) falha. Por isso salvamos de volta.
-async function salvarRefreshToken(novoToken) {
-  const ec = parseEC();
-  if (ec && process.env.VERCEL_TOKEN) {
-    for (let i = 0; i < 3; i++) {
-      try {
-        const r = await fetch("https://api.vercel.com/v1/edge-config/" + ec.ecId + "/items", {
-          method: "PATCH",
-          headers: { Authorization: "Bearer " + process.env.VERCEL_TOKEN, "Content-Type": "application/json" },
-          body: JSON.stringify({ items: [{ operation: "upsert", key: "bling_refresh_token", value: novoToken }] }),
-        });
-        if (r.ok) return;
-      } catch (_) {}
-      if (i < 2) await new Promise((res) => setTimeout(res, 200));
-    }
-  }
-  const envId = process.env.VERCEL_ENV_ID;
-  if (envId && process.env.VERCEL_TOKEN) {
-    try {
-      await fetch("https://api.vercel.com/v9/projects/" + PROJ + "/env/" + envId + "?teamId=" + TEAM, {
-        method: "PATCH",
-        headers: { Authorization: "Bearer " + process.env.VERCEL_TOKEN, "Content-Type": "application/json" },
-        body: JSON.stringify({ value: novoToken }),
-      });
-    } catch (_) {}
-  }
-}
-async function getBlingToken() {
-  const cached = await lerAccessTokenCache();
-  if (cached) return cached;
-  const refreshToken = await lerRefreshToken();
-  if (!refreshToken) throw new Error("Token Bling invalido. Reconecte em /api/setup.");
-  const creds = Buffer.from(process.env.BLING_CLIENT_ID + ":" + process.env.BLING_CLIENT_SECRET).toString("base64");
-  const r = await fetch("https://api.bling.com.br/Api/v3/oauth/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: "Basic " + creds },
-    body: "grant_type=refresh_token&refresh_token=" + encodeURIComponent(refreshToken),
-  });
-  const d = await r.json();
-  if (!d.access_token) throw new Error("Falha no refresh do Bling.");
-  if (d.refresh_token && d.refresh_token !== refreshToken) await salvarRefreshToken(d.refresh_token);
-  await salvarAccessTokenCache(d.access_token);
-  return d.access_token;
-}
+// ============ Bling (OAuth) ============
+// A renovação do token mora em lib/bling-token.js. Saiu daqui quando o robô passou a
+// consultar saldo ao vivo: o refresh token do Bling rotaciona, e duas cópias capazes de
+// rotacionar acabariam invalidando uma à outra. Uma só, importada por todo mundo.
+import { getBlingToken } from "../lib/bling-token.js";
+
 async function bling(path, token) {
   const r = await fetch("https://api.bling.com.br/Api/v3" + path, { headers: { Authorization: "Bearer " + token } });
   const d = await r.json().catch(() => null);
@@ -563,8 +478,27 @@ async function runPagamentos(maxDetails, reset) {
   return { ok: true, modo, detalhes_lidos: feitos, offset: snap.offset, done: snap.done, pedidos_agregados: Object.keys(snap.processados).length, meses: Object.keys(snap.meses).length, skus: Object.keys(prod.skus).length, li_ok: ult };
 }
 
+/* ===== Este endpoint estava ABERTO =====
+   Testado em 21/08 sem credencial nenhuma: `GET /api/estoque-sync?debug=bling-prod`
+   respondeu 200 com o catálogo do Bling — nome, SKU, preço e PREÇO DE CUSTO de cada
+   produto. E `?run=estoque` disparava a varredura inteira, que qualquer um podia ficar
+   chamando em loop até estourar o limite do Bling e derrubar o sync do dia.
+
+   Mesmo padrão dos outros crons da casa (disparo-pendentes, chatbot-encerrar): o cron da
+   Vercel entra pelo cabeçalho que ela mesma põe; gente precisa do Bearer da suíte. */
+function autorizado(req) {
+  const daVercel = String(req.headers["user-agent"] || "").includes("vercel-cron")
+    || req.headers["x-vercel-cron"] != null;
+  if (daVercel) return true;
+  return String(req.headers.authorization || "").startsWith("Bearer ");
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Headers", "authorization, content-type");
+  if (req.method === "OPTIONS") return res.status(200).end();
+  if (!autorizado(req)) return res.status(401).json({ error: "não autorizado" });
+
   const { run, debug } = req.query;
   try {
     if (run === "estoque") return res.json(await runEstoque());
