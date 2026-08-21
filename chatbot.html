@@ -574,10 +574,16 @@ async function carregarTeste(){
   let convs = [];
   try{
     const c = await getSb();
+    /* A lista é de CONVERSAS QUE O ROBÔ ATENDEU, não de conversas do lote.
+       Antes ela filtrava por bot_teste_lote, que só é preenchido no modo teste — então,
+       no dia em que ele desligasse o modo teste, esta tela ficaria vazia e ele perderia
+       justamente a régua pra saber se o robô está indo bem. Monitorar não pode depender
+       de estar em teste: bot_ultima_em é preenchido toda vez que o robô responde,
+       em teste ou aberto. */
     const { data, error } = await c.from('at_conversas')
-      .select('id,bot_teste_lote,bot_teste_em,modo,nao_lida,status,atendente_id,cliente:at_clientes(nome)')
-      .not('bot_teste_lote','is',null)
-      .order('bot_teste_em',{ascending:false}).limit(60);
+      .select('id,bot_teste_lote,bot_teste_em,bot_ultima_em,modo,nao_lida,status,atendente_id,cliente:at_clientes(nome)')
+      .not('bot_ultima_em','is',null)
+      .order('bot_ultima_em',{ascending:false}).limit(60);
     if(error) throw error;
     convs = data||[];
   }catch(e){
@@ -590,25 +596,30 @@ async function carregarTeste(){
   }
   TESTE_LISTA = convs;
 
-  const noLote = convs.filter(x => Number(x.bot_teste_lote) === lote);
-  document.getElementById('loteVagas').textContent =
-    noLote.length + ' de ' + vagas + (noLote.length >= vagas
-      ? ' — lote cheio, o resto vai pra fila humana'
-      : ' vagas usadas');
+  /* Conversa ENCERRADA devolve a vaga (o encerrador limpa o bot_teste_lote, e a contagem
+     do webhook ignora encerrada). A tela contava as encerradas junto e mostrava "lote cheio"
+     com vaga sobrando — foi assim que ele ficou 4h achando que o robô estava trabalhando. */
+  const noLote = convs.filter(x => Number(x.bot_teste_lote) === lote && x.status !== 'encerrada');
+  document.getElementById('loteVagas').textContent = CFG.modo_teste
+    ? (noLote.length + ' de ' + vagas + (noLote.length >= vagas
+        ? ' — lote cheio, o resto vai pra fila humana'
+        : ' vagas usadas'))
+    : 'modo teste desligado — o robô atende sem limite de vagas';
 
   if(!convs.length){
-    box.innerHTML = '<div class="text-slate-400 py-3">' + (CFG.modo_teste
-      ? 'Nenhuma conversa ainda. Assim que uma cliente escrever, o robô pega a primeira vaga e ela aparece aqui.'
-      : 'O modo teste está desligado. Ligue no botão lá em cima pra ele começar a pegar as conversas do lote.') + '</div>';
+    box.innerHTML = '<div class="text-slate-400 py-3">'
+      + 'Nenhuma conversa atendida pelo robô ainda. Assim que uma cliente escrever e ele responder, ela aparece aqui.'
+      + '</div>';
     return;
   }
 
   box.innerHTML = '<div class="tb">'
-    + '<div class="tb-h" style="grid-template-columns:minmax(0,1fr) 110px 150px 90px"><div>Cliente</div><div>Lote</div><div>Entrou</div><div>Situação</div></div>'
+    + '<div class="tb-h" style="grid-template-columns:minmax(0,1fr) 110px 150px 90px"><div>Cliente</div><div>Lote</div><div>Última resposta</div><div>Situação</div></div>'
     + convs.map(x => {
         const nome  = (x.cliente && x.cliente.nome) || 'Cliente';
         const atual = Number(x.bot_teste_lote) === lote;
-        const quando = x.bot_teste_em ? new Date(x.bot_teste_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+        const marca = x.bot_ultima_em || x.bot_teste_em;
+        const quando = marca ? new Date(marca).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
         // Situação é o que interessa pra analisar: o robô segurou, ou largou no colo de alguém?
         const sit = x.status==='encerrada' ? ['resolvida','text-slate-500']
                   : (x.atendente_id || x.modo==='humano') ? ['passou pra humano','text-amber-600']
@@ -616,7 +627,7 @@ async function carregarTeste(){
         return '<div class="tb-l" style="grid-template-columns:minmax(0,1fr) 110px 150px 90px;cursor:pointer" '
           +   'data-conversa="' + escAttr(x.id) + '">'
           + '<div class="cel">' + esc(nome) + '</div>'
-          + '<div class="cel">' + (atual ? '<b>' + lote + ' (agora)</b>' : x.bot_teste_lote) + '</div>'
+          + '<div class="cel">' + (x.bot_teste_lote == null ? '<span class="text-slate-400">—</span>' : (atual ? '<b>' + lote + ' (agora)</b>' : x.bot_teste_lote)) + '</div>'
           + '<div class="cel">' + esc(quando) + '</div>'
           + '<div class="cel ' + sit[1] + '">' + sit[0] + '</div>'
           + '</div>';
