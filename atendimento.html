@@ -26,11 +26,11 @@
      se tudo pulsasse, nada chamaria atenção. */
   .espera-selo{font-weight:600;font-variant-numeric:tabular-nums;padding:1px 6px;border-radius:999px;
                background:#fef3c7;color:#92400e;white-space:nowrap}
-  .espera-grave{background:#e11d48;color:#fff;animation:espera-bate 2s ease-in-out infinite}
+  .espera-grave{background:#c2410c;color:#fff;animation:espera-bate 2s ease-in-out infinite}
   @keyframes espera-bate{0%,100%{opacity:1}50%{opacity:.45}}
   @media (prefers-reduced-motion: reduce){ .espera-grave{animation:none} }
   .dark .espera-selo{background:#43320c;color:#fbbf24}
-  .dark .espera-grave{background:#e11d48;color:#fff}
+  .dark .espera-grave{background:#ea580c;color:#fff}
   .conv-item:hover{background:var(--dc-pink-50)}.dark .conv-item:hover{background:#151d2b}
   .conv-item[data-active="1"]{background:var(--dc-pink-50);border-left-color:var(--dc-pink-600)}.dark .conv-item[data-active="1"]{background:#1e1520;border-left-color:var(--dc-pink-600)}
   .bubble-in{background:#fff;border:1px solid #eef2f7}.dark .bubble-in{background:#1f2937;border-color:#334155;color:#e5e7eb}
@@ -190,7 +190,7 @@
         <button onclick="abrirNovaConversa()" title="Nova conversa" class="shrink-0 w-9 h-9 rounded-lg bg-pink-500 hover:bg-pink-600 text-white flex items-center justify-center"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
       </div>
     </div>
-    <button id="faixaEspera" onclick="verEsperando()" class="hidden shrink-0 w-full text-left px-3 py-2 text-[12px] font-semibold text-white bg-rose-500 hover:bg-rose-600 transition-colors"></button>
+    <button id="faixaEspera" onclick="verEsperando()" class="hidden shrink-0 w-full text-left px-3 py-2 text-[12px] font-semibold text-white bg-orange-600 hover:bg-orange-700 transition-colors"></button>
     <div id="convList" class="flex-1 overflow-y-auto list-scroll"></div>
   </aside>
 
@@ -648,13 +648,33 @@ function marcarDigitando(){
   _tDigit = setTimeout(() => { _digitando = false; enviarPresenca(); }, 3000);
 }
 
-function softReload(){ clearTimeout(_rtTimer); _rtTimer=setTimeout(async()=>{
-  const keep=SEL; CONVERSAS=await loadConversas(); renderList();
-  // se a conversa aberta saiu da janela no recarregamento, traz ela de volta em vez de
-  // deixar a atendente com a tela apontando pra uma conversa que sumiu da lista
-  if(keep && !CONVERSAS.some(x=>x.id===keep)) await garantirConversa(keep);
-  const cv=CONVERSAS.find(x=>x.id===keep); if(cv){ await carregarMsgs(cv); renderChat(cv); renderProfile(cv); enrichPedido(cv); }
-},350); }
+/* O realtime avisa a QUALQUER mudança em at_conversas — mensagem de qualquer cliente,
+   aviso automático de pedido, alguém marcando como lida. Antes, cada um desses eventos
+   recarregava as mensagens da conversa ABERTA e redesenhava o chat inteiro, mesmo quando a
+   mudança tinha sido em outra conversa. Como as fotos vêm com URL assinada nova a cada
+   carregamento, o HTML sempre saía diferente e o chat repintava — é isso que dá a piscada
+   e o pulo enquanto a atendente está lendo.
+
+   Agora: mudou OUTRA conversa, mexe só na lista de contatos. Mudou a conversa aberta,
+   aí sim recarrega o chat. */
+function softReload(payload){
+  const idMudou = payload && payload.new && payload.new.id;
+  if(idMudou) _mudou.add(idMudou);
+  clearTimeout(_rtTimer);
+  _rtTimer = setTimeout(async () => {
+    const keep = SEL;
+    const mexeuNaAberta = !_mudou.size || (keep && _mudou.has(keep));
+    _mudou.clear();
+    CONVERSAS = await loadConversas(); renderList();
+    // se a conversa aberta saiu da janela no recarregamento, traz ela de volta em vez de
+    // deixar a atendente com a tela apontando pra uma conversa que sumiu da lista
+    if(keep && !CONVERSAS.some(x => x.id === keep)) await garantirConversa(keep);
+    if(!mexeuNaAberta) return;                       // era conversa de outra pessoa: lista já basta
+    const cv = CONVERSAS.find(x => x.id === keep);
+    if(cv){ await carregarMsgs(cv); renderChat(cv); renderProfile(cv); enrichPedido(cv); }
+  }, 350);
+}
+const _mudou = new Set();
 
 /* ===== Som + notificação de mensagem nova (igual Notificações) ===== */
 let SOM=true, _ac=null;
@@ -1018,9 +1038,10 @@ function renderChat(cv){
   else if(estavaNoFim)            _fixarNoFim(chat, false);
   else                            chat.scrollTop = scrollAntes;
 }
+let _perfilHtml = '', _perfilDe = null;
 function renderProfile(cv){
   const p=document.getElementById('profile'); p.classList.remove('hidden'); const ped=cv.pedido;
-  p.innerHTML=`<div class="p-4">
+  const _perfil = `<div class="p-4">
     <div class="flex items-center justify-between mb-4"><span class="font-semibold">Perfil</span><button onclick="fecharPerfilMobile()" class="md:hidden icon-btn -mr-1" title="Fechar"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
     ${avatarPerfil(cv)}
     ${campo('Nome',esc(cv.nome))}${cv.waid?campo('WhatsApp ID (LID)',esc(cv.waid),true):''}${cv.email?campoContato('Email',cv.email,'email'):''}${cv.tel?campoContato('Telefone',cv.tel,'tel'):''}
@@ -1046,6 +1067,13 @@ function renderProfile(cv){
       ${cv.pedidoNumero?`<button onclick="rastrear()" class="mt-2 w-full text-xs font-medium text-pink-600 hover:text-pink-700 border border-pink-200 dark:border-pink-900/40 rounded-lg py-2 inline-flex items-center justify-center gap-1"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Rastrear pedido</button>`:''}
     </div></div>`;
 
+  /* Mesma história da lista: o softReload dispara a QUALQUER mudança no banco — e com o
+     volume de vocês isso é o tempo todo. Redesenhar o perfil inteiro fazia a coluna da
+     direita repintar (avatar, etiquetas, dados do pedido) várias vezes por minuto, e é isso
+     que dá o "pulo" na tela. Se o HTML é o mesmo, não escreve nada. */
+  if(_perfilDe === cv.id && _perfil === _perfilHtml) return;
+  _perfilDe = cv.id; _perfilHtml = _perfil;
+  p.innerHTML = _perfil;
 }
 function renderPedRows(ped){
   return lp('Status',`<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold ${spc(ped.status)}">${esc(ped.status)}</span>`)
