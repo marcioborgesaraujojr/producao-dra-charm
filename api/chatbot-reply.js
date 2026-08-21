@@ -163,8 +163,63 @@ function montarSystem(cfg, faq, intencoes) {
 /* Tudo que muda de uma conversa pra outra mora aqui — nome da cliente e pedido — e este
    bloco NUNCA leva cache_control. Se qualquer uma dessas linhas subir pro system grande,
    o prefixo deixa de ser igual entre conversas e o cache morre. */
+/* ===== HORÁRIO DA EQUIPE =====
+   Às 2 da manhã o robô dizia "já vou chamar alguém pra resolver isso com você". Não tem
+   ninguém pra chamar às 2 da manhã: a cliente ficava esperando alguém que só chega às 7.
+   A promessa é que estava errada, não o atendimento noturno — atender de madrugada é
+   metade do valor da coisa.
+
+   Isto vive no bloco SEM cache de propósito: a hora muda a cada mensagem, e se subisse pro
+   system grande o prefixo deixaria de ser igual entre conversas e o cache de prompt morria.
+
+   Horário informado por ele em 21/08: segunda a quinta 7h-17h, sexta 7h-16h, fim de semana
+   fechado. TZ de Fortaleza, que não tem horário de verão. */
+const EXPEDIENTE = [null, [7, 17], [7, 17], [7, 17], [7, 17], [7, 16], null]; // dom..sáb
+const DIA_NOME = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+const TZ_LOJA = 'America/Fortaleza';
+
+function agoraNaLoja(agora) {
+  const d = agora || new Date();
+  // en-US com timeZone é o jeito de pegar a hora LOCAL da loja sem depender do fuso do servidor
+  const f = new Intl.DateTimeFormat('en-US', {
+    timeZone: TZ_LOJA, weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false
+  }).formatToParts(d);
+  const get = (t) => (f.find(x => x.type === t) || {}).value;
+  const dias = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  const hora = parseInt(get('hour'), 10) % 24;
+  return { dia: dias[get('weekday')] ?? 1, hora, min: parseInt(get('minute'), 10) };
+}
+
+/* Quando a equipe volta, dito do jeito que uma pessoa diria. */
+function quandoVolta(dia, hora) {
+  const hoje = EXPEDIENTE[dia];
+  if (hoje && hora < hoje[0]) return 'hoje a partir das ' + hoje[0] + 'h';
+  for (let i = 1; i <= 7; i++) {
+    const d = (dia + i) % 7;
+    const e = EXPEDIENTE[d];
+    if (e) return (i === 1 ? 'amanhã' : DIA_NOME[d]) + ' a partir das ' + e[0] + 'h';
+  }
+  return 'no próximo dia útil';
+}
+
+function blocoHorario(agora) {
+  const { dia, hora, min } = agoraNaLoja(agora);
+  const e = EXPEDIENTE[dia];
+  const aberto = !!e && (hora * 60 + min) >= e[0] * 60 && (hora * 60 + min) < e[1] * 60;
+  if (aberto) return null;                      // dentro do expediente, nada muda
+  return 'A EQUIPE NÃO ESTÁ AGORA (é ' + DIA_NOME[dia] + ', ' + String(hora).padStart(2, '0') + ':'
+    + String(min).padStart(2, '0') + ' na loja). Você continua atendendo normalmente — o que muda é o que você PROMETE:\n'
+    + '- NÃO diga "já vou chamar alguém", "vou passar pra alguém agora" nem nada que soe como '
+    + 'alguém entrando na conversa nos próximos minutos. Não tem ninguém.\n'
+    + '- Quando o caso for de gente, diga que a equipe responde ' + quandoVolta(dia, hora) + ', numa linha só, sem pedir desculpa comprida.\n'
+    + '- Tudo que você mesma resolve (pedido, estoque, tamanho, troca, prazo), resolva agora normalmente. '
+    + 'Não empurre pra amanhã o que dá pra responder já.';
+}
+
 function blocoConversa(cliente, pedido, estoque) {
   const partes = [];
+  const hr = blocoHorario();
+  if (hr) partes.push(hr);
   if (cliente && cliente.nome)
     partes.push('A cliente desta conversa se chama ' + cliente.nome + ' (use o primeiro nome quando fizer sentido, sem repetir toda mensagem).');
   const ped = blocoPedido(pedido);
