@@ -505,8 +505,16 @@ function semCupomInventado(texto, permitidos){
 
   /* Tira a FRASE inteira, não só o código: sobrando "Tem sim! Use o — R$10 de desconto",
      a cliente continua achando que existe cupom e ainda vem perguntar qual é. */
-  const frases = t.split(/(?<=[.!?\n])\s*/);
-  const limpo = frases.filter(f => !achados.some(c => f.includes(c))).join(' ').replace(/\s{2,}/g, ' ').trim();
+  let restantes = frasesTodas.filter(f => f.trim() && !achados.some(c => f.includes(c)));
+
+  /* Sobra do primeiro teste em produção: "Tem sim! Use o BEMVINDO10…" virava
+     "Ótimo!\n\nNo momento a gente não tem cupom". O "Ótimo!" era a resposta ao cupom que
+     acabou de ser cortado — sozinho, ele CONCORDA com o oposto do que vem depois.
+     Interjeição solta na frente não carrega informação nenhuma: cai junto. */
+  while (restantes.length && restantes[0].trim().length <= 24 && /[.!?]\s*$/.test(restantes[0].trim())
+         && !/\d/.test(restantes[0])) restantes = restantes.slice(1);
+
+  const limpo = restantes.join(' ').replace(/\s{2,}/g, ' ').trim();
   return limpo ? (limpo + '\n\n' + SEM_CUPOM) : SEM_CUPOM;
 }
 
