@@ -828,6 +828,58 @@ function numeroNaConversa(mensagens) {
   return null;
 }
 
+/* ===== O QUE FALTOU NO ESTOQUE, GRAVADO NA HORA =====
+   O Marcio quer ser avisado quando muitas clientes pedem o mesmo modelo, pra priorizar o
+   lote na produção — e pediu que o limiar viesse da frequência real, não de chute.
+
+   Fui medir e o número não existia. Em 21 e 22/08 a Aline disse "não temos / esgotado /
+   avise-me" 35 vezes, ~17 por dia. Mas isso é texto solto: dá pra contar as vezes, não dá
+   pra agrupar por produto.
+
+   E medir por MODELO, que era a ideia inicial, não funciona: dos 22 modelos pedidos naquela
+   semana, NENHUM estava esgotado. O Moove teve 23 clientes e 48 dos 65 tamanhos disponíveis.
+   Modelo inteiro quase nunca acaba — o que acaba é a variação, "Zoe Marinho no P".
+
+   Por isso o registro é aqui, no instante em que o robô SABE o produto, a cor e os tamanhos
+   que faltam. Uma semana disto e o limiar sai de dado.
+
+   Regra de ouro: isto é medição. Falhar aqui não pode atrasar nem derrubar a resposta — por
+   isso não tem await na chamada e o corpo inteiro é à prova de erro. */
+async function registrarFalta(conversaId, estoque, termos) {
+  try {
+    if (!estoque || !process.env.SUPABASE_URL) return;
+    const linhas = [];
+    const nomeDoModelo = (nome) => {
+      const w = String(nome || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').split(/\s+/);
+      const i = w.findIndex(x => /^(feminino|masculino|unissex|infantil)$/.test(x));
+      return (i >= 0 && w[i + 1]) ? w[i + 1] : (w[0] || null);
+    };
+
+    if (estoque.combinacaoNaoExiste) {
+      /* Ela pediu uma cor que aquele modelo não tem. Não é falta de estoque, é falta de
+         produto — e pro Marcio isso vale tanto quanto: é demanda por algo que não existe. */
+      const alvo = (estoque.porTermo || [])[0];
+      linhas.push({ modelo: alvo && alvo.termo || null, produto: null,
+                    tamanhos_faltando: null, motivo: 'cor_nao_existe' });
+    } else {
+      for (const p of (estoque.produtos || [])) {
+        if (!p.temAlgum) linhas.push({ modelo: nomeDoModelo(p.nome), produto: p.nome,
+                                       tamanhos_faltando: p.esgotados || [], motivo: 'esgotado' });
+        else if ((p.esgotados || []).length) linhas.push({ modelo: nomeDoModelo(p.nome), produto: p.nome,
+                                       tamanhos_faltando: p.esgotados, motivo: 'tamanho_faltando' });
+      }
+    }
+    if (!linhas.length) return;
+
+    await fetch(process.env.SUPABASE_URL + '/rest/v1/at_falta_estoque', {
+      method: 'POST',
+      headers: { ...SB(), 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify(linhas.map(l => ({ ...l, conversa_id: conversaId || null,
+        termos: String(termos || '').slice(0, 300) })))
+    });
+  } catch (e) { /* medir nunca pode atrapalhar atender */ }
+}
+
 /* Dados da conversa que servem pra decidir se o pedido citado é mesmo dela. */
 async function donoDaConversa(conversaId) {
   if (!conversaId) return {};
@@ -919,6 +971,7 @@ export default async function handler(req, res) {
      de citar e ficaria girando em torno deles. */
   const falaDela = mensagens.filter(m => m.role !== 'assistant').slice(-3).map(m => m.content || '').join(' ');
   const estoque = await procurarNoEstoque(falaDela);
+  registrarFalta(conversaId, estoque, falaDela);   // não espera: medir nunca segura a resposta
 
   const usaClaude = (cfg.modelo || '').startsWith('claude');
   const chaveAnthropic = await getAnthropicKey();
