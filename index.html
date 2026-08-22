@@ -2378,6 +2378,34 @@ function renderBoard(){
 // pra ele ficar entre os dois cards certos (não só no fim da lista).
 // MÉTRICAS: registra bordado que entrou em lista final (fonte do gráfico "bordados por tipo/período").
 // Só grava quando o quadro atual é Personalização e a lista-alvo é de conclusão/expedição.
+/* ===== TODA MUDANÇA DE COLUNA FICA REGISTRADA =====
+   Até 22/08 só o quadro de Personalização registrava movimento (o bordado_mov logo abaixo).
+   O de Produção não registrava nada — então dava pra saber ONDE um lote está, mas não havia
+   como responder "há quanto tempo" nem "quanto tempo essa etapa costuma levar".
+
+   Isso apareceu quando o Marcio quis que o robô consultasse a produção pra dar prazo de
+   reposição: a coluna a gente sabe, o prazo não tinha nenhum dado por trás. O `updated_at`
+   não serve — ele muda quando alguém edita qualquer campo, e mostra lotes "parados" 29 dias
+   que na verdade só não foram editados.
+
+   Uma linha por movimento resolve pra sempre: em algumas semanas dá pra medir a mediana real
+   de cada etapa, em vez de estimar. Custa um insert num evento que já é raro (arrastar card),
+   e falhar aqui NUNCA pode travar o movimento — por isso o try/catch mudo. */
+async function logMovimento(card, deListId, paraListId){
+  try{
+    if (!card || !paraListId || deListId === paraListId) return;
+    const acha = id => (Array.isArray(lists) ? lists.find(x=>x.id===id) : null);
+    const de = acha(deListId), para = acha(paraListId);
+    const b = Array.isArray(boards) ? boards.find(x=>x.id===currentBoardId) : null;
+    await sb.from('activity_log').insert({
+      card_id: card.id, actor_id: user.id, action: 'moved',
+      meta: { de: (de&&de.name)||null, para: (para&&para.name)||null,
+              de_id: deListId||null, para_id: paraListId,
+              quadro: (b&&b.name)||null, title: card.title||'' }
+    });
+  }catch(e){}
+}
+
 async function logBordadoMov(card, listId){
   try{
     if (!card || !listId) return;
@@ -2489,8 +2517,9 @@ async function dropCardAt(cardId, listId, clientY){
   }
   if (error){ toast('Não foi possível mover o card: ' + error.message); return false; }
   const _movedLists = (card.list_id !== listId);
+  const _deList = card.list_id;
   card.list_id = listId; card.position = newPos; _localMoveAt = Date.now(); renderBoard();
-  if (_movedLists){ logBordadoMov(card, listId); logCorteMov(card, listId); abrirLavanderiaSeNecessario(card, listId); }
+  if (_movedLists){ logMovimento(card, _deList, listId); logBordadoMov(card, listId); logCorteMov(card, listId); abrirLavanderiaSeNecessario(card, listId); }
   return true;
 }
 
@@ -2541,7 +2570,9 @@ async function moverSelecionados(){
     base += STEP;
     let { error } = await sb.rpc('move_card', { p_card: id, p_list: listId, p_pos: base });
     if (error){ const r = await sb.from('cards').update({ list_id: listId, position: base }).eq('id', id); error = r.error; }
-    if (!error){ const c = cards.find(x=>x.id===id); if (c){ const _ml=(c.list_id!==listId); c.list_id = listId; c.position = base; if(_ml){ logBordadoMov(c, listId); logCorteMov(c, listId); } } ok++; }
+    /* O movimento em lote passa por aqui, não pelo dropCardAt — sem esta linha, mover 20
+       cards de uma vez pelo modo seleção não deixaria rastro nenhum. */
+    if (!error){ const c = cards.find(x=>x.id===id); if (c){ const _ml=(c.list_id!==listId); const _de=c.list_id; c.list_id = listId; c.position = base; if(_ml){ logMovimento(c, _de, listId); logBordadoMov(c, listId); logCorteMov(c, listId); } } ok++; }
   }
   _localMoveAt = Date.now();
   toast(ok + (ok===1?' card movido':' cards movidos') + (alvo ? (' para ' + alvo.name) : '') + (travados ? (' · ' + travados + ' preso' + (travados===1?'':'s') + ' na lavanderia (falta receber)') : ''));
