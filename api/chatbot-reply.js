@@ -529,10 +529,55 @@ function semCupomInventado(texto, permitidos){
 
 /* O que PODE ser dito: só o que está escrito no treinamento. Se ele cadastrar um cupom de
    verdade amanhã, passa a valer sozinho, sem ninguém mexer no código. */
+/* A persona fica FORA de propósito. Ela contém a frase "O cupom DRACHARM10 NUNCA deve ser
+   mencionado" — se a persona entrasse aqui, o código proibido viraria código permitido, e o
+   filtro autorizaria justamente o que ele mandou esconder. Varredura de 22/08: a Aline nunca
+   citou o DRACHARM10 em 614 respostas, e é assim que tem que continuar.
+
+   Mesmo assim, tirar por proximidade de negação, porque um dia alguém move esse texto de
+   lugar: código citado logo depois de "nunca", "não mencione", "uso exclusivo" e afins não
+   entra na lista, mesmo que esteja no treinamento. */
+const PROIBE_PERTO = /(nunca|jamais|não mencion|nao mencion|não ofere|nao ofere|uso exclusivo|só a equipe|so a equipe|interno)/i;
+
 function cupomsPermitidos(cfg, faq){
   const fonte = String(cfg && cfg.base_conhecimento || '') + ' '
     + (faq || []).map(f => f.pergunta + ' ' + f.resposta).join(' ');
-  return new Set(fonte.match(CODIGO_CUPOM) || []);
+  const todos = new Set(fonte.match(CODIGO_CUPOM) || []);
+  /* A proibição vale só dentro da MESMA frase. Medir por "90 caracteres em volta" parecia
+     equivalente e não é: em "O DRACHARM10 NUNCA deve ser mencionado. Primeira compra usa
+     BEMVINDO10", a janela alcança a frase seguinte e bloqueia o cupom certo. O teste pegou. */
+  const frases = fonte.split(/(?<=[.!?\n;])\s*/);
+  for (const codigo of [...todos]) {
+    if (frases.some(f => f.includes(codigo) && PROIBE_PERTO.test(f))) todos.delete(codigo);
+  }
+  return todos;
+}
+
+/* ===== "DEIXA EU VERIFICAR" — TERCEIRA VEZ QUE UMA REGRA DE PROMPT NÃO SEGURA =====
+   Varredura de 22/08, 614 respostas reais: o emoji sozinho zerou depois do conserto, o fecho
+   novo apareceu 9 vezes, mas a promessa de voltar escapou 2 vezes DEPOIS da regra. A última,
+   21/08 18:32: "Deixa eu verificar isso pra te passar certinho."
+
+   O robô não tem "depois" — ele só existe no instante em que a mensagem chega. Ninguém volta
+   pra terminar, e a cliente fica esperando uma resposta que não existe.
+
+   Aqui não basta apagar a frase: se ela prometeu verificar é porque não sabia responder. Tirar
+   a promessa e deixar o resto seria devolver uma resposta pela metade. Então a frase sai E a
+   conversa vai pra uma pessoa — que é o que deveria ter acontecido desde o começo. */
+const PROMESSA_DE_VOLTAR = /(deixa eu (ver|verificar|conferir|checar)|vou (verificar|conferir|checar|ver isso)|j[áa] (te )?(confirmo|retorno|falo|aviso)|s[óo] um momento|s[óo] um instante|um instante|aguarde? um|j[áa] volto|me d[áa] um minuto)/i;
+
+function semPromessaDeVoltar(texto){
+  const t = String(texto || '');
+  if (!PROMESSA_DE_VOLTAR.test(t)) return { texto: t, prometeu: false };
+  const frases = t.split(/(?<=[.!?\n])\s*/).filter(f => f.trim());
+  const restam = frases.filter(f => !PROMESSA_DE_VOLTAR.test(f));
+  const limpo = restam.join(' ').replace(/\s{2,}/g, ' ').trim();
+  const fecho = 'Vou passar pra alguém do time continuar com você por aqui.';
+  /* Se o que sobrou já avisa que vai passar pra alguém, não repete: "Vou chamar alguém do
+     time. Vou passar pra alguém do time continuar com você" é a mesma frase duas vezes. */
+  const jaAvisa = /(passar pra alguém|passar pra alguem|chamar alguém|chamar alguem|alguém do time|alguem do time|equipe vai|time vai)/i.test(limpo);
+  if (jaAvisa) return { texto: limpo, prometeu: true };
+  return { texto: limpo ? (limpo + ' ' + fecho) : fecho, prometeu: true };
 }
 
 /* Resposta que é SÓ emoji. Pra "obrigada" ela mandou "😊" e nada mais.
@@ -898,7 +943,11 @@ export default async function handler(req, res) {
     reply = semCupomInventado(
       paraWhatsApp(limparLinks(String(reply).split(MARCA_TRANSFERIR).join('').trim(), cfg)),
       cupomsPermitidos(cfg, faq));
-    const handoff = porTermo || porIntencao;
+    /* Prometeu voltar => não sabia responder => é caso de gente. A frase sai e a conversa
+       sobe pra fila, em vez de morrer esperando um "depois" que não existe. */
+    const semPromessa = semPromessaDeVoltar(reply);
+    reply = semPromessa.texto;
+    const handoff = porTermo || porIntencao || semPromessa.prometeu;
 
     await registrarUso({ conversa_id: conversaId, modelo: modeloUsado, handoff, ...saida.uso });
 
